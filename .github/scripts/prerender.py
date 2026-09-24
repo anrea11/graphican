@@ -8,11 +8,11 @@ Reads content/site.json (+ content/design.json) and writes, between marker comme
   * sitemap.xml with image entries
 
 Runs automatically on every content change via .github/workflows/prerender.yml,
-so edits made in /admin stay SEO-friendly. Safe to run locally: python3 tools/prerender.py
+so edits made in /admin stay SEO-friendly. Safe to run locally: python3 .github/scripts/prerender.py
 """
 import html, json, os, re, datetime
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 SITE = "https://graphican.online"
 TODAY = datetime.date.today().isoformat()
 

@@ -6,7 +6,7 @@ on:
     branches: [main]
     paths:
       - 'content/**'
-      - 'tools/prerender.py'
+      - '.github/scripts/prerender.py'
   workflow_dispatch:
 permissions:
   contents: write
@@ -18,7 +18,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: python3 tools/prerender.py
+      - run: python3 .github/scripts/prerender.py
       - name: Commit if changed
         run: |
           if git diff --quiet; then echo "nothing to update"; exit 0; fi
