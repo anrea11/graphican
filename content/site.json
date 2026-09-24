@@ -122,6 +122,169 @@
           }
         ],
         "link": ""
+      },
+      {
+        "image": "/assets/uploads/nomadabe-canton-fair.webp",
+        "video": "",
+        "name": "Nomadabe",
+        "type": "SOCIAL MEDIA / DIGITAL POSTER",
+        "description": "Canton Fair үзэсгэлэнгийн цар хүрээг гол тоонуудаар нэг харахад ойлгогдохуйц илэрхийлсэн сошиал постер.",
+        "details": "Nomadabe-ийн сошиал хуудсанд зориулсан мэдээллийн постер. Дэлхийн хамгийн том худалдааны үзэсгэлэнгийн нэг болох Canton Fair-ийн хэмжээг «194 өдөр», «1.55 сая м.кв» гэсэн тоонуудаар тодотгож, барилгын шөнийн гэрэлтүүлэгтэй хослуулсан.",
+        "gallery": [
+          {
+            "image": "/assets/uploads/nomadabe-canton-fair.webp",
+            "video": "",
+            "title": "Canton Fair — 194 өдөр",
+            "caption": "Бүх лангууг өдөрт 8 цаг алхаж үзэхэд 194 өдөр шаардлагатай гэсэн сонирхолтой баримтыг том шар тоогоор тодруулсан."
+          }
+        ],
+        "link": ""
+      },
+      {
+        "image": "/assets/uploads/novanest-tv-stand.webp",
+        "video": "/assets/uploads/novanest-intro.mp4",
+        "name": "Novanest",
+        "type": "BRANDING / DIGITAL POSTER / MOTION",
+        "description": "Nordic хэв маягийн тавилгын брэндийн лого анимаци болон «Modern Nordic life style» бүтээгдэхүүний постерын цуврал.",
+        "details": "Novanest Furniture-ийн брэндийн визуал. Гэрэлтэх шугамаар бүтдэг лого анимаци болон «Modern Nordic life style» цуврал бүтээгдэхүүний постерууд.\n\nГүн ногоон болон модны дулаан өнгийг брэндийн гол өнгө болгож, үнэ ба бүтээгдэхүүний нэрийг цэвэрхэн, тод харуулсан.",
+        "gallery": [
+          {
+            "image": "/assets/uploads/novanest-intro.jpg",
+            "video": "/assets/uploads/novanest-intro.mp4",
+            "title": "Лого анимаци",
+            "caption": "Ногоон долгион дээр гэрэлтэх шугамаар бүтэж гарч ирэх лого."
+          },
+          {
+            "image": "/assets/uploads/novanest-tv-stand.webp",
+            "video": "",
+            "title": "TV stand — зурагтын тавиур",
+            "caption": "2.2 метрийн хэмжээг ногоон суурь дээр тодруулсан бүтээгдэхүүний постер."
+          },
+          {
+            "image": "/assets/uploads/novanest-table.webp",
+            "video": "",
+            "title": "Table — ширээ",
+            "caption": "Гүн ногоон хананы өмнө гантиг тавцантай ширээг онцолсон."
+          },
+          {
+            "image": "/assets/uploads/novanest-dining-table.webp",
+            "video": "",
+            "title": "Dining table — хоолны ширээ",
+            "caption": "Гэрийн дулаан орчинд харуулсан хоолны ширээний иж бүрдэл."
+          }
+        ],
+        "link": ""
+      },
+      {
+        "image": "/assets/uploads/edusmart-document-camera.webp",
+        "video": "",
+        "name": "EduSmart",
+        "type": "BRANDING / PRINT / DIGITAL POSTER",
+        "description": "Боловсролын ухаалаг тоног төхөөрөмжийн брэндийн лого, өнгөний систем, брошюр болон бүтээгдэхүүний постерууд.",
+        "details": "EduSmart нь боловсролын байгууллагуудад ухаалаг самбар, сургалтын тоног төхөөрөмж нийлүүлдэг брэнд.\n\nТойрог замын гэрлээр «smart» гэдгийг илэрхийлсэн лого, тод улбар шар (#FF7A00) болон бараан саарал (#292929) өнгөний систем, гурван нугалаатай брошюр, бүтээгдэхүүний постеруудыг бүтээсэн.",
+        "gallery": [
+          {
+            "image": "/assets/uploads/edusmart-logo-colors.webp",
+            "video": "",
+            "title": "Лого ба өнгөний систем",
+            "caption": "Цагаан, тод улбар шар #FF7A00, саарал #292929 хувилбарууд."
+          },
+          {
+            "image": "/assets/uploads/edusmart-logo-mockup.webp",
+            "video": "",
+            "title": "Лого — хэвлэмэл хэрэглээ",
+            "caption": ""
+          },
+          {
+            "image": "/assets/uploads/edusmart-brochure.webp",
+            "video": "",
+            "title": "Гурван нугалаатай брошюр",
+            "caption": "«Ухаалаг сургалтын шийдэл» — үйлчилгээ, давуу талуудыг танилцуулсан брошюр."
+          },
+          {
+            "image": "/assets/uploads/edusmart-document-camera.webp",
+            "video": "",
+            "title": "Document camera — 10 megapixel",
+            "caption": ""
+          },
+          {
+            "image": "/assets/uploads/edusmart-smart-board.webp",
+            "video": "",
+            "title": "Smart board — ухаалаг сонголт",
+            "caption": "4K Ultra, 2000 nits ухаалаг самбарын постер."
+          }
+        ],
+        "link": ""
+      },
+      {
+        "image": "/assets/uploads/butafter-logo-light.webp",
+        "video": "",
+        "name": "ButAfter",
+        "type": "BRANDING / SIGNAGE / DIGITAL POSTER",
+        "description": "Үс, хуйхны эмчилгээний клиникийн лого, гадна хаяг болон бүтээгдэхүүний постерууд.",
+        "details": "ButAfter clinic expert — үс, хуйхны эмчилгээний клиник.\n\nБийрийн улаан тойрог, урсгал шугамт эмэгтэйн дүрс бүхий лого нь зүүн азийн уламжлалт мэдрэмжийг орчин үеийн цэвэрхэн хэлбэртэй хослуулсан. Цайвар ба бараан хувилбар, гадна хаяг, эмийн ургамлын тантай бүтээгдэхүүний сошиал постеруудыг бүтээсэн.",
+        "gallery": [
+          {
+            "image": "/assets/uploads/butafter-logo-light.webp",
+            "video": "",
+            "title": "Лого — цайвар хувилбар",
+            "caption": ""
+          },
+          {
+            "image": "/assets/uploads/butafter-logo-dark.webp",
+            "video": "",
+            "title": "Лого — бараан хувилбар",
+            "caption": ""
+          },
+          {
+            "image": "/assets/uploads/butafter-signage.webp",
+            "video": "",
+            "title": "Гадна хаяг",
+            "caption": ""
+          },
+          {
+            "image": "/assets/uploads/butafter-shampoo.webp",
+            "video": "",
+            "title": "Үс уналтын эсрэг шампунь, ангижуулагч",
+            "caption": "Эмийн ургамлын тантай бүтээгдэхүүний сошиал постер."
+          },
+          {
+            "image": "/assets/uploads/butafter-hair-care-set.webp",
+            "video": "",
+            "title": "Хуйхны тос, үсний үндэсний тэжээл",
+            "caption": "Эмийн ургамлын тантай арчилгааны иж бүрдэл."
+          }
+        ],
+        "link": ""
+      },
+      {
+        "image": "/assets/uploads/tru-business-card.webp",
+        "video": "/assets/uploads/tru-intro.mp4",
+        "name": "Tru",
+        "type": "BRANDING / VISUAL IDENTITY / MOTION",
+        "description": "Цэнхэр цэгтэй минимал үгэн лого, нэрийн хуудас болон лого анимаци.",
+        "details": "Tru. — цэвэрхэн, итгэл төрүүлэх минимал брэнд. Цэнхэр цэгтэй үгэн лого нь энгийн атлаа тодорхой байдлыг илэрхийлнэ.\n\nБараан, цагаан, цэнхэр гурван өнгөний хувилбар, нэрийн хуудас, «Pass through with tru.e» уриатай лого анимацийг бүтээсэн.",
+        "gallery": [
+          {
+            "image": "/assets/uploads/tru-intro.jpg",
+            "video": "/assets/uploads/tru-intro.mp4",
+            "title": "Лого анимаци",
+            "caption": "«Pass through with tru.e» — босоо форматын лого анимаци."
+          },
+          {
+            "image": "/assets/uploads/tru-logo.webp",
+            "video": "",
+            "title": "Лого — 3 өнгөний хувилбар",
+            "caption": "Бараан, цагаан, цэнхэр дэвсгэр дээрх хувилбарууд."
+          },
+          {
+            "image": "/assets/uploads/tru-business-card.webp",
+            "video": "",
+            "title": "Нэрийн хуудас",
+            "caption": ""
+          }
+        ],
+        "link": ""
       }
     ]
   },
@@ -138,6 +301,22 @@
         "type": "LOGO ANIMATION",
         "caption": "Хоёр брэндийн хамтын хөтөлбөрийн нээлтэд зориулсан интро анимаци.",
         "ratio": "16:9"
+      },
+      {
+        "video": "/assets/uploads/novanest-intro.mp4",
+        "poster": "/assets/uploads/novanest-intro.jpg",
+        "title": "Novanest Furniture",
+        "type": "LOGO ANIMATION",
+        "caption": "Гэрэлтэх шугамаар бүтэж гарч ирэх тавилгын брэндийн лого анимаци.",
+        "ratio": "16:9"
+      },
+      {
+        "video": "/assets/uploads/tru-intro.mp4",
+        "poster": "/assets/uploads/tru-intro.jpg",
+        "title": "Tru.",
+        "type": "LOGO ANIMATION",
+        "caption": "«Pass through with tru.e» — босоо форматын лого анимаци.",
+        "ratio": "9:16"
       }
     ]
   },
