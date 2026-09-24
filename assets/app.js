@@ -109,7 +109,7 @@
     var n = items.length;
     var cards = items.map(function (it, i) {
       return '<a class="rc" href="' + esc(it.href) + '" style="--i:' + i + '" aria-label="' + esc(it.name) + '" tabindex="-1">' +
-        '<img src="' + esc(it.src) + '" alt="" loading="eager" decoding="async"><span class="rc-light"></span></a>';
+        '<span class="rc-halo"></span><span class="rc-in"><img src="' + esc(it.src) + '" alt="' + esc(it.name) + ' — Graphican дизайн" loading="' + (i < 5 ? 'eager' : 'lazy') + '" decoding="async"><span class="rc-light"></span><span class="rc-sheen"></span><span class="rc-dark"></span></span></a>';
     }).join('');
     var portrait = h.portrait || '';
 
@@ -333,6 +333,7 @@
     var vids = (root || document).querySelectorAll('video[data-auto]');
     if (!vids.length) return;
     if (!('IntersectionObserver' in window) || reduceMotion) return; // posters stay; users can open them
+    if (window.matchMedia('(max-width:760px), (hover:none)').matches) return; // phones: posters only (smooth scrolling)
     var io = new IntersectionObserver(function (entries) {
       entries.forEach(function (e) {
         var v = e.target;
@@ -345,51 +346,64 @@
     vids.forEach(function (v) { v.muted = true; io.observe(v); });
   }
 
-  // 3D ring: JS-driven so it feels alive — per-card light, floating, mouse parallax, momentum
+  // 3D ring — cheap to animate: only transform + opacity change per frame (GPU-composited),
+  // so it stays smooth on phones. Light = opacity of overlay layers, not filters/shadows.
   function setupRing() {
     var ring = document.querySelector('.hero-v2 .ring');
     if (!ring) return;
-    var cards = Array.prototype.slice.call(ring.querySelectorAll('.rc'));
-    var n = cards.length, step = 360 / n, angle = 0, last = 0, visible = true, hoverCard = false;
-    var base = reduceMotion ? 0 : 360 / 42;          // one turn per ~42s
+    var cards = Array.prototype.slice.call(ring.querySelectorAll('.rc')).map(function (c) {
+      return { el: c, halo: c.querySelector('.rc-halo'), dark: c.querySelector('.rc-dark'), light: c.querySelector('.rc-light'), sheen: c.querySelector('.rc-sheen'), side: 0, vis: true };
+    });
+    var n = cards.length, step = 360 / n, angle = 0, last = 0, visible = true, hoverCard = false, R = 0;
+    var mobile = window.matchMedia('(max-width:760px), (hover:none)').matches;
+    var base = reduceMotion ? 0 : 360 / (mobile ? 55 : 42);
     var speed = base, tiltX = -4, tiltTarget = -4, nudge = 0, nudgeTarget = 0;
     var hero = ring.closest('.hero-v2');
+    function measure() {
+      var w = ring.offsetWidth, gap = parseFloat(getComputedStyle(ring).getPropertyValue('--gap')) || 26;
+      R = (w + gap) * n / (2 * Math.PI);
+    }
+    measure(); window.addEventListener('resize', measure);
     cards.forEach(function (c) {
-      c.addEventListener('mouseenter', function () { hoverCard = true; });
-      c.addEventListener('mouseleave', function () { hoverCard = false; });
+      c.el.addEventListener('mouseenter', function () { hoverCard = true; });
+      c.el.addEventListener('mouseleave', function () { hoverCard = false; });
     });
-    if (!reduceMotion && window.matchMedia('(hover:hover)').matches) {
+    if (!reduceMotion && !mobile) {
       hero.addEventListener('mousemove', function (e) {
         var r = hero.getBoundingClientRect();
-        var mx = (e.clientX - r.left) / r.width - .5, my = (e.clientY - r.top) / r.height - .5;
-        tiltTarget = -4 + my * -8; nudgeTarget = mx * 18;
+        tiltTarget = -4 + ((e.clientY - r.top) / r.height - .5) * -8;
+        nudgeTarget = ((e.clientX - r.left) / r.width - .5) * 18;
       });
       hero.addEventListener('mouseleave', function () { tiltTarget = -4; nudgeTarget = 0; });
     }
     if ('IntersectionObserver' in window) new IntersectionObserver(function (e) { visible = e[0].isIntersecting; }).observe(hero);
+    document.addEventListener('visibilitychange', function () { last = 0; });
     function paint(t) {
       tiltX += (tiltTarget - tiltX) * .06; nudge += (nudgeTarget - nudge) * .05;
       var view = angle + nudge;
       ring.style.transform = 'rotateX(' + tiltX.toFixed(2) + 'deg) rotateY(' + view.toFixed(2) + 'deg)';
       for (var i = 0; i < n; i++) {
-        var rel = ((i * step + view) % 360 + 540) % 360 - 180;
-        var a = Math.abs(rel), c = cards[i];
-        if (a > 115) { c.style.visibility = 'hidden'; continue; }
-        c.style.visibility = 'visible';
+        var c = cards[i];
+        var rel = ((i * step + view) % 360 + 540) % 360 - 180, a = Math.abs(rel);
+        var show = a <= 115;
+        if (show !== c.vis) { c.el.style.visibility = show ? 'visible' : 'hidden'; c.vis = show; }
+        if (!show) continue;
         var lit = Math.max(0, Math.cos(a * Math.PI / 180 * 0.7));
         var fade = a > 88 ? Math.max(0, 1 - (a - 88) / 27) : 1;
-        var bob = reduceMotion ? 0 : Math.sin(t / 1400 + i * 1.3) * 10;
-        c.style.opacity = fade.toFixed(3);
-        c.style.setProperty('--lit', lit.toFixed(3));
-        c.style.setProperty('--side', rel > 0 ? -1 : 1);
-        c.style.setProperty('--bob', bob.toFixed(1) + 'px');
-        c.style.setProperty('--sheen', (((t / 3200 + i * .37) % 1.6) - .3).toFixed(3));
+        var bob = (reduceMotion || mobile) ? 0 : Math.sin(t / 1400 + i * 1.3) * 10;
+        c.el.style.transform = 'rotateY(' + (i * step) + 'deg) translateZ(' + (-R).toFixed(1) + 'px) translateY(' + bob.toFixed(1) + 'px)';
+        c.el.style.opacity = fade.toFixed(3);
+        c.dark.style.opacity = (0.58 * (1 - lit)).toFixed(3);
+        c.halo.style.opacity = (0.15 + lit * 0.85).toFixed(3);
+        c.light.style.opacity = (0.35 + lit * 0.65).toFixed(3);
+        var side = rel > 0 ? -1 : 1;
+        if (side !== c.side) { c.light.style.transform = 'scaleX(' + side + ')'; c.side = side; }
+        if (!mobile) c.sheen.style.transform = 'translate3d(' + ((((t / 3200 + i * .37) % 1.6) - .3) * 100).toFixed(1) + '%,0,0)';
       }
     }
     function tick(t) {
       var dt = last ? Math.min(64, t - last) : 16; last = t;
-      var target = hoverCard ? 0 : base;
-      speed += (target - speed) * .05;               // ease in/out instead of hard stop
+      speed += ((hoverCard ? 0 : base) - speed) * .05;
       if (visible) { angle -= speed * dt / 1000; paint(t); }
       requestAnimationFrame(tick);
     }

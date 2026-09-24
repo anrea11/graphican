@@ -1155,3 +1155,39 @@ html.pd-open { overflow:hidden; }
 .marquee span.soft { filter:none; opacity:.28; }        /* blur on huge text was expensive */
 body::after { animation:none; inset:0; }                  /* static grain instead of full-screen jitter */
 .design-pill::after { animation:none; display:none; }
+
+/* ---------- ring v5: overlay-based lighting (fast on phones) ---------- */
+.hero-v2 .rc {
+  transform:none; overflow:visible; background:none; box-shadow:none;
+  -webkit-box-reflect:none; will-change:transform, opacity;
+}
+.hero-v2 .rc::before, .hero-v2 .rc::after { display:none; }
+.rc-in { position:absolute; inset:0; border-radius:18px; overflow:hidden; background:#07070b; box-shadow:0 0 0 1px rgba(164,151,255,.22), 0 40px 70px -30px #000; }
+.rc-in img { width:100%; height:100%; object-fit:cover; filter:none !important; }
+.rc-halo { position:absolute; inset:0; border-radius:18px; box-shadow:0 0 70px 6px rgba(109,86,250,.6), 0 0 0 1px rgba(164,151,255,.55); opacity:.2; will-change:opacity; }
+.rc-dark { position:absolute; inset:0; background:#000; opacity:.5; will-change:opacity; pointer-events:none; }
+.rc-sheen { position:absolute; inset:-30% -60%; pointer-events:none; background:linear-gradient(105deg, transparent 42%, rgba(231,227,253,.2) 50%, transparent 58%); will-change:transform; }
+.hero-v2 .rc-light { transform:none; }
+.hero-v2 .rc:hover .rc-dark { opacity:0 !important; }
+@media (min-width:761px) and (hover:hover) {
+  .rc-in { -webkit-box-reflect:below 10px linear-gradient(transparent 62%, rgba(255,255,255,.14)); }
+}
+
+/* ---------- phones: drop the expensive stuff ---------- */
+@media (max-width:760px), (hover:none) {
+  .fx .beam { filter:none !important; mix-blend-mode:normal !important; animation:none !important; }
+  .fx .b1 { background:radial-gradient(closest-side, rgba(129,109,251,.55), rgba(74,59,201,.25) 55%, transparent 100%); }
+  .fx .b2 { background:radial-gradient(closest-side, rgba(231,227,253,.55), rgba(129,109,251,.25) 50%, transparent 100%); }
+  .fx .b3 { background:radial-gradient(closest-side, rgba(117,102,242,.45), transparent 100%); }
+  .fx .ring { filter:none; }
+  .fx .lines .vl { filter:none; }
+  .fx .grain, .grain { display:none; }
+  body::after { display:none; }
+  .h2-glow { filter:none !important; }
+  .h2-portrait { filter:none !important; }
+  .rc-halo { box-shadow:0 0 0 1px rgba(164,151,255,.5), 0 0 26px 2px rgba(109,86,250,.5); }
+  .rc-sheen { display:none; }
+  .header.scrolled, .header.menu-open { backdrop-filter:none; -webkit-backdrop-filter:none; background:rgba(8,8,10,.94); }
+  .tag, .h-card figcaption { backdrop-filter:none; -webkit-backdrop-filter:none; }
+  .marquee-track { transition:none; }
+}
