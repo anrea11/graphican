@@ -213,7 +213,7 @@
       );
     }).join('');
     return (
-      '<section class="sec reels" id="reels">' + fx('reels') + sectionTop(r) +
+      '<section class="sec reels is-black" id="reels">' + sectionTop(r) +
         (tiles ? '<div class="reel-grid n' + Math.min(items.length, 3) + '">' + tiles + '</div>'
                : '<p class="empty reveal">Удахгүй видео нэмэгдэнэ.</p>') +
       '</section>'
@@ -278,7 +278,7 @@
       ? '<p class="quote">' + esc(a.title_line1) + ' <em>' + esc(a.title_highlight) + '</em> ' + esc(a.title_line2) + '</p>'
       : '';
     return (
-      '<section class="sec about has-fx" id="about">' + fx('alt-a') + '<div class="about-inner' + (photo ? ' has-photo' : '') + '">' +
+      '<section class="sec about is-black" id="about"><div class="about-inner' + (photo ? ' has-photo' : '') + '">' +
         photo +
         '<div class="about-copy reveal">' +
           '<div class="sec-meta"><span>' + esc(a.kicker) + '</span>' + (a.name_en ? '<span>' + esc(a.name_en) + '</span>' : '') + '</div>' +

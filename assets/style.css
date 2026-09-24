@@ -1145,3 +1145,7 @@ html.pd-open { overflow:hidden; }
 .fx-alt-a .b1, .fx-alt-b .b1 { opacity:.72; }
 .fx-alt-a .b2, .fx-alt-b .b2 { opacity:.6; }
 .sec.has-fx .sec-desc, .sec.has-fx .about-text, .sec.has-fx .s-body p, .sec.has-fx .p-desc { color:rgba(245,244,250,.78); text-shadow:0 1px 14px rgba(8,8,10,.6); }
+
+/* About + Video: plain black */
+.sec.is-black { background:#000; }
+.sec.is-black + .sec.is-black { border-top:1px solid rgba(255,255,255,.05); }

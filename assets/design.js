@@ -430,7 +430,7 @@
           '<div class="hero-copy">' +
             '<p class="lead">' + esc(h.text) + '</p>' +
             '<div class="chips">' +
-              '<a href="#fonts">Фонт</a><a href="#colors">Өнгө</a><a class="hot" href="#kit">Нэг товшилтоор татах ↓</a><a class="brand" href="#guide"><span class="dp-orb" aria-hidden="true"></span>Graphican брэнд гайд</a>' +
+              '<a href="#fonts">Фонт</a><a href="#colors">Өнгө</a><a class="hot" href="#kit">Нэг товшилтоор татах ↓</a><a href="#tools">PDF ⇄ PNG / JPG</a><a class="brand" href="#guide"><span class="dp-orb" aria-hidden="true"></span>Graphican брэнд гайд</a>' +
             '</div>' +
           '</div>' +
           '<div class="corner bl">01 TYPE · 02 COLOR · 03 KIT · 04 BRAND</div>' +
@@ -664,6 +664,242 @@
     );
   }
 
+  // ---------- PDF ⇄ PNG/JPG converter (everything runs in the browser) ----------
+
+  function tools(t) {
+    return (
+      '<section class="sec tools" id="tools">' + head(t) +
+        '<div class="tool-tabs reveal" role="tablist">' +
+          '<button type="button" class="tt active" data-tab="p2i" role="tab">PDF → PNG / JPG</button>' +
+          '<button type="button" class="tt" data-tab="i2p" role="tab">PNG / JPG → PDF</button>' +
+        '</div>' +
+
+        '<div class="tool reveal" data-panel="p2i">' +
+          '<label class="drop" data-drop="p2i">' +
+            '<input type="file" accept="application/pdf,.pdf" hidden>' +
+            '<span class="drop-ic" aria-hidden="true">PDF</span>' +
+            '<b>PDF файлаа энд чирж оруулна уу</b><span>эсвэл дарж сонгоно</span>' +
+          '</label>' +
+          '<div class="tool-opts">' +
+            '<label><span>Формат</span><select data-opt="fmt"><option value="png">PNG</option><option value="jpg">JPG</option></select></label>' +
+            '<label><span>Чанар / хэмжээ</span><select data-opt="scale"><option value="1">Энгийн (72 dpi)</option><option value="2" selected>Өндөр (144 dpi)</option><option value="3">Хэвлэх (216 dpi)</option><option value="4">Маш өндөр (288 dpi)</option></select></label>' +
+            '<button type="button" class="btn solid" data-act="p2i-all" disabled>Бүгдийг ZIP-ээр татах ↓</button>' +
+          '</div>' +
+          '<p class="tool-status" data-status="p2i"></p>' +
+          '<div class="thumbs" data-out="p2i"></div>' +
+        '</div>' +
+
+        '<div class="tool reveal" data-panel="i2p" hidden>' +
+          '<label class="drop" data-drop="i2p">' +
+            '<input type="file" accept="image/png,image/jpeg,image/webp" multiple hidden>' +
+            '<span class="drop-ic" aria-hidden="true">IMG</span>' +
+            '<b>PNG / JPG зургуудаа энд чирж оруулна уу</b><span>олон зураг зэрэг сонгож болно · дарааллыг чирж солино</span>' +
+          '</label>' +
+          '<div class="tool-opts">' +
+            '<label><span>Хуудасны хэмжээ</span><select data-opt="page"><option value="fit">Зургийн хэмжээгээр</option><option value="a4">A4 босоо</option><option value="a4l">A4 хэвтээ</option></select></label>' +
+            '<label><span>Захын зай</span><select data-opt="margin"><option value="0">Байхгүй</option><option value="20" selected>Жижиг</option><option value="40">Дунд</option></select></label>' +
+            '<button type="button" class="btn solid" data-act="i2p-make" disabled>PDF үүсгэж татах ↓</button>' +
+            '<button type="button" class="btn ghost" data-act="i2p-clear" disabled>Цэвэрлэх</button>' +
+          '</div>' +
+          '<p class="tool-status" data-status="i2p"></p>' +
+          '<div class="thumbs sortable" data-out="i2p"></div>' +
+        '</div>' +
+
+        '<p class="tool-note reveal">🔒 Файлууд тань серверт илгээгдэхгүй — бүх хөрвүүлэлт таны төхөөрөмж дээр, хөтөч дотор хийгдэнэ.</p>' +
+      '</section>'
+    );
+  }
+
+  var pdfjsP = null, pdflibP = null;
+  function loadPdfJs() {
+    if (!pdfjsP) pdfjsP = import('/assets/vendor/pdf.min.mjs').then(function (m) {
+      m.GlobalWorkerOptions.workerSrc = '/assets/vendor/pdf.worker.min.mjs';
+      return m;
+    });
+    return pdfjsP;
+  }
+  function loadPdfLib() {
+    if (!pdflibP) pdflibP = new Promise(function (res, rej) {
+      if (window.PDFLib) return res(window.PDFLib);
+      var s = document.createElement('script');
+      s.src = '/assets/vendor/pdf-lib.min.js';
+      s.onload = function () { res(window.PDFLib); };
+      s.onerror = rej;
+      document.head.appendChild(s);
+    });
+    return pdflibP;
+  }
+  function baseName(n) { return String(n || 'file').replace(/\.[^.]+$/, '').replace(/[^\w\-Ѐ-ӿ]+/g, '_').slice(0, 60) || 'file'; }
+  function canvasBlob(c, type, q) { return new Promise(function (r) { c.toBlob(r, type, q); }); }
+
+  function setupTools() {
+    var root = document.getElementById('tools');
+    if (!root) return;
+    function $(sel) { return root.querySelector(sel); }
+
+    // tabs
+    root.querySelectorAll('.tt').forEach(function (b) {
+      b.addEventListener('click', function () {
+        root.querySelectorAll('.tt').forEach(function (x) { x.classList.toggle('active', x === b); });
+        root.querySelectorAll('[data-panel]').forEach(function (p) { p.hidden = p.getAttribute('data-panel') !== b.getAttribute('data-tab'); });
+      });
+    });
+
+    // drop zones
+    function wireDrop(key, onFiles) {
+      var d = $('[data-drop="' + key + '"]'), inp = d.querySelector('input');
+      inp.addEventListener('change', function () { if (inp.files.length) onFiles(Array.from(inp.files)); inp.value = ''; });
+      ['dragenter', 'dragover'].forEach(function (ev) { d.addEventListener(ev, function (e) { e.preventDefault(); d.classList.add('over'); }); });
+      ['dragleave', 'drop'].forEach(function (ev) { d.addEventListener(ev, function (e) { e.preventDefault(); d.classList.remove('over'); }); });
+      d.addEventListener('drop', function (e) { if (e.dataTransfer.files.length) onFiles(Array.from(e.dataTransfer.files)); });
+    }
+
+    // ---- PDF → images
+    var pdfDoc = null, pdfName = 'document', rendered = [];
+    var st1 = $('[data-status="p2i"]'), out1 = $('[data-out="p2i"]'), allBtn = $('[data-act="p2i-all"]');
+    function fmt() { return $('[data-opt="fmt"]').value; }
+    function scale() { return +$('[data-opt="scale"]').value; }
+
+    function renderPage(i) {
+      return pdfDoc.getPage(i).then(function (page) {
+        var vp = page.getViewport({ scale: scale() });
+        var c = document.createElement('canvas');
+        c.width = Math.floor(vp.width); c.height = Math.floor(vp.height);
+        var ctx = c.getContext('2d');
+        ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, c.width, c.height); // JPG has no transparency
+        return page.render({ canvasContext: ctx, viewport: vp }).promise.then(function () { return c; });
+      });
+    }
+    function pageBlob(c) { return fmt() === 'jpg' ? canvasBlob(c, 'image/jpeg', .92) : canvasBlob(c, 'image/png'); }
+    function fileName(i) { return pdfName + '-' + pad(i) + '.' + fmt(); }
+
+    function renderAll() {
+      if (!pdfDoc) return;
+      var n = pdfDoc.numPages, i = 0;
+      rendered = []; out1.innerHTML = ''; allBtn.disabled = true;
+      function next() {
+        i++;
+        if (i > n) { st1.textContent = n + ' хуудас бэлэн. Зураг дээр дарж тус тусад нь, эсвэл бүгдийг ZIP-ээр татна.'; allBtn.disabled = false; return; }
+        st1.textContent = 'Хуудас ' + i + ' / ' + n + ' хөрвүүлж байна…';
+        return renderPage(i).then(function (c) {
+          rendered.push(c);
+          var k = i;
+          var fig = document.createElement('button');
+          fig.type = 'button'; fig.className = 'thumb';
+          fig.innerHTML = '<span class="th-n">' + pad(k) + '</span><span class="th-dl">↓ ' + fmt().toUpperCase() + '</span>';
+          var img = new Image(); img.src = c.toDataURL('image/jpeg', .6); img.alt = 'Хуудас ' + k;
+          fig.insertBefore(img, fig.firstChild);
+          fig.addEventListener('click', function () {
+            pageBlob(c).then(function (b) { saveBlob(fileName(k), b); toast(fileName(k) + ' татагдлаа'); });
+          });
+          out1.appendChild(fig);
+          return new Promise(function (r) { setTimeout(r, 0); }).then(next);
+        });
+      }
+      next();
+    }
+
+    wireDrop('p2i', function (files) {
+      var f = files.find(function (x) { return /pdf$/i.test(x.type) || /\.pdf$/i.test(x.name); });
+      if (!f) { toast('PDF файл сонгоно уу'); return; }
+      pdfName = baseName(f.name);
+      st1.textContent = 'PDF уншиж байна…';
+      Promise.all([loadPdfJs(), f.arrayBuffer()]).then(function (r) {
+        return r[0].getDocument({ data: new Uint8Array(r[1]) }).promise;
+      }).then(function (doc) { pdfDoc = doc; renderAll(); })
+        .catch(function (e) { console.error(e); st1.textContent = 'PDF-ийг уншиж чадсангүй. Нууц үгтэй эсвэл гэмтсэн файл байж магадгүй.'; });
+    });
+    root.querySelectorAll('[data-opt="fmt"], [data-opt="scale"]').forEach(function (s) { s.addEventListener('change', renderAll); });
+    allBtn.addEventListener('click', function () {
+      if (!rendered.length) return;
+      allBtn.disabled = true; st1.textContent = 'ZIP бэлтгэж байна…';
+      Promise.all(rendered.map(function (c, k) {
+        return pageBlob(c).then(function (b) { return b.arrayBuffer(); }).then(function (ab) { return { name: fileName(k + 1), data: new Uint8Array(ab) }; });
+      })).then(function (files) {
+        saveBlob(pdfName + '-' + fmt() + '.zip', makeZip(files));
+        st1.textContent = rendered.length + ' зураг ZIP-ээр татагдлаа.'; allBtn.disabled = false;
+      });
+    });
+
+    // ---- images → PDF
+    var imgs = []; // {name, url, file}
+    var st2 = $('[data-status="i2p"]'), out2 = $('[data-out="i2p"]'), makeBtn = $('[data-act="i2p-make"]'), clrBtn = $('[data-act="i2p-clear"]');
+    function drawList() {
+      out2.innerHTML = '';
+      imgs.forEach(function (it, k) {
+        var d = document.createElement('div');
+        d.className = 'thumb'; d.draggable = true; d.dataset.k = k;
+        d.innerHTML = '<img src="' + it.url + '" alt=""><span class="th-n">' + pad(k + 1) + '</span><button type="button" class="th-x" aria-label="Хасах">✕</button>';
+        d.querySelector('.th-x').addEventListener('click', function (e) { e.stopPropagation(); URL.revokeObjectURL(it.url); imgs.splice(k, 1); drawList(); });
+        d.addEventListener('dragstart', function (e) { e.dataTransfer.setData('text/plain', k); d.classList.add('dragging'); });
+        d.addEventListener('dragend', function () { d.classList.remove('dragging'); });
+        d.addEventListener('dragover', function (e) { e.preventDefault(); });
+        d.addEventListener('drop', function (e) {
+          e.preventDefault(); e.stopPropagation();
+          var from = +e.dataTransfer.getData('text/plain'); if (isNaN(from) || from === k) return;
+          var m = imgs.splice(from, 1)[0]; imgs.splice(k, 0, m); drawList();
+        });
+        out2.appendChild(d);
+      });
+      makeBtn.disabled = clrBtn.disabled = !imgs.length;
+      st2.textContent = imgs.length ? imgs.length + ' зураг · дарааллыг чирж солино' : '';
+    }
+    wireDrop('i2p', function (files) {
+      var ok = files.filter(function (f) { return /^image\/(png|jpe?g|webp)$/i.test(f.type); });
+      if (!ok.length) { toast('PNG эсвэл JPG зураг сонгоно уу'); return; }
+      ok.forEach(function (f) { imgs.push({ name: f.name, url: URL.createObjectURL(f), file: f }); });
+      drawList();
+    });
+    clrBtn.addEventListener('click', function () { imgs.forEach(function (i) { URL.revokeObjectURL(i.url); }); imgs = []; drawList(); });
+
+    function toEmbeddable(it) { // webp (and odd files) → png via canvas
+      if (/png|jpe?g/i.test(it.file.type)) return it.file.arrayBuffer().then(function (b) { return { bytes: b, png: /png/i.test(it.file.type) }; });
+      return new Promise(function (res, rej) {
+        var im = new Image();
+        im.onload = function () {
+          var c = document.createElement('canvas'); c.width = im.naturalWidth; c.height = im.naturalHeight;
+          c.getContext('2d').drawImage(im, 0, 0);
+          canvasBlob(c, 'image/png').then(function (b) { return b.arrayBuffer(); }).then(function (b) { res({ bytes: b, png: true }); });
+        };
+        im.onerror = rej; im.src = it.url;
+      });
+    }
+
+    makeBtn.addEventListener('click', function () {
+      if (!imgs.length) return;
+      makeBtn.disabled = true; st2.textContent = 'PDF үүсгэж байна…';
+      var pageOpt = $('[data-opt="page"]').value, margin = +$('[data-opt="margin"]').value;
+      loadPdfLib().then(function (L) {
+        return L.PDFDocument.create().then(function (doc) {
+          var chain = Promise.resolve();
+          imgs.forEach(function (it, k) {
+            chain = chain.then(function () {
+              st2.textContent = 'Зураг ' + (k + 1) + ' / ' + imgs.length + '…';
+              return toEmbeddable(it).then(function (e) { return e.png ? doc.embedPng(e.bytes) : doc.embedJpg(e.bytes); })
+                .then(function (img) {
+                  var W, H;
+                  if (pageOpt === 'a4') { W = 595.28; H = 841.89; }
+                  else if (pageOpt === 'a4l') { W = 841.89; H = 595.28; }
+                  else { W = img.width + margin * 2; H = img.height + margin * 2; }
+                  var page = doc.addPage([W, H]);
+                  var s = Math.min((W - margin * 2) / img.width, (H - margin * 2) / img.height);
+                  if (pageOpt === 'fit') s = 1;
+                  var w = img.width * s, h = img.height * s;
+                  page.drawImage(img, { x: (W - w) / 2, y: (H - h) / 2, width: w, height: h });
+                });
+            });
+          });
+          return chain.then(function () { return doc.save(); });
+        });
+      }).then(function (bytes) {
+        var name = (imgs.length === 1 ? baseName(imgs[0].name) : 'graphican-images') + '.pdf';
+        saveBlob(name, new Blob([bytes], { type: 'application/pdf' }));
+        st2.textContent = imgs.length + ' зурагтай PDF татагдлаа.'; toast(name + ' татагдлаа');
+      }).catch(function (e) { console.error(e); st2.textContent = 'PDF үүсгэхэд алдаа гарлаа. Өөр зураг туршаад үзээрэй.'; })
+        .then(function () { makeBtn.disabled = !imgs.length; });
+    });
+  }
+
   function footer() {
     return '<footer class="footer"><span>© ' + new Date().getFullYear() + ' GRAPHICAN</span><span class="mark" aria-hidden="true"></span><a href="/">← graphican.online</a></footer>';
   }
@@ -830,10 +1066,11 @@
         if (m && d.seo.description) m.setAttribute('content', d.seo.description);
       }
       var html = hero(d.hero || {}) + fonts(d.fonts || {}) + palettes(d.palettes || {});
-      html += builder(d.builder || {}) + guide(d.guide || {}) + footer();
+      html += builder(d.builder || {}) + tools(d.tools || {}) + guide(d.guide || {}) + footer();
       app.innerHTML = html;
       enhance();
       setupKit(d);
+      setupTools();
     })
     .catch(function (err) {
       console.error(err);
