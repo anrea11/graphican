@@ -79,53 +79,67 @@
 
   // ---------- sections ----------
 
-  function hero(h) {
-    var kick = list(h.kicker);
+  // Collect work images for the rotating 3D ring (round-robin across projects so it stays varied)
+  function ringItems(projects, h, max) {
+    var lists = projects.map(function (p, i) {
+      var href = '#project/' + slug(p, i);
+      var imgs = [p.image].concat(list(p.gallery).map(function (g) { return g.image; }))
+        .filter(function (src, k, arr) { return src && !isVideo(src) && arr.indexOf(src) === k; });
+      return imgs.map(function (src) { return { src: src, href: href, name: p.name }; });
+    });
+    var out = [], seen = {}, level = 0, added = true;
+    while (out.length < max && added) {
+      added = false;
+      lists.forEach(function (l) {
+        if (out.length < max && l[level] && !seen[l[level].src]) { seen[l[level].src] = 1; out.push(l[level]); added = true; }
+      });
+      level++;
+    }
+    [h.poster_main, h.poster_left, h.poster_right].forEach(function (p) {
+      if (p && p.image && !seen[p.image] && out.length < max) { seen[p.image] = 1; out.push({ src: p.image, href: '#work', name: p.label || '' }); }
+    });
+    return out;
+  }
+
+  function hero(h, projects) {
     var stats = list(h.stats).map(function (s) {
       return '<div class="stat"><b>' + esc(s.value) + '</b><span>' + esc(s.label) + '</span></div>';
     }).join('');
-
-    var card = function (p, cls, video) {
-      p = p || {};
-      var inner = video
-        ? media(video, { auto: true, poster: p.image, alt: p.alt || p.label })
-        : media(p.image, { alt: p.alt || p.label });
-      if (!inner) return '';
-      return '<figure class="h-card ' + cls + '">' + inner +
-        (p.label ? '<figcaption>' + esc(p.label) + '</figcaption>' : '') + '</figure>';
-    };
+    var items = ringItems(projects || [], h, 14);
+    var n = items.length;
+    var cards = items.map(function (it, i) {
+      return '<a class="rc" href="' + esc(it.href) + '" style="--i:' + i + '" aria-label="' + esc(it.name) + '" tabindex="-1">' +
+        '<img src="' + esc(it.src) + '" alt="" loading="' + (i < 6 ? 'eager' : 'lazy') + '" decoding="async"></a>';
+    }).join('');
+    var portrait = h.portrait || '';
 
     return (
-      '<section class="hero" id="home">' +
+      '<section class="hero hero-v2" id="home">' +
         fx('hero') +
-        '<div class="frame">' +
+        '<div class="h2">' +
           '<div class="corner tl">' + esc(h.artist_name || 'Graphican') + (h.artist_role ? ' — ' + esc(h.artist_role) : '') + '</div>' +
           '<div class="corner tr">DESIGN <span class="plus">+</span></div>' +
-          '<div class="hero-center">' +
-            (kick.length ? '<div class="kicker">' + kick.map(esc).join('<i></i>') + '</div>' : '') +
-            '<h1 class="mega" aria-label="' + esc((h.title_line1 || '') + ' ' + (h.title_line2 || '')) + '">' +
-              '<span class="line">' + blurText(h.title_line1, 0.75) + '</span>' +
-              '<span class="line l2">' + blurText(h.title_line2, 0.4) + '<span class="dot"></span></span>' +
+          '<div class="h2-copy">' +
+            '<p class="h2-eyebrow">' + esc(h.tagline_line1) + ' ' +
+              (h.tagline_highlight ? '<em>' + esc(h.tagline_highlight) + '</em> ' : '') + esc(h.tagline_rest) + '</p>' +
+            '<h1 class="mega h2-title" aria-label="' + esc((h.title_line1 || '') + ' ' + (h.title_line2 || '')) + '">' +
+              '<span class="line">' + blurText(h.title_line1, 0.6) + '</span> ' +
+              '<span class="line l2">' + blurText(h.title_line2, 0.35) + '<span class="dot"></span></span>' +
             '</h1>' +
-          '</div>' +
-          '<div class="hero-bottom">' +
-            '<div class="hero-copy">' +
-              '<p class="tagline">' + esc(h.tagline_line1) + ' ' +
-                (h.tagline_highlight ? '<em>' + esc(h.tagline_highlight) + '</em> ' : '') + esc(h.tagline_rest) + '</p>' +
-              '<p class="lead">' + esc(h.description) + '</p>' +
-              '<div class="actions">' +
-                '<a class="btn solid" href="#work">' + esc(h.primary_button) + ' <span aria-hidden="true">→</span></a>' +
-                '<a class="btn" href="#reels">Видео үзэх <span aria-hidden="true">▶</span></a>' +
-              '</div>' +
-            '</div>' +
-            '<div class="h-stack">' +
-              card(h.poster_left, 'c-left') +
-              card(h.poster_right, 'c-right') +
-              card(h.poster_main, 'c-main', h.video) +
+            '<p class="lead">' + esc(h.description) + '</p>' +
+            '<div class="actions">' +
+              '<a class="btn solid" href="#work"><span class="btn-orb" aria-hidden="true">→</span>' + esc(h.primary_button) + '</a>' +
+              '<a class="btn" href="#reels">Видео үзэх <span aria-hidden="true">▶</span></a>' +
             '</div>' +
           '</div>' +
-          '<div class="corner bl stats">' + stats + '</div>' +
-          '<div class="corner br">' + YEAR + '<br>PORTFOLIO</div>' +
+          '<div class="h2-stage">' +
+            (n ? '<div class="ring-wrap" aria-hidden="true"><div class="ring" style="--n:' + n + '">' + cards + '</div></div>' : '') +
+            '<div class="h2-glow" aria-hidden="true"></div>' +
+            (portrait ? '<img class="h2-portrait" src="' + esc(portrait) + '" alt="' + esc(h.artist_name || '') + '" fetchpriority="high">' : '') +
+            '<div class="h2-floor" aria-hidden="true"></div>' +
+            '<div class="corner bl stats">' + stats + '</div>' +
+            '<div class="corner br">' + YEAR + '<br>PORTFOLIO</div>' +
+          '</div>' +
         '</div>' +
       '</section>'
     );
@@ -525,7 +539,7 @@
       }
       var reelItems = list((d.reels || {}).items).filter(function (it) { return it && it.video; });
       app.innerHTML =
-        hero(d.hero || {}) +
+        hero(d.hero || {}, list((d.work || {}).projects)) +
         marquee(d.marquee) +
         work(d.work || {}) +
         reels(d.reels || {}) +

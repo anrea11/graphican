@@ -66,6 +66,7 @@ collections:
               - { name: secondary_button, label: "Хоёр дахь товч", widget: string }
               - { name: artist_name, label: "Нэр", widget: string }
               - { name: artist_role, label: "Албан тушаал (англиар)", widget: string }
+              - { name: portrait, label: "Миний зураг (дэвсгэргүй PNG/WebP)", widget: image, required: false, hint: "Hero-ийн төвд гарна. Дэвсгэрийг нь авсан (тунгалаг) зураг хамгийн сайн харагдана." }
               - name: stats
                 label: "Тоон үзүүлэлт"
                 widget: list
