@@ -1107,3 +1107,24 @@ html.pd-open { overflow:hidden; }
 .hero-v2 .h2-glow { background:radial-gradient(closest-side at 50% 55%, rgba(164,151,255,.42), rgba(109,86,250,.3) 32%, rgba(52,34,158,.14) 60%, transparent 82%); filter:blur(40px); }
 /* photo is already dark with violet rim light — let it speak */
 .hero-v2 .h2-portrait { filter:drop-shadow(0 0 12px rgba(109,86,250,.35)) brightness(1.08) contrast(1.04); left:54%; }
+
+/* ---------- ring v4: alive ---------- */
+.hero-v2:hover .ring { animation-play-state:running; }
+.hero-v2 .rc {
+  transform:rotateY(calc(360deg / var(--n) * var(--i))) translateZ(calc(-1 * var(--r))) translateY(var(--bob, 0px));
+  -webkit-box-reflect:below 10px linear-gradient(transparent 62%, rgba(255,255,255,.16));
+  box-shadow:
+    0 0 0 1px rgba(164,151,255, calc(.12 + var(--lit) * .5)),
+    0 0 calc(18px + var(--lit) * 70px) calc(var(--lit) * 6px) rgba(109,86,250, calc(.1 + var(--lit) * .6)),
+    0 40px 70px -30px #000;
+}
+.hero-v2 .rc img { filter:saturate(calc(.75 + var(--lit) * .45)) brightness(calc(.42 + var(--lit) * .6)) contrast(1.06); }
+.hero-v2 .rc::before { /* moving glossy sheen */
+  content:""; position:absolute; inset:-30% -60%; z-index:2; pointer-events:none;
+  background:linear-gradient(105deg, transparent 42%, rgba(231,227,253,.22) 50%, transparent 58%);
+  transform:translateX(calc(var(--sheen, -1) * 100%));
+  mix-blend-mode:screen;
+}
+.hero-v2 .rc:hover { box-shadow:0 0 0 1.5px #a497ff, 0 0 90px 10px rgba(109,86,250,.7), 0 40px 70px -30px #000; }
+.hero-v2 .rc:hover img { filter:saturate(1.1) brightness(1.05); }
+.rc-light { opacity:calc(.35 + var(--lit) * .65); }

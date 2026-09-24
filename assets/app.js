@@ -345,38 +345,55 @@
     vids.forEach(function (v) { v.muted = true; io.observe(v); });
   }
 
-  // 3D ring: JS-driven so each card gets realistic light (violet glow from the centre, dark at the sides)
+  // 3D ring: JS-driven so it feels alive — per-card light, floating, mouse parallax, momentum
   function setupRing() {
     var ring = document.querySelector('.hero-v2 .ring');
     if (!ring) return;
     var cards = Array.prototype.slice.call(ring.querySelectorAll('.rc'));
-    var n = cards.length, step = 360 / n, angle = 0, last = 0, paused = false, visible = true;
-    var speed = reduceMotion ? 0 : 360 / 80; // one turn per 80s
+    var n = cards.length, step = 360 / n, angle = 0, last = 0, visible = true, hoverCard = false;
+    var base = reduceMotion ? 0 : 360 / 42;          // one turn per ~42s
+    var speed = base, tiltX = -4, tiltTarget = -4, nudge = 0, nudgeTarget = 0;
     var hero = ring.closest('.hero-v2');
-    hero.addEventListener('mouseenter', function () { paused = true; });
-    hero.addEventListener('mouseleave', function () { paused = false; });
+    cards.forEach(function (c) {
+      c.addEventListener('mouseenter', function () { hoverCard = true; });
+      c.addEventListener('mouseleave', function () { hoverCard = false; });
+    });
+    if (!reduceMotion && window.matchMedia('(hover:hover)').matches) {
+      hero.addEventListener('mousemove', function (e) {
+        var r = hero.getBoundingClientRect();
+        var mx = (e.clientX - r.left) / r.width - .5, my = (e.clientY - r.top) / r.height - .5;
+        tiltTarget = -4 + my * -8; nudgeTarget = mx * 18;
+      });
+      hero.addEventListener('mouseleave', function () { tiltTarget = -4; nudgeTarget = 0; });
+    }
     if ('IntersectionObserver' in window) new IntersectionObserver(function (e) { visible = e[0].isIntersecting; }).observe(hero);
-    function paint() {
-      ring.style.transform = 'rotateX(-4deg) rotateY(' + angle + 'deg)';
+    function paint(t) {
+      tiltX += (tiltTarget - tiltX) * .06; nudge += (nudgeTarget - nudge) * .05;
+      var view = angle + nudge;
+      ring.style.transform = 'rotateX(' + tiltX.toFixed(2) + 'deg) rotateY(' + view.toFixed(2) + 'deg)';
       for (var i = 0; i < n; i++) {
-        var rel = ((i * step + angle) % 360 + 540) % 360 - 180; // 0 = straight ahead (behind the portrait)
+        var rel = ((i * step + view) % 360 + 540) % 360 - 180;
         var a = Math.abs(rel), c = cards[i];
-        if (a > 112) { c.style.opacity = 0; c.style.visibility = 'hidden'; continue; }
+        if (a > 115) { c.style.visibility = 'hidden'; continue; }
         c.style.visibility = 'visible';
-        var lit = Math.max(0, Math.cos(a * Math.PI / 180 * 0.85));
-        var fade = a > 80 ? Math.max(0, 1 - (a - 80) / 32) : 1;
+        var lit = Math.max(0, Math.cos(a * Math.PI / 180 * 0.7));
+        var fade = a > 88 ? Math.max(0, 1 - (a - 88) / 27) : 1;
+        var bob = reduceMotion ? 0 : Math.sin(t / 1400 + i * 1.3) * 10;
         c.style.opacity = fade.toFixed(3);
         c.style.setProperty('--lit', lit.toFixed(3));
         c.style.setProperty('--side', rel > 0 ? -1 : 1);
+        c.style.setProperty('--bob', bob.toFixed(1) + 'px');
+        c.style.setProperty('--sheen', (((t / 3200 + i * .37) % 1.6) - .3).toFixed(3));
       }
     }
     function tick(t) {
       var dt = last ? Math.min(64, t - last) : 16; last = t;
-      if (!paused && visible && speed) angle -= speed * dt / 1000;
-      paint();
+      var target = hoverCard ? 0 : base;
+      speed += (target - speed) * .05;               // ease in/out instead of hard stop
+      if (visible) { angle -= speed * dt / 1000; paint(t); }
       requestAnimationFrame(tick);
     }
-    paint();
+    paint(0);
     requestAnimationFrame(tick);
   }
 
