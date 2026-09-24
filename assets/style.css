@@ -1191,3 +1191,8 @@ body::after { animation:none; inset:0; }                  /* static grain instea
   .tag, .h-card figcaption { backdrop-filter:none; -webkit-backdrop-filter:none; }
   .marquee-track { transition:none; }
 }
+
+/* static SEO copy: visible without JS, replaced by the app with JS */
+.js-on .seo-static { position:absolute; width:1px; height:1px; overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; }
+.seo-static { max-width:900px; margin:120px auto; padding:0 var(--gutter); color:var(--muted); }
+.seo-static img { max-width:240px; height:auto; }

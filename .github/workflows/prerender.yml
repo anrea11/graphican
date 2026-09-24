@@ -1,0 +1,29 @@
+name: SEO prerender
+# Keeps the crawlable HTML copy, meta tags, JSON-LD and sitemap in sync
+# whenever content is edited (e.g. from /admin).
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'content/**'
+      - 'tools/prerender.py'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  prerender:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python3 tools/prerender.py
+      - name: Commit if changed
+        run: |
+          if git diff --quiet; then echo "nothing to update"; exit 0; fi
+          git config user.name "graphican-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add index.html design/index.html sitemap.xml
+          git commit -m "SEO: prerender шинэчлэв"
+          git push
