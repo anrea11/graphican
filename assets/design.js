@@ -568,8 +568,8 @@
       }).join('');
       return (
         '<div class="fgroup">' +
-          '<div class="fgroup-head reveal"><h3>' + esc(g.name) + '</h3><span>' + esc(g.name_en) + ' · ' + list(g.items).length + '</span></div>' +
-          '<div class="fp-grid">' + cards + '</div>' +
+          '<div class="fgroup-head reveal"><h3>' + esc(g.name) + '</h3><span>' + esc(g.name_en) + ' · ' + list(g.items).length + '</span><em class="swipe">гүйлгэх →</em></div>' +
+          '<div class="hscroll fp-grid">' + cards + '</div>' +
         '</div>'
       );
     }).join('');
@@ -613,7 +613,7 @@
         '</article>'
       );
     }).join('');
-    return '<section class="sec palettes" id="colors">' + head(ps) + '<div class="pal-grid">' + cards + '</div></section>';
+    return '<section class="sec palettes" id="colors">' + head(ps) + '<p class="swipe-hint">' + list(ps.items).length + ' хослол · хажуу тийш гүйлгэнэ →</p><div class="hscroll pal-grid">' + cards + '</div></section>';
   }
 
   function builder(b) {

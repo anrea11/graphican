@@ -400,3 +400,19 @@
   .grads .grad { height:44px; }
   .moodboard figcaption { padding:10px 12px; }
 }
+
+/* ---------- v8: fonts + palettes swipe on phones too ---------- */
+.swipe-hint { display:none; }
+@media (max-width:760px) {
+  .fgroup-head { align-items:center; }
+  .fgroup-head .swipe { display:inline; margin-left:auto; }
+  .fgroup-head span { order:3; width:100%; }
+  .swipe-hint { display:block; margin:-12px 0 16px; font:500 11px/1 var(--body); letter-spacing:.06em; color:var(--v2); }
+  .hscroll.fp-grid > * { width:84%; }
+  .hscroll.pal-grid > * { width:80%; }
+  .hscroll > .reveal { opacity:1 !important; transform:none !important; }
+  .fp-aa { font-size:64px; }
+  .fgroup + .fgroup { margin-top:40px; }
+}
+.fgroup-head .swipe { font-style:normal; font:500 11px/1 var(--body); letter-spacing:.06em; color:var(--v2); display:none; }
+@media (max-width:760px) { .fgroup-head .swipe { display:inline; } .fgroup-head h3 { font-size:22px; } }
