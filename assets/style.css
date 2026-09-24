@@ -32,6 +32,8 @@
 }
 
 * { box-sizing:border-box; margin:0; padding:0; }
+/* hidden elements (e.g. the closed project modal) must never block the page */
+[hidden] { display:none !important; }
 html { scroll-behavior:smooth; }
 body {
   background:var(--bg);
