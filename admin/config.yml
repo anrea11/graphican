@@ -307,9 +307,10 @@ collections:
                 label_singular: "Багц"
                 widget: list
                 summary: "{{name}}"
-                hint: "Эхний өнгө = дэвсгэр, 2-р = текст, 3-р = акцент 1, 4-р = акцент 2"
+                hint: "1-р өнгө = дэвсгэр, 2-р = текст, 3-р = акцент 1 (товч), 4-р = акцент 2, 5-р = гадаргуу (карт)"
                 fields:
                   - { name: name, label: "Нэр", widget: string }
+                  - { name: desc, label: "Хаана тохирох вэ", widget: string, required: false }
                   - name: colors
                     label: "Өнгөнүүд"
                     label_singular: "Өнгө"

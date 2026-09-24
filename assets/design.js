@@ -97,9 +97,10 @@
   // single: only one weight exists, cyr: has Cyrillic (Mongolian) letters, serif, paid note.
   var FONTS = {
     'Sora': {}, 'Manrope': { cyr: 1 }, 'Syne': {}, 'Inter': { cyr: 1 },
-    'Mont': { g: 'Montserrat', cyr: 1, paid: 'Mont бол Fontfabric-ийн төлбөртэй фонт. Урьдчилан харахад хамгийн төстэй үнэгүй Montserrat-ийг ашиглав.' },
+    'Mont': { g: 'Montserrat', cyr: 1, dl: null, alt: 'Montserrat', link: 'https://www.fontfabric.com/fonts/mont/', paid: 'Mont бол Fontfabric-ийн төлбөртэй фонт. Урьдчилан харахад болон татах багцад хамгийн төстэй үнэгүй Montserrat-ийг оруулав.' },
     'Plus Jakarta Sans': {}, 'Space Grotesk': {}, 'Outfit': {},
-    'Clash Display': { fs: 'clash-display', w: 600 }, 'Satoshi': { fs: 'satoshi' },
+    'Clash Display': { fs: 'clash-display', w: 600, link: 'https://www.fontshare.com/fonts/clash-display' },
+    'Satoshi': { fs: 'satoshi', link: 'https://www.fontshare.com/fonts/satoshi' },
     'Poppins': {}, 'Roboto': { cyr: 1 }, 'Oswald': { cyr: 1 }, 'Lato': {},
     'Archivo Black': { single: 1, w: 400 }, 'Archivo': {},
     'Baloo': { g: 'Baloo 2' }, 'Quicksand': {}, 'Open Sans': { cyr: 1 }, 'Nunito': { cyr: 1 }, 'Mulish': { cyr: 1 },
@@ -122,6 +123,9 @@
       single: !!f.single || !!f.unknown,
       cyr: f.unknown ? null : !!f.cyr,
       paid: f.paid || '',
+      dl: f.dl !== undefined ? f.dl : (f.fs ? null : family),
+      alt: f.alt || '',
+      link: f.link || '',
       stack: "'" + family + "', " + (f.serif ? 'Georgia, serif' : 'system-ui, sans-serif')
     };
   }
@@ -172,7 +176,9 @@
 
   function paletteRoles(p) {
     var c = list(p.colors).map(function (x) { return x.hex; });
-    return { bg: c[0] || '#ffffff', text: c[1] || '#111111', accent: c[2] || c[1] || '#4f46e5', accent2: c[3] || c[2] || '#4f46e5' };
+    var bg = c[0] || '#ffffff';
+    return { bg: bg, text: c[1] || '#111111', accent: c[2] || c[1] || '#4f46e5', accent2: c[3] || c[2] || '#4f46e5',
+      surface: c[4] || (lum(bg) > 0.5 ? '#f1f1f1' : '#1c1c22') };
   }
 
   function buildCss(pair, pal) {
@@ -198,6 +204,7 @@
       '  --color-text: ' + r.text + ';',
       '  --color-accent: ' + r.accent + ';',
       '  --color-accent-2: ' + r.accent2 + ';',
+      '  --color-surface: ' + r.surface + ';',
       '  --color-on-accent: ' + inkOn(r.accent) + ';',
       '  --font-heading: ' + stackFor(pair.heading) + ';',
       '  --font-body: ' + stackFor(pair.body) + ';',
@@ -235,7 +242,7 @@
       '}',
       '.btn-outline { background: transparent; color: var(--color-text); border-color: currentColor; }',
       '.card {',
-      '  background: color-mix(in srgb, var(--color-text) 6%, var(--color-bg));',
+      '  background: var(--color-surface);',
       '  border-radius: 16px;',
       '  padding: 24px;',
       '}',
@@ -254,7 +261,7 @@
         heading: { name: pair.heading, family: h.family, weight: h.w, cyrillic: h.cyr, paid: !!h.paid },
         body: { name: pair.body, family: b.family, weight: 400, cyrillic: b.cyr, paid: !!b.paid }
       },
-      colors: { background: r.bg, text: r.text, accent: r.accent, accent2: r.accent2, onAccent: inkOn(r.accent) },
+      colors: { background: r.bg, text: r.text, accent: r.accent, accent2: r.accent2, surface: r.surface, onAccent: inkOn(r.accent) },
       palette: list(pal.colors)
     }, null, 2);
   }
@@ -277,6 +284,123 @@
       '}',
       ''
     ]).join('\n');
+  }
+
+  // ---------- font files → ZIP (built in the browser) ----------
+
+  var MANIFEST = null;
+  function manifest() {
+    return MANIFEST ? Promise.resolve(MANIFEST)
+      : fetch('/assets/fonts/files/manifest.json').then(function (r) { return r.json(); }).then(function (m) { return (MANIFEST = m); });
+  }
+
+  var CRC = (function () {
+    var t = new Uint32Array(256);
+    for (var n = 0; n < 256; n++) { var c = n; for (var k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; }
+    return t;
+  })();
+  function crc32(u8) { var c = 0xFFFFFFFF; for (var i = 0; i < u8.length; i++) c = CRC[(c ^ u8[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+  function enc(str) { return new TextEncoder().encode(str); }
+
+  // Minimal ZIP writer (stored, UTF-8 names) — font files are already compact.
+  function makeZip(files) {
+    var parts = [], central = [], offset = 0;
+    var d = new Date();
+    var time = (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1);
+    var date = ((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate();
+    files.forEach(function (f) {
+      var name = enc(f.name), data = f.data, crc = crc32(data);
+      var lh = new DataView(new ArrayBuffer(30));
+      lh.setUint32(0, 0x04034b50, true); lh.setUint16(4, 20, true); lh.setUint16(6, 0x0800, true); lh.setUint16(8, 0, true);
+      lh.setUint16(10, time, true); lh.setUint16(12, date, true); lh.setUint32(14, crc, true);
+      lh.setUint32(18, data.length, true); lh.setUint32(22, data.length, true); lh.setUint16(26, name.length, true); lh.setUint16(28, 0, true);
+      parts.push(lh.buffer, name, data);
+      var ch = new DataView(new ArrayBuffer(46));
+      ch.setUint32(0, 0x02014b50, true); ch.setUint16(4, 20, true); ch.setUint16(6, 20, true); ch.setUint16(8, 0x0800, true); ch.setUint16(10, 0, true);
+      ch.setUint16(12, time, true); ch.setUint16(14, date, true); ch.setUint32(16, crc, true);
+      ch.setUint32(20, data.length, true); ch.setUint32(24, data.length, true); ch.setUint16(28, name.length, true);
+      ch.setUint32(42, offset, true);
+      central.push(ch.buffer, name);
+      offset += 30 + name.length + data.length;
+    });
+    var size = central.reduce(function (a, b) { return a + b.byteLength; }, 0);
+    var end = new DataView(new ArrayBuffer(22));
+    end.setUint32(0, 0x06054b50, true); end.setUint16(8, files.length, true); end.setUint16(10, files.length, true);
+    end.setUint32(12, size, true); end.setUint32(16, offset, true);
+    return new Blob(parts.concat(central, [end.buffer]), { type: 'application/zip' });
+  }
+
+  function saveBlob(name, blob) {
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
+  }
+
+  // names: display names, e.g. ["Sora", "Manrope"]. extra: [{name, text}] files added to the zip.
+  function fontZip(names, zipName, extra) {
+    var uniq = names.filter(function (n, i) { return n && names.indexOf(n) === i; });
+    toast('Фонтын багц бэлтгэж байна…');
+    return manifest().then(function (m) {
+      var jobs = [], included = [], missing = [];
+      uniq.forEach(function (n) {
+        var f = font(n);
+        var own = f.dl && m[f.dl] ? f.dl : null;
+        var key = own || (f.alt && m[f.alt] ? f.alt : null);
+        if (!own) missing.push({ name: n, link: f.link, alt: key });
+        if (!key || included.some(function (x) { return x.name === key; })) return;
+        var entry = m[key];
+        var folder = own ? key : key + ' (' + n + '-ийн оронд)';
+        included.push({ name: key, folder: folder, files: entry.files.filter(function (x) { return /\.ttf$/i.test(x); }) });
+        entry.files.forEach(function (file) {
+          jobs.push(fetch('/assets/fonts/files/' + entry.dir + '/' + encodeURIComponent(file))
+            .then(function (r) { if (!r.ok) throw new Error(file); return r.arrayBuffer(); })
+            .then(function (b) { return { name: folder + '/' + file, data: new Uint8Array(b) }; }));
+        });
+      });
+      return Promise.all(jobs).then(function (files) {
+        files.unshift({ name: 'СУУЛГАХ ЗААВАР.txt', data: enc(readme(included, missing)) });
+        list(extra).forEach(function (x) { files.push({ name: x.name, data: enc(x.text) }); });
+        saveBlob(zipName, makeZip(files));
+        toast(zipName + ' татагдлаа');
+      });
+    }).catch(function (e) { console.error(e); toast('Татахад алдаа гарлаа. Дахин оролдоно уу.'); });
+  }
+
+  function readme(included, missing) {
+    var L = ['GRAPHICAN — ФОНТ СУУЛГАХ ЗААВАР', 'graphican.online/design', '', 'ЭНЭ БАГЦАД:'];
+    included.forEach(function (f) {
+      L.push('  • ' + f.folder + ' — ' + f.files.map(function (x) { return x.replace(/^.*-|\.ttf$/gi, ''); }).join(', '));
+    });
+    L.push('',
+      'WINDOWS',
+      '  1. ZIP файл дээр баруун товч дараад "Extract All" (задлах).',
+      '  2. Хавтас доторх .ttf файлуудыг бүгдийг нь сонгоно (Ctrl + A).',
+      '  3. Баруун товч → "Install for all users" (эсвэл "Install").',
+      '  4. Photoshop, Illustrator, Figma, Word зэрэг програмаа хааж дахин нээнэ.',
+      '',
+      'MAC',
+      '  1. ZIP файл дээр давхар дарж задална.',
+      '  2. .ttf файл дээр давхар дарна → "Install Font" (Font Book нээгдэнэ).',
+      '  3. Бүгдийг нэг дор суулгах бол файлуудаа Font Book руу чирж оруулна.',
+      '  4. Програмаа дахин нээнэ.',
+      '',
+      'ВЭБСАЙТАД АШИГЛАХ',
+      '  Вэбсайтад Google Fonts-оос холбох нь хамгийн хялбар —',
+      '  graphican.online/design хуудасны "CSS файл" товчийг ашиглаарай.',
+      '',
+      'ЛИЦЕНЗ',
+      '  Эдгээр фонт SIL Open Font License (OFL.txt)-тэй. Хувийн болон арилжааны',
+      '  ажилд үнэгүй ашиглаж болно. Фонтыг дангаар нь зарж болохгүй.');
+    if (missing.length) {
+      L.push('', 'АНХААР — ЭНЭ БАГЦАД ОРООГҮЙ ФОНТ:');
+      missing.forEach(function (x) {
+        L.push('  • ' + x.name + (x.alt ? ' — төлбөртэй тул оронд нь үнэгүй ' + x.alt + ' оруулав.' : ' — үнэгүй боловч бусдад дахин түгээх эрхгүй фонт.'));
+        if (x.link) L.push('    Албан ёсны хуудаснаас татна уу: ' + x.link);
+      });
+    }
+    return L.join('\r\n') + '\r\n';
   }
 
   // ---------- sections ----------
@@ -382,7 +506,7 @@
           '<div class="styles">' + STYLES.map(styleTile).join('') + '</div>' +
         '</div>' +
 
-        '<div class="sub reveal"><div class="sub-head"><span>05</span><h3>Graphican-ий фонт</h3></div>' +
+        '<div class="sub reveal"><div class="sub-head"><span>05</span><h3>Graphican-ий фонт</h3><button class="btn" type="button" data-dl-fonts="Inter Tight|Inter" data-zip="Graphican-fonts.zip">Inter Tight + Inter татах ↓</button></div>' +
           '<div class="type-specs">' +
             '<div class="ts"><small>ЛОГО</small><div class="ts-logo">Graphican</div><p>iBrand — зөвхөн логонд</p></div>' +
             '<div class="ts"><small>ГАРЧИГ</small><div class="ts-display">Дизайн ярьдаг.</div><p>Inter Tight · 600–700 · үсэг хоорондын зай −5%</p></div>' +
@@ -430,7 +554,11 @@
             (notes.length ? '<p class="fp-note">' + esc(notes.join(' ')) + '</p>' : '') +
             '<div class="fp-actions">' +
               '<button class="btn small solid" type="button" data-pick-pair="' + idx + '">Сонгох</button>' +
-              '<button class="btn small" type="button" data-copy-pair="' + idx + '">CSS хуулах</button>' +
+              ((h.dl || h.alt || b.dl || b.alt)
+                ? '<button class="btn small" type="button" data-dl-pair="' + idx + '">Фонт татах ↓</button>'
+                : [h, b].filter(function (x, k, arr) { return x.link && arr.map(function (y) { return y.link; }).indexOf(x.link) === k; })
+                    .map(function (x) { return '<a class="btn small" href="' + esc(x.link) + '" target="_blank" rel="noopener">' + esc(x.name) + ' ↗</a>'; }).join('')) +
+              '<button class="btn small ghost" type="button" data-copy-pair="' + idx + '" title="CSS код хуулах">CSS</button>' +
             '</div>' +
           '</article>'
         );
@@ -463,14 +591,17 @@
           '<div class="pal-preview" style="background:' + esc(r.bg) + ';color:' + esc(r.text) + '">' +
             '<span class="pp-n">' + pad(i + 1) + '</span>' +
             '<b class="pp-h">Aa</b>' +
-            '<span class="pp-line" style="background:' + esc(r.text) + '"></span>' +
-            '<span class="pp-line s" style="background:' + esc(r.text) + '"></span>' +
+            '<span class="pp-panel" style="background:' + esc(r.surface) + '">' +
+              '<span class="pp-line" style="background:' + esc(r.text) + '"></span>' +
+              '<span class="pp-line s" style="background:' + esc(r.text) + '"></span>' +
+            '</span>' +
             '<span class="pp-btn" style="background:' + esc(r.accent) + ';color:' + inkOn(r.accent) + '">Товч</span>' +
             '<span class="pp-dot" style="background:' + esc(r.accent2) + '"></span>' +
           '</div>' +
           '<div class="stripes">' + stripes + '</div>' +
           '<div class="pal-foot">' +
-            '<h3>' + esc(p.name) + '</h3>' +
+            '<div class="pal-title"><h3>' + esc(p.name) + '</h3><span class="badge' + (lum(r.bg) > 0.5 ? '' : ' dark') + '">' + (lum(r.bg) > 0.5 ? 'ЦАЙВАР' : 'БАРААН') + '</span></div>' +
+            (p.desc ? '<p class="pal-desc">' + esc(p.desc) + '</p>' : '') +
             '<div class="pal-actions">' +
               '<button class="btn small solid" type="button" data-pick-pal="' + i + '">Сонгох</button>' +
               '<button class="btn small" type="button" data-copy-pal="' + i + '">Хуулах</button>' +
@@ -498,12 +629,15 @@
             '<label><span>02 · Өнгөний хослол</span><select id="kit-pal">' + palOpts + '</select></label>' +
             '<div class="kit-summary" id="kit-summary"></div>' +
             '<div class="kit-actions">' +
-              '<button class="btn solid" type="button" id="dl-css">CSS файл татах ↓</button>' +
-              '<button class="btn" type="button" id="dl-json">JSON татах ↓</button>' +
-              '<button class="btn" type="button" id="cp-css">CSS хуулах</button>' +
+              '<button class="btn solid wide" type="button" id="dl-all">Бүгдийг нэг дор татах (.zip) ↓</button>' +
+              '<button class="btn" type="button" id="dl-fonts">Фонт татах ↓</button>' +
+              '<button class="btn" type="button" id="dl-css">CSS файл ↓</button>' +
+              '<button class="btn ghost" type="button" id="dl-json">JSON ↓</button>' +
+              '<button class="btn ghost" type="button" id="cp-css">CSS хуулах</button>' +
             '</div>' +
+            '<p class="kit-zipnote">ZIP дотор: компьютерт суулгах фонтын файлууд (.ttf), CSS, JSON, суулгах заавар.</p>' +
             '<details class="kit-code"><summary>Кодыг харах</summary><pre id="kit-code"></pre></details>' +
-            '<p class="kit-help">Яаж ашиглах вэ? Татсан <code>.css</code> файлаа сайтынхаа хавтсанд хийгээд <code>&lt;head&gt;</code> хэсэгт <code>&lt;link rel="stylesheet" href="graphican-starter.css"&gt;</code> гэж холбоно. Товчинд <code>class="btn"</code>, картад <code>class="card"</code> өгнө.</p>' +
+            '<p class="kit-help"><b>Фонт суулгах:</b> ZIP-ээ задлаад .ttf файлууд дээр баруун товч → <code>Install</code> (Windows) эсвэл давхар дарж → <code>Install Font</code> (Mac). <b>Вэбсайтад:</b> татсан <code>.css</code> файлаа сайтынхаа хавтсанд хийгээд <code>&lt;head&gt;</code> хэсэгт <code>&lt;link rel="stylesheet" href="graphican-starter.css"&gt;</code> гэж холбоно. Товчинд <code>class="btn"</code>, картад <code>class="card"</code> өгнө.</p>' +
           '</div>' +
           '<div class="kit-preview" id="kit-preview" aria-label="Урьдчилан харах">' +
             '<div class="kp-bar"><i></i><i></i><i></i><span>your-site.mn</span></div>' +
@@ -549,6 +683,7 @@
     pv.style.setProperty('--k-text', r.text);
     pv.style.setProperty('--k-accent', r.accent);
     pv.style.setProperty('--k-accent2', r.accent2);
+    pv.style.setProperty('--k-surface', r.surface);
     pv.style.setProperty('--k-on', inkOn(r.accent));
     pv.style.setProperty('--k-h', h.stack);
     pv.style.setProperty('--k-hw', h.w);
@@ -584,11 +719,31 @@
     document.getElementById('dl-css').addEventListener('click', function () { var c = current(); download(fname('css'), buildCss(c.pair, c.pal), 'text/css'); });
     document.getElementById('dl-json').addEventListener('click', function () { var c = current(); download(fname('json'), buildJson(c.pair, c.pal), 'application/json'); });
     document.getElementById('cp-css').addEventListener('click', function () { var c = current(); copy(buildCss(c.pair, c.pal), 'CSS код хуулагдлаа'); });
+    document.getElementById('dl-fonts').addEventListener('click', function () {
+      var c = current();
+      fontZip([c.pair.heading, c.pair.body], 'fonts-' + slugify(c.pair.heading + '-' + c.pair.body) + '.zip');
+    });
+    document.getElementById('dl-all').addEventListener('click', function () {
+      var c = current();
+      fontZip([c.pair.heading, c.pair.body], fname('zip'), [
+        { name: 'graphican-starter.css', text: buildCss(c.pair, c.pal) },
+        { name: 'graphican-starter.json', text: buildJson(c.pair, c.pal) }
+      ]);
+    });
 
     document.addEventListener('click', function (e) {
       var t;
       if ((t = e.target.closest('[data-pick-pair]'))) { state.pair = +t.getAttribute('data-pick-pair'); updateKit(); goKit(); return; }
       if ((t = e.target.closest('[data-pick-pal]'))) { state.pal = +t.getAttribute('data-pick-pal'); updateKit(); goKit(); return; }
+      if ((t = e.target.closest('[data-dl-pair]'))) {
+        var dp = allPairs[+t.getAttribute('data-dl-pair')];
+        fontZip([dp.heading, dp.body], 'fonts-' + slugify(dp.heading + '-' + dp.body) + '.zip');
+        return;
+      }
+      if ((t = e.target.closest('[data-dl-fonts]'))) {
+        fontZip(t.getAttribute('data-dl-fonts').split('|'), t.getAttribute('data-zip') || 'fonts.zip');
+        return;
+      }
       if ((t = e.target.closest('[data-copy-pair]'))) {
         var p = allPairs[+t.getAttribute('data-copy-pair')];
         copy(importCss(p.heading, p.body) + '\n\n--font-heading: ' + stackFor(p.heading) + ';\n--font-body: ' + stackFor(p.body) + ';', p.heading + ' + ' + p.body + ' — CSS хуулагдлаа');
@@ -596,7 +751,7 @@
       }
       if ((t = e.target.closest('[data-copy-pal]'))) {
         var pl = allPalettes[+t.getAttribute('data-copy-pal')], r = paletteRoles(pl);
-        copy(':root {\n  --color-bg: ' + r.bg + ';\n  --color-text: ' + r.text + ';\n  --color-accent: ' + r.accent + ';\n  --color-accent-2: ' + r.accent2 + ';\n}', pl.name + ' — өнгөнүүд хуулагдлаа');
+        copy(':root {\n  --color-bg: ' + r.bg + ';\n  --color-text: ' + r.text + ';\n  --color-accent: ' + r.accent + ';\n' + '  --color-accent-2: ' + r.accent2 + ';\n  --color-surface: ' + r.surface + ';\n}', pl.name + ' — өнгөнүүд хуулагдлаа');
         return;
       }
       if ((t = e.target.closest('[data-copy]'))) { copy(t.getAttribute('data-copy'), t.getAttribute('data-copy') + ' хуулагдлаа'); return; }

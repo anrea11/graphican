@@ -1,0 +1,290 @@
+{
+ "Sora": {
+  "dir": "sora",
+  "files": [
+   "Sora-Regular.ttf",
+   "Sora-Medium.ttf",
+   "Sora-SemiBold.ttf",
+   "Sora-Bold.ttf",
+   "OFL.txt"
+  ]
+ },
+ "Manrope": {
+  "dir": "manrope",
+  "files": [
+   "Manrope-Regular.ttf",
+   "Manrope-Medium.ttf",
+   "Manrope-SemiBold.ttf",
+   "Manrope-Bold.ttf",
+   "OFL.txt"
+  ]
+ },
+ "Syne": {
+  "dir": "syne",
+  "files": [
+   "Syne-Regular.ttf",
+   "Syne-Medium.ttf",
+   "Syne-SemiBold.ttf",
+   "Syne-Bold.ttf",
+   "OFL.txt"
+  ]
+ },
+ "Inter": {
+  "dir": "inter",
+  "files": [
+   "Inter-Regular.ttf",
+   "Inter-Medium.ttf",
+   "Inter-SemiBold.ttf",
+   "Inter-Bold.ttf",
+   "OFL.txt"
+  ]
+ },
+ "Inter Tight": {
+  "dir": "intertight",
+  "files": [
+   "InterTight-Regular.ttf",
+   "InterTight-Medium.ttf",
+   "InterTight-SemiBold.ttf",
+   "InterTight-Bold.ttf",
+   "OFL.txt"
+  ]
+ },
+ "Plus Jakarta Sans": {
+  "dir": "plusjakartasans",
+  "files": [
+   "PlusJakartaSans-Regular.ttf",
+   "PlusJakartaSans-Medium.ttf",
+   "PlusJakartaSans-SemiBold.ttf",
+   "PlusJakartaSans-Bold.ttf",
+   "OFL.txt"
+  ]
+ },
+ "Space Grotesk": {
+  "dir": "spacegrotesk",
+  "files": [
+   "SpaceGrotesk-Regular.ttf",
+   "SpaceGrotesk-Medium.ttf",
+   "SpaceGrotesk-SemiBold.ttf",
+   "SpaceGrotesk-Bold.ttf",
+   "OFL.txt"
+  ]
+ },
+ "Outfit": {
+  "dir": "outfit",
+  "files": [
+   "Outfit-Regular.ttf",
+   "Outfit-Medium.ttf",
+   "Outfit-SemiBold.ttf",
+   "Outfit-Bold.ttf",
+   "OFL.txt"
+  ]
+ },
+ "Poppins": {
+  "dir": "poppins",
+  "files": [
+   "Poppins-Regular.ttf",
+   "Poppins-Medium.ttf",
+   "Poppins-SemiBold.ttf",
+   "Poppins-Bold.ttf",
+   "OFL.txt"
+  ]
+ },
+ "Roboto": {
+  "dir": "roboto",
+  "files": [
+   "Roboto-Regular.ttf",
+   "Roboto-Medium.ttf",
+   "Roboto-SemiBold.ttf",
+   "Roboto-Bold.ttf",
+   "OFL.txt"
+  ]
+ },
+ "Oswald": {
+  "dir": "oswald",
+  "files": [
+   "Oswald-Regular.ttf",
+   "Oswald-Medium.ttf",
+   "Oswald-SemiBold.ttf",
+   "Oswald-Bold.ttf",
+   "OFL.txt"
+  ]
+ },
+ "Lato": {
+  "dir": "lato",
+  "files": [
+   "Lato-Regular.ttf",
+   "Lato-Medium.ttf",
+   "Lato-SemiBold.ttf",
+   "Lato-Bold.ttf",
+   "OFL.txt"
+  ]
+ },
+ "Archivo Black": {
+  "dir": "archivoblack",
+  "files": [
+   "ArchivoBlack-Regular.ttf",
+   "OFL.txt"
+  ]
+ },
+ "Archivo": {
+  "dir": "archivo",
+  "files": [
+   "Archivo-Regular.ttf",
+   "Archivo-Medium.ttf",
+   "Archivo-SemiBold.ttf",
+   "Archivo-Bold.ttf",
+   "OFL.txt"
+  ]
+ },
+ "Baloo 2": {
+  "dir": "baloo2",
+  "files": [
+   "Baloo2-Regular.ttf",
+   "Baloo2-Medium.ttf",
+   "Baloo2-SemiBold.ttf",
+   "Baloo2-Bold.ttf",
+   "OFL.txt"
+  ]
+ },
+ "Quicksand": {
+  "dir": "quicksand",
+  "files": [
+   "Quicksand-Regular.ttf",
+   "Quicksand-Medium.ttf",
+   "Quicksand-SemiBold.ttf",
+   "Quicksand-Bold.ttf",
+   "OFL.txt"
+  ]
+ },
+ "Open Sans": {
+  "dir": "opensans",
+  "files": [
+   "OpenSans-Regular.ttf",
+   "OpenSans-Medium.ttf",
+   "OpenSans-SemiBold.ttf",
+   "OpenSans-Bold.ttf",
+   "OFL.txt"
+  ]
+ },
+ "Nunito": {
+  "dir": "nunito",
+  "files": [
+   "Nunito-Regular.ttf",
+   "Nunito-Medium.ttf",
+   "Nunito-SemiBold.ttf",
+   "Nunito-Bold.ttf",
+   "OFL.txt"
+  ]
+ },
+ "Mulish": {
+  "dir": "mulish",
+  "files": [
+   "Mulish-Regular.ttf",
+   "Mulish-Medium.ttf",
+   "Mulish-SemiBold.ttf",
+   "Mulish-Bold.ttf",
+   "OFL.txt"
+  ]
+ },
+ "Fredoka": {
+  "dir": "fredoka",
+  "files": [
+   "Fredoka-Regular.ttf",
+   "Fredoka-Medium.ttf",
+   "Fredoka-SemiBold.ttf",
+   "Fredoka-Bold.ttf",
+   "OFL.txt"
+  ]
+ },
+ "Playfair Display": {
+  "dir": "playfairdisplay",
+  "files": [
+   "PlayfairDisplay-Regular.ttf",
+   "PlayfairDisplay-Medium.ttf",
+   "PlayfairDisplay-SemiBold.ttf",
+   "PlayfairDisplay-Bold.ttf",
+   "OFL.txt"
+  ]
+ },
+ "Source Sans 3": {
+  "dir": "sourcesans3",
+  "files": [
+   "SourceSans3-Regular.ttf",
+   "SourceSans3-Medium.ttf",
+   "SourceSans3-SemiBold.ttf",
+   "SourceSans3-Bold.ttf",
+   "OFL.txt"
+  ]
+ },
+ "DM Serif Display": {
+  "dir": "dmserifdisplay",
+  "files": [
+   "DMSerifDisplay-Regular.ttf",
+   "OFL.txt"
+  ]
+ },
+ "DM Sans": {
+  "dir": "dmsans",
+  "files": [
+   "DMSans-Regular.ttf",
+   "DMSans-Medium.ttf",
+   "DMSans-SemiBold.ttf",
+   "DMSans-Bold.ttf",
+   "OFL.txt"
+  ]
+ },
+ "Lora": {
+  "dir": "lora",
+  "files": [
+   "Lora-Regular.ttf",
+   "Lora-Medium.ttf",
+   "Lora-SemiBold.ttf",
+   "Lora-Bold.ttf",
+   "OFL.txt"
+  ]
+ },
+ "Merriweather": {
+  "dir": "merriweather",
+  "files": [
+   "Merriweather-Regular.ttf",
+   "Merriweather-Medium.ttf",
+   "Merriweather-SemiBold.ttf",
+   "Merriweather-Bold.ttf",
+   "OFL.txt"
+  ]
+ },
+ "Cinzel": {
+  "dir": "cinzel",
+  "files": [
+   "Cinzel-Regular.ttf",
+   "Cinzel-Medium.ttf",
+   "Cinzel-SemiBold.ttf",
+   "Cinzel-Bold.ttf",
+   "OFL.txt"
+  ]
+ },
+ "Fauna One": {
+  "dir": "faunaone",
+  "files": [
+   "FaunaOne-Regular.ttf",
+   "OFL.txt"
+  ]
+ },
+ "Montserrat": {
+  "dir": "montserrat",
+  "files": [
+   "Montserrat-Regular.ttf",
+   "Montserrat-Medium.ttf",
+   "Montserrat-SemiBold.ttf",
+   "Montserrat-Bold.ttf",
+   "OFL.txt"
+  ]
+ },
+ "Bebas Neue": {
+  "dir": "bebasneue",
+  "files": [
+   "BebasNeue-Regular.ttf",
+   "OFL.txt"
+  ]
+ }
+}

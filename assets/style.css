@@ -233,8 +233,8 @@ html:not(.ready) .bl { filter:blur(.14em); opacity:.4; }
   z-index:150;
   display:flex;
   align-items:center;
-  justify-content:space-between;
-  gap:24px;
+  justify-content:flex-start;
+  gap:12px;
   height:68px;
   padding:0 var(--gutter);
   transition:background .4s, border-color .4s;
@@ -252,7 +252,53 @@ html:not(.ready) .bl { filter:blur(.14em); opacity:.4; }
   letter-spacing:-.01em;
   color:#fff;
 }
-.nav { display:flex; gap:28px; }
+.nav { display:flex; gap:28px; margin:0 auto; }
+
+/* Design — a separate, standout destination (not a regular nav link) */
+.design-pill {
+  position:relative;
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  height:42px;
+  padding:0 16px 0 11px;
+  border-radius:999px;
+  border:1px solid transparent;
+  background:
+    linear-gradient(#101019, #101019) padding-box,
+    linear-gradient(100deg, #34229e, #816dfb 45%, #e7e3fd 85%, #816dfb) border-box;
+  box-shadow:0 0 28px -8px rgba(129,109,251,.8);
+  font:700 14px/1 var(--display);
+  letter-spacing:-.01em;
+  color:#fff;
+  overflow:hidden;
+  isolation:isolate;
+  transition:box-shadow .4s, transform .3s;
+  white-space:nowrap;
+}
+.design-pill::after { /* light sweep */
+  content:"";
+  position:absolute; inset:0;
+  background:linear-gradient(110deg, transparent 30%, rgba(231,227,253,.28) 50%, transparent 70%);
+  transform:translateX(-120%);
+  animation:pill-sweep 4.5s ease-in-out infinite;
+  z-index:-1;
+}
+@keyframes pill-sweep { 0%, 55% { transform:translateX(-120%); } 85%, 100% { transform:translateX(120%); } }
+.design-pill:hover { box-shadow:0 0 40px -6px rgba(129,109,251,1); transform:translateY(-1px); }
+.dp-orb {
+  width:16px; height:16px; border-radius:50%; flex:none;
+  background:radial-gradient(circle at 35% 30%, #fff, #a497ff 40%, #34229e 85%);
+  box-shadow:0 0 12px #816dfb;
+}
+.dp-sub { font:600 9.5px/1 var(--body); letter-spacing:.12em; text-transform:uppercase; color:var(--v2); }
+.design-pill.active {
+  background:
+    linear-gradient(100deg, #4a36d6, #816dfb 60%, #a497ff) padding-box,
+    linear-gradient(100deg, #e7e3fd, #816dfb) border-box;
+}
+.design-pill.active .dp-sub { color:#fff; opacity:.85; }
+@media (max-width:420px) { .dp-sub { display:none; } .design-pill { padding-right:14px; } }
 .nav a {
   position:relative;
   font:500 12.5px/1 var(--body);
@@ -290,6 +336,7 @@ html:not(.ready) .bl { filter:blur(.14em); opacity:.4; }
 @media (max-width:1100px) {
   .header-cta { display:none; }
   .menu-toggle { display:block; }
+  .design-pill { margin-left:auto; }
   .nav {
     position:absolute;
     top:68px; left:0; right:0;
