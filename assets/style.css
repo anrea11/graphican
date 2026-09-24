@@ -18,19 +18,19 @@
 }
 
 :root {
-  --bg:#08080a;
-  --bg2:#0e0e12;
-  --panel:#111116;
+  --bg:#0a0a10;
+  --bg2:#0f0f16;
+  --panel:#16161f;
   --text:#f5f4fa;
-  --muted:#a4a1b2;
+  --muted:#a6a8b8;
   --dim:#6d6a7a;
   --line:rgba(255,255,255,.14);
   --line-soft:rgba(255,255,255,.07);
 
-  --v1:#e9e6ff;   /* hot white-lavender core */
-  --v2:#aa9dff;   /* lavender */
-  --v3:#7566f2;   /* violet */
-  --v4:#4a3bc9;   /* deep violet */
+  --v1:#e7e3fd;   /* hot white-lavender core */
+  --v2:#a497ff;   /* lavender */
+  --v3:#6d56fa;   /* violet */
+  --v4:#34229e;   /* deep violet */
 
   --gutter:clamp(16px, 4vw, 48px);
   --display:"Inter Tight", "Helvetica Neue", Arial, sans-serif;
@@ -287,7 +287,7 @@ html:not(.ready) .bl { filter:blur(.14em); opacity:.4; }
 .menu-open .menu-toggle span:first-child { transform:translateY(3.5px) rotate(45deg); }
 .menu-open .menu-toggle span:last-child { transform:translateY(-3.5px) rotate(-45deg); }
 
-@media (max-width:960px) {
+@media (max-width:1100px) {
   .header-cta { display:none; }
   .menu-toggle { display:block; }
   .nav {

@@ -229,3 +229,100 @@ collections:
             fields:
               - { name: copyright, label: "Зохиогчийн эрх", widget: string }
               - { name: tagline, label: "Уриа", widget: string }
+
+      # ================= DESIGN PAGE (/design) =================
+      - name: design
+        label: "Дизайн хуудас (/design)"
+        file: content/design.json
+        format: json
+        fields:
+          - name: seo
+            label: "SEO"
+            widget: object
+            collapsed: true
+            fields:
+              - { name: title, label: "Хуудасны гарчиг", widget: string }
+              - { name: description, label: "Тайлбар", widget: text }
+          - name: hero
+            label: "Нүүр хэсэг"
+            widget: object
+            fields:
+              - { name: kicker, label: "Жижиг шошго (англиар)", widget: string }
+              - { name: title_line1, label: "Том гарчиг — 1-р мөр", widget: string }
+              - { name: title_line2, label: "Том гарчиг — 2-р мөр", widget: string }
+              - { name: text, label: "Тайлбар", widget: text }
+          - name: guide
+            label: "01 · Визуал чиглэл (брэнд гайд)"
+            widget: object
+            fields:
+              - { name: kicker, label: "Жижиг шошго", widget: string }
+              - { name: title_en, label: "Англи гарчиг", widget: string, required: false }
+              - { name: title, label: "Монгол гарчиг", widget: string }
+              - { name: description, label: "Тайлбар", widget: text, required: false }
+              - { name: image, label: "Moodboard зураг", widget: image, required: false }
+              - name: colors
+                label: "Брэндийн өнгөнүүд"
+                label_singular: "Өнгө"
+                widget: list
+                summary: "{{name}} — {{hex}}"
+                fields:
+                  - { name: name, label: "Нэр", widget: string }
+                  - { name: hex, label: "HEX код", widget: string, hint: "Жишээ: #816DFB" }
+                  - { name: role, label: "Хэрэглээ", widget: string, required: false }
+          - name: fonts
+            label: "02 · Фонтын хослолууд"
+            widget: object
+            fields:
+              - { name: kicker, label: "Жижиг шошго", widget: string }
+              - { name: title_en, label: "Англи гарчиг", widget: string, required: false }
+              - { name: title, label: "Монгол гарчиг", widget: string }
+              - { name: description, label: "Тайлбар", widget: text, required: false }
+              - name: groups
+                label: "Бүлгүүд"
+                label_singular: "Бүлэг"
+                widget: list
+                summary: "{{name}}"
+                fields:
+                  - { name: name, label: "Бүлгийн нэр", widget: string }
+                  - { name: name_en, label: "Англи нэр", widget: string, required: false }
+                  - name: items
+                    label: "Хослолууд"
+                    label_singular: "Хослол"
+                    widget: list
+                    summary: "{{heading}} + {{body}}"
+                    fields:
+                      - { name: heading, label: "Гарчгийн фонт", widget: string, hint: "Google Fonts дээрх нэрээр нь бичнэ (жишээ: Sora)" }
+                      - { name: body, label: "Эх бичвэрийн фонт", widget: string }
+                      - { name: desc, label: "Тайлбар", widget: text, required: false }
+          - name: palettes
+            label: "03 · Өнгөний хослолууд"
+            widget: object
+            fields:
+              - { name: kicker, label: "Жижиг шошго", widget: string }
+              - { name: title_en, label: "Англи гарчиг", widget: string, required: false }
+              - { name: title, label: "Монгол гарчиг", widget: string }
+              - { name: description, label: "Тайлбар", widget: text, required: false }
+              - name: items
+                label: "Багцууд"
+                label_singular: "Багц"
+                widget: list
+                summary: "{{name}}"
+                hint: "Эхний өнгө = дэвсгэр, 2-р = текст, 3-р = акцент 1, 4-р = акцент 2"
+                fields:
+                  - { name: name, label: "Нэр", widget: string }
+                  - name: colors
+                    label: "Өнгөнүүд"
+                    label_singular: "Өнгө"
+                    widget: list
+                    summary: "{{role}} — {{hex}}"
+                    fields:
+                      - { name: role, label: "Үүрэг", widget: string, hint: "Дэвсгэр / Текст / Акцент 1 / Акцент 2" }
+                      - { name: hex, label: "HEX код", widget: string }
+          - name: builder
+            label: "04 · Нэг товшилтоор татах"
+            widget: object
+            fields:
+              - { name: kicker, label: "Жижиг шошго", widget: string }
+              - { name: title_en, label: "Англи гарчиг", widget: string, required: false }
+              - { name: title, label: "Монгол гарчиг", widget: string }
+              - { name: description, label: "Тайлбар", widget: text, required: false }

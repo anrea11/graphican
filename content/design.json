@@ -1,0 +1,398 @@
+{
+  "seo": {
+    "title": "Дизайн гайд — Graphican",
+    "description": "Graphican-ий визуал чиглэл, өнгө, график элементүүд болон дизайн хийж чаддаггүй хүмүүст зориулсан бэлэн фонт, өнгөний хослолууд."
+  },
+  "hero": {
+    "kicker": "DESIGN SYSTEM",
+    "title_line1": "Design",
+    "title_line2": "guide",
+    "text": "Graphican-ий визуал чиглэл, өнгө, график элементүүд — мөн дизайн хийж чаддаггүй хүмүүст зориулсан бэлэн фонт, өнгөний хослолууд. Сонгоод, нэг товшилтоор татаж аваарай."
+  },
+  "guide": {
+    "kicker": "01 / GRAPHICAN",
+    "title_en": "VISUAL DIRECTION",
+    "title": "Визуал чиглэл.",
+    "description": "Бараан дэвсгэр, нил ягаан гэрлийн туяа, нимгэн шугам, ширхэгтэй бүтэц — Graphican-ий бүх бүтээлийг нэгтгэдэг визуал хэл.",
+    "image": "/assets/uploads/design-guide.webp",
+    "colors": [
+      {
+        "name": "Deep Indigo",
+        "hex": "#2F2185",
+        "role": "Гүн сүүдэр, градиентын эхлэл"
+      },
+      {
+        "name": "Violet",
+        "hex": "#816DFB",
+        "role": "Гол акцент, гэрлийн туяа"
+      },
+      {
+        "name": "Lavender Mist",
+        "hex": "#E7E3FD",
+        "role": "Гэрлийн цөм, тод текст"
+      },
+      {
+        "name": "Graphite",
+        "hex": "#232230",
+        "role": "Карт, хүрээ, гадаргуу"
+      },
+      {
+        "name": "Slate",
+        "hex": "#686C7F",
+        "role": "Туслах текст, шугам"
+      }
+    ]
+  },
+  "fonts": {
+    "kicker": "02 / TYPOGRAPHY",
+    "title_en": "20 FONT PAIRS",
+    "title": "Фонтын хослол.",
+    "description": "Уншихад хялбар, орчин үеийн мэдрэмж төрүүлэх 20 хослол. Эхнийх нь гарчиг, дараагийнх нь эх бичвэрийн фонт. «Кирилл» тэмдэгтэй фонт монгол үсгийг дэмжинэ.",
+    "groups": [
+      {
+        "name": "Орчин үеийн & Технологийн",
+        "name_en": "CLEAN & MODERN UI",
+        "items": [
+          {
+            "heading": "Sora",
+            "body": "Manrope",
+            "desc": "Цэвэрхэн, орчин үеийн вэб болон апп-д төгс."
+          },
+          {
+            "heading": "Mont",
+            "body": "Sora",
+            "desc": "Геометрийн бүтэцтэй, технологилог."
+          },
+          {
+            "heading": "Syne",
+            "body": "Inter",
+            "desc": "Авангард мэдрэмжтэй, маш их тренд болж буй."
+          },
+          {
+            "heading": "Plus Jakarta Sans",
+            "body": "Inter",
+            "desc": "SaaS болон стартапуудад тохиромжтой."
+          },
+          {
+            "heading": "Space Grotesk",
+            "body": "Outfit",
+            "desc": "Шинэлэг, Web3 эсвэл дижитал бүтээгдэхүүнд зориулагдсан."
+          }
+        ]
+      },
+      {
+        "name": "Минималист & Цэвэрхэн",
+        "name_en": "MINIMALIST",
+        "items": [
+          {
+            "heading": "Clash Display",
+            "body": "Satoshi",
+            "desc": "“Цэмбэгэр” дизайны гол төлөөлөл."
+          },
+          {
+            "heading": "Mont",
+            "body": "Manrope",
+            "desc": "Тогтвортой, ямар ч брэндэд хөрвөх боломжтой."
+          },
+          {
+            "heading": "Poppins",
+            "body": "Roboto",
+            "desc": "Хэзээ ч хуучиршгүй, аюулгүй сонголт."
+          },
+          {
+            "heading": "Oswald",
+            "body": "Lato",
+            "desc": "Өндөр гарчигтай, анхаарал татна."
+          },
+          {
+            "heading": "Archivo Black",
+            "body": "Archivo",
+            "desc": "Постер эсвэл сурталчилгаанд зориулсан маш хүчтэй хослол."
+          }
+        ]
+      },
+      {
+        "name": "Зөөлөн & Ээлтэй",
+        "name_en": "FRIENDLY & PLAYFUL",
+        "items": [
+          {
+            "heading": "Baloo",
+            "body": "Quicksand",
+            "desc": "Дугуйрсан хэлбэртэй, хүүхдийн эсвэл хөгжилтэй контентэд тохиромжтой."
+          },
+          {
+            "heading": "Baloo",
+            "body": "Open Sans",
+            "desc": "Анхаарал татах ч унших хэсэг нь албан ёсны байдлаа хадгална."
+          },
+          {
+            "heading": "Nunito",
+            "body": "Mulish",
+            "desc": "Эерэг, дулаахан харагдацтай."
+          },
+          {
+            "heading": "Fredoka One",
+            "body": "Nunito",
+            "desc": "Энтертайнмент чиглэлийн контентэд."
+          }
+        ]
+      },
+      {
+        "name": "Гоёмсог & Сэтгүүлийн",
+        "name_en": "ELEGANT & EDITORIAL",
+        "items": [
+          {
+            "heading": "Playfair Display",
+            "body": "Source Sans Pro",
+            "desc": "Сонгодог, тансаг зэрэглэлийн."
+          },
+          {
+            "heading": "DM Serif Display",
+            "body": "DM Sans",
+            "desc": "Загварлаг бөгөөд орчин үеийн сэтгүүлийн хэв маяг."
+          },
+          {
+            "heading": "Lora",
+            "body": "Merriweather",
+            "desc": "Урт текст, нийтлэлд тохиромжтой уламжлалт мэдрэмж."
+          },
+          {
+            "heading": "Cinzel",
+            "body": "Fauna One",
+            "desc": "Үнэртэй ус, гоо сайхан, тансаг брэндэд."
+          },
+          {
+            "heading": "Montserrat",
+            "body": "Lora",
+            "desc": "Орчин үеийн байгууллагын, албан ёсны хэрнээ хээнцэр."
+          },
+          {
+            "heading": "Bebas Neue",
+            "body": "Montserrat",
+            "desc": "Киноны постер эсвэл том гарчигтай загварт."
+          }
+        ]
+      }
+    ]
+  },
+  "palettes": {
+    "kicker": "03 / COLOR",
+    "title_en": "10 PALETTES",
+    "title": "Өнгөний хослол.",
+    "description": "Өнгө сонгох ачааллаас чөлөөлөх бэлэн багцууд. Өнгөн дээр дарвал HEX код хуулагдана.",
+    "items": [
+      {
+        "name": "Dark Mode Minimal",
+        "colors": [
+          {
+            "role": "Дэвсгэр",
+            "hex": "#121212"
+          },
+          {
+            "role": "Текст",
+            "hex": "#E0E0E0"
+          },
+          {
+            "role": "Акцент",
+            "hex": "#FA3570"
+          }
+        ]
+      },
+      {
+        "name": "Earthy Nature",
+        "colors": [
+          {
+            "role": "Дэвсгэр",
+            "hex": "#E8E4D9"
+          },
+          {
+            "role": "Текст",
+            "hex": "#2C3D2A"
+          },
+          {
+            "role": "Акцент 1",
+            "hex": "#D97D54"
+          },
+          {
+            "role": "Акцент 2",
+            "hex": "#8A9A86"
+          }
+        ]
+      },
+      {
+        "name": "Tech Blue",
+        "colors": [
+          {
+            "role": "Дэвсгэр",
+            "hex": "#0A192F"
+          },
+          {
+            "role": "Текст",
+            "hex": "#F3F4F6"
+          },
+          {
+            "role": "Акцент 1",
+            "hex": "#8892B0"
+          },
+          {
+            "role": "Акцент 2",
+            "hex": "#64FFDA"
+          }
+        ]
+      },
+      {
+        "name": "Neo-Brutalism",
+        "colors": [
+          {
+            "role": "Дэвсгэр",
+            "hex": "#FFFFFF"
+          },
+          {
+            "role": "Хүрээ / Текст",
+            "hex": "#000000"
+          },
+          {
+            "role": "Акцент 1",
+            "hex": "#FFD600"
+          },
+          {
+            "role": "Акцент 2",
+            "hex": "#0057FF"
+          }
+        ]
+      },
+      {
+        "name": "Warm Latte",
+        "colors": [
+          {
+            "role": "Дэвсгэр",
+            "hex": "#F9F6F0"
+          },
+          {
+            "role": "Текст",
+            "hex": "#382C24"
+          },
+          {
+            "role": "Акцент 1",
+            "hex": "#D4C4B7"
+          },
+          {
+            "role": "Акцент 2",
+            "hex": "#E07A5F"
+          }
+        ]
+      },
+      {
+        "name": "Pastel Dream",
+        "colors": [
+          {
+            "role": "Дэвсгэр",
+            "hex": "#FEC8D8"
+          },
+          {
+            "role": "Текст",
+            "hex": "#957DAD"
+          },
+          {
+            "role": "Акцент 1",
+            "hex": "#E0BBE4"
+          },
+          {
+            "role": "Акцент 2",
+            "hex": "#D291BC"
+          }
+        ]
+      },
+      {
+        "name": "Cyber Neon",
+        "colors": [
+          {
+            "role": "Дэвсгэр",
+            "hex": "#0F0C29"
+          },
+          {
+            "role": "Текст",
+            "hex": "#00F0FF"
+          },
+          {
+            "role": "Акцент 1",
+            "hex": "#302B63"
+          },
+          {
+            "role": "Акцент 2",
+            "hex": "#FF007F"
+          }
+        ]
+      },
+      {
+        "name": "Elegant Luxury",
+        "colors": [
+          {
+            "role": "Дэвсгэр",
+            "hex": "#333333"
+          },
+          {
+            "role": "Текст",
+            "hex": "#FFFFF0"
+          },
+          {
+            "role": "Акцент 1",
+            "hex": "#F7E7CE"
+          },
+          {
+            "role": "Акцент 2",
+            "hex": "#D4AF37"
+          }
+        ]
+      },
+      {
+        "name": "Retro 70s",
+        "colors": [
+          {
+            "role": "Дэвсгэр",
+            "hex": "#F3CA40"
+          },
+          {
+            "role": "Текст",
+            "hex": "#5C4122"
+          },
+          {
+            "role": "Акцент 1",
+            "hex": "#F2A65A"
+          },
+          {
+            "role": "Акцент 2",
+            "hex": "#778A35"
+          }
+        ]
+      },
+      {
+        "name": "Clean SaaS",
+        "colors": [
+          {
+            "role": "Дэвсгэр",
+            "hex": "#FAFAFA"
+          },
+          {
+            "role": "Текст",
+            "hex": "#1E293B"
+          },
+          {
+            "role": "Акцент 1",
+            "hex": "#E2E8F0"
+          },
+          {
+            "role": "Акцент 2",
+            "hex": "#4F46E5"
+          }
+        ]
+      }
+    ]
+  },
+  "builder": {
+    "kicker": "04 / ONE CLICK",
+    "title_en": "STARTER KIT",
+    "title": "Нэг товшилтоор татах.",
+    "description": "Фонт болон өнгөний хослолоо сонго — урьдчилан харж байгаад бэлэн CSS эсвэл JSON файл болгон татаж ав. Вэбсайтынхаа кодонд шууд холбоход болно."
+  }
+}
