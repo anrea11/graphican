@@ -397,6 +397,26 @@
     requestAnimationFrame(tick);
   }
 
+  // marquee moves only while the page is scrolled (no constant animation)
+  function setupMarquee() {
+    var tracks = document.querySelectorAll('.marquee-track');
+    if (!tracks.length) return;
+    var ticking = false;
+    function update() {
+      ticking = false;
+      tracks.forEach(function (t) {
+        var half = t.scrollWidth / 2 || 1;
+        var x = -((window.scrollY * 0.45) % half);
+        t.style.transform = 'translate3d(' + x.toFixed(1) + 'px,0,0)';
+      });
+    }
+    window.addEventListener('scroll', function () {
+      if (!ticking) { ticking = true; requestAnimationFrame(update); }
+    }, { passive: true });
+    window.addEventListener('resize', update);
+    update();
+  }
+
   function enhance() {
     document.documentElement.classList.add('js');
 
@@ -419,6 +439,7 @@
 
     setupAutoVideos(document);
     setupRing();
+    setupMarquee();
     requestAnimationFrame(function () { document.documentElement.classList.add('ready'); });
 
     if (!('IntersectionObserver' in window)) {

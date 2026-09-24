@@ -1149,3 +1149,9 @@ html.pd-open { overflow:hidden; }
 /* About + Video: plain black */
 .sec.is-black { background:#000; }
 .sec.is-black + .sec.is-black { border-top:1px solid rgba(255,255,255,.05); }
+
+/* ---------- performance: no constant animations ---------- */
+.marquee-track { animation:none !important; will-change:transform; }
+.marquee span.soft { filter:none; opacity:.28; }        /* blur on huge text was expensive */
+body::after { animation:none; inset:0; }                  /* static grain instead of full-screen jitter */
+.design-pill::after { animation:none; display:none; }
