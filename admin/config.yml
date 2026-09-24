@@ -252,7 +252,7 @@ collections:
               - { name: title_line2, label: "Том гарчиг — 2-р мөр", widget: string }
               - { name: text, label: "Тайлбар", widget: text }
           - name: guide
-            label: "01 · Визуал чиглэл (брэнд гайд)"
+            label: "04 · Graphican брэнд гайд"
             widget: object
             fields:
               - { name: kicker, label: "Жижиг шошго", widget: string }
@@ -270,7 +270,7 @@ collections:
                   - { name: hex, label: "HEX код", widget: string, hint: "Жишээ: #816DFB" }
                   - { name: role, label: "Хэрэглээ", widget: string, required: false }
           - name: fonts
-            label: "02 · Фонтын хослолууд"
+            label: "01 · Фонтын хослолууд"
             widget: object
             fields:
               - { name: kicker, label: "Жижиг шошго", widget: string }
@@ -295,7 +295,7 @@ collections:
                       - { name: body, label: "Эх бичвэрийн фонт", widget: string }
                       - { name: desc, label: "Тайлбар", widget: text, required: false }
           - name: palettes
-            label: "03 · Өнгөний хослолууд"
+            label: "02 · Өнгөний хослолууд"
             widget: object
             fields:
               - { name: kicker, label: "Жижиг шошго", widget: string }
@@ -320,7 +320,7 @@ collections:
                       - { name: role, label: "Үүрэг", widget: string, hint: "Дэвсгэр / Текст / Акцент 1 / Акцент 2" }
                       - { name: hex, label: "HEX код", widget: string }
           - name: builder
-            label: "04 · Нэг товшилтоор татах"
+            label: "03 · Нэг товшилтоор татах"
             widget: object
             fields:
               - { name: kicker, label: "Жижиг шошго", widget: string }

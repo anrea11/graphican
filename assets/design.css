@@ -351,3 +351,52 @@
 .pal-preview { height:168px; }
 .kp-card { background:var(--k-surface, color-mix(in srgb, var(--k-text) 7%, var(--k-bg))) !important; }
 .kit-zipnote { margin-top:-6px; font-size:12.5px; color:var(--muted); }
+
+/* ---------- v7: brand guide as its own band + swipe rows on phones ---------- */
+.guide {
+  border-top:1px solid var(--line);
+  background:linear-gradient(180deg, #0e0c1c 0%, #0a0a10 40%);
+  overflow:hidden;
+}
+.guide-band {
+  position:absolute; left:0; right:0; top:0; height:1px; z-index:1;
+  background:linear-gradient(90deg, transparent, #6d56fa 30%, #e7e3fd 60%, transparent);
+  box-shadow:0 0 30px 4px rgba(109,86,250,.45);
+}
+.guide .sub:first-of-type { margin-top:0; }
+.sub-head .swipe { display:none; font-style:normal; font:500 11px/1 var(--body); letter-spacing:.06em; color:var(--v2); }
+.chips a.brand { display:inline-flex; align-items:center; gap:8px; border-color:rgba(164,151,255,.5); }
+.chips a.brand .dp-orb { width:12px; height:12px; }
+
+@media (max-width:760px) {
+  .guide .sub { margin-top:44px; }
+  .guide .sub-head { gap:8px 10px; margin-bottom:16px; }
+  .guide .sub-head h3 { font-size:22px; }
+  .sub-head .swipe { display:inline; }
+  .guide .sub-head .btn { order:3; }
+
+  .hscroll {
+    display:flex !important;
+    grid-template-columns:none;
+    gap:12px;
+    overflow-x:auto;
+    overscroll-behavior-x:contain;
+    scroll-snap-type:x mandatory;
+    -webkit-overflow-scrolling:touch;
+    margin:0 calc(-1 * var(--gutter));
+    padding:2px var(--gutter) 8px;
+    scroll-padding-left:var(--gutter);
+    scrollbar-width:none;
+    -webkit-mask:linear-gradient(90deg, #000 85%, transparent);
+    mask:linear-gradient(90deg, #000 85%, transparent);
+  }
+  .hscroll::-webkit-scrollbar { display:none; }
+  .hscroll > * { flex:0 0 auto; scroll-snap-align:start; }
+  .hscroll.swatches > * { width:58%; }
+  .hscroll.swatches .sw-chip { height:96px; }
+  .hscroll.elements > * { width:34%; }
+  .hscroll.styles > * { width:80%; }
+  .hscroll.type-specs > * { width:84%; }
+  .grads .grad { height:44px; }
+  .moodboard figcaption { padding:10px 12px; }
+}

@@ -430,10 +430,10 @@
           '<div class="hero-copy">' +
             '<p class="lead">' + esc(h.text) + '</p>' +
             '<div class="chips">' +
-              '<a href="#guide">Визуал чиглэл</a><a href="#fonts">Фонт</a><a href="#colors">Өнгө</a><a class="hot" href="#kit">Нэг товшилтоор татах ↓</a>' +
+              '<a href="#fonts">Фонт</a><a href="#colors">Өнгө</a><a class="hot" href="#kit">Нэг товшилтоор татах ↓</a><a class="brand" href="#guide"><span class="dp-orb" aria-hidden="true"></span>Graphican брэнд гайд</a>' +
             '</div>' +
           '</div>' +
-          '<div class="corner bl">01 VISUAL · 02 TYPE · 03 COLOR · 04 KIT</div>' +
+          '<div class="corner bl">01 TYPE · 02 COLOR · 03 KIT · 04 BRAND</div>' +
           '<div class="corner br">' + new Date().getFullYear() + '<br>GUIDE</div>' +
         '</div>' +
       '</section>'
@@ -455,7 +455,7 @@
 
   function styleTile(s, i) {
     return (
-      '<figure class="st reveal">' +
+      '<figure class="st">' +
         '<div class="st-art st-' + s[0] + '" aria-hidden="true">' +
           '<i class="a"></i><i class="b"></i><i class="c"></i>' +
           '<svg viewBox="0 0 300 180" preserveAspectRatio="none" fill="none">' +
@@ -475,7 +475,7 @@
     var colors = list(g.colors);
     var swatches = colors.map(function (c) {
       return (
-        '<button class="sw reveal" type="button" data-copy="' + esc(c.hex) + '" style="--c:' + esc(c.hex) + ';--ink:' + inkOn(c.hex) + '">' +
+        '<button class="sw" type="button" data-copy="' + esc(c.hex) + '" style="--c:' + esc(c.hex) + ';--ink:' + inkOn(c.hex) + '">' +
           '<span class="sw-chip"></span>' +
           '<span class="sw-meta"><b>' + esc(c.name) + '</b><code>' + esc(String(c.hex).toUpperCase()) + '</code><em>' + esc(c.role) + '</em></span>' +
         '</button>'
@@ -487,27 +487,30 @@
     }).join('');
 
     return (
-      '<section class="sec guide" id="guide">' + head(g) +
-        (g.image ? '<figure class="moodboard reveal"><a href="' + esc(g.image) + '" target="_blank" rel="noopener"><img src="' + esc(g.image) + '" alt="Graphican визуал чиглэл, өнгө, график элементүүд, 10 гол хэв маяг" loading="lazy"></a><figcaption>Moodboard — бүтэн хэмжээгээр үзэх бол дарна уу ↗</figcaption></figure>' : '') +
+      '<section class="sec guide" id="guide">' +
+        '<div class="guide-band" aria-hidden="true"></div>' +
+        head(g) +
+        (g.image ? '<div class="sub reveal"><div class="sub-head"><span>01</span><h3>Moodboard</h3></div>' +
+          '<figure class="moodboard"><a href="' + esc(g.image) + '" target="_blank" rel="noopener"><img src="' + esc(g.image) + '" alt="Graphican визуал чиглэл, өнгө, график элементүүд, 10 гол хэв маяг" loading="lazy"></a><figcaption>Бүтэн хэмжээгээр үзэх ↗</figcaption></figure></div>' : '') +
 
-        '<div class="sub reveal"><div class="sub-head"><span>02</span><h3>Өнгөний систем</h3><button class="btn" type="button" data-brand-css>Брэнд CSS татах ↓</button></div>' +
-          '<div class="swatches">' + swatches + '</div>' +
+        '<div class="sub reveal"><div class="sub-head"><span>02</span><h3>Өнгө</h3><em class="swipe">гүйлгэх →</em><button class="btn small" type="button" data-brand-css>Брэнд CSS ↓</button></div>' +
+          '<div class="hscroll swatches">' + swatches + '</div>' +
           (c.length >= 3 ? '<div class="grads">' +
             '<button type="button" class="grad" data-copy="linear-gradient(90deg, #6D56FA, #EBE9FC)" style="background:linear-gradient(90deg,#6d56fa,#ebe9fc)"><span>#6D56FA → #EBE9FC</span></button>' +
             '<button type="button" class="grad" data-copy="linear-gradient(90deg, ' + c[0] + ', #F4F4FC)" style="background:linear-gradient(90deg,' + esc(c[0]) + ',#f4f4fc)"><span>' + esc(c[0]) + ' → #F4F4FC</span></button>' +
           '</div>' : '') +
         '</div>' +
 
-        '<div class="sub reveal"><div class="sub-head"><span>03</span><h3>График элементүүд</h3></div>' +
-          '<div class="elements">' + elements + '</div>' +
+        '<div class="sub reveal"><div class="sub-head"><span>03</span><h3>График элементүүд</h3><em class="swipe">гүйлгэх →</em></div>' +
+          '<div class="hscroll elements">' + elements + '</div>' +
         '</div>' +
 
-        '<div class="sub"><div class="sub-head reveal"><span>04</span><h3>10 гол хэв маяг</h3></div>' +
-          '<div class="styles">' + STYLES.map(styleTile).join('') + '</div>' +
+        '<div class="sub reveal"><div class="sub-head"><span>04</span><h3>10 гол хэв маяг</h3><em class="swipe">гүйлгэх →</em></div>' +
+          '<div class="hscroll styles">' + STYLES.map(styleTile).join('') + '</div>' +
         '</div>' +
 
-        '<div class="sub reveal"><div class="sub-head"><span>05</span><h3>Graphican-ий фонт</h3><button class="btn" type="button" data-dl-fonts="Inter Tight|Inter" data-zip="Graphican-fonts.zip">Inter Tight + Inter татах ↓</button></div>' +
-          '<div class="type-specs">' +
+        '<div class="sub reveal"><div class="sub-head"><span>05</span><h3>Фонт</h3><em class="swipe">гүйлгэх →</em><button class="btn small" type="button" data-dl-fonts="Inter Tight|Inter" data-zip="Graphican-fonts.zip">Inter Tight + Inter ↓</button></div>' +
+          '<div class="hscroll type-specs">' +
             '<div class="ts"><small>ЛОГО</small><div class="ts-logo">Graphican</div><p>iBrand — зөвхөн логонд</p></div>' +
             '<div class="ts"><small>ГАРЧИГ</small><div class="ts-display">Дизайн ярьдаг.</div><p>Inter Tight · 600–700 · үсэг хоорондын зай −5%</p></div>' +
             '<div class="ts"><small>ЭХ БИЧВЭР</small><div class="ts-body">Брэндийн санааг тодорхой дүр төрхтэй болгож, орчин үеийн визуал шийдлээр илэрхийлнэ.</div><p>Inter · 400–500 · мөрийн өндөр 1.6</p></div>' +
@@ -826,8 +829,8 @@
         var m = document.querySelector('meta[name="description"]');
         if (m && d.seo.description) m.setAttribute('content', d.seo.description);
       }
-      var html = hero(d.hero || {}) + guide(d.guide || {}) + fonts(d.fonts || {}) + palettes(d.palettes || {});
-      html += builder(d.builder || {}) + footer();
+      var html = hero(d.hero || {}) + fonts(d.fonts || {}) + palettes(d.palettes || {});
+      html += builder(d.builder || {}) + guide(d.guide || {}) + footer();
       app.innerHTML = html;
       enhance();
       setupKit(d);
