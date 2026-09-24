@@ -105,17 +105,17 @@
     var stats = list(h.stats).map(function (s) {
       return '<div class="stat"><b>' + esc(s.value) + '</b><span>' + esc(s.label) + '</span></div>';
     }).join('');
-    var items = ringItems(projects || [], h, 14);
+    var items = ringItems(projects || [], h, 12);
     var n = items.length;
     var cards = items.map(function (it, i) {
       return '<a class="rc" href="' + esc(it.href) + '" style="--i:' + i + '" aria-label="' + esc(it.name) + '" tabindex="-1">' +
-        '<img src="' + esc(it.src) + '" alt="" loading="' + (i < 6 ? 'eager' : 'lazy') + '" decoding="async"></a>';
+        '<img src="' + esc(it.src) + '" alt="" loading="eager" decoding="async"><span class="rc-light"></span></a>';
     }).join('');
     var portrait = h.portrait || '';
 
     return (
       '<section class="hero hero-v2" id="home">' +
-        fx('hero') +
+        '<div class="h2-bg" aria-hidden="true"></div>' +
         '<div class="h2">' +
           '<div class="corner tl">' + esc(h.artist_name || 'Graphican') + (h.artist_role ? ' — ' + esc(h.artist_role) : '') + '</div>' +
           '<div class="corner tr">DESIGN <span class="plus">+</span></div>' +
@@ -345,6 +345,41 @@
     vids.forEach(function (v) { v.muted = true; io.observe(v); });
   }
 
+  // 3D ring: JS-driven so each card gets realistic light (violet glow from the centre, dark at the sides)
+  function setupRing() {
+    var ring = document.querySelector('.hero-v2 .ring');
+    if (!ring) return;
+    var cards = Array.prototype.slice.call(ring.querySelectorAll('.rc'));
+    var n = cards.length, step = 360 / n, angle = 0, last = 0, paused = false, visible = true;
+    var speed = reduceMotion ? 0 : 360 / 80; // one turn per 80s
+    var hero = ring.closest('.hero-v2');
+    hero.addEventListener('mouseenter', function () { paused = true; });
+    hero.addEventListener('mouseleave', function () { paused = false; });
+    if ('IntersectionObserver' in window) new IntersectionObserver(function (e) { visible = e[0].isIntersecting; }).observe(hero);
+    function paint() {
+      ring.style.transform = 'rotateX(-4deg) rotateY(' + angle + 'deg)';
+      for (var i = 0; i < n; i++) {
+        var rel = ((i * step + angle) % 360 + 540) % 360 - 180; // 0 = straight ahead (behind the portrait)
+        var a = Math.abs(rel), c = cards[i];
+        if (a > 112) { c.style.opacity = 0; c.style.visibility = 'hidden'; continue; }
+        c.style.visibility = 'visible';
+        var lit = Math.max(0, Math.cos(a * Math.PI / 180 * 0.85));
+        var fade = a > 80 ? Math.max(0, 1 - (a - 80) / 32) : 1;
+        c.style.opacity = fade.toFixed(3);
+        c.style.setProperty('--lit', lit.toFixed(3));
+        c.style.setProperty('--side', rel > 0 ? -1 : 1);
+      }
+    }
+    function tick(t) {
+      var dt = last ? Math.min(64, t - last) : 16; last = t;
+      if (!paused && visible && speed) angle -= speed * dt / 1000;
+      paint();
+      requestAnimationFrame(tick);
+    }
+    paint();
+    requestAnimationFrame(tick);
+  }
+
   function enhance() {
     document.documentElement.classList.add('js');
 
@@ -366,6 +401,7 @@
     }
 
     setupAutoVideos(document);
+    setupRing();
     requestAnimationFrame(function () { document.documentElement.classList.add('ready'); });
 
     if (!('IntersectionObserver' in window)) {

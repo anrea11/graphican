@@ -1029,3 +1029,79 @@ html.pd-open { overflow:hidden; }
 .hero-v2 .fx .ring { border-color:rgba(3,3,5,.96); }
 .hero-v2 .fx .grain { opacity:.22; }
 .hero-v2 .fx .lines .vl { opacity:.55; }
+
+/* =========================================================
+   HERO v3 — pure black, cinematic violet light (brand accent)
+   ========================================================= */
+.hero-v2 { background:#000; }
+.h2-bg {
+  position:absolute; inset:0; z-index:0; pointer-events:none;
+  background:
+    radial-gradient(60% 45% at 50% 78%, rgba(109,86,250,.30), rgba(52,34,158,.12) 45%, transparent 75%),
+    #000;
+}
+.h2-bg::after { /* barely-there grain so the black isn't flat */
+  content:""; position:absolute; inset:0;
+  background-image:var(--grain); background-size:220px; opacity:.08; mix-blend-mode:overlay;
+}
+.hero-v2 .h2 > .corner { color:rgba(255,255,255,.55); }
+.hero-v2 .h2-eyebrow { color:#a497ff; }
+.hero-v2 .h2-copy .lead { color:rgba(245,244,250,.6); }
+
+/* ring: JS drives rotation + light, so no CSS spin */
+.hero-v2 .ring { animation:none; --w:clamp(170px, 17vw, 250px); --h:calc(var(--w) * 1.32); --gap:34px; top:44%; will-change:transform; }
+.hero-v2 .ring-wrap { perspective:1000px; perspective-origin:50% 40%; -webkit-mask:none; mask:none; overflow:hidden; }
+.hero-v2 .rc {
+  --lit:0; --side:1;
+  border-radius:18px;
+  background:#07070b;
+  box-shadow:
+    0 0 0 1px rgba(164,151,255, calc(.06 + var(--lit) * .35)),
+    0 0 calc(10px + var(--lit) * 60px) calc(var(--lit) * 4px) rgba(109,86,250, calc(var(--lit) * .55)),
+    0 40px 70px -30px #000;
+  transition:none;
+}
+.hero-v2 .rc img {
+  filter:saturate(calc(.55 + var(--lit) * .5)) brightness(calc(.16 + var(--lit) * .62)) contrast(1.05);
+  transition:none;
+}
+.hero-v2 .rc::after { display:none; }
+.rc-light { /* violet light spilling onto the edge that faces the centre */
+  position:absolute; inset:0; pointer-events:none;
+  background:linear-gradient(90deg, rgba(129,109,251,.75) 0%, rgba(109,86,250,.25) 22%, transparent 55%);
+  transform:scaleX(var(--side));
+  opacity:calc(.25 + var(--lit) * .75);
+  mix-blend-mode:screen;
+}
+.rc-light::after { /* dark falloff toward the far edge + floor */
+  content:""; position:absolute; inset:0;
+  background:linear-gradient(90deg, transparent 40%, rgba(0,0,0,.55) 100%), linear-gradient(to bottom, transparent 55%, rgba(0,0,0,.6));
+  mix-blend-mode:normal;
+}
+.hero-v2 .rc:hover img { filter:saturate(1) brightness(.95); }
+
+/* portrait: strong violet back-light like a studio rim light */
+.hero-v2 .h2-glow {
+  height:92%; width:min(1000px, 130vw);
+  background:
+    radial-gradient(closest-side at 50% 52%, rgba(164,151,255,.55), rgba(109,86,250,.42) 30%, rgba(52,34,158,.22) 58%, transparent 80%);
+  filter:blur(28px);
+}
+.hero-v2 .h2-portrait {
+  filter:
+    drop-shadow(0 0 1.5px rgba(200,190,255,.85))
+    drop-shadow(0 0 18px rgba(129,109,251,.75))
+    drop-shadow(0 0 60px rgba(109,86,250,.45))
+    brightness(.92) contrast(1.08);
+}
+.hero-v2 .h2-floor { height:26%; background:linear-gradient(to bottom, transparent, #000 85%); }
+@media (max-width:760px) {
+  .hero-v2 .ring { --w:clamp(118px, 32vw, 160px); --gap:18px; top:36%; }
+  .hero-v2 .ring-wrap { perspective:640px; }
+}
+
+.hero-v2 + .marquee { background:#000; border-top-color:rgba(255,255,255,.06); }
+.hero-v2 .h2-portrait {
+  filter:drop-shadow(0 0 1px rgba(200,190,255,.8)) drop-shadow(0 0 10px rgba(129,109,251,.45)) brightness(.92) contrast(1.08);
+}
+.hero-v2 .h2-glow { background:radial-gradient(closest-side at 50% 55%, rgba(164,151,255,.42), rgba(109,86,250,.3) 32%, rgba(52,34,158,.14) 60%, transparent 82%); filter:blur(40px); }
