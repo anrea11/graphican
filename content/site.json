@@ -4,7 +4,11 @@
     "description": "Graphican — Branding, Digital Poster, Reels. Дизайн бүтээх хязгааргүй боломж."
   },
   "hero": {
-    "kicker": ["BRANDING", "DIGITAL POSTER", "REELS"],
+    "kicker": [
+      "BRANDING",
+      "DIGITAL POSTER",
+      "REELS"
+    ],
     "title_line1": "Graphic",
     "title_line2": "+ Can",
     "tagline_line1": "Дизайн бүтээх",
@@ -16,14 +20,38 @@
     "artist_name": "Graphican",
     "artist_role": "MAIN ARTIST",
     "stats": [
-      { "value": "5+", "label": "Жилийн туршлага" },
-      { "value": "15+", "label": "Байгууллага" }
+      {
+        "value": "5+",
+        "label": "Жилийн туршлага"
+      },
+      {
+        "value": "15+",
+        "label": "Байгууллага"
+      }
     ],
-    "poster_main": { "image": "/assets/uploads/munkh-energy.jpg", "label": "PRODUCT CAMPAIGN", "alt": "Munkh Energy × GoodWe — бүтээгдэхүүний постер" },
-    "poster_left": { "image": "/assets/uploads/way-academy.jpg", "label": "EVENT / POSTER", "alt": "Way Academy — Demo Day постер" },
-    "poster_right": { "image": "/assets/uploads/protech.jpg", "label": "VISUAL IDENTITY", "alt": "Protech — брэнд айдентити" }
+    "poster_main": {
+      "image": "/assets/uploads/munkh-energy.jpg",
+      "label": "PRODUCT CAMPAIGN",
+      "alt": "Munkh Energy × GoodWe — бүтээгдэхүүний постер"
+    },
+    "poster_left": {
+      "image": "/assets/uploads/way-academy.jpg",
+      "label": "EVENT / POSTER",
+      "alt": "Way Academy — Demo Day постер"
+    },
+    "poster_right": {
+      "image": "/assets/uploads/protech.jpg",
+      "label": "VISUAL IDENTITY",
+      "alt": "Protech — брэнд айдентити"
+    }
   },
-  "marquee": ["BRANDING", "DIGITAL POSTER", "REELS", "VISUAL IDENTITY", "CAMPAIGN"],
+  "marquee": [
+    "BRANDING",
+    "DIGITAL POSTER",
+    "REELS",
+    "VISUAL IDENTITY",
+    "CAMPAIGN"
+  ],
   "work": {
     "kicker": "02 / PORTFOLIO",
     "title_en": "SELECTED WORK",
@@ -32,10 +60,10 @@
     "hint": "Байгууллага дээр дарж хийсэн ажлуудыг үзнэ үү",
     "projects": [
       {
+        "image": "/assets/uploads/munkh-energy.jpg",
         "name": "Munkh Energy",
         "type": "BRANDING / DIGITAL POSTER",
         "description": "GoodWe hybrid инвертерийн онцлог, давуу талыг нэг визуал системд нэгтгэсэн бүтээгдэхүүний постер.",
-        "image": "/assets/uploads/munkh-energy.jpg",
         "details": "Munkh Energy компанийн GoodWe брэндийн hybrid инвертерийг сурталчлах сошиал постерын цуврал. Бүтээгдэхүүний техникийн давуу талыг энгийн, ойлгомжтой визуал хэлээр хүргэхийг зорьсон.",
         "gallery": [
           {
@@ -47,10 +75,10 @@
         "link": ""
       },
       {
+        "image": "/assets/uploads/way-academy.jpg",
         "name": "Way Academy",
         "type": "EVENT / DIGITAL POSTER",
         "description": "Demo Day арга хэмжээний мэдээлэл, мастер багш нарын дүр төрхийг нэгтгэсэн event постер.",
-        "image": "/assets/uploads/way-academy.jpg",
         "details": "Way Academy-ийн сургалт, арга хэмжээнд зориулсан event постерууд. Сургалтын чиглэл бүрийн мастер багш нарыг нэг дор, хүчтэй дүр төрхтэйгөөр харуулсан.",
         "gallery": [
           {
@@ -59,13 +87,13 @@
             "caption": "Strategic Digital Marketing, IT Business Analyst & AI, Data Analyst хөтөлбөрүүдийн мастер багш нарыг танилцуулсан арга хэмжээний постер."
           }
         ],
-        "link": ""
+        "link": "ankhbayar0100@gmail.com"
       },
       {
+        "image": "/assets/uploads/protech.jpg",
         "name": "Protech",
         "type": "BRANDING / VISUAL IDENTITY",
         "description": "Технологийн брэндийн минимал, орчин үеийн лого болон визуал хэлбэрийн концепц.",
-        "image": "/assets/uploads/protech.jpg",
         "details": "Protech технологийн брэндийн лого болон визуал айдентити. \"P\" үсгийн хэлбэрийг брэндийн гол график элемент болгон ашигласан.",
         "gallery": [
           {
@@ -88,19 +116,31 @@
         "name": "BRANDING",
         "name_mn": "Брэнд айдентити",
         "description": "Лого, өнгө, фонт, хэв маягийг нэгтгэсэн, танигдахуйц брэндийн визуал систем.",
-        "tags": ["Лого", "Өнгөний систем", "Брэнд гарын авлага"]
+        "tags": [
+          "Лого",
+          "Өнгөний систем",
+          "Брэнд гарын авлага"
+        ]
       },
       {
         "name": "DIGITAL POSTER",
         "name_mn": "Сошиал & кампанит ажил",
         "description": "Бүтээгдэхүүн, арга хэмжээ, кампанит ажлыг анхаарал татахуйц, ойлгомжтой хүргэх постер дизайн.",
-        "tags": ["Сошиал пост", "Event постер", "Бүтээгдэхүүн"]
+        "tags": [
+          "Сошиал пост",
+          "Event постер",
+          "Бүтээгдэхүүн"
+        ]
       },
       {
         "name": "REELS",
         "name_mn": "Хөдөлгөөнт контент",
         "description": "Брэндийн өнгө төрхийг хадгалсан богино видео, моушн график болон reels контент.",
-        "tags": ["Моушн", "Богино видео", "Анимаци"]
+        "tags": [
+          "Моушн",
+          "Богино видео",
+          "Анимаци"
+        ]
       }
     ]
   },
@@ -116,10 +156,22 @@
     "title_line2": "илэрхийлнэ.",
     "text": "Би Graphican-ий үндсэн дизайнер Мөнхбаяр Анхбаяр. 5 гаруй жилийн турш брэндинг, дижитал постер, reels контентын чиглэлээр 15 гаруй байгууллагатай хамтран ажилласан.\n\nБрэнд бүрийн санааг энгийн, ойлгомжтой, гэхдээ анхаарал татахуйц визуал хэл болгон хувиргах нь миний зорилго.",
     "stats": [
-      { "value": "5+", "label": "Жилийн туршлага" },
-      { "value": "15+", "label": "Байгууллага" },
-      { "value": "MAIN ARTIST", "label": "Graphican" },
-      { "value": "03", "label": "Үндсэн чиглэл" }
+      {
+        "value": "5+",
+        "label": "Жилийн туршлага"
+      },
+      {
+        "value": "15+",
+        "label": "Байгууллага"
+      },
+      {
+        "value": "MAIN ARTIST",
+        "label": "Graphican"
+      },
+      {
+        "value": "03",
+        "label": "Үндсэн чиглэл"
+      }
     ]
   },
   "contact": {
@@ -132,9 +184,18 @@
     "phone": "",
     "big_text": "LET'S CREATE",
     "socials": [
-      { "name": "Instagram", "url": "" },
-      { "name": "Facebook", "url": "" },
-      { "name": "Behance", "url": "" }
+      {
+        "name": "Instagram",
+        "url": ""
+      },
+      {
+        "name": "Facebook",
+        "url": ""
+      },
+      {
+        "name": "Behance",
+        "url": ""
+      }
     ]
   },
   "footer": {
