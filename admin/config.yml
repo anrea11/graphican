@@ -12,7 +12,7 @@ backend:
     uploadMedia: "Зураг нэмэв: {{path}}"
     deleteMedia: "Зураг устгав: {{path}}"
 
-# site_url: https://your-domain.mn   <- домайнаа холбосны дараа бичиж болно
+site_url: https://graphican.online   <- домайнаа холбосны дараа бичиж болно
 media_folder: assets/uploads
 public_folder: /assets/uploads
 
