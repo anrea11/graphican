@@ -5,14 +5,14 @@
 # ------------------------------------------------------------------
 backend:
   name: github
-  repo: graphican/graphican-site
+  repo: anrea11/graphican
   branch: main
   commit_messages:
     update: "Контент шинэчлэв: {{slug}}"
     uploadMedia: "Зураг нэмэв: {{path}}"
     deleteMedia: "Зураг устгав: {{path}}"
 
-site_url: https://graphican.online   <- домайнаа холбосны дараа бичиж болно
+site_url: https://graphican.online
 media_folder: assets/uploads
 public_folder: /assets/uploads
 
@@ -96,6 +96,7 @@ collections:
               - { name: title_en, label: "Англи гарчиг", widget: string, required: false }
               - { name: title, label: "Монгол гарчиг", widget: string }
               - { name: description, label: "Тайлбар", widget: text }
+              - { name: hint, label: "Картын дээрх жижиг заавар", widget: string, required: false }
               - name: projects
                 label: "Төслүүд"
                 label_singular: "Төсөл"
@@ -106,7 +107,19 @@ collections:
                   - { name: image, label: "Зураг (дөрвөлжин 1:1)", widget: image }
                   - { name: name, label: "Брэнд / төслийн нэр", widget: string }
                   - { name: type, label: "Төрөл (англиар)", widget: string, hint: "Жишээ: BRANDING / DIGITAL POSTER" }
-                  - { name: description, label: "Тайлбар", widget: text }
+                  - { name: description, label: "Картын богино тайлбар", widget: text }
+                  - { name: details, label: "Дэлгэрэнгүй тайлбар (дарахад гарна)", widget: text, required: false, hint: "Хоосон мөрөөр догол мөр тусгаарлана" }
+                  - name: gallery
+                    label: "Хийсэн ажлууд (дарахад гарна)"
+                    label_singular: "Ажил"
+                    widget: list
+                    required: false
+                    summary: "{{title}}"
+                    hint: "Постер, лого, reels-ийн зураг бүрийг нэмээд доор нь тайлбар бичнэ"
+                    fields:
+                      - { name: image, label: "Зураг", widget: image }
+                      - { name: title, label: "Гарчиг", widget: string, required: false }
+                      - { name: caption, label: "Тайлбар", widget: text, required: false }
                   - { name: link, label: "Холбоос (заавал биш)", widget: string, required: false, hint: "Behance, Instagram пост гэх мэт" }
 
           # ---------------- SERVICES ----------------
@@ -135,10 +148,15 @@ collections:
             widget: object
             fields:
               - { name: kicker, label: "Жижиг шошго", widget: string }
-              - { name: title_line1, label: "Гарчиг — эхлэл", widget: string }
-              - { name: title_highlight, label: "Гарчиг — өнгөтэй хэсэг", widget: string }
-              - { name: title_line2, label: "Гарчиг — 2-р мөр", widget: string }
-              - { name: text, label: "Танилцуулга", widget: text }
+              - { name: photo, label: "Миний зураг (босоо 4:5)", widget: image, required: false }
+              - { name: photo_label, label: "Зураг дээрх шошго (англиар)", widget: string, required: false }
+              - { name: role, label: "Албан тушаал", widget: string, required: false }
+              - { name: name, label: "Нэр", widget: string, required: false }
+              - { name: name_en, label: "Нэр (англиар)", widget: string, required: false }
+              - { name: title_line1, label: "Уриа — эхлэл", widget: string, required: false }
+              - { name: title_highlight, label: "Уриа — өнгөтэй хэсэг", widget: string, required: false }
+              - { name: title_line2, label: "Уриа — төгсгөл", widget: string, required: false }
+              - { name: text, label: "Танилцуулга", widget: text, hint: "Хоосон мөрөөр догол мөр тусгаарлана" }
               - name: stats
                 label: "Үзүүлэлтүүд (4 байвал сайхан)"
                 widget: list
