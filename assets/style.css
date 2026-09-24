@@ -1129,33 +1129,19 @@ html.pd-open { overflow:hidden; }
 .hero-v2 .rc:hover img { filter:saturate(1.1) brightness(1.05); }
 .rc-light { opacity:calc(.35 + var(--lit) * .65); }
 
-/* ---------- site-wide: hero's black + violet light instead of grey ---------- */
-html, body { background:#000; }
-body::after { opacity:.035; }                       /* grain was lifting the black to grey */
-.sec, .marquee, .contact, .footer { background:transparent; }
-main { position:relative; isolation:isolate; }
-.sec.work, .sec.services, .sec.about { position:relative; }
-.sec.work::before, .sec.services::before, .sec.about::before {
-  content:""; position:absolute; z-index:-1; pointer-events:none;
-  width:min(1100px, 120vw); height:900px; border-radius:50%;
-  background:radial-gradient(closest-side, rgba(109,86,250,.16), rgba(52,34,158,.07) 50%, transparent 75%);
-  filter:blur(30px);
-}
-.sec.work::before { left:-20%; top:6%; }
-.sec.services::before { right:-25%; top:0; }
-.sec.about::before { left:-15%; top:20%; }
-.reels { background:#000; }
-.reels .fx { opacity:.28; }
-.contact { background:#000; }
-.contact .fx .b1 { opacity:.5; }
-.p-media, .r-media, .about-photo { background:#0b0b12; }
-.pd-panel { background:#07070b; }
-.contact .fx .b1 { opacity:.28; }
-.contact .fx .b2 { opacity:.18; }
-.contact .fx .b3 { opacity:.3; }
-.contact .fx .ring { border-color:rgba(0,0,0,.96); }
-.contact .fx .grain { opacity:.15; }
-.contact .fx::after { background:radial-gradient(ellipse at 50% 50%, transparent 25%, rgba(0,0,0,.85) 100%); }
-.contact .fx .b2 { display:none; }
-.contact .fx .b1 { opacity:.2; }
-.contact .fx .grain { opacity:.08; }
+/* ---------- brand backdrop (same as "Хамтдаа бүтээе") alternating behind sections ---------- */
+.sec.has-fx { overflow:hidden; }
+.sec.has-fx > .fx { position:absolute; inset:0; }
+/* keep the light near the heading of tall sections */
+.fx-alt-a .b1, .fx-alt-b .b1 { top:6%; }
+.fx-alt-a .b2, .fx-alt-b .b2 { top:-10vmax; }
+.fx-alt-a .ring, .fx-alt-b .ring { top:-86vmax; }
+.fx-alt-a .b3, .fx-alt-b .b3 { bottom:auto; top:40%; }
+/* B = mirrored, so the light swaps sides section to section */
+.fx-alt-b { transform:scaleX(-1); }
+/* keep text readable over the light */
+.sec.has-fx .fx::after { background:radial-gradient(ellipse at 50% 40%, transparent 30%, rgba(8,8,10,.6) 100%); }
+.hero-v2 + .marquee { background:var(--bg); }
+.fx-alt-a .b1, .fx-alt-b .b1 { opacity:.72; }
+.fx-alt-a .b2, .fx-alt-b .b2 { opacity:.6; }
+.sec.has-fx .sec-desc, .sec.has-fx .about-text, .sec.has-fx .s-body p, .sec.has-fx .p-desc { color:rgba(245,244,250,.78); text-shadow:0 1px 14px rgba(8,8,10,.6); }

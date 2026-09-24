@@ -193,7 +193,7 @@
       );
     }).join('');
     var hint = w.hint ? '<p class="hint reveal"><span class="live"></span>' + esc(w.hint) + '</p>' : '';
-    return '<section class="sec work" id="work">' + sectionTop(w) + hint + '<div class="projects">' + cards + '</div></section>';
+    return '<section class="sec work has-fx" id="work">' + fx('alt-a') + sectionTop(w) + hint + '<div class="projects">' + cards + '</div></section>';
   }
 
   function reels(r) {
@@ -263,7 +263,7 @@
         '</article>'
       );
     }).join('');
-    return '<section class="sec services" id="services">' + sectionTop(s) + '<div class="service-list">' + rows + '</div></section>';
+    return '<section class="sec services has-fx" id="services">' + fx('alt-b') + sectionTop(s) + '<div class="service-list">' + rows + '</div></section>';
   }
 
   function about(a) {
@@ -278,7 +278,7 @@
       ? '<p class="quote">' + esc(a.title_line1) + ' <em>' + esc(a.title_highlight) + '</em> ' + esc(a.title_line2) + '</p>'
       : '';
     return (
-      '<section class="sec about" id="about"><div class="about-inner' + (photo ? ' has-photo' : '') + '">' +
+      '<section class="sec about has-fx" id="about">' + fx('alt-a') + '<div class="about-inner' + (photo ? ' has-photo' : '') + '">' +
         photo +
         '<div class="about-copy reveal">' +
           '<div class="sec-meta"><span>' + esc(a.kicker) + '</span>' + (a.name_en ? '<span>' + esc(a.name_en) + '</span>' : '') + '</div>' +
