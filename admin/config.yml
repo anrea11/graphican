@@ -1,0 +1,178 @@
+# ------------------------------------------------------------------
+#  Graphican — засварлах төвийн тохиргоо (Sveltia CMS)
+#  ДООРХ "repo" мөрөнд өөрийн GitHub нэр/репо-гоо бичнэ.
+#  Жишээ:  repo: graphican/graphican-site
+# ------------------------------------------------------------------
+backend:
+  name: github
+  repo: YOUR-GITHUB-USERNAME/graphican-site
+  branch: main
+  commit_messages:
+    update: "Контент шинэчлэв: {{slug}}"
+    uploadMedia: "Зураг нэмэв: {{path}}"
+    deleteMedia: "Зураг устгав: {{path}}"
+
+# site_url: https://your-domain.mn   <- домайнаа холбосны дараа бичиж болно
+media_folder: assets/uploads
+public_folder: /assets/uploads
+
+# Зураг оруулахад автоматаар WebP болгож жижгэрүүлнэ (сайт хурдан ачаална)
+media_libraries:
+  default:
+    config:
+      max_file_size: 15000000
+      transformations:
+        raster_image:
+          format: webp
+          quality: 85
+          width: 2000
+          height: 2000
+
+collections:
+  - name: site
+    label: "Сайтын контент"
+    editor:
+      preview: false
+    files:
+      # ---------------- HERO ----------------
+      - name: content
+        label: "Бүх контент"
+        file: content/site.json
+        format: json
+        fields:
+          - name: seo
+            label: "SEO (Google-д харагдах)"
+            widget: object
+            collapsed: true
+            fields:
+              - { name: title, label: "Хуудасны гарчиг", widget: string }
+              - { name: description, label: "Тайлбар", widget: text }
+
+          - name: hero
+            label: "01 · Нүүр хэсэг (Hero)"
+            widget: object
+            fields:
+              - name: kicker
+                label: "Дээд жижиг шошго (англиар)"
+                widget: list
+                hint: "Жишээ: BRANDING, DIGITAL POSTER, REELS"
+              - { name: title_line1, label: "Том гарчиг — 1-р мөр (англиар)", widget: string }
+              - { name: title_line2, label: "Том гарчиг — 2-р мөр (англиар)", widget: string }
+              - { name: tagline_line1, label: "Монгол уриа — 1-р мөр", widget: string }
+              - { name: tagline_highlight, label: "Монгол уриа — өнгөтэй үг", widget: string, required: false }
+              - { name: tagline_rest, label: "Монгол уриа — үлдсэн хэсэг", widget: string, required: false }
+              - { name: description, label: "Тайлбар текст", widget: text }
+              - { name: primary_button, label: "Үндсэн товч", widget: string }
+              - { name: secondary_button, label: "Хоёр дахь товч", widget: string }
+              - { name: artist_name, label: "Нэр", widget: string }
+              - { name: artist_role, label: "Албан тушаал (англиар)", widget: string }
+              - name: stats
+                label: "Тоон үзүүлэлт"
+                widget: list
+                summary: "{{value}} — {{label}}"
+                fields:
+                  - { name: value, label: "Тоо", widget: string }
+                  - { name: label, label: "Тайлбар", widget: string }
+              - name: poster_main
+                label: "Постер — голын том"
+                widget: object
+                fields: &poster
+                  - { name: image, label: "Зураг (дөрвөлжин 1:1)", widget: image }
+                  - { name: label, label: "Шошго (англиар)", widget: string, required: false }
+                  - { name: alt, label: "Зургийн тайлбар", widget: string, required: false }
+              - { name: poster_left, label: "Постер — зүүн", widget: object, fields: *poster }
+              - { name: poster_right, label: "Постер — баруун", widget: object, fields: *poster }
+
+          - name: marquee
+            label: "Гүйдэг мөр (англиар)"
+            widget: list
+
+          # ---------------- WORK ----------------
+          - name: work
+            label: "02 · Ажлууд (Portfolio)"
+            widget: object
+            fields:
+              - { name: kicker, label: "Жижиг шошго", widget: string }
+              - { name: title_en, label: "Англи гарчиг", widget: string, required: false }
+              - { name: title, label: "Монгол гарчиг", widget: string }
+              - { name: description, label: "Тайлбар", widget: text }
+              - name: projects
+                label: "Төслүүд"
+                label_singular: "Төсөл"
+                widget: list
+                summary: "{{name}}"
+                hint: "Чирж дарааллыг нь сольж болно. Шинэ төсөл нэмэх бол 'Add' дар."
+                fields:
+                  - { name: image, label: "Зураг (дөрвөлжин 1:1)", widget: image }
+                  - { name: name, label: "Брэнд / төслийн нэр", widget: string }
+                  - { name: type, label: "Төрөл (англиар)", widget: string, hint: "Жишээ: BRANDING / DIGITAL POSTER" }
+                  - { name: description, label: "Тайлбар", widget: text }
+                  - { name: link, label: "Холбоос (заавал биш)", widget: string, required: false, hint: "Behance, Instagram пост гэх мэт" }
+
+          # ---------------- SERVICES ----------------
+          - name: services
+            label: "03 · Үйлчилгээ"
+            widget: object
+            fields:
+              - { name: kicker, label: "Жижиг шошго", widget: string }
+              - { name: title_en, label: "Англи гарчиг", widget: string, required: false }
+              - { name: title, label: "Монгол гарчиг", widget: string }
+              - { name: description, label: "Тайлбар", widget: text }
+              - name: items
+                label: "Үйлчилгээнүүд"
+                label_singular: "Үйлчилгээ"
+                widget: list
+                summary: "{{name}}"
+                fields:
+                  - { name: name, label: "Нэр (англиар)", widget: string }
+                  - { name: name_mn, label: "Монгол нэр", widget: string }
+                  - { name: description, label: "Тайлбар", widget: text }
+                  - { name: tags, label: "Шошгууд", widget: list, required: false }
+
+          # ---------------- ABOUT ----------------
+          - name: about
+            label: "04 · Миний тухай"
+            widget: object
+            fields:
+              - { name: kicker, label: "Жижиг шошго", widget: string }
+              - { name: title_line1, label: "Гарчиг — эхлэл", widget: string }
+              - { name: title_highlight, label: "Гарчиг — өнгөтэй хэсэг", widget: string }
+              - { name: title_line2, label: "Гарчиг — 2-р мөр", widget: string }
+              - { name: text, label: "Танилцуулга", widget: text }
+              - name: stats
+                label: "Үзүүлэлтүүд (4 байвал сайхан)"
+                widget: list
+                summary: "{{value}} — {{label}}"
+                fields:
+                  - { name: value, label: "Тоо / үг", widget: string }
+                  - { name: label, label: "Тайлбар", widget: string }
+
+          # ---------------- CONTACT ----------------
+          - name: contact
+            label: "05 · Холбоо барих"
+            widget: object
+            fields:
+              - { name: kicker, label: "Жижиг шошго", widget: string }
+              - { name: title_line1, label: "Гарчиг — 1-р мөр", widget: string }
+              - { name: title_line2, label: "Гарчиг — 2-р мөр", widget: string }
+              - { name: text, label: "Тайлбар", widget: text }
+              - { name: button, label: "Товчны текст", widget: string }
+              - { name: email, label: "Имэйл", widget: string }
+              - { name: phone, label: "Утас (заавал биш)", widget: string, required: false }
+              - { name: big_text, label: "Арын том бичиг (англиар)", widget: string, required: false }
+              - name: socials
+                label: "Сошиал холбоос"
+                widget: list
+                summary: "{{name}}"
+                hint: "Холбоосгүй үлдээсэн нь сайтад харагдахгүй"
+                fields:
+                  - { name: name, label: "Нэр", widget: string }
+                  - { name: url, label: "Холбоос", widget: string, required: false }
+
+          - name: footer
+            label: "Footer"
+            widget: object
+            collapsed: true
+            fields:
+              - { name: copyright, label: "Зохиогчийн эрх", widget: string }
+              - { name: tagline, label: "Уриа", widget: string }

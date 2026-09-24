@@ -1,0 +1,114 @@
+{
+  "seo": {
+    "title": "Graphican — Portfolio",
+    "description": "Graphican — Branding, Digital Poster, Reels. Дизайн бүтээх хязгааргүй боломж."
+  },
+  "hero": {
+    "kicker": ["BRANDING", "DIGITAL POSTER", "REELS"],
+    "title_line1": "Graphic",
+    "title_line2": "+ Can",
+    "tagline_line1": "Дизайн бүтээх",
+    "tagline_highlight": "хязгааргүй",
+    "tagline_rest": "боломж",
+    "description": "Брэндийн санааг тодорхой дүр төрхтэй болгож, бүтээгдэхүүн, үйл явдал, контентын үнэ цэнийг орчин үеийн визуал шийдлээр илэрхийлнэ.",
+    "primary_button": "Миний ажлууд",
+    "secondary_button": "Үйлчилгээ",
+    "artist_name": "Graphican",
+    "artist_role": "MAIN ARTIST",
+    "stats": [
+      { "value": "5+", "label": "Жилийн туршлага" },
+      { "value": "100+", "label": "Хийсэн төсөл" }
+    ],
+    "poster_main": { "image": "/assets/uploads/munkh-energy.jpg", "label": "PRODUCT CAMPAIGN", "alt": "Munkh Energy × GoodWe — бүтээгдэхүүний постер" },
+    "poster_left": { "image": "/assets/uploads/way-academy.jpg", "label": "EVENT / POSTER", "alt": "Way Academy — Demo Day постер" },
+    "poster_right": { "image": "/assets/uploads/protech.jpg", "label": "VISUAL IDENTITY", "alt": "Protech — брэнд айдентити" }
+  },
+  "marquee": ["BRANDING", "DIGITAL POSTER", "REELS", "VISUAL IDENTITY", "CAMPAIGN"],
+  "work": {
+    "kicker": "02 / PORTFOLIO",
+    "title_en": "SELECTED WORK",
+    "title": "Онцлох ажлууд.",
+    "description": "Брэндийн өнгө төрх, бүтээгдэхүүн, үйл явдлыг зорилтот хэрэглэгчдэд хүргэхэд чиглэсэн сонгогдсон визуал шийдлүүд.",
+    "projects": [
+      {
+        "name": "Munkh Energy",
+        "type": "BRANDING / DIGITAL POSTER",
+        "description": "GoodWe hybrid инвертерийн онцлог, давуу талыг нэг визуал системд нэгтгэсэн бүтээгдэхүүний постер.",
+        "image": "/assets/uploads/munkh-energy.jpg",
+        "link": ""
+      },
+      {
+        "name": "Way Academy",
+        "type": "EVENT / DIGITAL POSTER",
+        "description": "Demo Day арга хэмжээний мэдээлэл, мастер багш нарын дүр төрхийг нэгтгэсэн event постер.",
+        "image": "/assets/uploads/way-academy.jpg",
+        "link": ""
+      },
+      {
+        "name": "Protech",
+        "type": "BRANDING / VISUAL IDENTITY",
+        "description": "Технологийн брэндийн минимал, орчин үеийн лого болон визуал хэлбэрийн концепц.",
+        "image": "/assets/uploads/protech.jpg",
+        "link": ""
+      }
+    ]
+  },
+  "services": {
+    "kicker": "03 / SERVICES",
+    "title_en": "WHAT I DO",
+    "title": "Үйлчилгээ.",
+    "description": "Санаанаас эхлээд бэлэн контент хүртэл брэндийн визуал хэлийг нэг системээр бүтээнэ.",
+    "items": [
+      {
+        "name": "BRANDING",
+        "name_mn": "Брэнд айдентити",
+        "description": "Лого, өнгө, фонт, хэв маягийг нэгтгэсэн, танигдахуйц брэндийн визуал систем.",
+        "tags": ["Лого", "Өнгөний систем", "Брэнд гарын авлага"]
+      },
+      {
+        "name": "DIGITAL POSTER",
+        "name_mn": "Сошиал & кампанит ажил",
+        "description": "Бүтээгдэхүүн, арга хэмжээ, кампанит ажлыг анхаарал татахуйц, ойлгомжтой хүргэх постер дизайн.",
+        "tags": ["Сошиал пост", "Event постер", "Бүтээгдэхүүн"]
+      },
+      {
+        "name": "REELS",
+        "name_mn": "Хөдөлгөөнт контент",
+        "description": "Брэндийн өнгө төрхийг хадгалсан богино видео, моушн график болон reels контент.",
+        "tags": ["Моушн", "Богино видео", "Анимаци"]
+      }
+    ]
+  },
+  "about": {
+    "kicker": "04 / ABOUT GRAPHICAN",
+    "title_line1": "Санааг",
+    "title_highlight": "визуал хэлээр",
+    "title_line2": "илэрхийлнэ.",
+    "text": "Graphican нь брэндинг, дижитал постер, контент болон визуал коммуникацийн шийдлүүдээр дамжуулан санааг ойлгомжтой, анхаарал татахуйц дүр төрх болгон бүтээдэг.",
+    "stats": [
+      { "value": "5+", "label": "Жилийн туршлага" },
+      { "value": "100+", "label": "Хийсэн төсөл" },
+      { "value": "MAIN ARTIST", "label": "Graphican" },
+      { "value": "03", "label": "Үндсэн чиглэл" }
+    ]
+  },
+  "contact": {
+    "kicker": "05 / CONTACT",
+    "title_line1": "Хамтдаа",
+    "title_line2": "бүтээе.",
+    "text": "Таны дараагийн санаа, брэнд эсвэл төслийг визуал шийдэл болгон хөгжүүлье.",
+    "button": "Холбоо барих",
+    "email": "hello@graphican.mn",
+    "phone": "",
+    "big_text": "LET'S CREATE",
+    "socials": [
+      { "name": "Instagram", "url": "" },
+      { "name": "Facebook", "url": "" },
+      { "name": "Behance", "url": "" }
+    ]
+  },
+  "footer": {
+    "copyright": "© 2026 GRAPHICAN",
+    "tagline": "BRANDING • DIGITAL POSTER • REELS"
+  }
+}
