@@ -1105,3 +1105,5 @@ html.pd-open { overflow:hidden; }
   filter:drop-shadow(0 0 1px rgba(200,190,255,.8)) drop-shadow(0 0 10px rgba(129,109,251,.45)) brightness(.92) contrast(1.08);
 }
 .hero-v2 .h2-glow { background:radial-gradient(closest-side at 50% 55%, rgba(164,151,255,.42), rgba(109,86,250,.3) 32%, rgba(52,34,158,.14) 60%, transparent 82%); filter:blur(40px); }
+/* photo is already dark with violet rim light — let it speak */
+.hero-v2 .h2-portrait { filter:drop-shadow(0 0 12px rgba(109,86,250,.35)) brightness(1.08) contrast(1.04); left:54%; }
