@@ -82,6 +82,7 @@ collections:
                   - { name: alt, label: "Зургийн тайлбар", widget: string, required: false }
               - { name: poster_left, label: "Постер — зүүн", widget: object, fields: *poster }
               - { name: poster_right, label: "Постер — баруун", widget: object, fields: *poster }
+              - { name: video, label: "Голын постерын оронд видео (заавал биш)", widget: file, required: false, accept: "video/mp4,video/webm", hint: "MP4 (H.264) хэлбэрээр export хийгээд 25MB-аас бага байлгана. Дуугүйгээр автоматаар тоглоно. Голын постерын зураг нь видео ачаалах хүртэл харагдана." }
 
           - name: marquee
             label: "Гүйдэг мөр (англиар)"
@@ -105,6 +106,7 @@ collections:
                 hint: "Чирж дарааллыг нь сольж болно. Шинэ төсөл нэмэх бол 'Add' дар."
                 fields:
                   - { name: image, label: "Зураг (дөрвөлжин 1:1)", widget: image }
+                  - { name: video, label: "Картын видео (заавал биш)", widget: file, required: false, accept: "video/mp4,video/webm", hint: "Оруулбал картан дээр зургийн оронд тоглоно. MP4 (H.264) хэлбэрээр export хийгээд 25MB-аас бага байлгана. Дуугүйгээр автоматаар тоглоно." }
                   - { name: name, label: "Брэнд / төслийн нэр", widget: string }
                   - { name: type, label: "Төрөл (англиар)", widget: string, hint: "Жишээ: BRANDING / DIGITAL POSTER" }
                   - { name: description, label: "Картын богино тайлбар", widget: text }
@@ -117,10 +119,43 @@ collections:
                     summary: "{{title}}"
                     hint: "Постер, лого, reels-ийн зураг бүрийг нэмээд доор нь тайлбар бичнэ"
                     fields:
-                      - { name: image, label: "Зураг", widget: image }
+                      - { name: image, label: "Зураг (видео бол нүүр зураг)", widget: image, required: false }
+                      - { name: video, label: "Видео (заавал биш)", widget: file, required: false, accept: "video/mp4,video/webm", hint: "Видео оруулбал тоглуулагчтай гарна. MP4 (H.264) хэлбэрээр export хийгээд 25MB-аас бага байлгана. Дуугүйгээр автоматаар тоглоно." }
                       - { name: title, label: "Гарчиг", widget: string, required: false }
                       - { name: caption, label: "Тайлбар", widget: text, required: false }
                   - { name: link, label: "Холбоос (заавал биш)", widget: string, required: false, hint: "Behance, Instagram пост гэх мэт" }
+
+          # ---------------- REELS / VIDEO ----------------
+          - name: reels
+            label: "03 · Видео ажлууд (Reels)"
+            widget: object
+            fields:
+              - { name: kicker, label: "Жижиг шошго", widget: string }
+              - { name: title_en, label: "Англи гарчиг", widget: string, required: false }
+              - { name: title, label: "Монгол гарчиг", widget: string }
+              - { name: description, label: "Тайлбар", widget: text, required: false }
+              - name: items
+                label: "Видеонууд"
+                label_singular: "Видео"
+                widget: list
+                required: false
+                summary: "{{title}}"
+                hint: "Чирж дарааллыг нь сольж болно. Шинэ видео нэмэх бол 'Add' дар."
+                fields:
+                  - { name: video, label: "Видео файл", widget: file, accept: "video/mp4,video/webm", hint: "MP4 (H.264) хэлбэрээр export хийгээд 25MB-аас бага байлгана. Дуугүйгээр автоматаар тоглоно." }
+                  - { name: poster, label: "Нүүр зураг (заавал биш)", widget: image, required: false, hint: "Видео ачаалах хүртэл харагдана" }
+                  - { name: title, label: "Гарчиг", widget: string }
+                  - { name: type, label: "Төрөл (англиар)", widget: string, required: false, hint: "Жишээ: REELS, LOGO ANIMATION, MOTION POSTER" }
+                  - { name: caption, label: "Тайлбар", widget: text, required: false }
+                  - name: ratio
+                    label: "Хэмжээ"
+                    widget: select
+                    default: "16:9"
+                    options:
+                      - { label: "Хэвтээ 16:9 (YouTube)", value: "16:9" }
+                      - { label: "Босоо 9:16 (Reels, TikTok)", value: "9:16" }
+                      - { label: "Дөрвөлжин 1:1", value: "1:1" }
+                      - { label: "Босоо 4:5 (Instagram пост)", value: "4:5" }
 
           # ---------------- SERVICES ----------------
           - name: services

@@ -43,7 +43,8 @@
       "image": "/assets/uploads/protech.jpg",
       "label": "VISUAL IDENTITY",
       "alt": "Protech — брэнд айдентити"
-    }
+    },
+    "video": ""
   },
   "marquee": [
     "BRANDING",
@@ -69,10 +70,12 @@
           {
             "image": "/assets/uploads/munkh-energy.jpg",
             "title": "Цахилгаан тасарсныг ч анзаарахгүй",
-            "caption": "10ms шилжилт, 98.2% үр ашиг, BloombergNEF Tier 1 зэрэг гол давуу талуудыг нэг постерт багтаасан бүтээгдэхүүний кампанит ажил."
+            "caption": "10ms шилжилт, 98.2% үр ашиг, BloombergNEF Tier 1 зэрэг гол давуу талуудыг нэг постерт багтаасан бүтээгдэхүүний кампанит ажил.",
+            "video": ""
           }
         ],
-        "link": ""
+        "link": "",
+        "video": ""
       },
       {
         "image": "/assets/uploads/way-academy.jpg",
@@ -82,17 +85,26 @@
         "details": "Way Academy-ийн сургалт, арга хэмжээнд зориулсан event постерууд. Сургалтын чиглэл бүрийн мастер багш нарыг нэг дор, хүчтэй дүр төрхтэйгөөр харуулсан.",
         "gallery": [
           {
+            "image": "/assets/uploads/way-academy-intro.jpg",
+            "video": "/assets/uploads/way-academy-intro.mp4",
+            "title": "Way Academy × Project 0 — интро анимаци",
+            "caption": "Хоёр брэндийн хамтын хөтөлбөрийн нээлтэд зориулсан богино лого анимаци."
+          },
+          {
             "image": "/assets/uploads/way-academy.jpg",
             "title": "Demo Day 2026",
-            "caption": "Strategic Digital Marketing, IT Business Analyst & AI, Data Analyst хөтөлбөрүүдийн мастер багш нарыг танилцуулсан арга хэмжээний постер."
+            "caption": "Strategic Digital Marketing, IT Business Analyst & AI, Data Analyst хөтөлбөрүүдийн мастер багш нарыг танилцуулсан арга хэмжээний постер.",
+            "video": ""
           },
           {
             "image": "/assets/uploads/demodelgts.webp",
             "title": "",
-            "caption": ""
+            "caption": "",
+            "video": ""
           }
         ],
-        "link": ""
+        "link": "",
+        "video": ""
       },
       {
         "image": "/assets/uploads/protech.jpg",
@@ -104,15 +116,33 @@
           {
             "image": "/assets/uploads/protech.jpg",
             "title": "Лого ба график элемент",
-            "caption": "Минимал, геометр хэлбэртэй логотип болон түүнээс гаралтай том хэмжээний контур график."
+            "caption": "Минимал, геометр хэлбэртэй логотип болон түүнээс гаралтай том хэмжээний контур график.",
+            "video": ""
           }
         ],
-        "link": ""
+        "link": "",
+        "video": ""
+      }
+    ]
+  },
+  "reels": {
+    "kicker": "03 / MOTION",
+    "title_en": "REELS & VIDEO",
+    "title": "Видео ажлууд.",
+    "description": "Брэндийн өнгө төрхийг хөдөлгөөнд оруулсан reels, лого анимаци, моушн график. Дээр нь дарж дуутай үзнэ үү.",
+    "items": [
+      {
+        "video": "/assets/uploads/way-academy-intro.mp4",
+        "poster": "/assets/uploads/way-academy-intro.jpg",
+        "title": "Way Academy × Project 0",
+        "type": "LOGO ANIMATION",
+        "caption": "Хоёр брэндийн хамтын хөтөлбөрийн нээлтэд зориулсан интро анимаци.",
+        "ratio": "16:9"
       }
     ]
   },
   "services": {
-    "kicker": "03 / SERVICES",
+    "kicker": "04 / SERVICES",
     "title_en": "WHAT I DO",
     "title": "Үйлчилгээ.",
     "description": "Санаанаас эхлээд бэлэн контент хүртэл брэндийн визуал хэлийг нэг системээр бүтээнэ.",
@@ -150,7 +180,7 @@
     ]
   },
   "about": {
-    "kicker": "04 / ABOUT ME",
+    "kicker": "05 / ABOUT ME",
     "photo": "/assets/uploads/munkhbayar.jpg",
     "photo_label": "GRAPHICAN / LEAD DESIGNER",
     "role": "Graphican-ий үндсэн дизайнер",
@@ -180,7 +210,7 @@
     ]
   },
   "contact": {
-    "kicker": "05 / CONTACT",
+    "kicker": "06 / CONTACT",
     "title_line1": "Хамтдаа",
     "title_line2": "бүтээе.",
     "text": "Таны дараагийн санаа, брэнд эсвэл төслийг визуал шийдэл болгон хөгжүүлье.",

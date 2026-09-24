@@ -1,6 +1,7 @@
 /*
   Graphican — renders the page from /content/site.json.
   Edit content at /admin (Sveltia CMS) — never needs code changes.
+  V4: "more." poster look (grain, light beam, hairlines, blurred type) + video everywhere.
 */
 (function () {
   'use strict';
@@ -13,11 +14,6 @@
       .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
-  // iBrand has no Cyrillic glyphs: if an "English" field contains Mongolian, fall back to Manrope
-  function fx(text) {
-    return /[Ѐ-ӿ]/.test(String(text || '')) ? ' mn-fallback' : '';
-  }
-
   function url(v) {
     var s = String(v || '').trim();
     if (!s) return '';
@@ -25,77 +21,112 @@
     return 'https://' + s;
   }
 
-  function img(path) {
-    return path ? "background-image:url('" + esc(path).replace(/'/g, '%27') + "')" : '';
+  function list(arr) { return Array.isArray(arr) ? arr : []; }
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  var YEAR = new Date().getFullYear();
+
+  function isVideo(src) { return /\.(mp4|webm|mov|m4v)(\?|#|$)/i.test(String(src || '')); }
+
+  // Split text into letters that go from blurred → sharp (the "more." effect).
+  // strength: how much of the word is blurred (0..1). Spaces kept.
+  function blurText(text, strength) {
+    var chars = Array.from(String(text || ''));
+    var n = chars.length;
+    var cut = Math.max(1, n * (strength == null ? 0.65 : strength));
+    var out = '', word = '';
+    chars.forEach(function (ch, i) {
+      if (ch === ' ') { out += (word ? '<span class="w">' + word + '</span>' : '') + ' '; word = ''; return; }
+      var b = Math.max(0, 1 - i / cut);
+      word += '<span class="bl" style="--b:' + b.toFixed(2) + '">' + esc(ch) + '</span>';
+    });
+    return out + (word ? '<span class="w">' + word + '</span>' : '');
   }
 
-  function list(arr) { return Array.isArray(arr) ? arr : []; }
+  // Image or video media. opts: {cls, alt, poster, auto (muted loop in view), controls}
+  function media(src, opts) {
+    opts = opts || {};
+    if (!src) return '';
+    if (isVideo(src)) {
+      return (
+        '<video class="' + (opts.cls || '') + '" ' +
+          (opts.auto ? 'muted loop playsinline data-auto ' : 'playsinline controls ') +
+          'preload="' + (opts.auto ? 'none' : 'metadata') + '"' +
+          (opts.poster ? ' poster="' + esc(opts.poster) + '"' : '') +
+          ' aria-label="' + esc(opts.alt || '') + '">' +
+          '<source src="' + esc(src) + '" type="video/mp4">' +
+        '</video>'
+      );
+    }
+    return '<img class="' + (opts.cls || '') + '" src="' + esc(src) + '" alt="' + esc(opts.alt || '') + '" loading="lazy" decoding="async">';
+  }
 
-  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  // Shared decorative layers: light beam, dark ring, hairlines, grain
+  function fx(variant) {
+    return (
+      '<div class="fx fx-' + variant + '" aria-hidden="true">' +
+        '<div class="beam b1"></div><div class="beam b2"></div><div class="beam b3"></div>' +
+        '<div class="ring"></div>' +
+        '<svg class="lines" viewBox="0 0 1000 1000" preserveAspectRatio="none" fill="none">' +
+          '<path class="hl" d="M180 170 C 420 330 520 330 1000 60" vector-effect="non-scaling-stroke"/>' +
+          '<path class="hl" d="M180 170 C 260 420 240 700 40 1000" vector-effect="non-scaling-stroke"/>' +
+          '<path class="hl" d="M0 900 C 300 640 700 600 1000 700" vector-effect="non-scaling-stroke"/>' +
+          '<path class="vl" d="M0 470 C 300 430 520 380 1000 180" vector-effect="non-scaling-stroke"/>' +
+        '</svg>' +
+        '<div class="grain"></div>' +
+      '</div>'
+    );
+  }
 
   // ---------- sections ----------
 
   function hero(h) {
-    var poster = function (p, cls, extra) {
-      p = p || {};
-      return (
-        '<div class="poster ' + cls + '">' + (extra || '') +
-          '<div class="art" role="img" aria-label="' + esc(p.alt || p.label) + '" style="' + img(p.image) + '"></div>' +
-          (p.label ? '<div class="poster-label' + fx(p.label) + '">' + esc(p.label) + '</div>' : '') +
-        '</div>'
-      );
-    };
-
-    var kicker = list(h.kicker).map(function (k) { return '<span class="' + fx(k) + '">' + esc(k) + '</span>'; })
-      .join(' <span class="sep">•</span> ');
-
+    var kick = list(h.kicker);
     var stats = list(h.stats).map(function (s) {
-      return '<div class="stat"><b class="' + fx(s.value) + '">' + esc(s.value) + '</b><span>' + esc(s.label) + '</span></div>';
+      return '<div class="stat"><b>' + esc(s.value) + '</b><span>' + esc(s.label) + '</span></div>';
     }).join('');
+
+    var card = function (p, cls, video) {
+      p = p || {};
+      var inner = video
+        ? media(video, { auto: true, poster: p.image, alt: p.alt || p.label })
+        : media(p.image, { alt: p.alt || p.label });
+      if (!inner) return '';
+      return '<figure class="h-card ' + cls + '">' + inner +
+        (p.label ? '<figcaption>' + esc(p.label) + '</figcaption>' : '') + '</figure>';
+    };
 
     return (
       '<section class="hero" id="home">' +
-        '<div class="hero-grid"></div>' +
-        '<div class="brand-arcs" aria-hidden="true">' +
-          '<svg viewBox="0 0 1000 1000" preserveAspectRatio="xMaxYMax meet" fill="none" stroke="#fff" stroke-width="2.5">' +
-            '<path d="M1000 380 C 560 380 150 560 40 1000" vector-effect="non-scaling-stroke"/>' +
-            '<path d="M1000 640 C 740 640 480 760 360 1000" vector-effect="non-scaling-stroke"/>' +
-          '</svg>' +
-        '</div>' +
-        '<div class="hud-rail left" aria-hidden="true"><i></i><span class="hud-text">PORTFOLIO ' + new Date().getFullYear() + '</span><i></i></div>' +
-        '<div class="hud-rail right" aria-hidden="true"><i></i><span class="hud-text">01 / HOME</span><i></i></div>' +
-        '<div class="hero-content">' +
-          '<div class="hero-copy">' +
-            '<div class="kicker"><span class="live" aria-hidden="true"></span>' + kicker + '</div>' +
-            '<h1 class="hero-title">' +
-              '<span class="white' + fx(h.title_line1) + '">' + esc(h.title_line1) + '</span>' +
-              '<span class="accent' + fx(h.title_line2) + '">' + esc(h.title_line2) + '</span>' +
+        fx('hero') +
+        '<div class="frame">' +
+          '<div class="corner tl">' + esc(h.artist_name || 'Graphican') + (h.artist_role ? ' — ' + esc(h.artist_role) : '') + '</div>' +
+          '<div class="corner tr">DESIGN <span class="plus">+</span></div>' +
+          '<div class="hero-center">' +
+            (kick.length ? '<div class="kicker">' + kick.map(esc).join('<i></i>') + '</div>' : '') +
+            '<h1 class="mega" aria-label="' + esc((h.title_line1 || '') + ' ' + (h.title_line2 || '')) + '">' +
+              '<span class="line">' + blurText(h.title_line1, 0.75) + '</span>' +
+              '<span class="line l2">' + blurText(h.title_line2, 0.4) + '<span class="dot"></span></span>' +
             '</h1>' +
-            '<p class="hero-mongolian">' + esc(h.tagline_line1) + '<br>' +
-              (h.tagline_highlight ? '<em>' + esc(h.tagline_highlight) + '</em> ' : '') + esc(h.tagline_rest) +
-            '</p>' +
-            '<p class="hero-description">' + esc(h.description) + '</p>' +
-            '<div class="hero-actions">' +
-              '<a class="primary-btn" href="#work">' + esc(h.primary_button) + ' <span aria-hidden="true">→</span></a>' +
-              '<a class="ghost-btn" href="#services">' + esc(h.secondary_button) + ' <span aria-hidden="true">↗</span></a>' +
+          '</div>' +
+          '<div class="hero-bottom">' +
+            '<div class="hero-copy">' +
+              '<p class="tagline">' + esc(h.tagline_line1) + ' ' +
+                (h.tagline_highlight ? '<em>' + esc(h.tagline_highlight) + '</em> ' : '') + esc(h.tagline_rest) + '</p>' +
+              '<p class="lead">' + esc(h.description) + '</p>' +
+              '<div class="actions">' +
+                '<a class="btn solid" href="#work">' + esc(h.primary_button) + ' <span aria-hidden="true">→</span></a>' +
+                '<a class="btn" href="#reels">Видео үзэх <span aria-hidden="true">▶</span></a>' +
+              '</div>' +
             '</div>' +
-            '<div class="hero-meta">' +
-              '<div class="artist"><div class="artist-dot"></div><div>' +
-                '<strong class="' + fx(h.artist_name) + '">' + esc(h.artist_name) + '</strong>' +
-                '<small class="' + fx(h.artist_role) + '">' + esc(h.artist_role) + '</small>' +
-              '</div></div>' + stats +
+            '<div class="h-stack">' +
+              card(h.poster_left, 'c-left') +
+              card(h.poster_right, 'c-right') +
+              card(h.poster_main, 'c-main', h.video) +
             '</div>' +
           '</div>' +
-          '<div class="poster-stage" aria-label="Онцлох постерууд">' +
-            '<div class="stage-hud top hud-text" aria-hidden="true"><span class="rec">LIVE <b>PREVIEW</b></span><span>03 <b>WORKS</b></span></div>' +
-            '<div class="scan-line" aria-hidden="true"></div>' +
-            poster(h.poster_left, 'poster-left') +
-            poster(h.poster_main, 'poster-main corners', '<span class="c"></span>') +
-            poster(h.poster_right, 'poster-right') +
-            '<div class="stage-hud bottom hud-text" aria-hidden="true"><span>GRAPHICAN <b>//</b> VISUAL SYSTEM</span><span>V.03</span></div>' +
-          '</div>' +
+          '<div class="corner bl stats">' + stats + '</div>' +
+          '<div class="corner br">' + YEAR + '<br>PORTFOLIO</div>' +
         '</div>' +
-        '<div class="scroll-hint hud-text" aria-hidden="true">SCROLL<i></i></div>' +
       '</section>'
     );
   }
@@ -104,25 +135,21 @@
     items = list(items);
     if (!items.length) return '';
     var row = items.map(function (t, i) {
-      return (i % 2 ? '<b class="o' + fx(t) + '">' : '<span class="' + fx(t) + '">') + esc(t) + (i % 2 ? '</b>' : '</span>') + ' <em class="dot">•</em>';
-    }).join(' ');
-    return '<div class="marquee" aria-hidden="true"><div class="marquee-track"><span>' + row + '</span><span>' + row + '</span></div></div>';
+      return '<span class="' + (i % 2 ? 'soft' : '') + '">' + esc(t) + '</span><i></i>';
+    }).join('');
+    return '<div class="marquee" aria-hidden="true"><div class="marquee-track"><div>' + row + '</div><div>' + row + '</div></div></div>';
   }
 
-  function sectionTop(s) {
+  function sectionTop(s, id) {
     return (
-      '<div class="section-top reveal"><div>' +
-        '<div class="section-kicker' + fx(s.kicker) + '">' + esc(s.kicker) + '</div>' +
-        '<h2 class="section-title">' +
-          (s.title_en ? '<span class="en' + fx(s.title_en) + '">' + esc(s.title_en) + '</span>' : '') + esc(s.title) +
-        '</h2>' +
-      '</div>' +
-      (s.description ? '<p class="section-description">' + esc(s.description) + '</p>' : '') +
-      '</div>'
+      '<header class="sec-head reveal">' +
+        '<div class="sec-meta"><span>' + esc(s.kicker) + '</span>' + (s.title_en ? '<span>' + esc(s.title_en) + ' +</span>' : '') + '</div>' +
+        '<h2 class="sec-title">' + blurText(s.title, 0.55) + '</h2>' +
+        (s.description ? '<p class="sec-desc">' + esc(s.description) + '</p>' : '') +
+      '</header>'
     );
   }
 
-  // stable, readable id for #project/<slug> links
   function slug(p, i) {
     var s = String(p.name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
     return (i + 1) + (s ? '-' + s : '');
@@ -131,24 +158,52 @@
   function work(w) {
     var items = list(w.projects);
     var cards = items.map(function (p, i) {
+      var g = list(p.gallery);
+      var vids = g.filter(function (x) { return x.video || isVideo(x.image); }).length;
+      var m = p.video
+        ? media(p.video, { auto: true, poster: p.image, alt: p.name })
+        : media(p.image, { alt: p.name });
       return (
         '<a class="project reveal" href="#project/' + slug(p, i) + '" aria-label="' + esc(p.name) + ' — дэлгэрэнгүй үзэх">' +
-          '<div class="project-media">' +
-            '<div class="art" role="img" aria-label="' + esc(p.name) + '" style="' + img(p.image) + '"></div>' +
-            '<span class="index">' + pad(i + 1) + ' / ' + pad(items.length) + '</span>' +
+          '<div class="p-media">' + m +
+            '<span class="tag tl">' + pad(i + 1) + ' / ' + pad(items.length) + '</span>' +
+            (p.video || vids ? '<span class="tag tr">▶ VIDEO</span>' : '') +
           '</div>' +
-          '<div class="project-info">' +
-            '<div class="project-type' + fx(p.type) + '">' + esc(p.type) + '</div>' +
-            '<h3 class="project-name' + fx(p.name) + '">' + esc(p.name) + '</h3>' +
-            '<p class="project-desc">' + esc(p.description) + '</p>' +
-            '<span class="project-more">' + (list(p.gallery).length ? list(p.gallery).length + ' ажил үзэх' : 'Дэлгэрэнгүй') + ' <span aria-hidden="true">→</span></span>' +
-            '<span class="project-arrow" aria-hidden="true">↗</span>' +
+          '<div class="p-info">' +
+            '<div><h3>' + esc(p.name) + '</h3><span class="p-type">' + esc(p.type) + '</span></div>' +
+            '<span class="p-arrow" aria-hidden="true">↗</span>' +
           '</div>' +
+          '<p class="p-desc">' + esc(p.description) + '</p>' +
+          '<span class="p-more">' + (g.length ? g.length + ' ажил' + (vids ? ' · ' + vids + ' видео' : '') : 'Дэлгэрэнгүй') + ' →</span>' +
         '</a>'
       );
     }).join('');
-    var hint = w.hint ? '<p class="work-hint reveal"><span class="live" aria-hidden="true"></span>' + esc(w.hint) + '</p>' : '';
-    return '<section class="work" id="work">' + sectionTop(w) + hint + '<div class="projects">' + cards + '</div></section>';
+    var hint = w.hint ? '<p class="hint reveal"><span class="live"></span>' + esc(w.hint) + '</p>' : '';
+    return '<section class="sec work" id="work">' + sectionTop(w) + hint + '<div class="projects">' + cards + '</div></section>';
+  }
+
+  function reels(r) {
+    var items = list(r.items).filter(function (it) { return it && it.video; });
+    if (!items.length && !r.title) return '';
+    var tiles = items.map(function (it, i) {
+      var ratio = String(it.ratio || '16:9').replace(':', 'x');
+      return (
+        '<button class="reel reveal r-' + esc(ratio) + '" type="button" data-reel="' + i + '" aria-label="' + esc(it.title || 'Видео') + ' — дууг нь сонсож үзэх">' +
+          '<div class="r-media">' + media(it.video, { auto: true, poster: it.poster, alt: it.title }) +
+            '<span class="play" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z" fill="currentColor"/></svg></span>' +
+            '<span class="tag tl">' + pad(i + 1) + '</span>' +
+            (it.type ? '<span class="tag tr">' + esc(it.type) + '</span>' : '') +
+          '</div>' +
+          '<div class="r-info"><h3>' + esc(it.title) + '</h3>' + (it.caption ? '<p>' + esc(it.caption) + '</p>' : '') + '</div>' +
+        '</button>'
+      );
+    }).join('');
+    return (
+      '<section class="sec reels" id="reels">' + fx('reels') + sectionTop(r) +
+        (tiles ? '<div class="reel-grid n' + Math.min(items.length, 3) + '">' + tiles + '</div>'
+               : '<p class="empty reveal">Удахгүй видео нэмэгдэнэ.</p>') +
+      '</section>'
+    );
   }
 
   // ---------- project detail (modal) ----------
@@ -159,80 +214,64 @@
   }
 
   function projectDetail(p, i, total) {
-    var gallery = list(p.gallery);
     var link = url(p.link);
-    var items = gallery.map(function (g, k) {
+    var items = list(p.gallery).map(function (g, k) {
+      var src = g.video || g.image;
+      var m = media(src, { poster: g.video ? g.image : '', alt: g.title || p.name });
+      if (!m && !g.title && !g.caption) return '';
       return (
         '<figure class="pd-item">' +
-          '<div class="pd-media corners"><span class="c"></span>' +
-            (g.image ? '<img src="' + esc(g.image) + '" alt="' + esc(g.title || p.name) + '" loading="lazy">' : '') +
-            '<span class="pd-num">' + pad(k + 1) + '</span>' +
-          '</div>' +
-          '<figcaption>' +
-            (g.title ? '<h4>' + esc(g.title) + '</h4>' : '') +
-            (g.caption ? paragraphs(g.caption) : '') +
-          '</figcaption>' +
+          (m ? '<div class="pd-media">' + m + '<span class="tag tl">' + pad(k + 1) + '</span></div>' : '') +
+          '<figcaption>' + (g.title ? '<h4>' + esc(g.title) + '</h4>' : '') + (g.caption ? paragraphs(g.caption) : '') + '</figcaption>' +
         '</figure>'
       );
     }).join('');
 
     return (
       '<div class="pd-head">' +
-        '<div class="pd-index hud-text">' + pad(i + 1) + ' / ' + pad(total) + ' <b>//</b> CASE STUDY</div>' +
-        '<div class="project-type' + fx(p.type) + '">' + esc(p.type) + '</div>' +
-        '<h2 id="pd-title" class="pd-name' + fx(p.name) + '">' + esc(p.name) + '</h2>' +
+        '<div class="sec-meta"><span>' + pad(i + 1) + ' / ' + pad(total) + ' — CASE STUDY</span><span>' + esc(p.type) + ' +</span></div>' +
+        '<h2 id="pd-title" class="pd-name">' + blurText(p.name, 0.5) + '</h2>' +
         '<div class="pd-details">' + paragraphs(p.details || p.description) + '</div>' +
-        (link ? '<a class="ghost-btn" href="' + esc(link) + '" target="_blank" rel="noopener">Холбоос үзэх <span aria-hidden="true">↗</span></a>' : '') +
+        (link ? '<a class="btn" href="' + esc(link) + '" target="_blank" rel="noopener">Холбоос үзэх <span aria-hidden="true">↗</span></a>' : '') +
       '</div>' +
-      (items ? '<div class="pd-gallery">' + items + '</div>'
-             : '<p class="pd-empty">Удахгүй ажлууд нэмэгдэнэ.</p>')
+      (items ? '<div class="pd-gallery">' + items + '</div>' : '<p class="empty">Удахгүй ажлууд нэмэгдэнэ.</p>')
     );
   }
 
   function services(s) {
-    var cards = list(s.items).map(function (it, i) {
+    var rows = list(s.items).map(function (it, i) {
       var tags = list(it.tags).map(function (t) { return '<span>' + esc(t) + '</span>'; }).join('');
       return (
         '<article class="service reveal">' +
-          '<div class="index">' + pad(i + 1) + ' <b>//</b></div>' +
-          '<h3 class="service-name' + fx(it.name) + '">' + esc(it.name) + '</h3>' +
-          '<div class="service-mn">' + esc(it.name_mn) + '</div>' +
-          '<p>' + esc(it.description) + '</p>' +
-          (tags ? '<div class="tags">' + tags + '</div>' : '') +
+          '<span class="s-num">' + pad(i + 1) + '</span>' +
+          '<div class="s-name"><h3>' + esc(it.name) + '</h3><span>' + esc(it.name_mn) + '</span></div>' +
+          '<div class="s-body"><p>' + esc(it.description) + '</p>' + (tags ? '<div class="tags">' + tags + '</div>' : '') + '</div>' +
         '</article>'
       );
     }).join('');
-    return '<section class="services" id="services">' + sectionTop(s) + '<div class="service-list">' + cards + '</div></section>';
+    return '<section class="sec services" id="services">' + sectionTop(s) + '<div class="service-list">' + rows + '</div></section>';
   }
 
   function about(a) {
-    var text = paragraphs(a.text).replace(/\bGraphican\b/g, '<span class="en">Graphican</span>');
     var stats = list(a.stats).map(function (s) {
-      var isWord = /[A-Za-zЀ-ӿ]{3,}/.test(String(s.value || ''));
-      return '<div><b class="' + (isWord ? 'en' : '') + fx(s.value) + '">' + esc(s.value) + '</b><span>' + esc(s.label) + '</span></div>';
+      return '<div><b>' + esc(s.value) + '</b><span>' + esc(s.label) + '</span></div>';
     }).join('');
     var photo = a.photo
-      ? '<div class="about-photo reveal">' +
-          '<div class="about-frame corners"><span class="c"></span>' +
-            '<img src="' + esc(a.photo) + '" alt="' + esc(a.name) + '" loading="lazy"><span class="shade" aria-hidden="true"></span>' +
-            '<div class="scan-line" aria-hidden="true"></div>' +
-          '</div>' +
-          (a.photo_label ? '<div class="poster-label' + fx(a.photo_label) + '">' + esc(a.photo_label) + '</div>' : '') +
-        '</div>'
+      ? '<figure class="about-photo reveal">' + media(a.photo, { alt: a.name }) + '<div class="grain"></div>' +
+          (a.photo_label ? '<figcaption>' + esc(a.photo_label) + '</figcaption>' : '') + '</figure>'
       : '';
     var quote = a.title_line1 || a.title_highlight || a.title_line2
-      ? '<p class="about-quote">' + esc(a.title_line1) + ' <span class="grad">' + esc(a.title_highlight) + '</span> ' + esc(a.title_line2) + '</p>'
+      ? '<p class="quote">' + esc(a.title_line1) + ' <em>' + esc(a.title_highlight) + '</em> ' + esc(a.title_line2) + '</p>'
       : '';
     return (
-      '<section class="about" id="about"><div class="about-inner' + (photo ? ' has-photo' : '') + '">' +
+      '<section class="sec about" id="about"><div class="about-inner' + (photo ? ' has-photo' : '') + '">' +
         photo +
         '<div class="about-copy reveal">' +
-          '<div class="section-kicker' + fx(a.kicker) + '">' + esc(a.kicker) + '</div>' +
-          (a.role ? '<div class="about-role">' + esc(a.role).replace(/\bGraphican\b/g, '<span class="en">Graphican</span>') + '</div>' : '') +
-          (a.name ? '<h2 class="about-name">' + esc(a.name) + '</h2>' : '') +
-          (a.name_en ? '<div class="about-name-en en' + fx(a.name_en) + '">' + esc(a.name_en) + '</div>' : '') +
+          '<div class="sec-meta"><span>' + esc(a.kicker) + '</span>' + (a.name_en ? '<span>' + esc(a.name_en) + '</span>' : '') + '</div>' +
+          (a.name ? '<h2 class="about-name">' + blurText(a.name, 0.45) + '</h2>' : '') +
+          (a.role ? '<div class="about-role">' + esc(a.role) + '</div>' : '') +
           quote +
-          '<div class="about-text">' + text + '</div>' +
+          '<div class="about-text">' + paragraphs(a.text) + '</div>' +
           (stats ? '<div class="about-stats">' + stats + '</div>' : '') +
         '</div>' +
       '</div></section>'
@@ -243,36 +282,54 @@
     var email = String(c.email || '').trim();
     var phone = String(c.phone || '').trim();
     var socials = list(c.socials).filter(function (s) { return s && s.url; }).map(function (s) {
-      return '<a class="social" href="' + esc(url(s.url)) + '" target="_blank" rel="noopener">' + esc(s.name) + ' <span aria-hidden="true">↗</span></a>';
+      return '<a class="social" href="' + esc(url(s.url)) + '" target="_blank" rel="noopener">' + esc(s.name) + ' ↗</a>';
     }).join('');
     return (
-      '<section class="contact" id="contact">' +
-        (c.big_text ? '<div class="contact-big' + fx(c.big_text) + '" aria-hidden="true">' + esc(c.big_text) + '</div>' : '') +
-        '<div class="contact-inner reveal">' +
-          '<div class="section-kicker' + fx(c.kicker) + '">' + esc(c.kicker) + '</div>' +
-          '<h2>' + esc(c.title_line1) + '<br>' + esc(c.title_line2) + '</h2>' +
-          '<p>' + esc(c.text) + '</p>' +
-          '<div class="contact-row">' +
-            (email ? '<a class="primary-btn" href="mailto:' + esc(email) + '">' + esc(c.button) + ' <span aria-hidden="true">→</span></a>' +
-                     '<span class="contact-mail">' + esc(email) + '</span>' : '') +
-            (phone ? '<a class="contact-mail" href="tel:' + esc(phone.replace(/\s+/g, '')) + '">' + esc(phone) + '</a>' : '') +
+      '<section class="contact" id="contact">' + fx('contact') +
+        '<div class="frame">' +
+          '<div class="corner tl">' + esc(c.kicker) + '</div>' +
+          '<div class="corner tr">' + esc(c.big_text || 'CONTACT') + ' <span class="plus">+</span></div>' +
+          '<div class="contact-inner reveal">' +
+            '<h2 class="mega small">' +
+              '<span class="line">' + blurText(c.title_line1, 0.7) + '</span>' +
+              '<span class="line l2">' + blurText(String(c.title_line2 || '').replace(/\.$/, ''), 0.3) + '<span class="dot"></span></span>' +
+            '</h2>' +
+            '<p class="lead">' + esc(c.text) + '</p>' +
+            '<div class="actions">' +
+              (email ? '<a class="btn solid" href="mailto:' + esc(email) + '">' + esc(c.button) + ' →</a><a class="plain" href="mailto:' + esc(email) + '">' + esc(email) + '</a>' : '') +
+              (phone ? '<a class="plain" href="tel:' + esc(phone.replace(/\s+/g, '')) + '">' + esc(phone) + '</a>' : '') +
+            '</div>' +
+            (socials ? '<div class="socials">' + socials + '</div>' : '') +
           '</div>' +
-          (socials ? '<div class="socials">' + socials + '</div>' : '') +
         '</div>' +
       '</section>'
     );
   }
 
   function footer(f) {
-    return (
-      '<footer class="footer">' +
-        '<span class="en' + fx(f.copyright) + '">' + esc(f.copyright) + '</span>' +
-        '<span class="en' + fx(f.tagline) + '">' + esc(f.tagline) + '</span>' +
-      '</footer>'
-    );
+    return '<footer class="footer"><span>' + esc(f.copyright) + '</span><span class="mark" aria-hidden="true"></span><span>' + esc(f.tagline) + '</span></footer>';
   }
 
   // ---------- behaviour ----------
+
+  var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // autoplay muted videos only while visible (saves data + battery)
+  function setupAutoVideos(root) {
+    var vids = (root || document).querySelectorAll('video[data-auto]');
+    if (!vids.length) return;
+    if (!('IntersectionObserver' in window) || reduceMotion) return; // posters stay; users can open them
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (e) {
+        var v = e.target;
+        if (e.isIntersecting) {
+          if (v.preload === 'none') v.preload = 'auto';
+          var p = v.play(); if (p && p.catch) p.catch(function () {});
+        } else { v.pause(); }
+      });
+    }, { threshold: 0.25 });
+    vids.forEach(function (v) { v.muted = true; io.observe(v); });
+  }
 
   function enhance() {
     document.documentElement.classList.add('js');
@@ -281,6 +338,21 @@
     function onScroll() { header.classList.toggle('scrolled', window.scrollY > 30); }
     onScroll();
     window.addEventListener('scroll', onScroll, { passive: true });
+
+    // mobile menu
+    var toggle = document.getElementById('menu-toggle');
+    if (toggle) {
+      toggle.addEventListener('click', function () {
+        var open = header.classList.toggle('menu-open');
+        toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+      });
+      header.querySelectorAll('.nav a').forEach(function (a) {
+        a.addEventListener('click', function () { header.classList.remove('menu-open'); toggle.setAttribute('aria-expanded', 'false'); });
+      });
+    }
+
+    setupAutoVideos(document);
+    requestAnimationFrame(function () { document.documentElement.classList.add('ready'); });
 
     if (!('IntersectionObserver' in window)) {
       document.querySelectorAll('.reveal').forEach(function (el) { el.classList.add('in'); });
@@ -291,9 +363,9 @@
       entries.forEach(function (e) {
         if (e.isIntersecting) { e.target.classList.add('in'); revealer.unobserve(e.target); }
       });
-    }, { threshold: 0.12 });
+    }, { threshold: 0.08, rootMargin: '0px 0px -5% 0px' });
     document.querySelectorAll('.reveal').forEach(function (el, i) {
-      el.style.transitionDelay = (i % 3) * 90 + 'ms';
+      el.style.transitionDelay = (i % 3) * 80 + 'ms';
       revealer.observe(el);
     });
 
@@ -312,31 +384,34 @@
     }
   }
 
-  // ---------- project modal: #project/<slug> ----------
+  // ---------- modal (project detail + reel player) ----------
 
-  function setupProjects(projects) {
-    var modal = document.createElement('div');
-    modal.className = 'pd';
-    modal.id = 'pd';
-    modal.hidden = true;
-    modal.setAttribute('role', 'dialog');
-    modal.setAttribute('aria-modal', 'true');
-    modal.setAttribute('aria-labelledby', 'pd-title');
-    modal.innerHTML =
+  function makeModal(id, cls) {
+    var m = document.createElement('div');
+    m.className = 'pd ' + (cls || '');
+    m.id = id;
+    m.hidden = true;
+    m.setAttribute('role', 'dialog');
+    m.setAttribute('aria-modal', 'true');
+    m.innerHTML =
       '<div class="pd-backdrop" data-close></div>' +
       '<div class="pd-panel">' +
         '<button class="pd-close" type="button" data-close aria-label="Хаах">✕</button>' +
-        '<div class="pd-body"></div>' +
-        '<nav class="pd-nav"></nav>' +
+        '<div class="pd-body"></div><nav class="pd-nav"></nav>' +
       '</div>';
-    document.body.appendChild(modal);
+    document.body.appendChild(m);
+    return m;
+  }
 
+  function stopVideos(root) { root.querySelectorAll('video').forEach(function (v) { v.pause(); }); }
+
+  function setupProjects(projects) {
+    var modal = makeModal('pd');
+    modal.setAttribute('aria-labelledby', 'pd-title');
     var body = modal.querySelector('.pd-body');
     var nav = modal.querySelector('.pd-nav');
     var panel = modal.querySelector('.pd-panel');
-    var openedFromPage = false;
-    var savedScroll = 0;
-    var returnFocus = null;
+    var openedFromPage = false, savedScroll = 0, returnFocus = null;
 
     function indexOf(s) {
       for (var i = 0; i < projects.length; i++) if (slug(projects[i], i) === s) return i;
@@ -345,12 +420,13 @@
 
     function open(i) {
       var p = projects[i];
+      stopVideos(body);
       body.innerHTML = projectDetail(p, i, projects.length);
       var prev = (i - 1 + projects.length) % projects.length;
       var next = (i + 1) % projects.length;
       nav.innerHTML = projects.length > 1
-        ? '<a href="#project/' + slug(projects[prev], prev) + '" data-swap><span aria-hidden="true">←</span> ' + esc(projects[prev].name) + '</a>' +
-          '<a href="#project/' + slug(projects[next], next) + '" data-swap>' + esc(projects[next].name) + ' <span aria-hidden="true">→</span></a>'
+        ? '<a href="#project/' + slug(projects[prev], prev) + '" data-swap>← ' + esc(projects[prev].name) + '</a>' +
+          '<a href="#project/' + slug(projects[next], next) + '" data-swap>' + esc(projects[next].name) + ' →</a>'
         : '';
       if (modal.hidden) {
         savedScroll = window.scrollY;
@@ -365,6 +441,7 @@
 
     function hide() {
       if (modal.hidden) return;
+      stopVideos(body);
       modal.classList.remove('show');
       modal.hidden = true;
       document.documentElement.classList.remove('pd-open');
@@ -384,17 +461,54 @@
     }
 
     document.addEventListener('click', function (e) {
-      var card = e.target.closest('a.project');
-      if (card) { openedFromPage = modal.hidden; return; }
+      if (e.target.closest('a.project')) { openedFromPage = modal.hidden; return; }
       var swap = e.target.closest('[data-swap]');
-      if (swap) { e.preventDefault(); location.replace(swap.getAttribute('href')); return; }
-      if (e.target.closest('[data-close]')) close();
+      if (swap && modal.contains(swap)) { e.preventDefault(); location.replace(swap.getAttribute('href')); return; }
+      if (e.target.closest('[data-close]') && modal.contains(e.target)) close();
     });
     document.addEventListener('keydown', function (e) {
       if (e.key === 'Escape' && !modal.hidden) close();
     });
     window.addEventListener('hashchange', route);
     route();
+  }
+
+  function setupReelPlayer(items) {
+    if (!items.length) return;
+    var modal = makeModal('reel-player', 'player');
+    var body = modal.querySelector('.pd-body');
+    var returnFocus = null;
+
+    function open(i) {
+      var it = items[i];
+      if (!it) return;
+      returnFocus = document.activeElement;
+      body.innerHTML =
+        '<div class="player-media r-' + esc(String(it.ratio || '16:9').replace(':', 'x')) + '">' +
+          '<video controls playsinline autoplay' + (it.poster ? ' poster="' + esc(it.poster) + '"' : '') + '><source src="' + esc(it.video) + '" type="video/mp4"></video>' +
+        '</div>' +
+        '<div class="player-info"><h3>' + esc(it.title) + '</h3>' + (it.caption ? '<p>' + esc(it.caption) + '</p>' : '') + '</div>';
+      modal.hidden = false;
+      document.documentElement.classList.add('pd-open');
+      requestAnimationFrame(function () { modal.classList.add('show'); });
+      modal.querySelector('.pd-close').focus({ preventScroll: true });
+    }
+    function close() {
+      if (modal.hidden) return;
+      stopVideos(body);
+      body.innerHTML = '';
+      modal.classList.remove('show');
+      modal.hidden = true;
+      document.documentElement.classList.remove('pd-open');
+      if (returnFocus && returnFocus.focus) returnFocus.focus({ preventScroll: true });
+    }
+
+    document.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-reel]');
+      if (b) { open(+b.getAttribute('data-reel')); return; }
+      if (e.target.closest('[data-close]') && modal.contains(e.target)) close();
+    });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
   }
 
   // ---------- boot ----------
@@ -409,18 +523,22 @@
         var meta = document.querySelector('meta[name="description"]');
         if (meta && d.seo.description) meta.setAttribute('content', d.seo.description);
       }
+      var reelItems = list((d.reels || {}).items).filter(function (it) { return it && it.video; });
       app.innerHTML =
         hero(d.hero || {}) +
         marquee(d.marquee) +
         work(d.work || {}) +
+        reels(d.reels || {}) +
         services(d.services || {}) +
         about(d.about || {}) +
         contact(d.contact || {}) +
         footer(d.footer || {});
       enhance();
       setupProjects(list((d.work || {}).projects));
+      setupReelPlayer(reelItems);
     })
-    .catch(function () {
+    .catch(function (err) {
+      console.error(err);
       app.innerHTML = '<p class="load-error">Контент ачаалж чадсангүй. Хуудсаа дахин ачаална уу.</p>';
     });
 })();
