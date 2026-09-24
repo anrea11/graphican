@@ -1128,3 +1128,34 @@ html.pd-open { overflow:hidden; }
 .hero-v2 .rc:hover { box-shadow:0 0 0 1.5px #a497ff, 0 0 90px 10px rgba(109,86,250,.7), 0 40px 70px -30px #000; }
 .hero-v2 .rc:hover img { filter:saturate(1.1) brightness(1.05); }
 .rc-light { opacity:calc(.35 + var(--lit) * .65); }
+
+/* ---------- site-wide: hero's black + violet light instead of grey ---------- */
+html, body { background:#000; }
+body::after { opacity:.035; }                       /* grain was lifting the black to grey */
+.sec, .marquee, .contact, .footer { background:transparent; }
+main { position:relative; isolation:isolate; }
+.sec.work, .sec.services, .sec.about { position:relative; }
+.sec.work::before, .sec.services::before, .sec.about::before {
+  content:""; position:absolute; z-index:-1; pointer-events:none;
+  width:min(1100px, 120vw); height:900px; border-radius:50%;
+  background:radial-gradient(closest-side, rgba(109,86,250,.16), rgba(52,34,158,.07) 50%, transparent 75%);
+  filter:blur(30px);
+}
+.sec.work::before { left:-20%; top:6%; }
+.sec.services::before { right:-25%; top:0; }
+.sec.about::before { left:-15%; top:20%; }
+.reels { background:#000; }
+.reels .fx { opacity:.28; }
+.contact { background:#000; }
+.contact .fx .b1 { opacity:.5; }
+.p-media, .r-media, .about-photo { background:#0b0b12; }
+.pd-panel { background:#07070b; }
+.contact .fx .b1 { opacity:.28; }
+.contact .fx .b2 { opacity:.18; }
+.contact .fx .b3 { opacity:.3; }
+.contact .fx .ring { border-color:rgba(0,0,0,.96); }
+.contact .fx .grain { opacity:.15; }
+.contact .fx::after { background:radial-gradient(ellipse at 50% 50%, transparent 25%, rgba(0,0,0,.85) 100%); }
+.contact .fx .b2 { display:none; }
+.contact .fx .b1 { opacity:.2; }
+.contact .fx .grain { opacity:.08; }
