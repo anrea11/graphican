@@ -5,7 +5,7 @@
 # ------------------------------------------------------------------
 backend:
   name: github
-  repo: YOUR-GITHUB-USERNAME/graphican-site
+  repo: graphican/graphican-site
   branch: main
   commit_messages:
     update: "Контент шинэчлэв: {{slug}}"
