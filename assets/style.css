@@ -998,3 +998,34 @@ html.pd-open { overflow:hidden; }
   .h2-portrait { height:84%; max-width:80vw; }
   .ring { top:40%; }
 }
+
+/* ---------- hero v2: darker mood + wide seated portrait ---------- */
+.hero-v2 { background:#060609; }
+.hero-v2 .fx .b1 { opacity:.42; }
+.hero-v2 .fx .b2 { opacity:.35; }
+.hero-v2 .fx .b3 { opacity:.45; }
+.hero-v2 .fx::after { background:radial-gradient(ellipse at 50% 45%, transparent 25%, rgba(4,4,7,.82) 100%); }
+.hero-v2 .h2-glow {
+  height:80%;
+  background:radial-gradient(closest-side at 50% 60%, rgba(129,109,251,.34), rgba(74,59,201,.2) 45%, transparent 75%);
+}
+.hero-v2 .rc img { filter:saturate(.85) brightness(.6); }
+.hero-v2 .rc:hover img { filter:saturate(1) brightness(.95); }
+.hero-v2 .rc::after { background:linear-gradient(90deg, rgba(6,6,9,.35), transparent 40%, transparent 60%, rgba(6,6,9,.35)); mix-blend-mode:normal; }
+.hero-v2 .h2-portrait {
+  height:96%;
+  max-width:min(96vw, 900px);
+  filter:drop-shadow(0 0 1px rgba(164,151,255,.5)) drop-shadow(0 0 28px rgba(109,86,250,.35));
+  -webkit-mask:none; mask:none;
+}
+.hero-v2 .h2-floor { height:22%; }
+@media (max-width:760px) {
+  .hero-v2 .h2-portrait { height:auto; width:112vw; max-width:none; }
+  .hero-v2 .ring { top:34%; }
+}
+.hero-v2 .fx .b1 { opacity:.22; }
+.hero-v2 .fx .b2 { opacity:.16; }
+.hero-v2 .fx .b3 { opacity:.3; }
+.hero-v2 .fx .ring { border-color:rgba(3,3,5,.96); }
+.hero-v2 .fx .grain { opacity:.22; }
+.hero-v2 .fx .lines .vl { opacity:.55; }
