@@ -189,13 +189,14 @@
   }
   function openPdf(pdfjsLib, bytes, name) {
     var task = pdfjsLib.getDocument({ data: bytes.slice(), isEvalSupported: false });
+    var usedPw = null;
     task.onPassword = function (cb, reason) {
       var pw = window.prompt((reason === 2 ? 'Нууц үг буруу байна. ' : '') + '«' + name + '» нууц үгтэй байна. Нууц үгээ оруулна уу:');
       if (pw == null) { task.destroy(); return; }
-      cb(pw);
+      usedPw = pw; cb(pw);
     };
     return task.promise.then(function (doc) {
-      sources.push({ bytes: bytes, doc: doc, name: name });
+      sources.push({ bytes: bytes, doc: doc, name: name, pw: usedPw });
       return sources.length - 1;
     });
   }
@@ -465,26 +466,26 @@
 
   // ---------- edit existing PDF text ----------
   function textLayer(p) {
-    if (p.src < 0 || !p.el) return;
+    if ((p.src < 0 && !p.ocr) || !p.el) return;
     var old = p.el.querySelector('.tl'); if (old) old.remove();
     var tl = document.createElement('div'); tl.className = 'tl'; p.el.appendChild(tl);
     var go = function (tc) {
       if (mode !== 'edit' || !tl.isConnected) return;
       var M = vpT(p.view, R(p), 1), frag = document.createDocumentFragment();
       p.done = p.done || {};
-      tc.items.forEach(function (it, i) {
+      allItems(p, tc).forEach(function (it, i) {
         if (!it.str || !it.str.trim() || p.done[i]) return;
-        var g = geomOf(M, it, tc.styles[it.fontName]);
+        var stl = it.fontName === 'ocr' ? OCR_STYLE : tc.styles[it.fontName], g = geomOf(M, it, stl);
         var s = document.createElement('span');
         s.style.cssText = 'left:' + (g.x * zoom) + 'px;top:' + (g.top * zoom) + 'px;width:' + Math.max(4, g.w * zoom) + 'px;height:' + (g.h * zoom) + 'px;' +
           (Math.abs(g.ang) > 0.5 ? 'transform-origin:0 ' + ((g.base - g.top) * zoom) + 'px;transform:rotate(' + g.ang + 'deg)' : '');
         s.title = 'Засах: ' + it.str;
-        s.addEventListener('click', function (e) { e.stopPropagation(); editItem(p, it, i, g, tc.styles[it.fontName]); s.remove(); });
+        s.addEventListener('click', function (e) { e.stopPropagation(); editItem(p, it, i, g, stl); s.remove(); });
         frag.appendChild(s);
       });
       tl.appendChild(frag);
     };
-    if (p.text) return go(p.text);
+    if (p.text || p.src < 0) return go(p.text);
     sources[p.src].doc.getPage(p.idx + 1).then(function (pg) { p.pdfPage = pg; return pg.getTextContent(); }).then(function (tc) { p.text = tc; go(tc); });
   }
   function geomOf(M, it, st) {
@@ -607,6 +608,10 @@
     propsEl.classList.remove('idle');
     if (o && o.type === 'activeSelection') {
       h = '<div class="sec"><div class="sec-t">' + o.size() + ' зүйл сонгогдсон</div><div class="btns"><button class="btn sm" data-act="dup">' + ic('dup') + 'Хувилах</button><button class="btn sm danger" data-act="del">' + ic('del') + 'Устгах</button></div></div>';
+    } else if (o && o.data && o.data.k === 'field') {
+      h = '<div class="sec"><div class="sec-t">Бөглөх талбар</div><div class="row"><label>Нэр</label><input type="text" data-p="fname" value="' + esc(o.data.name || '') + '" style="flex:1;min-width:0;height:28px;border-radius:6px;border:1px solid var(--line2);background:var(--bg);padding:0 6px"></div>' +
+        '<p class="note">Татсан PDF-д энэ хэсэгт бөглөх ' + ({ text: 'текст талбар', multi: 'олон мөрт текст талбар', check: 'сонголтын нүд', date: 'огнооны талбар', sign: 'гарын үсгийн талбар' }[o.data.ft] || 'талбар') + ' үүснэ. Буланг чирж хэмжээг өөрчилнө.</p></div>' +
+        '<div class="sec"><div class="btns"><button class="btn sm" data-act="dup">' + ic('dup') + 'Хувилах</button><button class="btn sm danger" data-act="del">' + ic('del') + 'Устгах</button></div></div>';
     } else if (o) {
       var k = (o.data && o.data.k) || o.type;
       if (o.type === 'i-text') {
@@ -652,6 +657,7 @@
     var a = active(); if (!a) return;
     var list = a.o.type === 'activeSelection' ? a.o.getObjects() : [a.o];
     list.forEach(function (o) {
+      if (key === 'fname') { o.data = Object.assign({}, o.data, { name: String(v).slice(0, 60) }); return; }
       if (key === 'fill') o.set('fill', v);
       else if (key === 'stroke') o.set('stroke', v);
       else if (key === 'sfill') o.set('fill', v || 'transparent');
@@ -1013,7 +1019,7 @@
         out.setTitle($('#pe-name').value.trim() || docName || 'Document'); out.setProducer('Graphican PDF editor — graphican.online'); out.setCreator('Graphican');
         var srcDocs = {};
         function srcDoc(i) {
-          if (!(i in srcDocs)) srcDocs[i] = PL.PDFDocument.load(sources[i].bytes, { ignoreEncryption: false, updateMetadata: false }).catch(function () { return null; });
+          if (!(i in srcDocs)) srcDocs[i] = PL.PDFDocument.load(sources[i].bytes, sources[i].pw != null ? { password: sources[i].pw, updateMetadata: false } : { updateMetadata: false }).catch(function () { return null; });
           return srcDocs[i];
         }
         return list.reduce(function (pr, p) {
@@ -1034,7 +1040,7 @@
                   ctx.setTransform(1, 0, 0, 1, 0, 0);
                   return G.embedCanvas(out, c).then(function (im) {
                     var pg = out.addPage([d.w, d.h]); pg.drawImage(im, { x: 0, y: 0, width: d.w, height: d.h }); pg.__flat = true;
-                    return drawObjs(PL, out, pg, p, true);
+                    return drawObjs(PL, out, pg, p, true).then(function () { return drawOcr(PL, out, pg, p); });
                   });
                 });
               }).then(function (done) { return done === null ? normal() : done; });
@@ -1051,10 +1057,14 @@
                   });
                 });
               });
-            return mk.then(function (pg) { return drawObjs(PL, out, pg, p); });
+            return mk.then(function (pg) { return drawObjs(PL, out, pg, p).then(function () { return drawOcr(PL, out, pg, p); }); });
             }
           });
-        }, Promise.resolve()).then(function () { return out.save(); });
+        }, Promise.resolve()).then(function () {
+          if (!out.__hasFields) return out.save();
+          // form fields: Cyrillic-capable appearance font
+          return G.embedFont(out, 'Inter', false).then(function (font) { try { out.getForm().updateFieldAppearances(font); } catch (e) {} return out.save(); });
+        });
       });
     });
   }
@@ -1088,6 +1098,7 @@
     return { x: po.x, y: po.y, rot: Math.atan2(pa.y - po.y, pa.x - po.x) * 180 / Math.PI };
   }
   function drawObj(PL, out, pg, o, V2P) {
+    if (o.data && o.data.k === 'field') return drawField(PL, out, pg, o, V2P);
     var m = o.calcTransformMatrix(), op = o.opacity == null ? 1 : o.opacity;
     var k = (o.data && o.data.k) || '';
     if (o.type === 'rect' && !o.skewX && !o.skewY) {
@@ -1140,6 +1151,743 @@
   }
   var charSets = new WeakMap();
   function charSet(font) { var s = charSets.get(font); if (!s) { s = new Set(font.getCharacterSet ? font.getCharacterSet() : []); charSets.set(font, s); } return s; }
+
+  // ================= left rail: convert, translate, organize, sign, AI, fields, share, secure =================
+
+  var RI = {
+    edit: '<path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/>',
+    convert: '<path d="M20 11a8 8 0 0 0-14.5-4.5L4 8"/><path d="M4 4v4h4"/><path d="M4 13a8 8 0 0 0 14.5 4.5L20 16"/><path d="M20 20v-4h-4"/>',
+    translate: '<path d="M4 5h9M8.5 3v2M11 5c-1 4-3.5 7-7 9M6 9c1.5 2.5 3.5 4 6 5"/><path d="m13 21 4-10 4 10M14.5 17.5h5"/>',
+    organize: '<rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/>',
+    sign: '<path d="m14 3 7 7-9 9H5v-7z"/><path d="M5 19 3 21M9.5 11.5a1.5 1.5 0 1 0 3 0 1.5 1.5 0 0 0-3 0"/>',
+    ai: '<path d="M11 3 9 9 3 11l6 2 2 6 2-6 6-2-6-2z"/><path d="M19 3v4M17 5h4M5 17v3M3.5 18.5h3"/>',
+    fields: '<rect x="3" y="7" width="18" height="10" rx="2"/><path d="M8 10v4M6.5 10h3M6.5 14h3"/>',
+    share: '<circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/>',
+    secure: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+    doc: '<path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 13h7M9 17h5"/>',
+    xls: '<path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 12h7v6H9zM9 15h7M12.5 12v6"/>',
+    ppt: '<rect x="3" y="4" width="18" height="12" rx="1"/><path d="M12 16v4M8 20h8"/>',
+    img: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5L6 20"/>',
+    txt: '<path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M12.5 11v7M10 11h5"/>',
+    more: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-2.9 1.2V21a2 2 0 1 1-4 0v-.1A1.7 1.7 0 0 0 7 19.4a1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0-1.2-2.9H1a2 2 0 1 1 0-4h.1A1.7 1.7 0 0 0 2.6 7a1.7 1.7 0 0 0-.3-1.8l-.1-.1A2 2 0 1 1 5 2.3l.1.1a1.7 1.7 0 0 0 1.8.3H7a1.7 1.7 0 0 0 1-1.5V1a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V7a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" transform="scale(.8) translate(3 3)"/>',
+    zip: '<path d="M6 3h12v18H6z"/><path d="M11 3v2h2v2h-2v2h2v2h-2v2"/>',
+    num: '<path d="M4 9h16M4 15h16M10 3 8 21M16 3l-2 18"/>',
+    compress: '<path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7"/>',
+    split: '<path d="M6 3h8l4 4v5M6 3v18h6"/><path d="m15 15 6 6M21 15l-6 6"/>',
+    merge: '<path d="M4 7a2 2 0 0 1 2-2h4l2 2h6a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z"/><path d="M12 10v6M9 13h6"/>',
+    reverse: '<path d="M7 4v16M3 16l4 4 4-4M17 20V4M13 8l4-4 4 4"/>',
+    print: '<path d="M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="7"/>',
+    mail: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',
+    unlock: '<rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.5-2"/>',
+    wm: '<path d="M4 20 20 4" stroke-dasharray="3 3"/><path d="M7 10h4M13 14h4"/>',
+    ocr: '<path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/><path d="M8 9h8M8 12h8M8 15h5"/>',
+    sum: '<path d="M5 6h14M5 10h14M5 14h9M5 18h6"/>',
+    ask: '<path d="M21 12a8 8 0 0 1-11.7 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .8-1 1.5M12 16.5h.01"/>',
+    check: '<path d="M5 12.5l4.5 4.5L19 7"/>', cross: '<path d="M6 6l12 12M18 6L6 18"/>',
+    date: '<rect x="4" y="5" width="16" height="15" rx="2"/><path d="M4 10h16M9 3v4M15 3v4"/>',
+    initials: '<path d="M4 17V7l4 10V7M13 17h5M13 7h5M15.5 7v10"/>',
+    tfield: '<rect x="3" y="7" width="18" height="10" rx="2"/><path d="M7 10v4"/>',
+    mfield: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 8h10M7 12h10M7 16h6"/>',
+    cbox: '<rect x="4" y="4" width="16" height="16" rx="3"/><path d="m8 12 3 3 5-6"/>'
+  };
+  function ri(n) { return '<svg class="i" viewBox="0 0 24 24" aria-hidden="true">' + (RI[n] || I[n] || '') + '</svg>'; }
+  var LANGS = [['en', 'Англи', 'EN'], ['mn', 'Монгол', 'MN'], ['ru', 'Орос', 'RU'], ['zh', 'Хятад', 'ZH'], ['ja', 'Япон', 'JA'], ['ko', 'Солонгос', 'KO'],
+    ['de', 'Герман', 'DE'], ['fr', 'Франц', 'FR'], ['es', 'Испани', 'ES'], ['it', 'Итали', 'IT'], ['tr', 'Турк', 'TR'], ['kk', 'Казах', 'KK'],
+    ['uk', 'Украин', 'UK'], ['pl', 'Польш', 'PL'], ['pt', 'Португал', 'PT'], ['ar', 'Араб', 'AR'], ['hi', 'Хинди', 'HI'], ['vi', 'Вьетнам', 'VI'], ['th', 'Тай', 'TH'], ['id', 'Индонез', 'ID']];
+  function langName(c) { var l = LANGS.filter(function (x) { return x[0] === c; })[0]; return l ? l[1] : c; }
+
+  var RAIL = [
+    ['edit', 'Засах'], ['convert', 'Хөрвүүлэх'], ['translate', 'Орчуулах'], ['organize', 'Хуудас'], ['sign', 'Гарын үсэг'],
+    ['ai', 'AI хэрэгсэл'], ['fields', 'Талбар нэмэх'], ['share', 'Хуваалцах'], ['secure', 'Хамгаалах']
+  ];
+  function menuItems(k) {
+    if (k === 'convert') return [['word', 'doc', 'Word', '.docx — текстийг засах боломжтой'], ['excel', 'xls', 'Excel', '.xlsx — хүснэгт, тоо'], ['ppt', 'ppt', 'PowerPoint', '.pptx — хуудас бүр нэг слайд'],
+      ['jpg', 'img', 'JPG зураг', 'Хуудас бүр зураг (ZIP)'], ['png', 'img', 'PNG зураг', 'Өндөр чанартай (ZIP)'], ['txt', 'txt', 'TXT', 'Зөвхөн текст'], ['more', 'more', 'Бусад', 'Word, Excel, зургийг PDF болгох →']];
+    if (k === 'translate') return LANGS.slice(0, 6).map(function (l) { return ['tr:' + l[0], null, l[1], null, l[2]]; }).concat([['tr:more', 'more', 'Бусад хэл…']]);
+    if (k === 'organize') return [['rotall', 'rotR', 'Бүгдийг эргүүлэх', '90° баруун тийш'], ['reverse', 'reverse', 'Дарааллыг урвуулах'], ['merge', 'merge', 'Файл нэгтгэх', 'PDF, Word, зураг…'],
+      ['blank', 'blank', 'Хоосон хуудас нэмэх'], ['extract', 'split', 'Хуудас задлах', 'Жишээ: 1-3, 5'], ['splitall', 'zip', 'Хуудас бүрийг тусад нь', 'ZIP'],
+      ['pnum', 'num', 'Хуудасны дугаар'], ['compress', 'compress', 'Хэмжээ багасгах']];
+    if (k === 'sign') return [['sig', 'sign', 'Гарын үсэг зурах', 'Зурах, бичих эсвэл зургаас'], ['initials', 'initials', 'Нэрийн эхний үсэг'], ['date', 'date', 'Өнөөдрийн огноо'], ['check', 'check', '✓ тэмдэг'], ['cross', 'cross', '✗ тэмдэг']];
+    if (k === 'ai') return [['sum', 'sum', 'Хураангуйлах', 'Гол санааг товч гаргана'], ['ask', 'ask', 'PDF-ээс асуух', 'Баримтын талаар асуулт асуух'], ['tr:menu', 'translate', 'Орчуулах', 'Байршлыг хадгалж орчуулна'], ['ocr', 'ocr', 'Текст таних (OCR)', 'Скан зургийн бичгийг засагддаг болгоно']];
+    if (k === 'fields') return [['f:text', 'tfield', 'Текст талбар'], ['f:multi', 'mfield', 'Олон мөрт текст'], ['f:check', 'cbox', 'Сонголтын нүд'], ['f:date', 'date', 'Огнооны талбар'], ['f:sign', 'sign', 'Гарын үсгийн талбар']];
+    if (k === 'share') return [['share', 'share', 'Хуваалцах…', 'Messenger, имэйл, бусад апп'], ['print', 'print', 'Хэвлэх'], ['mail', 'mail', 'Имэйлээр илгээх', 'Татаад имэйлд хавсаргана']];
+    if (k === 'secure') return [['pw', 'secure', 'Нууц үгээр хамгаалах', 'AES-256 шифрлэлт'], ['unpw', 'unlock', 'Нууц үгийг арилгах'], ['wm', 'wm', 'Усан тэмдэг'], ['flat', 'wo', 'Нууцлалтай хадгалах', 'Цайруулсан мэдээллийг бүрмөсөн устгана']];
+    return [];
+  }
+  function railUi() {
+    var el = $('#pe-rail'); if (!el) return;
+    el.innerHTML = RAIL.map(function (r) { return '<button type="button" class="rb" data-rail="' + r[0] + '">' + ri(r[0]) + '<span>' + r[1] + '</span></button>'; }).join('');
+  }
+  var menuEl = null;
+  function closeMenu() { if (menuEl) { menuEl.remove(); menuEl = null; } $$('.rb.on').forEach(function (b) { b.classList.remove('on'); }); }
+  function $$(s) { return [].slice.call(document.querySelectorAll(s)); }
+  function openRail(k, btn) {
+    var was = btn.classList.contains('on');
+    closeMenu();
+    if (k === 'edit') { setMode('select'); toast('Доод самбараас засах хэрэгслээ сонгоно уу'); return; }
+    if (was) return;
+    if (!pages.length) { toast('Эхлээд PDF эсвэл файлаа нээнэ үү'); return; }
+    btn.classList.add('on');
+    menuEl = document.createElement('div'); menuEl.className = 'rmenu';
+    menuEl.innerHTML = menuItems(k).map(function (it) {
+      return '<button type="button" data-ra="' + it[0] + '">' + (it[4] ? '<b class="code">' + it[4] + '</b>' : ri(it[1])) + '<span><b>' + it[2] + '</b>' + (it[3] ? '<small>' + it[3] + '</small>' : '') + '</span></button>';
+    }).join('');
+    document.body.appendChild(menuEl);
+    var r = btn.getBoundingClientRect(), mr = menuEl.getBoundingClientRect();
+    if (isMob()) { menuEl.style.left = Math.max(8, Math.min(window.innerWidth - mr.width - 8, r.left)) + 'px'; menuEl.style.top = (r.bottom + 6) + 'px'; }
+    else { menuEl.style.left = (r.right + 8) + 'px'; menuEl.style.top = Math.max(60, Math.min(window.innerHeight - mr.height - 12, r.top - 8)) + 'px'; }
+    menuEl.addEventListener('click', function (e) { var b = e.target.closest('[data-ra]'); if (!b) return; closeMenu(); railAction(b.dataset.ra); });
+  }
+  document.addEventListener('mousedown', function (e) { if (menuEl && !menuEl.contains(e.target) && !e.target.closest('.rb')) closeMenu(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeMenu(); });
+
+  function railAction(a) {
+    if (/^tr:/.test(a)) { var l = a.slice(3); return translateDialog(l === 'more' || l === 'menu' ? null : l); }
+    if (/^f:/.test(a)) return addField(a.slice(2));
+    switch (a) {
+      case 'word': case 'excel': case 'ppt': case 'jpg': case 'png': case 'txt': return convert(a);
+      case 'more': location.href = '/tools/pdf/'; return;
+      case 'rotall': selPages = {}; pages.forEach(function (p) { selPages[p.id] = 1; }); pageOp('rotR'); selPages = {}; markThumbs(); return;
+      case 'reverse': pages.reverse(); layoutPages(); renderThumbs(); commit(true); toast('Дараалал урвууллаа'); return;
+      case 'merge': fileIn.dataset.at = pages.length; fileIn.click(); return;
+      case 'blank': return pageOp('blank');
+      case 'extract': return extractDialog();
+      case 'splitall': return splitAll();
+      case 'pnum': return pageNumDialog();
+      case 'compress': return compressDialog();
+      case 'sig': return signModal();
+      case 'initials': return initialsDialog();
+      case 'date': case 'check': case 'cross': return addStamp(a);
+      case 'sum': return aiDialog('summary');
+      case 'ask': return aiDialog('ask');
+      case 'ocr': return ocrDialog();
+      case 'share': return sharePdf();
+      case 'print': return printPdf();
+      case 'mail': return mailPdf();
+      case 'pw': return passwordDialog();
+      case 'unpw': return removePassword();
+      case 'wm': return watermarkDialog();
+      case 'flat': return download(pages, false, true);
+    }
+  }
+
+  // ---------- generic dialog ----------
+  function dialog(title, body, buttons, onOpen) {
+    var m = document.createElement('div'); m.className = 'modal';
+    m.innerHTML = '<div class="mbox dlg" role="dialog" aria-modal="true" aria-label="' + esc(title) + '"><h2>' + esc(title) + '</h2><div class="dlg-b">' + body + '</div>' +
+      '<div class="mrow dlg-f"><span class="grow"></span>' + (buttons || []).map(function (b, i) { return '<button type="button" class="' + (b.primary ? 'btn-primary' : 'btn') + '" data-db="' + i + '">' + esc(b.label) + '</button>'; }).join('') + '</div></div>';
+    document.body.appendChild(m);
+    function close() { m.remove(); document.removeEventListener('keydown', onKey); }
+    function onKey(e) { if (e.key === 'Escape') close(); }
+    document.addEventListener('keydown', onKey);
+    m.addEventListener('click', function (e) {
+      if (e.target === m) return close();
+      var b = e.target.closest('[data-db]'); if (!b) return;
+      var fn = buttons[+b.dataset.db].fn;
+      if (!fn || fn(m, close) !== false) close();
+    });
+    if (onOpen) onOpen(m, close);
+    var f = m.querySelector('input, select, textarea'); if (f) setTimeout(function () { f.focus(); }, 30);
+    return { el: m, close: close };
+  }
+  function val(m, sel) { var e = m.querySelector(sel); return e ? (e.type === 'checkbox' ? e.checked : e.value) : null; }
+
+  // ---------- output helpers ----------
+  function outName(ext, extra) { return ($('#pe-name').value.trim() || docName || 'document').replace(/[\\/:*?"<>|]+/g, '-') + (extra || '') + '.' + ext; }
+  function finishEdits() { pages.forEach(function (p) { var o = p.fab && p.fab.getActiveObject(); if (o && o.isEditing) o.exitEditing(); }); }
+  // the edited document, opened again with pdf.js (for conversions)
+  function builtDoc() {
+    finishEdits();
+    return buildPdf(pages).then(function (bytes) {
+      return G.pdfjs().then(function (pj) { return pj.getDocument({ data: bytes.slice(), isEvalSupported: false }).promise.then(function (d) { return { doc: d, bytes: bytes, pj: pj }; }); });
+    });
+  }
+  function renderOut(doc, i, scale, maxPx) {
+    return doc.getPage(i).then(function (pg) {
+      var vp0 = pg.getViewport({ scale: 1 }), s = Math.min(scale, (maxPx || 4000) / Math.max(vp0.width, vp0.height));
+      var vp = pg.getViewport({ scale: s }), c = document.createElement('canvas');
+      c.width = Math.ceil(vp.width); c.height = Math.ceil(vp.height);
+      var x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height);
+      return pg.render({ canvasContext: x, viewport: vp }).promise.then(function () { return { c: c, w: vp0.width, h: vp0.height }; });
+    });
+  }
+  // text lines of a pdf.js page in display coordinates (top → bottom), each with its items
+  function pageLines(pg, pj) {
+    var vp = pg.getViewport({ scale: 1 });
+    return pg.getTextContent().then(function (tc) {
+      var its = tc.items.filter(function (it) { return it.str && it.str.trim(); }).map(function (it) {
+        var t = pj.Util.transform(vp.transform, it.transform), fs = Math.hypot(t[2], t[3]) || 10;
+        var bold = /bold|black|heavy|semibold/i.test((tc.styles[it.fontName] || {}).fontFamily || '') || /bold/i.test(it.fontName || '');
+        return { s: it.str, x: t[4], y: t[5], fs: fs, w: it.width, bold: bold };
+      }).sort(function (a, b) { return a.y - b.y || a.x - b.x; });
+      var lines = [];
+      its.forEach(function (it) {
+        var L = lines[lines.length - 1];
+        if (L && Math.abs(L.y - it.y) < Math.max(L.fs, it.fs) * 0.45) { L.items.push(it); L.fs = Math.max(L.fs, it.fs); }
+        else lines.push({ y: it.y, fs: it.fs, items: [it] });
+      });
+      lines.forEach(function (L) {
+        L.items.sort(function (a, b) { return a.x - b.x; });
+        L.x = L.items[0].x; var la = L.items[L.items.length - 1]; L.right = la.x + la.w; L.bold = L.items.every(function (i) { return i.bold; });
+        var txt = '', cells = [[]], prev = null;
+        L.items.forEach(function (it) {
+          if (prev) {
+            var gap = it.x - (prev.x + prev.w);
+            if (gap > L.fs * 1.4) cells.push([]);
+            else if (gap > L.fs * 0.12 && !/\s$/.test(txt) && !/^\s/.test(it.s)) txt += ' ';
+            if (gap > L.fs * 1.4 && !/\s$/.test(txt)) txt += ' ';
+          }
+          txt += it.s; cells[cells.length - 1].push(it.s); prev = it;
+        });
+        L.text = txt.replace(/\s+/g, ' ').trim();
+        L.cells = cells.map(function (c) { return c.join(' ').replace(/\s+/g, ' ').trim(); });
+      });
+      return { lines: lines, w: vp.width, h: vp.height };
+    });
+  }
+  function allLines(doc, pj) {
+    var out = [], i = 0;
+    function next() { i++; if (i > doc.numPages) return Promise.resolve(out); return doc.getPage(i).then(function (pg) { return pageLines(pg, pj); }).then(function (r) { out.push(r); return next(); }); }
+    return next();
+  }
+  // minimal ZIP writer (stored, UTF-8 names)
+  var CRC = (function () { var t = new Uint32Array(256); for (var n = 0; n < 256; n++) { var c = n; for (var k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+  function crc32(d) { var c = 0xffffffff; for (var i = 0; i < d.length; i++) c = CRC[(c ^ d[i]) & 255] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; }
+  function zip(files) {
+    var enc = new TextEncoder(), parts = [], central = [], off = 0;
+    files.forEach(function (f) {
+      var name = enc.encode(f.name), data = typeof f.data === 'string' ? enc.encode(f.data) : f.data, crc = crc32(data);
+      var h = new DataView(new ArrayBuffer(30));
+      h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(6, 0x0800, true); h.setUint16(8, 0, true);
+      h.setUint32(14, crc, true); h.setUint32(18, data.length, true); h.setUint32(22, data.length, true); h.setUint16(26, name.length, true);
+      parts.push(new Uint8Array(h.buffer), name, data);
+      var c = new DataView(new ArrayBuffer(46));
+      c.setUint32(0, 0x02014b50, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true); c.setUint16(8, 0x0800, true);
+      c.setUint32(16, crc, true); c.setUint32(20, data.length, true); c.setUint32(24, data.length, true); c.setUint16(28, name.length, true); c.setUint32(42, off, true);
+      central.push(new Uint8Array(c.buffer), name);
+      off += 30 + name.length + data.length;
+    });
+    var csize = central.reduce(function (a, b) { return a + b.length; }, 0), e = new DataView(new ArrayBuffer(22));
+    e.setUint32(0, 0x06054b50, true); e.setUint16(8, files.length, true); e.setUint16(10, files.length, true); e.setUint32(12, csize, true); e.setUint32(16, off, true);
+    return new Blob(parts.concat(central, [new Uint8Array(e.buffer)]), { type: 'application/zip' });
+  }
+  function canvasBytes(c, type, q) { return new Promise(function (res) { c.toBlob(function (b) { b.arrayBuffer().then(function (a) { res(new Uint8Array(a)); }); }, type, q); }); }
+  function xmlEsc(s) { return String(s).replace(/[<>&"]/g, function (c) { return { '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]; }).replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, ''); }
+
+  // ---------- convert ----------
+  function convert(kind) {
+    busy(true, 'Бэлдэж байна…');
+    var job = builtDoc().then(function (r) {
+      var doc = r.doc, pj = r.pj, n = doc.numPages;
+      if (kind === 'jpg' || kind === 'png') {
+        var files = [], i = 0;
+        var step = function () {
+          i++; if (i > n) return;
+          busy(true, 'Хуудас ' + i + ' / ' + n + ' зураг болгож байна…');
+          return renderOut(doc, i, kind === 'png' ? 2.5 : 2, 5000).then(function (o) { return canvasBytes(o.c, kind === 'png' ? 'image/png' : 'image/jpeg', 0.9); })
+            .then(function (b) { files.push({ name: outName(kind, '-' + ('00' + i).slice(-3)).replace(/^.*?([^\\/]+)$/, '$1'), data: b }); return step(); });
+        };
+        return step().then(function () {
+          if (files.length === 1) saveBlob(files[0].name, new Blob([files[0].data], { type: 'image/' + (kind === 'png' ? 'png' : 'jpeg') }));
+          else saveBlob(outName('zip', '-' + kind), zip(files));
+          toast(n + ' хуудас ' + kind.toUpperCase() + ' боллоо ✓');
+        });
+      }
+      if (kind === 'ppt') {
+        return G.loadScript('/assets/vendor/pptxgen.bundle.js').then(function () {
+          var P = new window.PptxGenJS(), first = null, i = 0;
+          var step = function () {
+            i++; if (i > n) return;
+            busy(true, 'Слайд ' + i + ' / ' + n + '…');
+            return renderOut(doc, i, 2, 2600).then(function (o) {
+              if (!first) { first = o; P.defineLayout({ name: 'PDF', width: 10, height: +(10 * o.h / o.w).toFixed(3) }); P.layout = 'PDF'; }
+              var W = 10, Hh = 10 * first.h / first.w, k = Math.min(W / o.w, Hh / o.h), w = o.w * k, h = o.h * k;
+              var s = P.addSlide(); s.background = { color: 'FFFFFF' };
+              s.addImage({ data: o.c.toDataURL('image/jpeg', 0.9), x: (W - w) / 2, y: (Hh - h) / 2, w: w, h: h });
+              return step();
+            });
+          };
+          return step().then(function () { return P.write({ outputType: 'blob' }); }).then(function (b) { saveBlob(outName('pptx'), b); toast('PowerPoint боллоо ✓'); });
+        });
+      }
+      busy(true, 'Текстийг уншиж байна…');
+      return allLines(doc, pj).then(function (pgs) {
+        var chars = pgs.reduce(function (a, p) { return a + p.lines.reduce(function (b, l) { return b + l.text.length; }, 0); }, 0);
+        if (!chars) { toast('Энэ PDF-д текст алга (скан зураг байж магадгүй). Эхлээд AI хэрэгсэл → «Текст таних (OCR)»-ийг ажиллуулна уу.', 6000); return; }
+        if (kind === 'txt') {
+          var t = pgs.map(function (p) { return p.lines.map(function (l) { return l.text; }).join('\n'); }).join('\n\n\f\n');
+          saveBlob(outName('txt'), new Blob(['\ufeff' + t], { type: 'text/plain;charset=utf-8' })); toast('TXT боллоо ✓'); return;
+        }
+        if (kind === 'excel') {
+          return G.loadScript('/assets/vendor/xlsx.min.js').then(function () {
+            var X = window.XLSX, wb = X.utils.book_new();
+            pgs.forEach(function (p, i) {
+              var rows = p.lines.map(function (l) { return l.cells.map(function (c) { var v = c.replace(/[\s\u00a0]/g, '').replace(/,(?=\d{3}\b)/g, ''); return /^-?\d+(\.\d+)?$/.test(v) ? +v : c; }); });
+              var ws = X.utils.aoa_to_sheet(rows.length ? rows : [['']]);
+              var widths = []; rows.forEach(function (r) { r.forEach(function (c, j) { widths[j] = Math.max(widths[j] || 6, Math.min(60, String(c).length + 2)); }); });
+              ws['!cols'] = widths.map(function (w) { return { wch: w }; });
+              X.utils.book_append_sheet(wb, ws, 'Хуудас ' + (i + 1));
+            });
+            var out = X.write(wb, { bookType: 'xlsx', type: 'array' });
+            saveBlob(outName('xlsx'), new Blob([out], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })); toast('Excel боллоо ✓');
+          });
+        }
+        if (kind === 'word') { saveBlob(outName('docx'), makeDocx(pgs)); toast('Word боллоо ✓ — Word, Google Docs-оор нээж засна'); }
+      });
+    });
+    job.catch(function (e) { console.error(e); toast('Хөрвүүлж чадсангүй: ' + (e && e.message || e), 6000); }).then(function () { busy(false); });
+    return job;
+  }
+  function makeDocx(pgs) {
+    var all = []; pgs.forEach(function (p) { p.lines.forEach(function (l) { all.push(l.fs); }); });
+    all.sort(function (a, b) { return a - b; });
+    var body = all[Math.floor(all.length / 2)] || 11, xml = '';
+    pgs.forEach(function (p, pi) {
+      var minX = Infinity, maxR = 0; p.lines.forEach(function (l) { minX = Math.min(minX, l.x); maxR = Math.max(maxR, l.right); });
+      var maxW = Math.max(1, maxR - minX);
+      // lines → paragraphs (join lines of the same size that follow closely)
+      var paras = [];
+      p.lines.forEach(function (l, i) {
+        var P = paras[paras.length - 1], prev = p.lines[i - 1];
+        var close = !!(prev && P && (l.y - prev.y) < Math.max(l.fs, prev.fs) * 1.7 && Math.abs(l.fs - prev.fs) < 0.6 && Math.abs(l.x - prev.x) < l.fs * 2.5 &&
+          l.cells.length === 1 && P.cells === 1 && (prev.right - prev.x) > maxW * 0.72);
+        if (P && close) { P.text += (/-$/.test(P.text) ? '' : ' ') + l.text; P.text = P.text.replace(/-\s(?=[a-zа-яөү])/g, ''); }
+        else paras.push({ text: l.cells.length > 1 ? l.cells.join('\t') : l.text, fs: l.fs, bold: l.bold, x: l.x, cells: l.cells.length, gap: prev ? l.y - prev.y - prev.fs : 0 });
+      });
+      paras.forEach(function (q) {
+        var sz = Math.round(Math.max(7, Math.min(72, q.fs)) * 2), head = q.fs > body * 1.3;
+        var ind = Math.max(0, Math.round((q.x - 60) * 20));
+        xml += '<w:p><w:pPr><w:spacing w:before="' + Math.min(480, Math.max(0, Math.round((q.gap > body ? q.gap : 0) * 10))) + '" w:after="60" w:line="276" w:lineRule="auto"/>' + (ind > 400 && q.cells === 1 ? '<w:ind w:left="' + Math.min(ind, 5000) + '"/>' : '') + '</w:pPr>' +
+          q.text.split('\t').map(function (t, k) { return (k ? '<w:r><w:tab/></w:r>' : '') + '<w:r><w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial" w:cs="Arial" w:eastAsia="Arial"/>' + (q.bold || head ? '<w:b/>' : '') + '<w:sz w:val="' + sz + '"/><w:szCs w:val="' + sz + '"/></w:rPr><w:t xml:space="preserve">' + xmlEsc(t) + '</w:t></w:r>'; }).join('') + '</w:p>';
+      });
+      if (pi < pgs.length - 1) xml += '<w:p><w:r><w:br w:type="page"/></w:r></w:p>';
+    });
+    var f = pgs[0] || { w: 595, h: 842 };
+    var doc = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>' + xml +
+      '<w:sectPr><w:pgSz w:w="' + Math.round(f.w * 20) + '" w:h="' + Math.round(f.h * 20) + '"/><w:pgMar w:top="1000" w:right="1000" w:bottom="1000" w:left="1000" w:header="500" w:footer="500" w:gutter="0"/></w:sectPr></w:body></w:document>';
+    return zip([
+      { name: '[Content_Types].xml', data: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>' },
+      { name: '_rels/.rels', data: '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>' },
+      { name: 'word/document.xml', data: doc }
+    ]);
+  }
+
+  // ---------- page text in view units (for translation) ----------
+  function viewLines(p, all) {
+    var ready = p.text ? Promise.resolve(p.text) : sources[p.src].doc.getPage(p.idx + 1).then(function (pg) { p.pdfPage = pg; return pg.getTextContent(); }).then(function (tc) { p.text = tc; return tc; });
+    return ready.then(function (tc) {
+      var M = vpT(p.view, R(p), 1), items = allItems(p, tc), lines = [];
+      items.forEach(function (it, i) {
+        if (!it.str || !it.str.trim() || (!all && p.done && p.done[i])) return;
+        var st = it.fontName === 'ocr' ? OCR_STYLE : tc.styles[it.fontName], g = geomOf(M, it, st);
+        if (Math.abs(g.ang) > 1) return;
+        var L = lines[lines.length - 1];
+        if (L && Math.abs(L.base - g.base) < g.fs * 0.35 && g.x - (L.x + L.w) < g.fs * 1.2 && g.x - (L.x + L.w) > -g.fs && Math.abs(L.fs - g.fs) < g.fs * 0.3) {
+          if (g.x - (L.x + L.w) > g.fs * 0.12 && !/\s$/.test(L.text)) L.text += ' ';
+          L.text += it.str; L.w = g.x + g.w - L.x; L.idx.push(i); L.top = Math.min(L.top, g.top); L.h = Math.max(L.h, g.h);
+        } else lines.push({ text: it.str, x: g.x, base: g.base, top: g.top, h: g.h, w: g.w, fs: g.fs, idx: [i], it: it, st: st });
+      });
+      lines.forEach(function (l) { l.text = l.text.replace(/\s+/g, ' ').trim(); });
+      return lines.filter(function (l) { return l.text; });
+    });
+  }
+  var OCR_STYLE = { ascent: 0.8, descent: -0.2, fontFamily: 'sans-serif' };
+  function allItems(p, tc) { return (tc ? tc.items : []).concat(p.ocr || []); }
+  function detectLang(s) {
+    if (/[өүӨҮ]/.test(s)) return 'mn';
+    var cyr = (s.match(/[\u0400-\u04FF]/g) || []).length, lat = (s.match(/[A-Za-z]/g) || []).length;
+    if (/[\u3040-\u30ff]/.test(s)) return 'ja';
+    if (/[\uac00-\ud7af]/.test(s)) return 'ko';
+    if (/[\u4e00-\u9fff]/.test(s)) return 'zh';
+    if (/[\u0600-\u06ff]/.test(s)) return 'ar';
+    return cyr > lat ? (/[іїєґ]/i.test(s) ? 'uk' : /[әғқңұһі]/i.test(s) ? 'kk' : 'ru') : 'en';
+  }
+  function langSelect(name, cur) { return '<select name="' + name + '" class="dsel">' + LANGS.map(function (l) { return '<option value="' + l[0] + '"' + (l[0] === cur ? ' selected' : '') + '>' + l[1] + '</option>'; }).join('') + '</select>'; }
+  function scopeSelect() { return '<select name="scope" class="dsel"><option value="all">Бүх хуудас (' + pages.length + ')</option><option value="cur">Одоогийн хуудас</option>' + (Object.keys(selPages).length > 1 ? '<option value="sel">Сонгосон хуудсууд</option>' : '') + '</select>'; }
+  function scopePages(v) { return v === 'cur' ? [curPage()] : v === 'sel' ? targets() : pages.slice(); }
+
+  function apiJson(r) {
+    return r.text().then(function (t) {
+      var d; try { d = JSON.parse(t); } catch (e) { d = { error: 'AI сервертэй холбогдож чадсангүй' }; }
+      if (!r.ok || d.error) { d.__err = true; d.__status = r.status; }
+      return d;
+    });
+  }
+  // ---------- translate (Workers AI · m2m100) ----------
+  function translateDialog(target) {
+    var sample = '';
+    var first = pages.filter(function (p) { return p.src >= 0; })[0];
+    var ready = first ? viewLines(first).then(function (ls) { sample = ls.map(function (l) { return l.text; }).join(' ').slice(0, 2000); }) : Promise.resolve();
+    ready.then(function () {
+      var src = detectLang(sample);
+      dialog('Орчуулах', '<p class="note">Текстийг байрлал, хэмжээг нь хадгалан орчуулж, засах боломжтой текст болгоно. Орчуулга хиймэл оюунаар хийгдэх тул чухал баримтаа нэг хянаарай.</p>' +
+        '<div class="dgrid"><label>Эх хэл</label>' + langSelect('src', src) + '<label>Орчуулах хэл</label>' + langSelect('dst', target || (src === 'mn' ? 'en' : 'mn')) +
+        '<label>Хамрах хүрээ</label>' + scopeSelect() + '</div>',
+        [{ label: 'Болих' }, { label: 'Орчуулах', primary: true, fn: function (m) { runTranslate(val(m, '[name=src]'), val(m, '[name=dst]'), scopePages(val(m, '[name=scope]'))); } }]);
+    });
+  }
+  function runTranslate(src, dst, list) {
+    if (src === dst) return toast('Эх хэл болон орчуулах хэл ижил байна');
+    list = list.filter(function (p) { return p.src >= 0 || p.ocr; });
+    busy(true, 'Текстийг цуглуулж байна…');
+    var jobs = [];
+    return list.reduce(function (pr, p) { return pr.then(function () { return viewLines(p).then(function (ls) { if (ls.length) jobs.push({ p: p, lines: ls }); }); }); }, Promise.resolve())
+      .then(function () {
+        var texts = []; jobs.forEach(function (j) { j.lines.forEach(function (l) { texts.push(l.text); }); });
+        if (!texts.length) throw new Error('Орчуулах текст олдсонгүй. Скан зураг бол эхлээд «Текст таних (OCR)»-ийг ажиллуулна уу.');
+        // batches that fit the API limits
+        var batches = [], cur = [], len = 0;
+        texts.forEach(function (t) { if (cur.length >= 180 || len + t.length > 15000) { batches.push(cur); cur = []; len = 0; } cur.push(t); len += t.length; });
+        if (cur.length) batches.push(cur);
+        var out = [], k = 0;
+        return batches.reduce(function (pr, b) {
+          return pr.then(function () {
+            k++; busy(true, 'Орчуулж байна… ' + k + ' / ' + batches.length + ' (' + langName(src) + ' → ' + langName(dst) + ')');
+            return fetch('/api/ai/translate', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ texts: b, source: src, target: dst }) })
+              .then(apiJson).then(function (d) { if (d.__err) throw new Error(d.error === 'no_ai' ? 'AI орчуулга одоогоор идэвхгүй байна' : 'Орчуулга амжилтгүй (' + (d.error || d.__status) + ')'); out = out.concat(d.texts || []); });
+          });
+        }, Promise.resolve()).then(function () { return out; });
+      })
+      .then(function (out) {
+        busy(true, 'Орчуулгыг байрлуулж байна…');
+        var n = 0;
+        return jobs.reduce(function (pr, j) {
+          return pr.then(function () {
+            return pageSampler(j.p).then(function (smp) {
+              var f = ensureFab(j.p); if (!f) return;
+              var fonts = [];
+              j.lines.forEach(function (l) { fonts.push(G.screenFont(guessFont(j.p, l.it, l.st).font, guessFont(j.p, l.it, l.st).bold)); });
+              return Promise.all(fonts).then(function () {
+                quiet++;
+                j.lines.forEach(function (l) {
+                  var t = out[n++]; if (!t || t === l.text) return;
+                  var g = { x: l.x, top: l.top, base: l.base, h: l.h, w: l.w, fs: l.fs, ang: 0 };
+                  var col = smp(g), gf = guessFont(j.p, l.it, l.st), pair = uid();
+                  var cover = new fabric.Rect({ left: g.x - 2, top: g.top - g.fs * 0.16, width: g.w + 4, height: g.h + g.fs * 0.34, fill: col.bg, data: { k: 'wo', auto: 1, pair: pair } });
+                  var fs = Math.round(g.fs * 10) / 10;
+                  var tx = textObj(t, { fontFamily: 'G' + gf.font, fontWeight: gf.bold ? 'bold' : 'normal', fontSize: fs, fill: col.ink, textAlign: 'left', data: { k: 'txt', pair: pair, tr: 1 } });
+                  // longer translations shrink (down to 75 %) to stay within the original width
+                  var avail = Math.max(g.w, 20) * 1.08;
+                  if (tx.width > avail) tx.set('fontSize', Math.max(fs * 0.75, fs * avail / tx.width));
+                  var off = tx.fontSize * tx._fontSizeMult * (1 - tx._fontSizeFraction);
+                  tx.set({ left: g.x, top: g.base - off });
+                  prepObj(cover); prepObj(tx); f.add(cover); f.add(tx);
+                  j.p.done = j.p.done || {}; l.idx.forEach(function (i) { j.p.done[i] = 1; });
+                });
+                quiet--;
+                f.requestRenderAll();
+              });
+            });
+          });
+        }, Promise.resolve()).then(function () {
+          commit(true); busy(false);
+          toast('Орчууллаа ✓ ' + langName(src) + ' → ' + langName(dst) + '. Текст бүрийг дарж засаж болно.', 4500);
+          if (mode === 'edit') pages.forEach(function (p) { if (p.vis) textLayer(p); });
+        });
+      })
+      .catch(function (e) { busy(false); console.error(e); toast((e && e.message) || 'Орчуулж чадсангүй', 6000); });
+  }
+  // colour sampler for any page (renders it offscreen when it is not on screen)
+  function pageSampler(p) {
+    var mk = function (c, s) { return function (g) { var keep = { canvas: p.canvas, cs: p.cs }; p.canvas = c; p.cs = s; var r = sampleColors(p, g); p.canvas = keep.canvas; p.cs = keep.cs; return r; }; };
+    if (p.canvas && p.cs) return Promise.resolve(mk(p.canvas, p.cs));
+    if (p.src < 0) return Promise.resolve(function () { return { bg: '#ffffff', ink: '#1e1e1e' }; });
+    return sources[p.src].doc.getPage(p.idx + 1).then(function (pg) {
+      p.pdfPage = pg;
+      var vp = pg.getViewport({ scale: 1.5, rotation: R(p) }), c = document.createElement('canvas');
+      c.width = Math.ceil(vp.width); c.height = Math.ceil(vp.height);
+      return pg.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise.then(function () { return mk(c, 1.5); });
+    });
+  }
+
+  // ---------- AI: summary / ask (Workers AI · Llama 3.3) ----------
+  function docText() {
+    return pages.reduce(function (pr, p, i) {
+      return pr.then(function (acc) {
+        if (p.src < 0 && !p.ocr) return acc;
+        return viewLines(p, true).then(function (ls) { return acc + (ls.length ? '\n[Хуудас ' + (i + 1) + ']\n' + ls.map(function (l) { return l.text; }).join('\n') : ''); });
+      });
+    }, Promise.resolve(''));
+  }
+  function aiDialog(mode0) {
+    var d = dialog('AI хэрэгсэл', '<div class="seg ai-seg"><button type="button" data-am="summary"' + (mode0 === 'summary' ? ' class="on"' : '') + '>' + ri('sum') + 'Хураангуйлах</button><button type="button" data-am="ask"' + (mode0 === 'ask' ? ' class="on"' : '') + '>' + ri('ask') + 'Асуух</button></div>' +
+      '<div class="ai-q"' + (mode0 === 'ask' ? '' : ' hidden') + '><textarea class="dta" rows="2" placeholder="Жишээ: Нийт дүн хэд вэ? Гэрээ хэзээ дуусах вэ?"></textarea></div>' +
+      '<div class="dgrid"><label>Хариултын хэл</label><select name="lang" class="dsel"><option value="mn">Монгол</option><option value="en">English</option></select></div>' +
+      '<div class="ai-out" hidden></div><p class="note">Хиймэл оюун алдаа гаргаж болзошгүй — чухал мэдээллийг эх баримтаас нь шалгаарай.</p>',
+      [{ label: 'Хаах' }, { label: 'Хуулах', fn: function (m) { var t = m.querySelector('.ai-out').innerText; if (t && navigator.clipboard) navigator.clipboard.writeText(t).then(function () { toast('Хууллаа'); }); return false; } },
+        { label: 'Эхлүүлэх', primary: true, fn: function (m) { runAi(m); return false; } }]);
+    var m = d.el, mode = mode0;
+    m.querySelector('.ai-seg').addEventListener('click', function (e) {
+      var b = e.target.closest('[data-am]'); if (!b) return; mode = b.dataset.am;
+      m.querySelectorAll('[data-am]').forEach(function (x) { x.classList.toggle('on', x === b); });
+      m.querySelector('.ai-q').hidden = mode !== 'ask';
+    });
+    var cache = null;
+    function runAi(m) {
+      var q = m.querySelector('.dta').value.trim(), out = m.querySelector('.ai-out');
+      if (mode === 'ask' && !q) { toast('Асуултаа бичнэ үү'); return; }
+      out.hidden = false; out.innerHTML = '<span class="spin"></span> Уншиж байна…';
+      (cache ? Promise.resolve(cache) : docText()).then(function (t) {
+        cache = t;
+        if (!t.trim()) throw new Error('Баримтад текст алга. Скан зураг бол эхлээд «Текст таних (OCR)»-ийг ажиллуулна уу.');
+        out.innerHTML = '<span class="spin"></span> AI бодож байна…';
+        return fetch('/api/ai/chat', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ mode: mode, text: t, question: q, lang: val(m, '[name=lang]') }) })
+          .then(apiJson).then(function (d) { if (d.__err) throw new Error(d.error === 'no_ai' ? 'AI одоогоор идэвхгүй байна' : 'AI хариулж чадсангүй (' + (d.error || d.__status) + ')'); return d.answer; });
+      }).then(function (a) {
+        out.innerHTML = esc(a || '—').replace(/\n/g, '<br>').replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+        if (t0len() > 24000) out.innerHTML += '<p class="note">Баримт урт тул эхний ~24 000 тэмдэгтийг уншсан.</p>';
+      }).catch(function (e) { out.textContent = (e && e.message) || 'Алдаа гарлаа'; });
+      function t0len() { return cache ? cache.length : 0; }
+    }
+  }
+
+  // ---------- OCR (Tesseract.js, mon + eng + rus) ----------
+  var ocrW = null;
+  function ocrWorker(progress) {
+    if (!ocrW) ocrW = G.loadScript('/assets/vendor/tesseract/tesseract.min.js').then(function () {
+      return window.Tesseract.createWorker(['mon', 'eng', 'rus'], 1, {
+        workerPath: '/assets/vendor/tesseract/worker.min.js', corePath: '/assets/vendor/tesseract/core',
+        langPath: '/assets/vendor/tessdata', gzip: true, logger: function (m) { if (ocrW && ocrW.log) ocrW.log(m); }
+      });
+    });
+    ocrW.catch(function () { ocrW = null; });
+    ocrW.log = progress;
+    return ocrW;
+  }
+  function ocrDialog() {
+    dialog('Текст таних (OCR)', '<p class="note">Скан хийсэн эсвэл зурган PDF-ийн бичгийг таньж, <b>хайх, хуулах, «Текст засах»-аар засах</b> боломжтой болгоно. Монгол, англи, орос хэл. Анх удаа ~7MB загвар ачаална.</p>' +
+      '<div class="dgrid"><label>Хамрах хүрээ</label>' + scopeSelect() + '</div>',
+      [{ label: 'Болих' }, { label: 'Таних', primary: true, fn: function (m) { runOcr(scopePages(val(m, '[name=scope]'))); } }]);
+  }
+  function runOcr(list) {
+    list = list.filter(function (p) { return p.src >= 0; });
+    if (!list.length) return toast('Таних хуудас алга');
+    var k = 0, lines = 0;
+    busy(true, 'OCR загвар ачаалж байна…');
+    ocrWorker(function (m) { if (m && m.status === 'recognizing text') busy(true, 'Бичиг таньж байна… хуудас ' + k + ' / ' + list.length + ' · ' + Math.round((m.progress || 0) * 100) + '%'); })
+      .then(function (w) {
+        return list.reduce(function (pr, p) {
+          return pr.then(function () {
+            k++;
+            return sources[p.src].doc.getPage(p.idx + 1).then(function (pg) {
+              var S = 2.2, vp = pg.getViewport({ scale: S, rotation: R(p) }), c = document.createElement('canvas');
+              c.width = Math.ceil(vp.width); c.height = Math.ceil(vp.height);
+              var x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height);
+              return pg.render({ canvasContext: x, viewport: vp }).promise.then(function () { return w.recognize(c, {}, { blocks: true }); }).then(function (res) {
+                var Mi = inv(vpT(p.view, R(p), 1)), items = [];
+                (res.data.blocks || []).forEach(function (b) { (b.paragraphs || []).forEach(function (pa) { (pa.lines || []).forEach(function (ln) {
+                  var t = (ln.text || '').replace(/\s+/g, ' ').trim(); if (!t || (ln.confidence != null && ln.confidence < 35)) return;
+                  var bb = ln.bbox, h = (bb.y1 - bb.y0) / S, fs = h * 0.78, base = (ln.baseline && ln.baseline.y0 > 0 ? (ln.baseline.y0 + ln.baseline.y1) / 2 : bb.y1 - (bb.y1 - bb.y0) * 0.2) / S;
+                  var xv = bb.x0 / S, wv = (bb.x1 - bb.x0) / S;
+                  var tr = mul(Mi, [fs, 0, 0, -fs, xv, base]);
+                  items.push({ str: t, transform: tr, width: wv, height: fs, fontName: 'ocr', dir: 'ltr' });
+                }); }); });
+                p.ocr = items; lines += items.length;
+              });
+            });
+          });
+        }, Promise.resolve());
+      })
+      .then(function () {
+        busy(false); commit(true);
+        toast(lines ? 'Танигдлаа ✓ ' + lines + ' мөр. Одоо хайх, хуулах, «Текст засах»-аар засах, орчуулах боломжтой.' : 'Бичиг олдсонгүй', 5000);
+        if (mode === 'edit') pages.forEach(function (p) { if (p.vis) textLayer(p); });
+      })
+      .catch(function (e) { busy(false); console.error(e); toast('OCR ажиллаж чадсангүй. Интернэтээ шалгана уу.', 5000); });
+  }
+  // invisible, selectable text for OCR'd pages (makes scans searchable)
+  function drawOcr(PL, out, pg, p) {
+    if (!p.ocr || !p.ocr.length) return Promise.resolve();
+    return G.embedFont(out, 'Inter', false).then(function (font) {
+      var cs = charSet(font);
+      p.ocr.forEach(function (it) {
+        var t = it.transform, s = ''; for (var ch of it.str) { var cp = ch.codePointAt(0); s += cs.has(cp) ? ch : ' '; }
+        if (!s.trim()) return;
+        var size = Math.hypot(t[2], t[3]) || 10, x = t[4], y = t[5];
+        if (pg.__flat) { var v = ap(vpT(p.view, R(p), 1), x, y), d = dims(p); x = v.x; y = d.h - v.y; }
+        var w0 = font.widthOfTextAtSize(s, size), k = w0 > 0 ? Math.min(3, Math.max(0.3, it.width / w0)) : 1;
+        pg.drawText(s, { x: x, y: y, size: size * k, font: font, opacity: 0, rotate: PL.degrees(pg.__flat ? 0 : Math.atan2(t[1], t[0]) * 180 / Math.PI) });
+      });
+    });
+  }
+
+  // ---------- organize ----------
+  function parseRange(s, n) {
+    var out = [];
+    String(s).split(/[,;\s]+/).forEach(function (part) {
+      var m = /^(\d+)(?:\s*-\s*(\d+))?$/.exec(part.trim()); if (!m) return;
+      var a = +m[1], b = m[2] ? +m[2] : a; if (a > b) { var t = a; a = b; b = t; }
+      for (var i = Math.max(1, a); i <= Math.min(n, b); i++) if (out.indexOf(i) < 0) out.push(i);
+    });
+    return out;
+  }
+  function extractDialog() {
+    dialog('Хуудас задлах', '<p class="note">Шинэ PDF болгон татах хуудсуудаа бичнэ үү. Нийт ' + pages.length + ' хуудас.</p><input class="dinp" name="r" placeholder="Жишээ: 1-3, 5, 8-10">',
+      [{ label: 'Болих' }, { label: 'Татах', primary: true, fn: function (m) { var r = parseRange(val(m, '[name=r]'), pages.length); if (!r.length) { toast('Хуудасны дугаар буруу байна'); return false; } download(r.map(function (i) { return pages[i - 1]; }), true); } }]);
+  }
+  function splitAll() {
+    finishEdits(); busy(true, 'Хуудсуудыг салгаж байна…');
+    var files = [];
+    pages.reduce(function (pr, p, i) { return pr.then(function () { busy(true, 'Хуудас ' + (i + 1) + ' / ' + pages.length + '…'); return buildPdf([p]).then(function (b) { files.push({ name: outName('pdf', '-' + ('00' + (i + 1)).slice(-3)), data: b }); }); }); }, Promise.resolve())
+      .then(function () { busy(false); saveBlob(outName('zip', '-pages'), zip(files)); toast(files.length + ' тусдаа PDF (ZIP) ✓'); })
+      .catch(function (e) { busy(false); toast('Салгаж чадсангүй: ' + (e && e.message || e)); });
+  }
+  function pageNumDialog() {
+    dialog('Хуудасны дугаар', '<div class="dgrid"><label>Хэлбэр</label><select name="fmt" class="dsel"><option value="n">1</option><option value="nN">1 / 12</option><option value="page">Хуудас 1</option><option value="pageN">Хуудас 1 / 12</option><option value="dash">— 1 —</option></select>' +
+      '<label>Байрлал</label><select name="pos" class="dsel"><option value="bc">Доор, голд</option><option value="br">Доор, баруун</option><option value="bl">Доор, зүүн</option><option value="tc">Дээр, голд</option><option value="tr">Дээр, баруун</option></select>' +
+      '<label>Эхлэх дугаар</label><input class="dinp" name="start" value="1" inputmode="numeric"><label>Хэмжээ</label><input class="dinp" name="size" value="10" inputmode="numeric">' +
+      '<label>Эхний хуудсыг алгасах</label><input type="checkbox" name="skip"></div>',
+      [{ label: 'Болих' }, { label: 'Нэмэх', primary: true, fn: function (m) {
+        var fmt = val(m, '[name=fmt]'), pos = val(m, '[name=pos]'), st = parseInt(val(m, '[name=start]'), 10) || 1, size = parseFloat(val(m, '[name=size]')) || 10, skip = val(m, '[name=skip]');
+        var list = pages.slice(skip ? 1 : 0), N = list.length + st - 1;
+        G.screenFont('Inter', false).then(function () {
+          list.forEach(function (p, i) {
+            var n = i + st, s = fmt === 'nN' ? n + ' / ' + N : fmt === 'page' ? 'Хуудас ' + n : fmt === 'pageN' ? 'Хуудас ' + n + ' / ' + N : fmt === 'dash' ? '— ' + n + ' —' : String(n);
+            var f = ensureFab(p); if (!f) return;
+            var d = dims(p), t = textObj(s, { fontFamily: 'GInter', fontWeight: 'normal', fontSize: size, fill: '#444444', data: { k: 'txt', pn: 1 } });
+            var mg = Math.max(18, Math.min(d.w, d.h) * 0.045), x = pos[1] === 'c' ? (d.w - t.width) / 2 : pos[1] === 'r' ? d.w - mg - t.width : mg, y = pos[0] === 'b' ? d.h - mg - t.height : mg * 0.8;
+            t.set({ left: x, top: y }); prepObj(t); quiet++; f.add(t); quiet--; f.requestRenderAll();
+          });
+          commit(true); toast('Хуудасны дугаар нэмэгдлээ — хүсвэл дарж засаж, зөөж болно');
+        });
+      } }]);
+  }
+  function compressDialog() {
+    dialog('Хэмжээ багасгах', '<p class="note">Хуудсуудыг чанар тохируулсан зураг болгон шахна. Файл эрс багасна, гэхдээ текстийг сонгож хуулах боломжгүй болно.</p>' +
+      '<div class="dgrid"><label>Чанар</label><select name="q" class="dsel"><option value="150|0.75">Сайн — дэлгэц, хэвлэлд (150 dpi)</option><option value="110|0.62" selected>Дунд — имэйлд (110 dpi)</option><option value="80|0.5">Жижиг — хамгийн бага (80 dpi)</option></select></div>',
+      [{ label: 'Болих' }, { label: 'Шахах', primary: true, fn: function (m) { var q = val(m, '[name=q]').split('|'); runCompress(+q[0], +q[1]); } }]);
+  }
+  function runCompress(dpi, q) {
+    busy(true, 'Шахаж байна…');
+    builtDoc().then(function (r) {
+      return G.pdfLib().then(function (PL) {
+        return PL.PDFDocument.create().then(function (out) {
+          var i = 0;
+          var step = function () {
+            i++; if (i > r.doc.numPages) return out.save();
+            busy(true, 'Шахаж байна… ' + i + ' / ' + r.doc.numPages);
+            return renderOut(r.doc, i, dpi / 72, 3000).then(function (o) { return canvasBytes(o.c, 'image/jpeg', q).then(function (b) { return out.embedJpg(b); }).then(function (im) { var pg = out.addPage([o.w, o.h]); pg.drawImage(im, { x: 0, y: 0, width: o.w, height: o.h }); }); }).then(step);
+          };
+          return step().then(function (bytes) {
+            busy(false);
+            var a = r.bytes.length, b = bytes.length;
+            if (b >= a) { toast('Энэ файл аль хэдийн жижиг байна (' + kb(a) + '). Шахах шаардлагагүй.', 5000); return; }
+            saveBlob(outName('pdf', '-small'), new Blob([bytes], { type: 'application/pdf' }));
+            toast(kb(a) + ' → ' + kb(b) + ' (' + Math.round((1 - b / a) * 100) + '% багассан) ✓', 5000);
+          });
+        });
+      });
+    }).catch(function (e) { busy(false); toast('Шахаж чадсангүй: ' + (e && e.message || e)); });
+  }
+  function kb(n) { return n > 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.round(n / 1024) + ' KB'; }
+
+  // ---------- sign extras ----------
+  function initialsDialog() {
+    dialog('Нэрийн эхний үсэг', '<input class="dinp" name="t" maxlength="6" placeholder="Жишээ: А.Б">', [{ label: 'Болих' }, { label: 'Нэмэх', primary: true, fn: function (m) {
+      var s = String(val(m, '[name=t]') || '').trim(); if (!s) return false;
+      G.screenFont('Lora', true).then(function () { addObj(curPage(), textObj(s, { fontFamily: 'GLora', fontWeight: 'bold', fontSize: 18, fill: '#1f3fbf', data: { k: 'txt' } }), true); setMode('select'); });
+    } }]);
+  }
+
+  // ---------- form fields ----------
+  var FIELD_LABEL = { text: 'Текст талбар', multi: 'Олон мөрт текст', check: '☐', date: 'ОО.СС.ӨӨ', sign: 'Гарын үсэг' };
+  var fieldN = 0;
+  function addField(ft) {
+    var p = curPage(); if (!p) return;
+    var w = ft === 'check' ? 16 : ft === 'multi' ? 220 : ft === 'sign' ? 170 : ft === 'date' ? 100 : 170, h = ft === 'check' ? 16 : ft === 'multi' ? 70 : ft === 'sign' ? 40 : 22;
+    G.screenFont('Inter', false).then(function () {
+      var r = new fabric.Rect({ width: w, height: h, fill: 'rgba(109,86,250,0.08)', stroke: '#6d56fa', strokeWidth: 1, strokeDashArray: [4, 3], rx: 2, ry: 2, strokeUniform: true });
+      var t = new fabric.Text(FIELD_LABEL[ft], { fontFamily: 'GInter', fontSize: ft === 'check' ? 11 : 9.5, fill: '#6d56fa', left: ft === 'check' ? 2.5 : 5, top: ft === 'check' ? 1 : 4, opacity: 0.85 });
+      var g = new fabric.Group([r, t], { data: { k: 'field', ft: ft, name: (FIELD_LABEL[ft] === '☐' ? 'Сонголт' : FIELD_LABEL[ft]) + ' ' + (++fieldN) }, lockScalingFlip: true });
+      addObj(p, g, true); setMode('select');
+      toast('Талбарыг чирж байрлуулаад хэмжээг тохируулна. Татсан PDF-д бөглөх боломжтой талбар болно.', 4000);
+    });
+  }
+  function drawField(PL, out, pg, o, V2P) {
+    var br = o.getBoundingRect(true, true), a = ap(V2P, br.left, br.top), b = ap(V2P, br.left + br.width, br.top + br.height);
+    var x = Math.min(a.x, b.x), y = Math.min(a.y, b.y), w = Math.abs(b.x - a.x), h = Math.abs(b.y - a.y);
+    var form = out.getForm(), d = o.data, name = String(d.name || 'field').replace(/[.\s]+/g, '_');
+    out.__fieldNames = out.__fieldNames || {};
+    while (out.__fieldNames[name]) name += '_';
+    out.__fieldNames[name] = 1; out.__hasFields = true;
+    var opt = { x: x, y: y, width: w, height: h, borderColor: PL.rgb(0.55, 0.5, 0.85), borderWidth: 0.8, backgroundColor: PL.rgb(0.97, 0.96, 1) };
+    if (d.ft === 'check') { form.createCheckBox(name).addToPage(pg, opt); return; }
+    var f = form.createTextField(name);
+    if (d.ft === 'multi') f.enableMultiline();
+    if (d.ft === 'date') f.setMaxLength(20);
+    f.addToPage(pg, opt);
+  }
+
+  // ---------- share / print / mail ----------
+  function pdfFile() { finishEdits(); busy(true, 'PDF бэлдэж байна…'); return buildPdf(pages).then(function (b) { busy(false); return new File([b], outName('pdf'), { type: 'application/pdf' }); }, function (e) { busy(false); throw e; }); }
+  function sharePdf() {
+    pdfFile().then(function (f) {
+      if (navigator.canShare && navigator.canShare({ files: [f] })) return navigator.share({ files: [f], title: f.name }).catch(function () {});
+      saveBlob(f.name, f); toast('Энэ хөтөч шууд хуваалцахыг дэмждэггүй тул PDF-ийг татлаа — Messenger, имэйлд хавсаргаарай.', 5000);
+    }).catch(function (e) { toast('Бэлдэж чадсангүй: ' + (e && e.message || e)); });
+  }
+  function printPdf() {
+    pdfFile().then(function (f) {
+      var url = URL.createObjectURL(f), fr = document.createElement('iframe');
+      fr.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0'; fr.src = url;
+      fr.onload = function () { try { fr.contentWindow.focus(); fr.contentWindow.print(); } catch (e) { window.open(url, '_blank'); } setTimeout(function () { fr.remove(); URL.revokeObjectURL(url); }, 60000); };
+      document.body.appendChild(fr);
+    });
+  }
+  function mailPdf() {
+    pdfFile().then(function (f) {
+      saveBlob(f.name, f);
+      toast('PDF татагдлаа — нээгдэх имэйл дээр хавсралтаар нэмнэ үү', 5000);
+      setTimeout(function () { location.href = 'mailto:?subject=' + encodeURIComponent(f.name.replace(/\.pdf$/, '')) + '&body=' + encodeURIComponent('Сайн байна уу,\n\n«' + f.name + '» файлыг хавсаргав.\n'); }, 600);
+    });
+  }
+
+  // ---------- secure ----------
+  function passwordDialog() {
+    dialog('Нууц үгээр хамгаалах', '<p class="note">Файлыг нээхэд нууц үг асууна (AES-256). Нууц үгээ мартвал сэргээх боломжгүй тул сайн тэмдэглээрэй.</p>' +
+      '<div class="dgrid"><label>Нууц үг</label><input class="dinp" type="password" name="p1" autocomplete="new-password"><label>Давтах</label><input class="dinp" type="password" name="p2" autocomplete="new-password">' +
+      '<label>Хэвлэхийг зөвшөөрөх</label><input type="checkbox" name="print" checked><label>Текст хуулахыг зөвшөөрөх</label><input type="checkbox" name="copy" checked><label>Засахыг зөвшөөрөх</label><input type="checkbox" name="mod"></div>',
+      [{ label: 'Болих' }, { label: 'Хамгаалж татах', primary: true, fn: function (m) {
+        var a = val(m, '[name=p1]'), b = val(m, '[name=p2]');
+        if (!a || a.length < 4) { toast('Нууц үг дор хаяж 4 тэмдэгт байна'); return false; }
+        if (a !== b) { toast('Нууц үгүүд таарахгүй байна'); return false; }
+        var perms = { printing: val(m, '[name=print]') ? 'highResolution' : false, copying: !!val(m, '[name=copy]'), modifying: !!val(m, '[name=mod]'), annotating: !!val(m, '[name=mod]'), fillingForms: true, contentAccessibility: true, documentAssembly: !!val(m, '[name=mod]') };
+        finishEdits(); busy(true, 'Шифрлэж байна…');
+        buildPdf(pages).then(function (bytes) {
+          return G.pdfLib().then(function (PL) { return PL.PDFDocument.load(bytes); }).then(function (doc) {
+            var owner = Array.from(crypto.getRandomValues(new Uint8Array(18))).map(function (x) { return x.toString(16); }).join('');
+            doc.encrypt({ userPassword: a, ownerPassword: owner, permissions: perms });
+            return doc.save({ useObjectStreams: false });
+          });
+        }).then(function (out) { busy(false); saveBlob(outName('pdf', '-protected'), new Blob([out], { type: 'application/pdf' })); toast('Нууц үгтэй PDF татагдлаа 🔒'); })
+          .catch(function (e) { busy(false); console.error(e); toast('Шифрлэж чадсангүй: ' + (e && e.message || e), 6000); });
+      } }]);
+  }
+  function removePassword() {
+    var locked = sources.some(function (s) { return s.pw; });
+    if (!locked) return toast('Нээлттэй байгаа файл нууц үггүй байна. Нууц үгтэй PDF-ийг нээхэд нууц үгээ оруулаад энд дарвал хамгаалалтгүй хувилбарыг татна.', 6000);
+    download(pages);
+    toast('Нууц үггүй хувилбарыг татлаа 🔓');
+  }
+  function watermarkDialog() {
+    dialog('Усан тэмдэг', '<div class="dgrid"><label>Текст</label><input class="dinp" name="t" value="НООРОГ" maxlength="40">' +
+      '<label>Өнгө</label><select name="c" class="dsel"><option value="#9a9aa5">Саарал</option><option value="#e5484d">Улаан</option><option value="#1f3fbf">Цэнхэр</option><option value="#6d56fa">Ягаан</option></select>' +
+      '<label>Тунгалаг</label><input type="range" name="o" min="5" max="60" value="18"><label>Хэмжээ</label><input type="range" name="s" min="20" max="140" value="72">' +
+      '<label>Налуу</label><select name="a" class="dsel"><option value="-35">Налуу</option><option value="0">Хэвтээ</option><option value="-90">Босоо</option></select>' +
+      '<label>Хамрах хүрээ</label>' + scopeSelect() + '</div>',
+      [{ label: 'Болих' }, { label: 'Нэмэх', primary: true, fn: function (m) {
+        var s = String(val(m, '[name=t]') || '').trim(); if (!s) return false;
+        var col = val(m, '[name=c]'), op = +val(m, '[name=o]') / 100, size = +val(m, '[name=s]'), ang = +val(m, '[name=a]'), list = scopePages(val(m, '[name=scope]'));
+        G.screenFont('Inter', true).then(function () {
+          list.forEach(function (p) {
+            var f = ensureFab(p); if (!f) return;
+            var d = dims(p), t = textObj(s, { fontFamily: 'GInter', fontWeight: 'bold', fontSize: size * Math.min(d.w, d.h) / 595, fill: col, opacity: op, angle: ang, originX: 'center', originY: 'center', data: { k: 'txt', wm: 1 } });
+            t.set({ left: d.w / 2, top: d.h / 2 }); prepObj(t); quiet++; f.add(t); quiet--; f.requestRenderAll();
+          });
+          commit(true); toast('Усан тэмдэг нэмэгдлээ — дарж засах, устгах боломжтой');
+        });
+      } }]);
+  }
 
   // ---------- wiring ----------
   $('#pe-types').innerHTML = G.LABEL.split(' · ').map(function (t) { return '<span>' + esc(t) + '</span>'; }).join('');
@@ -1228,7 +1976,8 @@
   view.addEventListener('mousedown', function (e) { if (e.target === view || e.target === pagesEl) pages.forEach(function (p) { if (p.fab && p.fab.getActiveObject()) { p.fab.discardActiveObject(); p.fab.requestRenderAll(); } }); });
   window.addEventListener('beforeunload', function (e) { if (hi > 0) { e.preventDefault(); e.returnValue = ''; } });
 
-  dockUi(); pgToolsUi();
+  dockUi(); pgToolsUi(); railUi();
+  $('#pe-rail').addEventListener('click', function (e) { var b = e.target.closest('[data-rail]'); if (b) openRail(b.dataset.rail, b); });
   // a PDF / image sent from another Graphican tool opens here
   if (window.GHandoff) window.GHandoff.take().then(function (h) {
     if (h && h.blob) { var f; try { f = new File([h.blob], h.name || 'document.pdf', { type: h.blob.type }); } catch (e) { f = h.blob; f.name = h.name; } addFiles([f]); }
