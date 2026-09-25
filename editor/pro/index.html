@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html dir="ltr" lang="mn">
+<head>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.0, user-scalable=0" />
+	<script>if(location.hostname==='www.graphican.online')location.replace('https://graphican.online'+location.pathname+location.search+location.hash)</script>
+	<title>Graphican Pro засвар — пиксел түвшний зураг засварлагч</title>
+	<meta name="description" content="Photoshop шиг layer-тэй үнэгүй онлайн зураг засварлагч. Тайрах, өнгө засах, шүүлтүүр, текст, сойз — програм суулгахгүй, бүртгэлгүй. Graphican." />
+	<link rel="canonical" href="https://graphican.online/editor/pro/" />
+	<meta property="og:type" content="website" />
+	<meta property="og:site_name" content="Graphican" />
+	<meta property="og:url" content="https://graphican.online/editor/pro/" />
+	<meta property="og:title" content="Graphican Editor — үнэгүй онлайн зураг засварлагч" />
+	<meta property="og:description" content="Photoshop шиг layer-тэй үнэгүй онлайн зураг засварлагч. Програм суулгахгүй, бүртгэлгүй." />
+	<meta property="og:image" content="https://graphican.online/assets/uploads/og-cover.jpg" />
+	<meta name="theme-color" content="#08080a" />
+	<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2308080a'/%3E%3Ccircle cx='16' cy='16' r='7' fill='%23a497ff'/%3E%3C/svg%3E">
+	<!--
+		Graphican Editor = miniPaint v4.14.3 (MIT), unmodified — https://github.com/viliusle/miniPaint
+		Third-party licenses: /editor/pro/LICENSES.txt
+	-->
+	<script src="dist/bundle.js"></script>
+</head>
+<body>
+	<div class="wrapper">
+
+		<nav aria-label="Main Menu" class="main_menu" id="main_menu"></nav>
+
+		<div class="submenu">
+			<a class="logo" href="/editor/" title="Засварлагч руу буцах">← Засварлагч</a>
+			<div class="block attributes" id="action_attributes"></div>
+			<button class="undo_button" id="undo_button" type="button">
+				<span class="sr_only">Undo</span>
+			</button>
+		</div>
+
+		<div class="sidebar_left" id="tools_container"></div>
+
+
+		<div class="middle_area" id="middle_area">
+
+			<canvas class="ruler_left" id="ruler_left"></canvas>
+			<canvas class="ruler_top" id="ruler_top"></canvas>
+
+			<div class="main_wrapper" id="main_wrapper">
+				<div class="canvas_wrapper" id="canvas_wrapper">
+					<div id="mouse"></div>
+					<div class="transparent-grid" id="canvas_minipaint_background"></div>
+					<canvas id="canvas_minipaint">
+						<div class="trn error">
+							Your browser does not support canvas or JavaScript is not enabled.
+						</div>
+					</canvas>
+				</div>
+			</div>
+		</div>
+
+		<div class="sidebar_right">
+			<div class="preview block">
+				<h2 class="trn toggle" data-target="toggle_preview">Preview</h2>
+				<div id="toggle_preview"></div>
+			</div>
+
+			<div class="colors block">
+				<h2 class="trn toggle" data-target="toggle_colors">Colors</h2>
+				<div class="content" id="toggle_colors"></div>
+			</div>
+
+			<div class="block" id="info_base">
+				<h2 class="trn toggle toggle-full" data-target="toggle_info">Information</h2>
+				<div class="content" id="toggle_info"></div>
+			</div>
+
+			<div class="details block" id="details_base">
+				<h2 class="trn toggle toggle-full" data-target="toggle_details">Layer details</h2>
+				<div class="content details-content" id="toggle_details"></div>
+			</div>
+
+			<div class="layers block">
+				<h2 class="trn">Layers</h2>
+				<div class="content" id="layers_base"></div>
+			</div>
+		</div>
+	</div>
+	<div class="mobile_menu">
+		<button class="left_mobile_menu" id="left_mobile_menu_button" type="button">
+			<span class="sr_only">Toggle Menu</span>
+		</button>
+		<button class="right_mobile_menu" id="mobile_menu_button" type="button">
+			<span class="sr_only">Toggle Menu</span>
+		</button>
+	</div>
+	<div class="hidden" id="tmp"></div>
+	<div id="popups"></div>
+
+	<!-- Graphican: images arrive from /tools/ and can be sent back (see /assets/handoff.js) -->
+	<div class="g-send" id="g-send">
+		<button type="button" class="g-send-btn" aria-expanded="false" aria-controls="g-send-menu">↗ Илгээх</button>
+		<div class="g-send-menu" id="g-send-menu" hidden>
+			<button type="button" data-to="editor">← Засварлагч руу буцаах</button>
+			<button type="button" data-to="upscale">✦ AI томруулах</button>
+			<button type="button" data-to="bgremove">Дэвсгэр арилгах</button>
+			<button type="button" data-to="socialcrop">Сошиал хэмжээ рүү тайрах</button>
+			<button type="button" data-to="pdf">PDF болгох</button>
+		</div>
+	</div>
+	<style>
+		.g-send { position:fixed; left:72px; bottom:16px; z-index:1000; font:600 13px/1 "Inter", Arial, sans-serif; }
+		.g-send-btn { padding:11px 16px; border-radius:999px; border:1px solid rgba(255,255,255,.22); background:rgba(10,10,16,.88); color:#fff; cursor:pointer; box-shadow:0 10px 30px -10px rgba(0,0,0,.8); }
+		.g-send-btn:hover { border-color:#a497ff; }
+		.g-send-menu { position:absolute; left:0; bottom:calc(100% + 8px); display:flex; flex-direction:column; min-width:220px; padding:6px; border-radius:10px; border:1px solid rgba(255,255,255,.16); background:rgba(10,10,16,.96); }
+		.g-send-menu[hidden] { display:none; }
+		.g-send-menu button { text-align:left; padding:10px 12px; border:0; border-radius:6px; background:transparent; color:#f5f4fa; font:inherit; cursor:pointer; }
+		.g-send-menu button:hover { background:rgba(109,86,250,.35); }
+		@media (max-width:700px) { .g-send { left:12px; bottom:72px; } }
+	</style>
+	<script src="/assets/handoff.js?v=28"></script>
+	<script>
+	(function () {
+		// wait until miniPaint has booted (it exposes window.FileOpen / window.Layers on load)
+		function whenReady(fn) {
+			var n = 0, t = setInterval(function () {
+				if (window.FileOpen && window.Layers && document.body.classList.contains('loaded')) { clearInterval(t); fn(); }
+				else if (++n > 200) clearInterval(t);
+			}, 100);
+		}
+
+		// 1) open an image sent from /tools/
+		whenReady(function () {
+			if (!window.GHandoff) return;
+			window.GHandoff.take().then(function (h) {
+				if (!h || !h.blob) return;
+				var r = new FileReader();
+				r.onload = function () { window.FileOpen.file_open_data_url_handler(r.result); };
+				r.readAsDataURL(h.blob);
+			});
+		});
+
+		// 2) send the flattened image back to a tool on /tools/
+		var box = document.getElementById('g-send'), btn = box.querySelector('.g-send-btn'), menu = box.querySelector('.g-send-menu');
+		btn.addEventListener('click', function () {
+			menu.hidden = !menu.hidden;
+			btn.setAttribute('aria-expanded', menu.hidden ? 'false' : 'true');
+		});
+		document.addEventListener('click', function (e) { if (!box.contains(e.target)) { menu.hidden = true; btn.setAttribute('aria-expanded', 'false'); } });
+		menu.querySelectorAll('[data-to]').forEach(function (b) {
+			b.addEventListener('click', function () {
+				var target = b.getAttribute('data-to');
+				var dim = window.Layers.get_dimensions();
+				var c = document.createElement('canvas');
+				c.width = dim.width; c.height = dim.height;
+				window.Layers.convert_layers_to_canvas(c.getContext('2d'), null, false);
+				c.toBlob(function (blob) {
+					window.GHandoff.put(blob, { name: 'graphican-edit.png', target: target }).then(function () {
+						location.href = target === 'editor' ? '/editor/' : '/tools/#' + target;
+					}).catch(function () { alert('Илгээж чадсангүй. Файлаа хадгалаад Design tools дээр оруулна уу.'); });
+				}, 'image/png');
+			});
+		});
+	})();
+	</script>
+</body>
+</html>

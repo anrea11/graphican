@@ -1,162 +1,87 @@
 <!DOCTYPE html>
-<html dir="ltr" lang="mn">
+<html lang="mn">
 <head>
-	<meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-	<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1.0, user-scalable=0" />
-	<script>if(location.hostname==='www.graphican.online')location.replace('https://graphican.online'+location.pathname+location.search+location.hash)</script>
-	<title>Graphican Editor — үнэгүй онлайн зураг засварлагч</title>
-	<meta name="description" content="Photoshop шиг layer-тэй үнэгүй онлайн зураг засварлагч. Тайрах, өнгө засах, шүүлтүүр, текст, сойз — програм суулгахгүй, бүртгэлгүй. Graphican." />
-	<link rel="canonical" href="https://graphican.online/editor/" />
-	<meta property="og:type" content="website" />
-	<meta property="og:site_name" content="Graphican" />
-	<meta property="og:url" content="https://graphican.online/editor/" />
-	<meta property="og:title" content="Graphican Editor — үнэгүй онлайн зураг засварлагч" />
-	<meta property="og:description" content="Photoshop шиг layer-тэй үнэгүй онлайн зураг засварлагч. Програм суулгахгүй, бүртгэлгүй." />
-	<meta property="og:image" content="https://graphican.online/assets/uploads/og-cover.jpg" />
-	<meta name="theme-color" content="#08080a" />
-	<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2308080a'/%3E%3Ccircle cx='16' cy='16' r='7' fill='%23a497ff'/%3E%3C/svg%3E">
-	<!--
-		Graphican Editor = miniPaint v4.14.3 (MIT), unmodified — https://github.com/viliusle/miniPaint
-		Third-party licenses: /editor/LICENSES.txt
-	-->
-	<script src="dist/bundle.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<script>if(location.hostname==='www.graphican.online')location.replace('https://graphican.online'+location.pathname+location.search+location.hash)</script>
+<title>Graphican Editor — Canva шиг үнэгүй онлайн дизайн засварлагч</title>
+<meta name="description" content="Сошиал пост, постер, баннерыг текст, зураг, хэлбэр нэмж бүтээх үнэгүй онлайн засварлагч. Кирилл фонт, өнгөний палитр, PNG / JPG / PDF татах. Бүртгэлгүй. Graphican.">
+<link rel="canonical" href="https://graphican.online/editor/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Graphican">
+<meta property="og:url" content="https://graphican.online/editor/">
+<meta property="og:title" content="Graphican Editor — Canva шиг үнэгүй онлайн дизайн засварлагч">
+<meta property="og:description" content="Сошиал пост, постер, баннерыг хөтөч дээрээ бүтээ. Бүртгэлгүй, үнэгүй.">
+<meta property="og:image" content="https://graphican.online/assets/uploads/og-cover.jpg">
+<meta name="theme-color" content="#0c0c12">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2308080a'/%3E%3Ccircle cx='16' cy='16' r='7' fill='%23a497ff'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap&subset=cyrillic" rel="stylesheet">
+<link rel="stylesheet" href="/assets/editor.css?v=1">
 </head>
 <body>
-	<div class="wrapper">
 
-		<nav aria-label="Main Menu" class="main_menu" id="main_menu"></nav>
+<div class="ed" id="ed">
+  <header class="ed-top">
+    <div class="ed-top-l">
+      <a class="ed-logo" href="/tools/" title="Design tools руу буцах"><span class="ed-orb" aria-hidden="true"></span><span>Graphican</span></a>
+      <input class="ed-name" id="ed-name" value="Нэргүй дизайн" aria-label="Дизайны нэр" spellcheck="false">
+      <span class="ed-saved" id="ed-saved">Хадгалагдсан</span>
+    </div>
+    <div class="ed-top-c">
+      <button class="ib" id="ed-undo" type="button" title="Буцаах (Ctrl+Z)" aria-label="Буцаах" disabled></button>
+      <button class="ib" id="ed-redo" type="button" title="Дахин хийх (Ctrl+Shift+Z)" aria-label="Дахин хийх" disabled></button>
+      <span class="ed-sep" aria-hidden="true"></span>
+      <button class="ib" id="ed-zout" type="button" title="Жижигрүүлэх" aria-label="Жижигрүүлэх"></button>
+      <button class="ed-zoom" id="ed-zoom" type="button" title="Дэлгэцэнд багтаах (Ctrl+0)">100%</button>
+      <button class="ib" id="ed-zin" type="button" title="Томруулах" aria-label="Томруулах"></button>
+    </div>
+    <div class="ed-top-r">
+      <a class="tb ghost hide-sm" id="ed-pro" href="/editor/pro/" title="Сойз, соронзон баллуур, clone зэрэг пиксел түвшний засвар">Pro засвар</a>
+      <div class="pop-wrap">
+        <button class="tb ghost" id="ed-send" type="button" aria-haspopup="true">Tools ↗</button>
+        <div class="pop" id="ed-send-menu" hidden>
+          <p class="pop-t">Одоогийн дизайныг илгээх</p>
+          <button type="button" data-send="bgremove">Дэвсгэр арилгах</button>
+          <button type="button" data-send="upscale">✦ AI томруулах</button>
+          <button type="button" data-send="socialcrop">Сошиал хэмжээ рүү тайрах</button>
+          <button type="button" data-send="pdf">PDF болгох</button>
+          <button type="button" data-send="pro">Pro засварт нээх</button>
+        </div>
+      </div>
+      <div class="pop-wrap">
+        <button class="tb solid" id="ed-dl" type="button" aria-haspopup="true">Татах</button>
+        <div class="pop pop-r" id="ed-dl-menu" hidden>
+          <p class="pop-t">Татах</p>
+          <button type="button" data-dl="png">PNG <i>тунгалаг дэмжинэ</i></button>
+          <button type="button" data-dl="png2">PNG 2× <i>өндөр чанар</i></button>
+          <button type="button" data-dl="jpg">JPG <i>жижиг хэмжээтэй</i></button>
+          <button type="button" data-dl="pdf">PDF <i>хэвлэлд</i></button>
+        </div>
+      </div>
+    </div>
+  </header>
 
-		<div class="submenu">
-			<a class="logo" href="/" title="Graphican руу буцах">← Graphican</a>
-			<div class="block attributes" id="action_attributes"></div>
-			<button class="undo_button" id="undo_button" type="button">
-				<span class="sr_only">Undo</span>
-			</button>
-		</div>
+  <div class="ed-body">
+    <nav class="ed-rail" id="ed-rail" aria-label="Хэрэгслүүд"></nav>
+    <aside class="ed-panel" id="ed-panel" aria-label="Хэрэгслийн самбар"></aside>
+    <main class="ed-stage" id="ed-stage">
+      <div class="ed-ctx" id="ed-ctx" hidden></div>
+      <canvas id="ed-canvas"></canvas>
+      <div class="ed-hint" id="ed-hint">Зүүн талаас <b>текст</b>, <b>зураг</b>, <b>хэлбэр</b> нэмээд эхлээрэй · зургаа энд чирж тавьж болно</div>
+      <div class="ed-dropzone" id="ed-dropzone" hidden><span>Зургаа энд тавина уу</span></div>
+    </main>
+  </div>
+</div>
 
-		<div class="sidebar_left" id="tools_container"></div>
+<input type="file" id="ed-file" accept="image/png,image/jpeg,image/webp,image/svg+xml" multiple hidden>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<noscript><p style="padding:40px;color:#fff">Засварлагчийг ашиглахын тулд JavaScript идэвхжүүлнэ үү.</p></noscript>
 
-
-		<div class="middle_area" id="middle_area">
-
-			<canvas class="ruler_left" id="ruler_left"></canvas>
-			<canvas class="ruler_top" id="ruler_top"></canvas>
-
-			<div class="main_wrapper" id="main_wrapper">
-				<div class="canvas_wrapper" id="canvas_wrapper">
-					<div id="mouse"></div>
-					<div class="transparent-grid" id="canvas_minipaint_background"></div>
-					<canvas id="canvas_minipaint">
-						<div class="trn error">
-							Your browser does not support canvas or JavaScript is not enabled.
-						</div>
-					</canvas>
-				</div>
-			</div>
-		</div>
-
-		<div class="sidebar_right">
-			<div class="preview block">
-				<h2 class="trn toggle" data-target="toggle_preview">Preview</h2>
-				<div id="toggle_preview"></div>
-			</div>
-
-			<div class="colors block">
-				<h2 class="trn toggle" data-target="toggle_colors">Colors</h2>
-				<div class="content" id="toggle_colors"></div>
-			</div>
-
-			<div class="block" id="info_base">
-				<h2 class="trn toggle toggle-full" data-target="toggle_info">Information</h2>
-				<div class="content" id="toggle_info"></div>
-			</div>
-
-			<div class="details block" id="details_base">
-				<h2 class="trn toggle toggle-full" data-target="toggle_details">Layer details</h2>
-				<div class="content details-content" id="toggle_details"></div>
-			</div>
-
-			<div class="layers block">
-				<h2 class="trn">Layers</h2>
-				<div class="content" id="layers_base"></div>
-			</div>
-		</div>
-	</div>
-	<div class="mobile_menu">
-		<button class="left_mobile_menu" id="left_mobile_menu_button" type="button">
-			<span class="sr_only">Toggle Menu</span>
-		</button>
-		<button class="right_mobile_menu" id="mobile_menu_button" type="button">
-			<span class="sr_only">Toggle Menu</span>
-		</button>
-	</div>
-	<div class="hidden" id="tmp"></div>
-	<div id="popups"></div>
-
-	<!-- Graphican: images arrive from /tools/ and can be sent back (see /assets/handoff.js) -->
-	<div class="g-send" id="g-send">
-		<button type="button" class="g-send-btn" aria-expanded="false" aria-controls="g-send-menu">↗ Design tools руу илгээх</button>
-		<div class="g-send-menu" id="g-send-menu" hidden>
-			<button type="button" data-to="upscale">✦ AI томруулах</button>
-			<button type="button" data-to="bgremove">Дэвсгэр арилгах</button>
-			<button type="button" data-to="socialcrop">Сошиал хэмжээ рүү тайрах</button>
-			<button type="button" data-to="pdf">PDF болгох</button>
-		</div>
-	</div>
-	<style>
-		.g-send { position:fixed; left:72px; bottom:16px; z-index:1000; font:600 13px/1 "Inter", Arial, sans-serif; }
-		.g-send-btn { padding:11px 16px; border-radius:999px; border:1px solid rgba(255,255,255,.22); background:rgba(10,10,16,.88); color:#fff; cursor:pointer; box-shadow:0 10px 30px -10px rgba(0,0,0,.8); }
-		.g-send-btn:hover { border-color:#a497ff; }
-		.g-send-menu { position:absolute; left:0; bottom:calc(100% + 8px); display:flex; flex-direction:column; min-width:220px; padding:6px; border-radius:10px; border:1px solid rgba(255,255,255,.16); background:rgba(10,10,16,.96); }
-		.g-send-menu[hidden] { display:none; }
-		.g-send-menu button { text-align:left; padding:10px 12px; border:0; border-radius:6px; background:transparent; color:#f5f4fa; font:inherit; cursor:pointer; }
-		.g-send-menu button:hover { background:rgba(109,86,250,.35); }
-		@media (max-width:700px) { .g-send { left:12px; bottom:72px; } }
-	</style>
-	<script src="/assets/handoff.js?v=28"></script>
-	<script>
-	(function () {
-		// wait until miniPaint has booted (it exposes window.FileOpen / window.Layers on load)
-		function whenReady(fn) {
-			var n = 0, t = setInterval(function () {
-				if (window.FileOpen && window.Layers && document.body.classList.contains('loaded')) { clearInterval(t); fn(); }
-				else if (++n > 200) clearInterval(t);
-			}, 100);
-		}
-
-		// 1) open an image sent from /tools/
-		whenReady(function () {
-			if (!window.GHandoff) return;
-			window.GHandoff.take().then(function (h) {
-				if (!h || !h.blob) return;
-				var r = new FileReader();
-				r.onload = function () { window.FileOpen.file_open_data_url_handler(r.result); };
-				r.readAsDataURL(h.blob);
-			});
-		});
-
-		// 2) send the flattened image back to a tool on /tools/
-		var box = document.getElementById('g-send'), btn = box.querySelector('.g-send-btn'), menu = box.querySelector('.g-send-menu');
-		btn.addEventListener('click', function () {
-			menu.hidden = !menu.hidden;
-			btn.setAttribute('aria-expanded', menu.hidden ? 'false' : 'true');
-		});
-		document.addEventListener('click', function (e) { if (!box.contains(e.target)) { menu.hidden = true; btn.setAttribute('aria-expanded', 'false'); } });
-		menu.querySelectorAll('[data-to]').forEach(function (b) {
-			b.addEventListener('click', function () {
-				var target = b.getAttribute('data-to');
-				var dim = window.Layers.get_dimensions();
-				var c = document.createElement('canvas');
-				c.width = dim.width; c.height = dim.height;
-				window.Layers.convert_layers_to_canvas(c.getContext('2d'), null, false);
-				c.toBlob(function (blob) {
-					window.GHandoff.put(blob, { name: 'graphican-edit.png', target: target }).then(function () {
-						location.href = '/tools/#' + target;
-					}).catch(function () { alert('Илгээж чадсангүй. Файлаа хадгалаад Design tools дээр оруулна уу.'); });
-				}, 'image/png');
-			});
-		});
-	})();
-	</script>
+<!-- Fabric.js 5.3.0 (MIT) — canvas objects, selection, transforms -->
+<script src="https://cdn.jsdelivr.net/npm/fabric@5.3.0/dist/fabric.min.js"></script>
+<script src="/assets/handoff.js?v=28"></script>
+<script src="/assets/editor.js?v=1"></script>
 </body>
 </html>

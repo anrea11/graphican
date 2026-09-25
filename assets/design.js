@@ -639,6 +639,7 @@
               '<button class="btn" type="button" id="dl-css">CSS файл ↓</button>' +
               '<button class="btn ghost" type="button" id="dl-json">JSON ↓</button>' +
               '<button class="btn ghost" type="button" id="cp-css">CSS хуулах</button>' +
+              '<button class="btn solid wide" type="button" id="to-editor">Энэ фонт, өнгөөр засварлагчид дизайн хийх ↗</button>' +
             '</div>' +
             '<p class="kit-zipnote">ZIP дотор: компьютерт суулгах фонтын файлууд (.ttf), CSS, JSON, суулгах заавар.</p>' +
             '<details class="kit-code"><summary>Кодыг харах</summary><pre id="kit-code"></pre></details>' +
@@ -665,6 +666,79 @@
       '</section>'
     );
   }
+
+  // ---------- tools page: picker cards + per-tool "how it works" ----------
+
+  var TOOL_INFO = [
+    { id: 'upscale', badge: 'AI', name: 'AI томруулагч', what: 'Жижиг, бүдэг зургийг 2–4 дахин томруулж тодруулна.',
+      when: 'Лого, бүтээгдэхүүний зураг хэвлэлд бага чанартай байхад', sample: '/assets/uploads/edusmart-logo-mockup.webp',
+      steps: ['Зургаа оруулна', '2× эсвэл 4× сонгоод «Сайжруулах» дарна', 'Өмнө / дараа харьцуулж татна'] },
+    { id: 'bgremove', badge: 'BG', name: 'Дэвсгэр арилгагч', what: 'Хүн, бүтээгдэхүүний арын дэвсгэрийг автоматаар арилгана.',
+      when: 'Бүтээгдэхүүнийг цагаан эсвэл тунгалаг дэвсгэртэй болгох', sample: '/assets/uploads/butafter-shampoo.webp',
+      steps: ['Зургаа оруулна', '«Дэвсгэр арилгах» дарна', 'Тунгалаг PNG эсвэл шинэ өнгөтэйгөөр татна'] },
+    { id: 'socialcrop', badge: '✂', name: 'Сошиал тайрагч', what: 'Нэг зургийг IG, Story, Facebook, YouTube хэмжээ рүү тайрна.',
+      when: 'Нэг постерыг бүх сошиал сувагт тавих', sample: '/assets/uploads/novanest-dining-table.webp',
+      steps: ['Зургаа оруулна', 'Хэрэгтэй хэмжээнүүдээ чагтална · чирж засна', 'Нэг бүрчлэн эсвэл ZIP-ээр татна'] },
+    { id: 'pdf', badge: 'PDF', name: 'PDF хөрвүүлэгч', what: 'PDF-ийг зураг болгох, эсвэл олон зургийг нэг PDF болгох.',
+      when: 'Каталог, танилцуулгын хуудсыг сошиалд тавих / зургаас PDF хийх',
+      steps: ['Чиглэлээ сонгоно (PDF → зураг эсвэл зураг → PDF)', 'Файлаа оруулна', 'ZIP эсвэл PDF-ээр татна'] },
+    { id: 'editor', badge: 'Aa', name: 'Засварлагч', what: 'Canva шиг: текст, зураг, хэлбэр нэмж постер, сошиал пост бүтээнэ.',
+      when: 'Бэлэн зурган дээр текст, лого нэмж пост хийх', href: '/editor/',
+      steps: ['Хэмжээгээ сонгоно', 'Текст, зураг, хэлбэр нэмнэ', 'PNG, JPG, PDF-ээр татна'] }
+  ];
+  function toolInfo(id) { return TOOL_INFO.filter(function (t) { return t.id === id; })[0] || {}; }
+
+  function toolPicker() {
+    var cards = TOOL_INFO.map(function (t, i) {
+      return (
+        '<a class="tp-card" href="' + (t.href || '#' + t.id) + '">' +
+          '<span class="tp-top"><span class="drop-ic" aria-hidden="true">' + esc(t.badge) + '</span><span class="tp-n">' + pad(i + 1) + '</span></span>' +
+          '<b>' + esc(t.name) + '</b>' +
+          '<span class="tp-what">' + esc(t.what) + '</span>' +
+          '<span class="tp-when"><i>Хэзээ:</i> ' + esc(t.when) + '</span>' +
+          '<span class="tp-go">' + (t.href ? 'Засварлагч нээх ↗' : 'Ашиглах ↓') + '</span>' +
+        '</a>'
+      );
+    }).join('');
+    return (
+      '<section class="sec picker" id="picker">' +
+        '<header class="sec-head reveal"><div class="sec-meta"><span>ЭХЛЭХ</span><span>CHOOSE A TOOL +</span></div>' +
+          '<h2 class="sec-title">' + blurText('Хэрэгслээ сонго.', 0.55) + '</h2>' +
+          '<p class="sec-desc">Бүгд үнэгүй, бүртгэлгүй. Зураг тань таны компьютерээс гарахгүй — бүх боловсруулалт хөтөч дотор хийгдэнэ.</p></header>' +
+        '<div class="tp-grid reveal">' + cards + '</div>' +
+        '<div class="tp-flow reveal">' +
+          '<span class="flow-t">Хэрэгслүүд хоорондоо холбоотой</span>' +
+          '<p>Нэг хэрэгслийн үр дүнг <b>«Үргэлжлүүлэх →»</b> товчоор дараагийнх руу шууд дамжуулна — татаж аваад дахин оруулах шаардлагагүй.</p>' +
+          '<div class="tp-chain"><span>Зураг</span><i>→</i><span>Дэвсгэр арилгах</span><i>→</i><span>✦ Томруулах</span><i>→</i><span>Сошиал хэмжээ</span><i>→</i><span>Засварлагч</span><i>→</i><span>Татах</span></div>' +
+        '</div>' +
+      '</section>'
+    );
+  }
+
+  // numbered steps + "try with a sample" under each tool heading
+  function toolGuide(id) {
+    var t = toolInfo(id);
+    if (!t.steps) return '';
+    return (
+      '<div class="tg reveal">' +
+        '<ol class="tg-steps">' + t.steps.map(function (s, i) { return '<li><span>' + (i + 1) + '</span>' + esc(s) + '</li>'; }).join('') + '</ol>' +
+        (t.sample ? '<button type="button" class="btn ghost tg-sample" data-sample="' + id + '">Жишээ зургаар турших</button>' : '') +
+      '</div>'
+    );
+  }
+
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-sample]');
+    if (!b) return;
+    var t = toolInfo(b.getAttribute('data-sample'));
+    if (!t.sample || !FLOW[t.id]) return;
+    b.disabled = true;
+    fetch(t.sample).then(function (r) { return r.blob(); }).then(function (blob) {
+      FLOW[t.id](blobToFile(blob, t.sample.split('/').pop()));
+      toast('Жишээ зураг орлоо — одоо дараагийн алхмаа хийгээрэй');
+    }).catch(function () { toast('Жишээ зургийг ачаалж чадсангүй'); })
+      .then(function () { b.disabled = false; });
+  });
 
   // ---------- tool chaining: send a result to the next tool ----------
   // Each tool registers FLOW[id] = function (file) { load it }. The editor lives on
@@ -721,7 +795,7 @@
 
   function upscaleSection(u) {
     return (
-      '<section class="sec upscale" id="upscale">' + head(u) +
+      '<section class="sec upscale" id="upscale">' + head(u) + toolGuide('upscale') +
         '<div class="tool reveal">' +
           '<label class="drop" data-drop="up">' +
             '<input type="file" accept="image/png,image/jpeg,image/webp" hidden>' +
@@ -962,7 +1036,7 @@
 
   function tools(t) {
     return (
-      '<section class="sec tools" id="pdf">' + head(t) +
+      '<section class="sec tools" id="pdf">' + head(t) + toolGuide('pdf') +
         '<div class="tool-tabs reveal" role="tablist">' +
           '<button type="button" class="tt active" data-tab="p2i" role="tab">PDF → PNG / JPG</button>' +
           '<button type="button" class="tt" data-tab="i2p" role="tab">PNG / JPG → PDF</button>' +
@@ -1232,7 +1306,7 @@
 
   function bgSection(b) {
     return (
-      '<section class="sec bgremove" id="bgremove">' + head(b) +
+      '<section class="sec bgremove" id="bgremove">' + head(b) + toolGuide('bgremove') +
         '<div class="tool reveal">' +
           '<label class="drop" data-drop="bg">' +
             '<input type="file" accept="image/png,image/jpeg,image/webp" hidden>' +
@@ -1417,7 +1491,7 @@
       return '<label class="sz"><input type="checkbox" value="' + s.id + '"' + (s.on ? ' checked' : '') + '><span><b>' + esc(s.name) + '</b><i>' + s.w + '×' + s.h + ' · ' + s.ratio + '</i></span></label>';
     }).join('');
     return (
-      '<section class="sec socialcrop" id="socialcrop">' + head(c) +
+      '<section class="sec socialcrop" id="socialcrop">' + head(c) + toolGuide('socialcrop') +
         '<div class="tool reveal">' +
           '<label class="drop" data-drop="sc">' +
             '<input type="file" accept="image/png,image/jpeg,image/webp" hidden>' +
@@ -1563,13 +1637,13 @@
 
   function editorSection(e) {
     return (
-      '<section class="sec editorcta" id="editor">' + head(e) +
+      '<section class="sec editorcta" id="editor">' + head(e) + toolGuide('editor') +
         '<a class="tool ed-card reveal" href="/editor/">' +
-          '<span class="drop-ic" aria-hidden="true">PS</span>' +
-          '<span class="ed-copy"><b>Засварлагч нээх</b><span>Layer · тайралт · өнгө засвар · шүүлтүүр · текст · сойз · PNG / JPG / WebP хадгалах</span></span>' +
+          '<span class="drop-ic" aria-hidden="true">Aa</span>' +
+          '<span class="ed-copy"><b>Засварлагч нээх</b><span>Сошиал пост, постер · текст, зураг, хэлбэр · Design guide-ийн фонт, өнгө · layer · PNG / JPG / PDF татах</span></span>' +
           '<span class="btn solid">Нээх ↗</span>' +
         '</a>' +
-        '<p class="tool-note reveal">✦ Нээлттэй эхийн miniPaint (MIT) дээр суурилсан. Бүртгэлгүй, зар сурталчилгаагүй, зураг тань таны компьютерээс гарахгүй.</p>' +
+        '<p class="tool-note reveal">✦ Canva шиг ажиллана: зүйлсээ чирж байрлуулж, дээр нь дараад засна. Автоматаар хадгалагдана. Пиксел түвшний нарийн засвар (сойз, соронзон баллуур, clone) хэрэгтэй бол засварлагч доторх <b>«Pro засвар»</b>-ыг ашиглана.</p>' +
       '</section>'
     );
   }
@@ -1632,6 +1706,18 @@
     document.getElementById('dl-css').addEventListener('click', function () { var c = current(); download(fname('css'), buildCss(c.pair, c.pal), 'text/css'); });
     document.getElementById('dl-json').addEventListener('click', function () { var c = current(); download(fname('json'), buildJson(c.pair, c.pal), 'application/json'); });
     document.getElementById('cp-css').addEventListener('click', function () { var c = current(); copy(buildCss(c.pair, c.pal), 'CSS код хуулагдлаа'); });
+    // hand the chosen pair + palette to the editor (it reads gc-editor-prefs on load)
+    document.getElementById('to-editor').addEventListener('click', function () {
+      var c = current();
+      try {
+        localStorage.setItem('gc-editor-prefs', JSON.stringify({
+          pair: { heading: c.pair.heading, body: c.pair.body },
+          palette: { name: c.pal.name, colors: list(c.pal.colors).map(function (x) { return x.hex; }) },
+          fresh: true
+        }));
+      } catch (err) {}
+      location.href = '/editor/';
+    });
     document.getElementById('dl-fonts').addEventListener('click', function () {
       var c = current();
       fontZip([c.pair.heading, c.pair.body], 'fonts-' + slugify(c.pair.heading + '-' + c.pair.body) + '.zip');
@@ -1757,7 +1843,7 @@
         if (th.seo_title) document.title = th.seo_title;
         var md = document.querySelector('meta[name="description"]');
         if (md && th.seo_description) md.setAttribute('content', th.seo_description);
-        app.innerHTML = hero(th, 'tools') +
+        app.innerHTML = hero(th, 'tools') + toolPicker() +
           upscaleSection(d.upscale || {}) + bgSection(d.bgremove || {}) + cropSection(d.socialcrop || {}) +
           tools(d.tools || {}) + editorSection(d.editor || {}) + footer();
         enhance();

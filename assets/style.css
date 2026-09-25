@@ -298,7 +298,14 @@ html:not(.ready) .bl { filter:blur(.1em); opacity:.5; }
     linear-gradient(100deg, #e7e3fd, #816dfb) border-box;
 }
 .design-pill.active .dp-sub { color:#fff; opacity:.85; }
-@media (max-width:420px) { .dp-sub { display:none; } .design-pill { padding-right:14px; } }
+.design-pill + .design-pill { margin-left:8px; }
+/* small screens: keep both pills, labelled GUIDE / TOOLS */
+@media (max-width:560px) {
+  .design-pill { height:38px; gap:6px; padding:0 12px 0 9px; }
+  .dp-main { display:none; }
+  .dp-sub { font-size:11px; color:#fff; }
+  .dp-orb { width:13px; height:13px; }
+}
 .nav a {
   position:relative;
   font:500 12.5px/1 var(--body);
