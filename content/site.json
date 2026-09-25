@@ -19,6 +19,7 @@
     "secondary_button": "Үйлчилгээ",
     "artist_name": "Ankhbayar M.",
     "artist_role": "MAIN ARTIST",
+    "portrait": "/assets/uploads/anhbayar-hero-2.webp",
     "stats": [
       {
         "value": "6+",
@@ -44,8 +45,7 @@
       "label": "VISUAL IDENTITY",
       "alt": "Protech — брэнд айдентити"
     },
-    "video": "",
-    "portrait": "/assets/uploads/anhbayar-hero-2.webp"
+    "video": ""
   },
   "marquee": [
     "BRANDING",
@@ -322,19 +322,43 @@
     ]
   },
   "clients": {
-    "kicker": "TRUSTED BY",
-    "title": "Хамтран ажилласан байгууллагууд",
-    "note": "25+ байгууллагатай хамтран ажилласан",
     "items": [
-      { "name": "Munkh Energy", "logo": "" },
-      { "name": "Way Academy", "logo": "" },
-      { "name": "Protech", "logo": "" },
-      { "name": "Nomadabe", "logo": "" },
-      { "name": "Novanest", "logo": "" },
-      { "name": "EduSmart", "logo": "" },
-      { "name": "ButAfter", "logo": "" },
-      { "name": "Tru", "logo": "" }
-    ]
+      {
+        "name": "Munkh Energy",
+        "logo": ""
+      },
+      {
+        "name": "Way Academy",
+        "logo": ""
+      },
+      {
+        "name": "Protech",
+        "logo": ""
+      },
+      {
+        "name": "Nomadabe",
+        "logo": ""
+      },
+      {
+        "name": "Novanest",
+        "logo": ""
+      },
+      {
+        "name": "EduSmart",
+        "logo": ""
+      },
+      {
+        "name": "ButAfter",
+        "logo": ""
+      },
+      {
+        "name": "Tru",
+        "logo": ""
+      }
+    ],
+    "kicker": "TRUSTED BY",
+    "note": "25+ байгууллагатай хамтран ажилласан",
+    "title": "Хамтран ажилласан байгууллагууд"
   },
   "services": {
     "kicker": "04 / SERVICES",
@@ -418,7 +442,7 @@
     "socials": [
       {
         "name": "Instagram",
-        "url": ""
+        "url": "https://www.instagram.com/bayraara?stkn=MXB1eXNoNWF3aTlpaA=="
       },
       {
         "name": "Facebook",
@@ -426,7 +450,7 @@
       },
       {
         "name": "Behance",
-        "url": ""
+        "url": "https://www.behance.net/anrea01"
       }
     ]
   },
