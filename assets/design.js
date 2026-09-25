@@ -1137,6 +1137,360 @@
     });
   }
 
+  // ---------- shared: pick one image via drop zone ----------
+
+  function wireImageDrop(drop, onImage) {
+    var inp = drop.querySelector('input');
+    function pick(f) {
+      if (!f || !/^image\/(png|jpe?g|webp)$/i.test(f.type)) { toast('PNG, JPG эсвэл WebP зураг сонгоно уу'); return; }
+      var url = URL.createObjectURL(f), img = new Image();
+      img.onload = function () { onImage(img, f, url); };
+      img.onerror = function () { toast('Зургийг уншиж чадсангүй'); };
+      img.src = url;
+    }
+    inp.addEventListener('change', function () { if (inp.files[0]) pick(inp.files[0]); inp.value = ''; });
+    ['dragenter', 'dragover'].forEach(function (ev) { drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.add('over'); }); });
+    ['dragleave', 'drop'].forEach(function (ev) { drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.remove('over'); }); });
+    drop.addEventListener('drop', function (e) { if (e.dataTransfer.files[0]) pick(e.dataTransfer.files[0]); });
+  }
+
+  // ---------- AI background remover (U²-Net-P via ONNX Runtime Web, runs in the browser) ----------
+
+  var ORT_VER = '1.30.0';
+  var ORT_BASE = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@' + ORT_VER + '/dist/';
+
+  function bgSection(b) {
+    return (
+      '<section class="sec bgremove" id="bgremove">' + head(b) +
+        '<div class="tool reveal">' +
+          '<label class="drop" data-drop="bg">' +
+            '<input type="file" accept="image/png,image/jpeg,image/webp" hidden>' +
+            '<span class="drop-ic" aria-hidden="true">BG</span>' +
+            '<b>Зургаа энд чирж оруулна уу</b><span>PNG, JPG, WebP · эсвэл дарж сонгоно</span>' +
+          '</label>' +
+          '<div class="tool-opts">' +
+            '<label><span>Ирмэг</span><select data-opt="edge"><option value="soft">Зөөлөн (үс, үслэг)</option><option value="mid" selected>Дунд</option><option value="hard">Хурц (бүтээгдэхүүн, лого)</option></select></label>' +
+            '<label><span>Шинэ дэвсгэр</span><select data-opt="bgfill"><option value="none" selected>Тунгалаг (PNG)</option><option value="#ffffff">Цагаан</option><option value="#000000">Хар</option><option value="custom">Өөр өнгө…</option></select></label>' +
+            '<label class="bg-color" hidden><span>Өнгө</span><input type="color" data-opt="bgcolor" value="#a497ff"></label>' +
+            '<button type="button" class="btn solid" data-act="bg-run" disabled>Дэвсгэр арилгах ✦</button>' +
+            '<button type="button" class="btn" data-act="bg-dl" disabled>Татах ↓</button>' +
+          '</div>' +
+          '<div class="up-progress" hidden><i></i></div>' +
+          '<p class="tool-status" data-status="bg"></p>' +
+          '<div class="compare" hidden>' +
+            '<div class="cmp-wrap">' +
+              '<img class="cmp-after" alt="Дэвсгэргүй">' +
+              '<div class="cmp-before"><img alt="Анхны"></div>' +
+              '<span class="cmp-line" aria-hidden="true"></span>' +
+              '<span class="cmp-tag l">ӨМНӨ</span><span class="cmp-tag r">ДАРАА</span>' +
+              '<input class="cmp-range" type="range" min="0" max="100" value="50" aria-label="Өмнө / дараа харьцуулах">' +
+            '</div>' +
+            '<p class="cmp-meta"></p>' +
+          '</div>' +
+        '</div>' +
+        '<p class="tool-note reveal">✦ U²-Net хиймэл оюун (Apache-2.0) — хүн, бүтээгдэхүүн, амьтан гэх мэт тод гол объекттой зурагт хамгийн сайн ажиллана. Бүх боловсруулалт таны хөтөч дотор, файл серверт илгээгдэхгүй. Анх ашиглахад загвар (~5MB) нэг удаа ачаална.</p>' +
+      '</section>'
+    );
+  }
+
+  var rmbg = { session: null, ready: null };
+  function rmbgReady() {
+    if (rmbg.ready) return rmbg.ready;
+    rmbg.ready = loadScript(ORT_BASE + 'ort.min.js').then(function () {
+      var ort = window.ort;
+      ort.env.wasm.wasmPaths = ORT_BASE;
+      ort.env.wasm.numThreads = window.crossOriginIsolated ? Math.min(4, navigator.hardwareConcurrency || 1) : 1;
+      return ort.InferenceSession.create('/assets/vendor/u2netp.onnx', { executionProviders: ['wasm'], graphOptimizationLevel: 'all' });
+    }).then(function (s) { rmbg.session = s; });
+    rmbg.ready.catch(function () { rmbg.ready = null; });
+    return rmbg.ready;
+  }
+
+  // → Float32Array mask (320×320, 0..1)
+  function rmbgMask(img) {
+    var S = 320, c = document.createElement('canvas');
+    c.width = S; c.height = S;
+    var cx = c.getContext('2d');
+    cx.drawImage(img, 0, 0, S, S);
+    var px = cx.getImageData(0, 0, S, S).data, n = S * S;
+    var max = 1;
+    for (var i = 0; i < n * 4; i++) if ((i & 3) !== 3 && px[i] > max) max = px[i];
+    var mean = [0.485, 0.456, 0.406], std = [0.229, 0.224, 0.225];
+    var data = new Float32Array(3 * n);
+    for (var p = 0; p < n; p++) {
+      for (var k = 0; k < 3; k++) data[k * n + p] = (px[p * 4 + k] / max - mean[k]) / std[k];
+    }
+    var ort = window.ort, s = rmbg.session, feeds = {};
+    feeds[s.inputNames[0]] = new ort.Tensor('float32', data, [1, 3, S, S]);
+    return s.run(feeds).then(function (out) {
+      var m = out[s.outputNames[0]].data, lo = Infinity, hi = -Infinity, j;
+      for (j = 0; j < n; j++) { if (m[j] < lo) lo = m[j]; if (m[j] > hi) hi = m[j]; }
+      var r = new Float32Array(n), span = (hi - lo) || 1;
+      for (j = 0; j < n; j++) r[j] = (m[j] - lo) / span;
+      return r;
+    });
+  }
+
+  // mask → full-size cut-out canvas (optionally over a solid colour)
+  function rmbgCompose(img, mask, edge, fill) {
+    var S = 320, W = img.naturalWidth, H = img.naturalHeight;
+    var mc = document.createElement('canvas'); mc.width = S; mc.height = S;
+    var mctx = mc.getContext('2d'), md = mctx.createImageData(S, S);
+    var curve = { soft: [0.05, 0.95], mid: [0.2, 0.8], hard: [0.4, 0.6] }[edge] || [0.2, 0.8];
+    for (var i = 0; i < S * S; i++) {
+      var a = (mask[i] - curve[0]) / (curve[1] - curve[0]);
+      md.data[i * 4 + 3] = a <= 0 ? 0 : a >= 1 ? 255 : Math.round(a * 255);
+    }
+    mctx.putImageData(md, 0, 0);
+    // upscale the mask smoothly to the photo size
+    var am = document.createElement('canvas'); am.width = W; am.height = H;
+    var actx = am.getContext('2d'); actx.imageSmoothingEnabled = true; actx.imageSmoothingQuality = 'high';
+    actx.drawImage(mc, 0, 0, W, H);
+    // cut the photo with it
+    var out = document.createElement('canvas'); out.width = W; out.height = H;
+    var o = out.getContext('2d');
+    o.drawImage(img, 0, 0, W, H);
+    o.globalCompositeOperation = 'destination-in';
+    o.drawImage(am, 0, 0);
+    o.globalCompositeOperation = 'source-over';
+    if (fill && fill !== 'none') {
+      var f = document.createElement('canvas'); f.width = W; f.height = H;
+      var fx2 = f.getContext('2d'); fx2.fillStyle = fill; fx2.fillRect(0, 0, W, H); fx2.drawImage(out, 0, 0);
+      return f;
+    }
+    return out;
+  }
+
+  function setupBgRemove() {
+    var root = document.getElementById('bgremove');
+    if (!root) return;
+    function $(s) { return root.querySelector(s); }
+    var runBtn = $('[data-act="bg-run"]'), dlBtn = $('[data-act="bg-dl"]'), st = $('[data-status="bg"]');
+    var bar = $('.up-progress'), barI = bar.querySelector('i');
+    var cmp = $('.compare'), after = $('.cmp-after'), before = $('.cmp-before img'), beforeWrap = $('.cmp-before'), line = $('.cmp-line'), range = $('.cmp-range'), meta = $('.cmp-meta');
+    var fillSel = $('[data-opt="bgfill"]'), colorWrap = $('.bg-color'), colorInp = $('[data-opt="bgcolor"]'), edgeSel = $('[data-opt="edge"]');
+    var file = null, srcImg = null, mask = null, result = null, busy = false;
+
+    function setSplit(v) { beforeWrap.style.clipPath = 'inset(0 ' + (100 - v) + '% 0 0)'; line.style.left = v + '%'; }
+    range.addEventListener('input', function () { setSplit(+range.value); });
+
+    function fill() { return fillSel.value === 'custom' ? colorInp.value : fillSel.value; }
+    function render() {
+      if (!mask) return;
+      result = rmbgCompose(srcImg, mask, edgeSel.value, fill());
+      after.src = result.toDataURL('image/png');
+    }
+    fillSel.addEventListener('change', function () { colorWrap.hidden = fillSel.value !== 'custom'; render(); });
+    colorInp.addEventListener('input', render);
+    edgeSel.addEventListener('change', render);
+
+    wireImageDrop($('[data-drop="bg"]'), function (img, f, url) {
+      file = f; srcImg = img; mask = null; result = null; dlBtn.disabled = true;
+      before.src = url; after.src = url; cmp.hidden = false; setSplit(50); range.value = 50;
+      meta.textContent = img.naturalWidth + ' × ' + img.naturalHeight + ' px';
+      runBtn.disabled = false;
+      st.textContent = 'Бэлэн. "Дэвсгэр арилгах" дарна уу.';
+    });
+
+    runBtn.addEventListener('click', function () {
+      if (!srcImg || busy) return;
+      busy = true; runBtn.disabled = true; dlBtn.disabled = true;
+      bar.hidden = false; barI.style.width = '15%';
+      st.textContent = 'AI загвар ачаалж байна…';
+      var t0 = performance.now();
+      rmbgReady().then(function () {
+        barI.style.width = '55%'; st.textContent = 'Дэвсгэрийг илрүүлж байна…';
+        return new Promise(function (r) { setTimeout(r, 30); }).then(function () { return rmbgMask(srcImg); });
+      }).then(function (m) {
+        mask = m; render();
+        barI.style.width = '100%';
+        meta.textContent = srcImg.naturalWidth + ' × ' + srcImg.naturalHeight + ' px · ' + ((performance.now() - t0) / 1000).toFixed(1) + ' сек';
+        st.textContent = 'Болсон! Ирмэг, дэвсгэрийн өнгийг сольж үзээд татаж аваарай.';
+        dlBtn.disabled = false;
+        setTimeout(function () { bar.hidden = true; }, 600);
+      }).catch(function (e) {
+        console.error(e); bar.hidden = true;
+        st.textContent = 'Алдаа гарлаа. Интернэт холболтоо шалгаад дахин оролдоно уу.';
+      }).then(function () { busy = false; runBtn.disabled = !srcImg; });
+    });
+
+    dlBtn.addEventListener('click', function () {
+      if (!result) return;
+      var transparent = fill() === 'none';
+      var name = (file ? file.name.replace(/\.[^.]+$/, '') : 'image') + '-no-bg.' + (transparent ? 'png' : 'jpg');
+      result.toBlob(function (b) { saveBlob(name, b); toast(name + ' татагдлаа'); }, transparent ? 'image/png' : 'image/jpeg', .95);
+    });
+  }
+
+  // ---------- social media smart crop (smartcrop.js) ----------
+
+  var SOCIAL_SIZES = [
+    { id: 'ig45', name: 'Instagram пост', ratio: '4:5', w: 1080, h: 1350, on: true },
+    { id: 'ig11', name: 'Instagram квадрат', ratio: '1:1', w: 1080, h: 1080, on: true },
+    { id: 'story', name: 'Story / Reels', ratio: '9:16', w: 1080, h: 1920, on: true },
+    { id: 'fbpost', name: 'Facebook пост', ratio: '1.91:1', w: 1200, h: 630, on: true },
+    { id: 'fbcover', name: 'Facebook cover', ratio: '2.63:1', w: 1640, h: 624, on: false },
+    { id: 'yt', name: 'YouTube thumbnail', ratio: '16:9', w: 1280, h: 720, on: false },
+    { id: 'li', name: 'LinkedIn пост', ratio: '1.91:1', w: 1200, h: 627, on: false },
+    { id: 'x', name: 'X (Twitter) пост', ratio: '16:9', w: 1600, h: 900, on: false }
+  ];
+
+  function cropSection(c) {
+    var checks = SOCIAL_SIZES.map(function (s) {
+      return '<label class="sz"><input type="checkbox" value="' + s.id + '"' + (s.on ? ' checked' : '') + '><span><b>' + esc(s.name) + '</b><i>' + s.w + '×' + s.h + ' · ' + s.ratio + '</i></span></label>';
+    }).join('');
+    return (
+      '<section class="sec socialcrop" id="socialcrop">' + head(c) +
+        '<div class="tool reveal">' +
+          '<label class="drop" data-drop="sc">' +
+            '<input type="file" accept="image/png,image/jpeg,image/webp" hidden>' +
+            '<span class="drop-ic" aria-hidden="true">✂</span>' +
+            '<b>Зургаа энд чирж оруулна уу</b><span>PNG, JPG, WebP · эсвэл дарж сонгоно</span>' +
+          '</label>' +
+          '<div class="sz-list">' + checks + '</div>' +
+          '<div class="tool-opts">' +
+            '<label><span>Арга</span><select data-opt="scmode"><option value="crop" selected>Ухаалаг тайралт</option><option value="fit">Бүтнээр нь багтаах + бүдэг дэвсгэр</option></select></label>' +
+            '<label><span>Формат</span><select data-opt="scfmt"><option value="jpg" selected>JPG</option><option value="png">PNG</option></select></label>' +
+            '<button type="button" class="btn solid" data-act="sc-zip" disabled>Бүгдийг ZIP-ээр татах ↓</button>' +
+          '</div>' +
+          '<p class="tool-status" data-status="sc"></p>' +
+          '<div class="sc-grid"></div>' +
+        '</div>' +
+        '<p class="tool-note reveal">✦ Зургийн хамгийн чухал хэсгийг (нүүр, объект, тод хэсэг) автоматаар олж тайрна. Тайралт таарахгүй бол зураг дээр чирж байрлалыг нь засна. Бүх боловсруулалт таны хөтөч дотор.</p>' +
+      '</section>'
+    );
+  }
+
+  function setupSocialCrop() {
+    var root = document.getElementById('socialcrop');
+    if (!root) return;
+    function $(s) { return root.querySelector(s); }
+    var grid = $('.sc-grid'), st = $('[data-status="sc"]'), zipBtn = $('[data-act="sc-zip"]');
+    var modeSel = $('[data-opt="scmode"]'), fmtSel = $('[data-opt="scfmt"]');
+    var file = null, srcImg = null, crops = {}, gen = 0;
+
+    function selected() {
+      var on = Array.from(root.querySelectorAll('.sz input:checked')).map(function (i) { return i.value; });
+      return SOCIAL_SIZES.filter(function (s) { return on.indexOf(s.id) >= 0; });
+    }
+    function baseName() { return file ? file.name.replace(/\.[^.]+$/, '') : 'image'; }
+
+    // draw one output at full target size
+    function renderFull(s) {
+      var c = document.createElement('canvas'); c.width = s.w; c.height = s.h;
+      var x = c.getContext('2d'); x.imageSmoothingQuality = 'high';
+      var W = srcImg.naturalWidth, H = srcImg.naturalHeight;
+      if (modeSel.value === 'fit') {
+        var cover = Math.max(s.w / W, s.h / H), fit = Math.min(s.w / W, s.h / H);
+        x.filter = 'blur(' + Math.round(Math.max(s.w, s.h) / 40) + 'px) brightness(.7)';
+        x.drawImage(srcImg, (s.w - W * cover) / 2, (s.h - H * cover) / 2, W * cover, H * cover);
+        x.filter = 'none';
+        x.drawImage(srcImg, (s.w - W * fit) / 2, (s.h - H * fit) / 2, W * fit, H * fit);
+      } else {
+        var r = crops[s.id];
+        x.drawImage(srcImg, r.x, r.y, r.width, r.height, 0, 0, s.w, s.h);
+      }
+      return c;
+    }
+
+    function tile(s) {
+      var el = document.createElement('figure');
+      el.className = 'sc-item';
+      el.innerHTML =
+        '<div class="sc-frame" style="aspect-ratio:' + s.w + '/' + s.h + '"><canvas></canvas>' +
+          (modeSel.value === 'crop' ? '<span class="sc-hint">⇆ чирж засна</span>' : '') + '</div>' +
+        '<figcaption><span><b>' + esc(s.name) + '</b><i>' + s.w + '×' + s.h + '</i></span><button type="button" class="btn" data-dl="' + s.id + '">↓</button></figcaption>';
+      var cv = el.querySelector('canvas');
+      function draw() {
+        var full = renderFull(s);
+        var k = Math.min(1, 480 / Math.max(s.w, s.h));
+        cv.width = Math.round(s.w * k); cv.height = Math.round(s.h * k);
+        cv.getContext('2d').drawImage(full, 0, 0, cv.width, cv.height);
+      }
+      draw();
+      if (modeSel.value === 'crop') {
+        // drag to pan the crop window inside the photo
+        var frame = el.querySelector('.sc-frame'), start = null;
+        frame.addEventListener('pointerdown', function (e) {
+          start = { x: e.clientX, y: e.clientY, cx: crops[s.id].x, cy: crops[s.id].y, k: crops[s.id].width / frame.clientWidth };
+          frame.setPointerCapture(e.pointerId); frame.classList.add('dragging');
+        });
+        frame.addEventListener('pointermove', function (e) {
+          if (!start) return;
+          var r = crops[s.id], W = srcImg.naturalWidth, H = srcImg.naturalHeight;
+          r.x = Math.max(0, Math.min(W - r.width, start.cx - (e.clientX - start.x) * start.k));
+          r.y = Math.max(0, Math.min(H - r.height, start.cy - (e.clientY - start.y) * start.k));
+          draw();
+        });
+        ['pointerup', 'pointercancel'].forEach(function (ev) { frame.addEventListener(ev, function () { start = null; frame.classList.remove('dragging'); }); });
+      }
+      el.querySelector('[data-dl]').addEventListener('click', function () {
+        var png = fmtSel.value === 'png', name = baseName() + '-' + s.id + '-' + s.w + 'x' + s.h + (png ? '.png' : '.jpg');
+        renderFull(s).toBlob(function (b) { saveBlob(name, b); toast(name + ' татагдлаа'); }, png ? 'image/png' : 'image/jpeg', .92);
+      });
+      return el;
+    }
+
+    function build() {
+      if (!srcImg) return;
+      var my = ++gen, sizes = selected();
+      grid.innerHTML = '';
+      zipBtn.disabled = !sizes.length;
+      if (!sizes.length) { st.textContent = 'Дор хаяж нэг хэмжээ сонгоно уу.'; return; }
+      st.textContent = 'Чухал хэсгийг олж байна…';
+      var need = modeSel.value === 'crop' ? sizes.filter(function (s) { return !crops[s.id]; }) : [];
+      var chain = need.length ? loadScript('https://cdn.jsdelivr.net/npm/smartcrop@2.0.5/smartcrop.js') : Promise.resolve();
+      chain.then(function () {
+        return need.reduce(function (p, s) {
+          return p.then(function () {
+            return window.smartcrop.crop(srcImg, { width: s.w, height: s.h, minScale: 1 }).then(function (res) { crops[s.id] = res.topCrop; });
+          });
+        }, Promise.resolve());
+      }).then(function () {
+        if (my !== gen) return;
+        sizes.forEach(function (s) { grid.appendChild(tile(s)); });
+        st.textContent = sizes.length + ' хэмжээ бэлэн. Тус бүрийг ↓ эсвэл бүгдийг ZIP-ээр татна.';
+      }).catch(function (e) {
+        console.error(e);
+        st.textContent = 'Алдаа гарлаа. Интернэт холболтоо шалгаад дахин оролдоно уу.';
+      });
+    }
+
+    wireImageDrop($('[data-drop="sc"]'), function (img, f) { file = f; srcImg = img; crops = {}; build(); });
+    root.querySelectorAll('.sz input').forEach(function (i) { i.addEventListener('change', build); });
+    modeSel.addEventListener('change', build);
+
+    zipBtn.addEventListener('click', function () {
+      var sizes = selected();
+      if (!srcImg || !sizes.length) return;
+      var png = fmtSel.value === 'png';
+      toast('ZIP бэлтгэж байна…');
+      Promise.all(sizes.map(function (s) {
+        return new Promise(function (res) { renderFull(s).toBlob(res, png ? 'image/png' : 'image/jpeg', .92); })
+          .then(function (b) { return b.arrayBuffer(); })
+          .then(function (buf) { return { name: baseName() + '-' + s.id + '-' + s.w + 'x' + s.h + (png ? '.png' : '.jpg'), data: new Uint8Array(buf) }; });
+      })).then(function (files) {
+        saveBlob(baseName() + '-social.zip', makeZip(files));
+        toast(files.length + ' зураг ZIP-ээр татагдлаа');
+      });
+    });
+  }
+
+  // ---------- online editor (self-hosted miniPaint) ----------
+
+  function editorSection(e) {
+    return (
+      '<section class="sec editorcta" id="editor">' + head(e) +
+        '<a class="tool ed-card reveal" href="/editor/">' +
+          '<span class="drop-ic" aria-hidden="true">PS</span>' +
+          '<span class="ed-copy"><b>Засварлагч нээх</b><span>Layer · тайралт · өнгө засвар · шүүлтүүр · текст · сойз · PNG / JPG / WebP хадгалах</span></span>' +
+          '<span class="btn solid">Нээх ↗</span>' +
+        '</a>' +
+        '<p class="tool-note reveal">✦ Нээлттэй эхийн miniPaint (MIT) дээр суурилсан. Бүртгэлгүй, зар сурталчилгаагүй, зураг тань таны компьютерээс гарахгүй.</p>' +
+      '</section>'
+    );
+  }
+
   function footer() {
     return '<footer class="footer"><span>© ' + new Date().getFullYear() + ' GRAPHICAN</span><span class="mark" aria-hidden="true"></span><a href="/">← graphican.online</a></footer>';
   }
@@ -1303,12 +1657,16 @@
         if (m && d.seo.description) m.setAttribute('content', d.seo.description);
       }
       var html = hero(d.hero || {}) + fonts(d.fonts || {}) + palettes(d.palettes || {});
-      html += builder(d.builder || {}) + upscaleSection(d.upscale || {}) + tools(d.tools || {}) + guide(d.guide || {}) + footer();
+      html += builder(d.builder || {}) + upscaleSection(d.upscale || {}) + tools(d.tools || {}) +
+        bgSection(d.bgremove || {}) + cropSection(d.socialcrop || {}) + editorSection(d.editor || {}) +
+        guide(d.guide || {}) + footer();
       app.innerHTML = html;
       enhance();
       setupKit(d);
       setupUpscale();
       setupTools();
+      setupBgRemove();
+      setupSocialCrop();
     })
     .catch(function (err) {
       console.error(err);

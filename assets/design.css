@@ -472,3 +472,35 @@
 .cmp-tag.l { left:10px; } .cmp-tag.r { right:10px; background:rgba(109,86,250,.85); }
 .cmp-range { position:absolute; inset:0; width:100%; height:100%; opacity:0; cursor:ew-resize; margin:0; }
 .cmp-meta { margin-top:10px; font-size:13px; color:var(--muted); }
+
+/* ---------- background remover ---------- */
+.bgremove .cmp-wrap { background:repeating-conic-gradient(#1b1b24 0 25%, #121219 0 50%) 0 0/20px 20px; }
+.tool-opts input[type="color"] { width:64px; height:44px; padding:4px; border:1px solid var(--line); border-radius:6px; background:transparent; cursor:pointer; }
+
+/* ---------- social crop ---------- */
+.sz-list { display:grid; grid-template-columns:repeat(auto-fill, minmax(200px, 1fr)); gap:8px; margin-top:18px; }
+.sz { display:flex; align-items:center; gap:10px; padding:10px 12px; border:1px solid var(--line); border-radius:6px; cursor:pointer; }
+.sz:has(input:checked) { border-color:#a497ff; background:rgba(109,86,250,.1); }
+.sz input { accent-color:#a497ff; width:16px; height:16px; flex:none; }
+.sz span { display:flex; flex-direction:column; gap:4px; }
+.sz b { font:600 13.5px/1.2 var(--body); }
+.sz i { font:500 11.5px/1 var(--body); font-style:normal; color:var(--muted); }
+.sc-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(180px, 1fr)); gap:16px; margin-top:16px; align-items:end; }
+.sc-item { margin:0; }
+.sc-frame { position:relative; width:100%; max-height:420px; border:1px solid var(--line); border-radius:6px; overflow:hidden; background:#0f0f15; touch-action:none; cursor:grab; }
+.sc-frame.dragging { cursor:grabbing; }
+.sc-frame canvas { display:block; width:100%; height:100%; }
+.sc-hint { position:absolute; left:8px; bottom:8px; font:600 10.5px/1 var(--body); padding:6px 8px; border-radius:3px; background:rgba(8,8,10,.7); color:#fff; pointer-events:none; }
+.sc-item figcaption { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:8px; }
+.sc-item figcaption span { display:flex; flex-direction:column; gap:3px; min-width:0; }
+.sc-item figcaption b { font:600 13px/1.2 var(--body); }
+.sc-item figcaption i { font:500 11.5px/1 var(--body); font-style:normal; color:var(--muted); }
+.sc-item .btn { height:36px; padding:0 14px; }
+
+/* ---------- editor link ---------- */
+.ed-card { display:flex; align-items:center; gap:18px; flex-wrap:wrap; color:inherit; text-decoration:none; }
+.ed-card:hover { border-color:#a497ff; }
+.ed-card .drop-ic { margin:0; flex:none; }
+.ed-copy { display:flex; flex-direction:column; gap:6px; flex:1; min-width:220px; }
+.ed-copy b { font:600 17px/1.2 var(--display); }
+.ed-copy span { font-size:13px; color:var(--muted); }

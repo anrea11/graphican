@@ -1,0 +1,14 @@
+Graphican Editor is the open-source miniPaint image editor, unmodified.
+
+miniPaint v4.14.3 — Copyright (c) ViliusL — MIT License (see MIT-LICENSE.txt)
+Source code: https://github.com/viliusle/miniPaint/tree/v4.14.3
+
+Bundled third-party components (see dist/bundle.js.LICENSE.txt):
+- alertifyjs v1.14.0 — Copyright (c) Mohammad Younes — GPL-3.0
+  Source code: https://github.com/MohammadYounes/AlertifyJS
+- jQuery 3.7.1 (MIT), pica (MIT), object-assign (MIT), quantize.js (MIT),
+  regenerator-runtime (MIT), hermite-resize (MIT), Protovis excerpt (BSD)
+
+Background remover model (assets/vendor/u2netp.onnx):
+U^2-Net (U2NETP) — Qin et al. — Apache License 2.0
+Source: https://github.com/xuebinqin/U-2-Net  (ONNX export by https://github.com/danielgatis/rembg)

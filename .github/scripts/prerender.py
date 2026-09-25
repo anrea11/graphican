@@ -171,6 +171,10 @@ def design():
              {"@type": "ListItem", "position": 2, "name": "Design guide", "item": SITE + "/design/"}]}},
         {"@type": "WebApplication", "name": "PDF ⇄ PNG/JPG хөрвүүлэгч", "url": SITE + "/design/#tools",
          "applicationCategory": "UtilitiesApplication", "operatingSystem": "Any", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "MNT"}},
+        *[{"@type": "WebApplication", "name": n, "url": SITE + u, "applicationCategory": "DesignApplication",
+          "operatingSystem": "Any", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "MNT"}}
+          for n, u in (("Арын дэвсгэр арилгагч (AI)", "/design/#bgremove"), ("Сошиал хэмжээ рүү тайрагч", "/design/#socialcrop"),
+                       ("Graphican Editor — онлайн зураг засварлагч", "/editor/"))],
     ]}
     head = "\n".join([
         f"<title>{e(title)}</title>",
@@ -195,7 +199,12 @@ def design():
     body.append(f'</ul></section><section><h2>{e(pals.get("title"))}</h2><p>{e(pals.get("description"))}</p><ul>')
     for pl in pals.get("items", []):
         body.append(f'<li>{e(pl.get("name"))}: ' + ", ".join(e(c.get("hex")) for c in pl.get("colors", [])) + f' — {e(pl.get("desc"))}</li>')
-    body.append(f'</ul></section><section><h2>{e(tools.get("title"))}</h2><p>{e(tools.get("description"))}</p></section></div>')
+    body.append(f'</ul></section><section><h2>{e(tools.get("title"))}</h2><p>{e(tools.get("description"))}</p></section>')
+    for key in ("bgremove", "socialcrop", "editor"):
+        s = d.get(key) or {}
+        if s.get("title"):
+            body.append(f'<section><h2>{e(s.get("title"))}</h2><p>{e(s.get("description"))}</p></section>')
+    body.append('<p><a href="/editor/">Graphican Editor — онлайн зураг засварлагч</a></p></div>')
     p = os.path.join(ROOT, "design", "index.html")
     t = open(p, encoding="utf-8").read()
     t2 = replace_block(t, "head", head)
@@ -226,6 +235,11 @@ def sitemap(projects, dd):
     <lastmod>{TODAY}</lastmod>
     <priority>0.8</priority>
     <image:image><image:loc>{e(guide_img)}</image:loc></image:image>
+  </url>
+  <url>
+    <loc>{SITE}/editor/</loc>
+    <lastmod>{TODAY}</lastmod>
+    <priority>0.6</priority>
   </url>
 </urlset>
 """
