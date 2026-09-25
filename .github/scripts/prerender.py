@@ -10,11 +10,17 @@ Reads content/site.json (+ content/design.json) and writes, between marker comme
 Runs automatically on every content change via .github/workflows/prerender.yml,
 so edits made in /admin stay SEO-friendly. Safe to run locally: python3 .github/scripts/prerender.py
 """
+import sys
 import html, json, os, re, datetime
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 SITE = "https://graphican.online"
 TODAY = datetime.date.today().isoformat()
+
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import landings  # noqa: E402  (search landing pages for the free tools)
+LANDING_LINKS = " · ".join(f'<a href="/tools/{x["slug"]}/">{x["h1"]}</a>' for x in landings.PAGES)
 
 
 def load(p):
@@ -145,6 +151,7 @@ def home():
                 + (f'<p><a href="tel:+976{e(phone)}">{e(phone)}</a></p>' if phone else "")
                 + "".join(f'<p><a href="{e(u)}" rel="me">{e(u)}</a></p>' for u in socials) + "</section>")
     body.append('<p><a href="/design/">Design guide — фонт, өнгөний хослол, брэнд гайд</a> · <a href="/tools/">Design tools — AI зураг томруулагч, PDF засварлагч, дэвсгэр арилгагч, PDF хөрвүүлэгч</a></p>')
+    body.append(f'<section><h2>Үнэгүй PDF хэрэгслүүд</h2><p>{LANDING_LINKS}</p></section>')
     body.append("</div>")
 
     p = os.path.join(ROOT, "index.html")
@@ -242,7 +249,7 @@ def tools_page(d):
         s = d.get(key) or {}
         if s.get("title"):
             body.append(f'<li><a href="{path}">{e(s.get("title"))}</a> — {e(s.get("description"))}</li>')
-    body.append('</ul><p><a href="/design/">Design guide — фонт, өнгө, брэнд гайд</a></p></div>')
+    body.append(f'</ul><h2>PDF хэрэгслүүд</h2><p>{LANDING_LINKS}</p><p><a href="/design/">Design guide — фонт, өнгө, брэнд гайд</a></p></div>')
     write_page(os.path.join("tools", "index.html"), head, body)
 
     # one page per tool
@@ -251,17 +258,18 @@ def tools_page(d):
         if key == "editor" or not s.get("title"):
             continue
         name = s.get("title", "").rstrip(".")
-        t = f"{name} — үнэгүй онлайн | Graphican Design tools"
-        crumbs = web_page(path, name, t, s.get("description", ""), img)
+        t = s.get("seo_title") or f"{name} — үнэгүй онлайн | Graphican Design tools"
+        sd = s.get("seo_description") or s.get("description", "")
+        crumbs = web_page(path, name, t, sd, img)
         crumbs["breadcrumb"]["itemListElement"] = [
             {"@type": "ListItem", "position": 1, "name": "Graphican", "item": SITE + "/"},
             {"@type": "ListItem", "position": 2, "name": "Design tools", "item": SITE + "/tools/"},
             {"@type": "ListItem", "position": 3, "name": name, "item": SITE + path}]
         page = {"@context": "https://schema.org", "@graph": [crumbs, tool_app(s, path)]}
         others = " · ".join(f'<a href="{p}">{e((d.get(k) or {}).get("title", "").rstrip("."))}</a>' for k, p in TOOL_KEYS if k != key and (d.get(k) or {}).get("title"))
-        body = ['<div class="seo-static">', f'<h1>{e(name)}</h1>', f'<p>{e(s.get("description"))}</p>',
-                f'<p><a href="/tools/">Design tools</a> · {others}</p></div>']
-        write_page(os.path.join(path.strip("/"), "index.html"), page_head(path, t, s.get("description", ""), img, page), body)
+        body = ['<div class="seo-static">', f'<h1>{e(s.get("seo_h1") or name)}</h1>', f'<p>{e(s.get("description"))}</p>',
+                f'<p><a href="/tools/">Design tools</a> · {others}</p>', f'<p>{LANDING_LINKS}</p></div>']
+        write_page(os.path.join(path.strip("/"), "index.html"), page_head(path, t, sd, img, page), body)
 
 
 # ------------------------------------------------------------------ sitemap
@@ -275,6 +283,8 @@ def sitemap(projects, dd):
     guide_img = absu((dd.get("guide") or {}).get("image") or "/assets/uploads/design-guide.webp")
     tool_urls = "".join(f"\n  <url>\n    <loc>{SITE}{p}</loc>\n    <lastmod>{TODAY}</lastmod>\n    <priority>0.7</priority>\n  </url>"
                         for k, p in TOOL_KEYS if k != "editor")
+    tool_urls += "".join(f"\n  <url>\n    <loc>{SITE}/tools/{x['slug']}/</loc>\n    <lastmod>{TODAY}</lastmod>\n    <priority>0.8</priority>\n  </url>"
+                         for x in landings.PAGES)
     xml = f"""<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
   <url>
@@ -307,5 +317,6 @@ if __name__ == "__main__":
     _, projects = home()
     dd = design()
     tools_page(dd)
+    landings.build()
     sitemap(projects, dd)
     print("prerender ok:", len(projects), "projects")

@@ -8,6 +8,7 @@ on:
       - 'content/**'
       - 'assets/uploads/**'
       - '.github/scripts/prerender.py'
+      - '.github/scripts/landings.py'
   workflow_dispatch:
 permissions:
   contents: write

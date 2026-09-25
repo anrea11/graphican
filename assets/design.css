@@ -561,3 +561,9 @@
 
 /* a11y: full-contrast labels on colour stripes */
 .stripe small { opacity:1; font-weight:600; }
+
+/* PDF task links (→ search landing pages) */
+.pdf-tasks { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:22px; }
+.pdf-tasks .flow-t { margin-right:6px; }
+.pdf-tasks a { padding:7px 13px; border-radius:999px; border:1px solid var(--line); color:var(--muted); font-size:13.5px; text-decoration:none; transition:color .2s, border-color .2s; }
+.pdf-tasks a:hover { color:#fff; border-color:var(--v2); }

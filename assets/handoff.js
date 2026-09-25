@@ -1,7 +1,7 @@
 /*
   Graphican hand-off: passes one image between pages (Design tools ⇄ Editor).
   Stored in IndexedDB (images are too big for sessionStorage) and removed once read.
-    GHandoff.put(blob, { name, target })  → Promise
+    GHandoff.put(blob, { name, target, more:[{blob,name}] })  → Promise
     GHandoff.take()                      → Promise<{ blob, name, target } | null>
 */
 (function () {
@@ -34,7 +34,7 @@
     put: function (blob, meta) {
       meta = meta || {};
       return tx('readwrite', function (s) {
-        return s.put({ blob: blob, name: meta.name || 'image.png', target: meta.target || '', at: Date.now() }, KEY);
+        return s.put({ blob: blob, name: meta.name || 'image.png', target: meta.target || '', more: meta.more || [], at: Date.now() }, KEY);
       });
     },
     take: function () {

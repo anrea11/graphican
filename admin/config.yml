@@ -364,6 +364,9 @@ collections:
               - { name: title_en, label: "Англи гарчиг", widget: string, required: false }
               - { name: title, label: "Монгол гарчиг", widget: string }
               - { name: description, label: "Тайлбар", widget: text, required: false }
+              - { name: seo_title, label: "Google гарчиг (title)", widget: string, required: false, hint: "Google-ийн хайлтад гарах гарчиг. Хоосон бол автоматаар." }
+              - { name: seo_description, label: "Google тайлбар", widget: text, required: false }
+              - { name: seo_h1, label: "Google H1", widget: string, required: false }
           - { name: bgremove, label: "Tools 02 · Дэвсгэр арилгагч", widget: object, fields: *toolsec }
           - { name: socialcrop, label: "Tools 03 · Сошиал тайрагч", widget: object, fields: *toolsec }
           - { name: pdfedit, label: "Tools · PDF засварлагч", widget: object, fields: *toolsec }

@@ -149,6 +149,7 @@
   function redo() { if (hi < hist.length - 1) { hi++; restore(hist[hi]); histUi(); } }
 
   // ---------- opening files ----------
+  var pendingDo = null, runDo = null;
   function addFiles(files, at) {
     files = [].slice.call(files || []);
     if (!files.length) return Promise.resolve();
@@ -185,6 +186,7 @@
       if (fitMode) zoom = fitZoom();
       layoutPages(); renderThumbs(); commit(true); props();
       if (at != null) toast(added + ' хуудас нэмэгдлээ');
+      if (pendingDo && runDo) { var d = pendingDo; pendingDo = null; setTimeout(function () { runDo(d); }, 350); }
     });
   }
   function openPdf(pdfjsLib, bytes, name) {
@@ -1979,8 +1981,23 @@
   dockUi(); pgToolsUi(); railUi();
   $('#pe-rail').addEventListener('click', function (e) { var b = e.target.closest('[data-rail]'); if (b) openRail(b.dataset.rail, b); });
   // a PDF / image sent from another Graphican tool opens here
+  function asFile(blob, name) { var f; try { f = new File([blob], name || 'document.pdf', { type: blob.type }); } catch (e) { f = blob; f.name = name; } return f; }
   if (window.GHandoff) window.GHandoff.take().then(function (h) {
-    if (h && h.blob) { var f; try { f = new File([h.blob], h.name || 'document.pdf', { type: h.blob.type }); } catch (e) { f = h.blob; f.name = h.name; } addFiles([f]); }
+    if (h && h.blob) addFiles([asFile(h.blob, h.name)].concat((h.more || []).map(function (m) { return asFile(m.blob, m.name); })));
   });
+  // ?do=<action> — opened from a search landing page (/tools/pdf-to-word/ …): run that action once a file is open
+  var DO_LABEL = { word: 'Word болгох', excel: 'Excel болгох', ppt: 'PowerPoint болгох', jpg: 'зураг болгох', topdf: 'PDF болгох', translate: 'орчуулах',
+    merge: 'нэгтгэх', extract: 'хуудас салгах', compress: 'хэмжээ багасгах', sig: 'гарын үсэг зурах', pw: 'нууц үг тавих', unpw: 'нууц үг арилгах',
+    ocr: 'текст таниулах', edit: 'засах', fill: 'бөглөх', pnum: 'хуудасны дугаар нэмэх', wm: 'усан тэмдэг нэмэх', sum: 'хураангуйлах' };
+  pendingDo = (function () { try { var v = new URLSearchParams(location.search).get('do'); return DO_LABEL[v] ? v : null; } catch (e) { return null; } })();
+  if (pendingDo) { var dt = $('#pe-drop b'); if (dt) dt.textContent = (pendingDo === 'topdf' || pendingDo === 'merge' ? 'Файлуудаа' : 'PDF-ээ') + ' оруулна уу — ' + DO_LABEL[pendingDo]; }
+  runDo = function (a) {
+    if (a === 'edit') { setMode('edit'); toast('Засах бичиг дээрээ дарна уу', 4000); return; }
+    if (a === 'fill') { setMode('text'); toast('Бөглөх газраа дарж бичнэ үү. Гарын үсэг, ✓ — зүүн талын «Гарын үсэг» цэснээс', 5000); return; }
+    if (a === 'merge') { toast('Хуудсуудыг чирж дарааллыг тааруулаад «Татах» дарна уу. Файл нэмэх бол энд чирж оруулна.', 6000); return; }
+    if (a === 'topdf') { toast('PDF бэлэн — хүсвэл засаад «Татах» дарна уу', 5000); return; }
+    if (a === 'translate') return translateDialog(null);
+    return railAction(a);
+  };
   window.__pe = { pages: function () { return pages; }, addFiles: addFiles, buildPdf: function (flat) { return buildPdf(pages, flat); }, setMode: setMode, zoom: function () { return zoom; } };
 })();
