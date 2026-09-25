@@ -1,6 +1,8 @@
 /*
-  Graphican Editor — a Canva-style design editor on Fabric.js (MIT).
-  • Page = a white rect at scene (0,0) sized W×H; everything outside it is dimmed.
+  Graphican Editor — Figma-style design editor on Fabric.js (MIT).
+  • Infinite canvas with several frames (artboards). Frames sit at the bottom of the
+    stack; an object belongs to the frame its centre is in (moves with it, exports with it).
+  • Left: layers / add / templates · Right: properties of the selection · Bottom: tool dock.
   • Fonts, palettes and brand colours come from /content/design.json (Design guide).
   • Autosaves to IndexedDB; images move to/from the /tools/ pages via handoff.js.
 */
@@ -15,74 +17,78 @@
     return String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
   function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+  function r1(v) { return Math.round(v * 10) / 10; }
 
   var toastT;
   function toast(msg) {
     var t = $('#toast');
     t.textContent = msg; t.classList.add('show');
-    clearTimeout(toastT); toastT = setTimeout(function () { t.classList.remove('show'); }, 2400);
+    clearTimeout(toastT); toastT = setTimeout(function () { t.classList.remove('show'); }, 2600);
   }
-
   function saveBlob(name, blob) {
     var a = document.createElement('a');
     a.href = URL.createObjectURL(blob); a.download = name;
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(function () { URL.revokeObjectURL(a.href); }, 4000);
   }
-
   function loadScript(src) {
     return new Promise(function (res, rej) {
       var s = document.createElement('script'); s.src = src;
       s.onload = res; s.onerror = rej; document.head.appendChild(s);
     });
   }
+  function toBlob(c, type, q) { return new Promise(function (r) { c.toBlob(r, type, q); }); }
 
   // line icons (24×24)
   var P = {
     undo: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
     redo: '<path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/>',
-    minus: '<path d="M5 12h14"/>', plus: '<path d="M12 5v14M5 12h14"/>',
-    size: '<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 9h16M9 4v16"/>',
+    move: '<path d="m5 3 14 7-6 2-2 6L5 3Z"/>',
+    hand: '<path d="M8 13V5.5a1.5 1.5 0 0 1 3 0V12M11 11.5v-7a1.5 1.5 0 0 1 3 0V12M14 6.5a1.5 1.5 0 0 1 3 0V13M8 12.5 6.3 10.8a1.6 1.6 0 0 0-2.3 2.3L8.5 18A6 6 0 0 0 13 20h1a5 5 0 0 0 5-5v-4.5a1.5 1.5 0 0 0-3 0"/>',
+    frame: '<path d="M8 3v18M16 3v18M3 8h18M3 16h18"/>',
+    rect: '<rect x="4" y="4" width="16" height="16" rx="1"/>',
+    rounded: '<rect x="4" y="4" width="16" height="16" rx="5"/>',
+    ellipse: '<circle cx="12" cy="12" r="8.5"/>',
+    triangle: '<path d="M12 4 21 20H3Z"/>',
+    line: '<path d="M4 20 20 4"/>',
+    star: '<path d="m12 3 2.6 5.8 6.4.6-4.8 4.3 1.4 6.3L12 16.8 6.4 20l1.4-6.3L3 9.4l6.4-.6Z"/>',
     text: '<path d="M5 6V4h14v2M12 4v16M9 20h6"/>',
+    pen: '<path d="M4 20l4-1L19 8a2.1 2.1 0 0 0-3-3L5 16l-1 4Z"/><path d="m14 7 3 3"/>',
+    marker: '<path d="m9 15-4 4h5l2-2M9 15l7-7 3 3-7 7M9 15l3 3"/>',
+    spray: '<rect x="7" y="9" width="8" height="12" rx="2"/><path d="M9 9V6h4v3M16 4h.01M19 3h.01M19 6h.01M17 7h.01"/>',
+    eraser: '<path d="m7 21-4-4 11-11 7 7-8 8H7Z"/><path d="M21 21H11M9 11l7 7"/>',
     image: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5L6 20"/>',
-    shape: '<rect x="3" y="3" width="9" height="9" rx="1"/><circle cx="16.5" cy="16.5" r="4.5"/>',
-    color: '<circle cx="12" cy="12" r="9"/><circle cx="8" cy="10" r="1.3"/><circle cx="12" cy="7.5" r="1.3"/><circle cx="16" cy="10" r="1.3"/><path d="M12 21a3 3 0 0 1 0-6h2"/>',
-    layers: '<path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 13 9 5 9-5"/>',
     eye: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/>',
     eyeOff: '<path d="M3 3l18 18M10.6 5.1A10 10 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-3.2 4.2M6.6 6.6C3.8 8.4 2 12 2 12s3.5 7 10 7a9.7 9.7 0 0 0 5.4-1.6"/>',
     lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
     unlock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 7.5-2"/>',
     trash: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
     copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/>',
-    up: '<path d="m7 11 5-5 5 5M12 6v13"/>', down: '<path d="m7 13 5 5 5-5M12 18V5"/>',
-    bold: '<path d="M7 5h6a3.5 3.5 0 0 1 0 7H7zM7 12h7a3.5 3.5 0 0 1 0 7H7z"/>',
-    italic: '<path d="M11 5h6M7 19h6M14 5l-4 14"/>',
-    underline: '<path d="M7 4v7a5 5 0 0 0 10 0V4M5 20h14"/>',
-    alignL: '<path d="M4 6h16M4 10h10M4 14h16M4 18h10"/>', alignC: '<path d="M4 6h16M7 10h10M4 14h16M7 18h10"/>', alignR: '<path d="M4 6h16M10 10h10M4 14h16M10 18h10"/>',
-    caps: '<path d="M3 18 7.5 6 12 18M4.7 14h5.6M14 18l3.5-9 3.5 9M15 15.5h5"/>',
-    spacing: '<path d="M4 20V4M20 20V4M8 12h8M10 9l-2 3 2 3M14 9l2 3-2 3"/>',
+    plus: '<path d="M12 5v14M5 12h14"/>', minus: '<path d="M5 12h14"/>',
+    aL: '<path d="M4 3v18M8 7h10v4H8zM8 14h6v4H8z"/>', aC: '<path d="M12 3v18M6 7h12v4H6zM8 14h8v4H8z"/>', aR: '<path d="M20 3v18M6 7h10v4H6zM10 14h6v4h-6z"/>',
+    aT: '<path d="M3 4h18M7 8v10h4V8zM14 8v6h4V8z"/>', aM: '<path d="M3 12h18M7 6v12h4V6zM14 8v8h4V8z"/>', aB: '<path d="M3 20h18M7 6v10h4V6zM14 10v6h4v-6z"/>',
+    dH: '<path d="M4 4v16M20 4v16M9 8h6v8H9z"/>', dV: '<path d="M4 4h16M4 20h16M8 9h8v6H8z"/>',
+    tL: '<path d="M4 6h16M4 10h10M4 14h16M4 18h10"/>', tC: '<path d="M4 6h16M7 10h10M4 14h16M7 18h10"/>', tR: '<path d="M4 6h16M10 10h10M4 14h16M10 18h10"/>', tJ: '<path d="M4 6h16M4 10h16M4 14h16M4 18h16"/>',
+    bold: '<path d="M7 5h6a3.5 3.5 0 0 1 0 7H7zM7 12h7a3.5 3.5 0 0 1 0 7H7z"/>', italic: '<path d="M11 5h6M7 19h6M14 5l-4 14"/>',
+    underline: '<path d="M7 4v7a5 5 0 0 0 10 0V4M5 20h14"/>', strike: '<path d="M4 12h16M16 6.5A4 3.5 0 0 0 12 5c-2.5 0-4 1.3-4 3 0 3.5 8 2.5 8 7 0 1.8-1.8 3-4 3a4.5 4 0 0 1-4.5-2"/>',
     flipH: '<path d="M12 3v18M4 7v10l5-5-5-5ZM20 7v10l-5-5 5-5Z"/>', flipV: '<path d="M3 12h18M7 4h10l-5 5-5-5ZM7 20h10l-5-5-5 5Z"/>',
-    adjust: '<path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/>',
-    bg: '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="m3 17 6-6 5 5 3-3 4 4"/>',
-    wand: '<path d="m4 20 11-11M15 4v2M15 12v2M11 8H9M21 8h-2M18.5 4.5 17 6M18.5 11.5 17 10"/>',
-    align: '<path d="M12 3v18M6 7h12M8 12h8M5 17h14"/>',
-    opacity: '<circle cx="12" cy="12" r="9"/><path d="M12 3v18M12 3a9 9 0 0 1 0 18" fill="currentColor" stroke="none"/>',
-    tpl: '<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>',
-    pen: '<path d="M4 20l4-1L19 8a2.1 2.1 0 0 0-3-3L5 16l-1 4Z"/><path d="m14 7 3 3"/>',
-    marker: '<path d="m9 15-4 4h5l2-2M9 15l7-7 3 3-7 7M9 15l3 3"/>',
-    spray: '<rect x="7" y="9" width="8" height="12" rx="2"/><path d="M9 9V6h4v3M16 4h.01M19 3h.01M19 6h.01M17 7h.01"/>',
-    eraser: '<path d="m7 21-4-4 11-11 7 7-8 8H7Z"/><path d="M21 21H11M9 11l7 7"/>',
+    rotate: '<path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/>', angle: '<path d="M4 20h16M4 20 16 6"/><path d="M9 20a6 6 0 0 0-1.5-4"/>',
     crop: '<path d="M6 2v14a2 2 0 0 0 2 2h14"/><path d="M18 22V8a2 2 0 0 0-2-2H2"/>',
-    mask: '<circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18"/>',
-    rotate: '<path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/>',
-    fx: '<path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/><circle cx="12" cy="12" r="3"/>',
+    wand: '<path d="m4 20 11-11M15 4v2M15 12v2M11 8H9M21 8h-2M18.5 4.5 17 6M18.5 11.5 17 10"/>',
+    bg: '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="m3 17 6-6 5 5 3-3 4 4"/>',
+    up2: '<path d="m7 11 5-5 5 5M7 17l5-5 5 5"/>', up1: '<path d="m7 14 5-5 5 5"/>', dn1: '<path d="m7 10 5 5 5-5"/>', dn2: '<path d="m7 7 5 5 5-5M7 13l5 5 5-5"/>',
     group: '<rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/><path d="M11 7h4a2 2 0 0 1 2 2v4"/>',
-    check: '<path d="m5 12 5 5L20 7"/>', x: '<path d="M6 6l12 12M18 6 6 18"/>'
+    ratio: '<path d="M9 7H7a5 5 0 0 0 0 10h2M15 7h2a5 5 0 0 1 0 10h-2M8 12h8"/>',
+    radius: '<path d="M4 20V11a7 7 0 0 1 7-7h9"/>', opacity: '<circle cx="12" cy="12" r="9"/><path d="M12 3v18M12 3a9 9 0 0 1 0 18" fill="currentColor" stroke="none"/>',
+    sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
+    moon: '<path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5Z"/>',
+    check: '<path d="m5 12 5 5L20 7"/>', frameI: '<path d="M8 3v18M16 3v18M3 8h18M3 16h18"/>', textI: '<path d="M6 7V5h12v2M12 5v14M9 19h6"/>',
+    shapeI: '<rect x="4" y="4" width="16" height="16" rx="2"/>', pathI: '<path d="M4 18c3-8 6 4 9-4s5-6 7-4"/>'
   };
-  function icon(n) { return '<svg class="i" viewBox="0 0 24 24" aria-hidden="true">' + P[n] + '</svg>'; }
+  function icon(n) { return '<svg class="i" viewBox="0 0 24 24" aria-hidden="true">' + (P[n] || '') + '</svg>'; }
 
   // ---------- fonts (same catalogue as the Design guide) ----------
-  // g: Google family if different · fs: Fontshare slug · cyr: has Cyrillic (Mongolian)
+
   var FONTS = {
     'Inter': { cyr: 1 }, 'Manrope': { cyr: 1 }, 'Montserrat': { cyr: 1 }, 'Roboto': { cyr: 1 }, 'Open Sans': { cyr: 1 },
     'Nunito': { cyr: 1 }, 'Mulish': { cyr: 1 }, 'Oswald': { cyr: 1 }, 'Playfair Display': { cyr: 1 }, 'Lora': { cyr: 1 },
@@ -104,7 +110,7 @@
       fontLinks[family] = 1;
       var l = document.createElement('link'); l.rel = 'stylesheet';
       l.href = f.fs ? 'https://api.fontshare.com/v2/css?f[]=' + f.fs + '@400,500,700&display=swap'
-        : 'https://fonts.googleapis.com/css2?family=' + family.replace(/ /g, '+') + ':ital,wght@0,400;0,600;0,700;1,400&display=swap';
+        : 'https://fonts.googleapis.com/css2?family=' + family.replace(/ /g, '+') + ':ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap';
       document.head.appendChild(l);
     }
     fontReady[family] = Promise.all([
@@ -113,21 +119,19 @@
     ]).catch(function () {}).then(function () { return family; });
     return fontReady[family];
   }
-  // re-measure text after a web font arrives
   function refreshText(obj) {
     if (!obj || !obj.isType || !obj.isType('textbox')) return;
     obj.initDimensions(); obj.setCoords(); canvas.requestRenderAll();
   }
 
-  // ---------- design data from the Design guide ----------
+  // ---------- Design guide data ----------
 
   var DG = { pairs: [], palettes: [], brand: [] };
-  var BASE_PALETTE = ['#ffffff', '#0a0a10', '#816dfb', '#e7e3fd', '#34229e', '#f5f5f7', '#ff5a5f', '#ffb020', '#22c55e', '#0ea5e9'];
-
+  var BASE_PALETTE = ['#ffffff', '#000000', '#0b0b14', '#816dfb', '#e7e3fd', '#34229e', '#f5f5f7', '#ff5a5f', '#ffb020', '#22c55e', '#0ea5e9', '#ff4fd8'];
   function loadDesignGuide() {
     return fetch('/content/design.json', { cache: 'no-cache' }).then(function (r) { return r.json(); }).then(function (d) {
       ((d.fonts || {}).groups || []).forEach(function (g) {
-        (g.items || []).forEach(function (it) { if (it.heading && it.body) DG.pairs.push({ heading: it.heading, body: it.body, desc: it.desc || '', group: g.name || '' }); });
+        (g.items || []).forEach(function (it) { if (it.heading && it.body) DG.pairs.push({ heading: it.heading, body: it.body, desc: it.desc || '' }); });
       });
       ((d.palettes || {}).items || []).forEach(function (p) {
         DG.palettes.push({ name: p.name, colors: (p.colors || []).map(function (c) { return c.hex; }).filter(Boolean) });
@@ -135,14 +139,9 @@
       DG.brand = ((d.guide || {}).colors || []).map(function (c) { return c.hex; }).filter(Boolean);
     }).catch(function () {});
   }
-
-  // what the Design guide "Засварлагчид ашиглах" button handed over
   var prefs = {};
   try { prefs = JSON.parse(localStorage.getItem('gc-editor-prefs') || '{}') || {}; } catch (e) { prefs = {}; }
-  function currentPair() {
-    if (prefs.pair && prefs.pair.heading) return prefs.pair;
-    return DG.pairs[0] || { heading: 'Manrope', body: 'Inter' };
-  }
+  function currentPair() { return prefs.pair && prefs.pair.heading ? prefs.pair : (DG.pairs[0] || { heading: 'Manrope', body: 'Inter' }); }
 
   // ---------- storage (IndexedDB) ----------
 
@@ -162,147 +161,373 @@
   function dbGet(k) { return idb('readonly', function (s) { return s.get(k); }).catch(function () { return null; }); }
   function dbSet(k, v) { return idb('readwrite', function (s) { return s.put(v, k); }).catch(function () {}); }
 
-  // ---------- canvas & page ----------
+  // ---------- canvas ----------
 
-  var W = 1080, H = 1350, pageTransparent = false;
-  var canvas, page, exporting = false, guides = [];
-  var stage = $('#ed-stage');
-  var PROPS = ['id', 'name', 'locked', 'selectable', 'evented', 'hasControls', 'lockMovementX', 'lockMovementY', 'lockScalingX', 'lockScalingY', 'lockRotation', 'hoverCursor'];
+  var ACC = '#6d56fa';
+  var PROPS = ['id', 'name', 'isFrame', 'gTransparent', 'gMask', 'gMaskR', 'locked', 'selectable', 'evented', 'hasControls',
+    'lockMovementX', 'lockMovementY', 'lockScalingX', 'lockScalingY', 'lockRotation', 'hoverCursor', 'perPixelTargetFind'];
+  var stage = $('#stage');
+  var page = null, W = 1080, H = 1350;            // page = current frame
+  var exporting = false, restoring = false, guides = [], labelRects = [];
 
   fabric.Object.prototype.set({
-    transparentCorners: false, cornerColor: '#ffffff', cornerStrokeColor: '#816dfb', borderColor: '#816dfb',
-    cornerSize: 11, cornerStyle: 'circle', padding: 2, borderScaleFactor: 1.6
+    transparentCorners: false, cornerColor: '#ffffff', cornerStrokeColor: ACC, borderColor: ACC,
+    cornerSize: 9, cornerStyle: 'rect', padding: 0, borderScaleFactor: 1.5,
+    strokeWidth: 0 // shapes are fill-only; Stroke is added from the panel
   });
-  fabric.Textbox.prototype.set({ cursorColor: '#816dfb', editingBorderColor: '#a497ff', selectionColor: 'rgba(129,109,251,.3)' });
+  fabric.Textbox.prototype.set({ cursorColor: ACC, editingBorderColor: ACC, selectionColor: 'rgba(109,86,250,.25)' });
 
-  canvas = new fabric.Canvas('ed-canvas', {
-    preserveObjectStacking: true, backgroundColor: '#17171f', stopContextMenu: true,
-    selectionColor: 'rgba(129,109,251,.10)', selectionBorderColor: '#816dfb', selectionLineWidth: 1, targetFindTolerance: 6
+  var canvas = new fabric.Canvas('ed-canvas', {
+    preserveObjectStacking: true, stopContextMenu: true, fireMiddleClick: true,
+    selectionColor: 'rgba(109,86,250,.08)', selectionBorderColor: ACC, selectionLineWidth: 1, targetFindTolerance: 5
   });
+  function canvasBg() { return getComputedStyle(document.documentElement).getPropertyValue('--canvas').trim() || '#f5f5f5'; }
+  canvas.backgroundColor = canvasBg();
 
-  function makePage() {
-    page = new fabric.Rect({
-      left: 0, top: 0, width: W, height: H, fill: '#ffffff', id: 'page', name: 'Хуудас',
-      selectable: false, evented: false, hoverCursor: 'default', objectCaching: false
+  // ---------- frames ----------
+
+  function frames() { return canvas.getObjects().filter(function (o) { return o.isFrame; }); }
+  function userObjects() { return canvas.getObjects().filter(function (o) { return !o.isFrame && o.id !== '__crop'; }); }
+  var frameN = 0;
+  function makeFrame(o) {
+    frameN++;
+    var f = new fabric.Rect({
+      left: o.left || 0, top: o.top || 0, width: o.width, height: o.height, fill: o.fill || '#ffffff',
+      isFrame: true, id: 'frame-' + Date.now().toString(36) + frameN, name: o.name || ('Frame ' + (frames().length + 1)),
+      selectable: false, evented: false, hoverCursor: 'default', objectCaching: false, lockRotation: true, strokeWidth: 0
     });
-    return page;
+    f.setControlsVisibility({ mtr: false });
+    return f;
   }
-  function findPage() {
-    page = canvas.getObjects().filter(function (o) { return o.id === 'page'; })[0];
-    if (!page) { makePage(); canvas.insertAt(page, 0); }
-    page.set({ selectable: false, evented: false });
-    W = page.width; H = page.height;
+  function addFrame(w, h, opts) {
+    opts = opts || {};
+    var fs = frames(), x = 0, y = 0;
+    if (fs.length) {
+      x = Math.max.apply(null, fs.map(function (f) { return f.left + f.width * f.scaleX; })) + 120;
+      y = fs[0].top;
+    }
+    var f = makeFrame({ left: x, top: y, width: w, height: h, fill: opts.fill, name: opts.name });
+    canvas.insertAt(f, fs.length);
+    setCurrent(f);
+    return f;
   }
-  function userObjects() { return canvas.getObjects().filter(function (o) { return o !== page && o.id !== '__crop'; }); }
+  function fw(f) { return f.width * f.scaleX; }
+  function fh(f) { return f.height * f.scaleY; }
+  function setCurrent(f) {
+    if (!f) return;
+    page = f; W = fw(f); H = fh(f);
+  }
+  function inFrame(o, f) {
+    var c = o.getCenterPoint();
+    return c.x >= f.left && c.x <= f.left + fw(f) && c.y >= f.top && c.y <= f.top + fh(f);
+  }
+  function frameOf(o) {
+    var fs = frames();
+    for (var i = fs.length - 1; i >= 0; i--) if (inFrame(o, fs[i])) return fs[i];
+    return null;
+  }
+  function childrenOf(f) { return userObjects().filter(function (o) { return frameOf(o) === f; }); }
+  function moveFrame(f, dx, dy, kids) {
+    (kids || childrenOf(f)).forEach(function (o) { o.set({ left: o.left + dx, top: o.top + dy }); o.setCoords(); });
+    f.set({ left: f.left + dx, top: f.top + dy }); f.setCoords();
+  }
+  function selectFrame(f) {
+    frames().forEach(function (x) { x.set({ selectable: false, evented: false }); });
+    f.set({ selectable: true, evented: true });
+    canvas.setActiveObject(f); setCurrent(f); canvas.requestRenderAll();
+  }
+  function deactivateFrames() { frames().forEach(function (x) { if (canvas.getActiveObject() !== x) x.set({ selectable: false, evented: false }); }); }
+
+  // like Figma, a frame clips its layers (ctx is already in scene coordinates here)
+  var baseRender = fabric.Object.prototype.render;
+  fabric.Object.prototype.render = function (ctx) {
+    if (this.isFrame || this.group || this.id === '__crop' || (crop && this === crop.img) || !this.canvas) return baseRender.call(this, ctx);
+    var f = frameOf(this);
+    if (!f) return baseRender.call(this, ctx);
+    ctx.save(); ctx.beginPath(); ctx.rect(f.left, f.top, fw(f), fh(f)); ctx.clip();
+    baseRender.call(this, ctx);
+    ctx.restore();
+  };
 
   var CHECKER;
   function checker() {
     if (CHECKER) return CHECKER;
-    var c = document.createElement('canvas'); c.width = c.height = 24;
-    var x = c.getContext('2d'); x.fillStyle = '#ffffff'; x.fillRect(0, 0, 24, 24); x.fillStyle = '#e4e4ea'; x.fillRect(0, 0, 12, 12); x.fillRect(12, 12, 12, 12);
+    var c = document.createElement('canvas'); c.width = c.height = 20;
+    var x = c.getContext('2d'); x.fillStyle = '#ffffff'; x.fillRect(0, 0, 20, 20); x.fillStyle = '#e6e6ea'; x.fillRect(0, 0, 10, 10); x.fillRect(10, 10, 10, 10);
     return (CHECKER = new fabric.Pattern({ source: c, repeat: 'repeat' }));
   }
-  function pageColor() { return pageTransparent ? 'transparent' : page.fill; }
-  function setPageColor(hex) {
-    if (hex === 'transparent') { pageTransparent = true; page.set('fill', checker()); }
-    else { pageTransparent = false; page.set('fill', hex); }
+  function frameFill(f) { return f.gTransparent ? 'transparent' : (typeof f.fill === 'string' ? f.fill : '#ffffff'); }
+  function setFrameFill(f, c) {
+    if (c === 'transparent') { f.gTransparent = true; f.set('fill', checker()); }
+    else { f.gTransparent = false; f.set('fill', c); }
     canvas.requestRenderAll(); commit();
   }
+
+  // ---------- viewport ----------
 
   function resizeCanvas() {
     var r = stage.getBoundingClientRect();
     canvas.setWidth(r.width); canvas.setHeight(r.height); canvas.calcOffset();
   }
-  function fit() {
-    var cw = canvas.getWidth(), ch = canvas.getHeight(), pad = cw < 700 ? 20 : 70;
-    var top = $('#ed-ctx').hidden ? 0 : 40;
-    var z = Math.min((cw - pad * 2) / W, (ch - pad * 2 - top) / H);
-    canvas.setViewportTransform([z, 0, 0, z, (cw - W * z) / 2, (ch - H * z) / 2 + top / 2]);
+  function fitRect(l, t, w, h) {
+    var cw = canvas.getWidth(), ch = canvas.getHeight(), pad = cw < 700 ? 24 : 64, dock = 70;
+    var z = clamp(Math.min((cw - pad * 2) / w, (ch - pad * 2 - dock) / h), 0.02, 2);
+    canvas.setViewportTransform([z, 0, 0, z, (cw - w * z) / 2 - l * z, (ch - dock - h * z) / 2 - t * z + 10]);
     zoomLabel();
   }
+  function bounds(objs) {
+    if (!objs.length) return null;
+    var l = Infinity, t = Infinity, r = -Infinity, b = -Infinity;
+    objs.forEach(function (o) {
+      var bb = o.getBoundingRect(true, true);
+      l = Math.min(l, bb.left); t = Math.min(t, bb.top); r = Math.max(r, bb.left + bb.width); b = Math.max(b, bb.top + bb.height);
+    });
+    return { left: l, top: t, width: r - l, height: b - t };
+  }
+  function fitAll() { var b = bounds(canvas.getObjects().filter(function (o) { return o.id !== '__crop'; })); if (b) fitRect(b.left, b.top, b.width, b.height); }
+  function fitFrame(f) { f = f || page; if (f) fitRect(f.left, f.top, fw(f), fh(f)); }
   function zoomLabel() { $('#ed-zoom').textContent = Math.round(canvas.getZoom() * 100) + '%'; }
-  function zoomBy(f, pt) {
-    var z = clamp(canvas.getZoom() * f, 0.05, 8);
-    canvas.zoomToPoint(pt || new fabric.Point(canvas.getWidth() / 2, canvas.getHeight() / 2), z);
+  function zoomTo(z, pt) {
+    canvas.zoomToPoint(pt || new fabric.Point(canvas.getWidth() / 2, canvas.getHeight() / 2), clamp(z, 0.02, 16));
     zoomLabel();
   }
+  // wheel = pan (Shift = sideways), Ctrl/⌘ + wheel or trackpad pinch = zoom
+  canvas.on('mouse:wheel', function (o) {
+    var e = o.e; e.preventDefault(); e.stopPropagation();
+    if (e.ctrlKey || e.metaKey) { zoomTo(canvas.getZoom() * Math.pow(0.99, e.deltaY), new fabric.Point(e.offsetX, e.offsetY)); return; }
+    var v = canvas.viewportTransform, dx = e.deltaX, dy = e.deltaY;
+    if (e.shiftKey && !dx) { dx = dy; dy = 0; }
+    v[4] -= dx; v[5] -= dy; canvas.setViewportTransform(v);
+  });
 
-  // dim everything outside the page + draw snap guides
+  // ---------- overlays: frame labels, snap guides, crop shade ----------
+
   canvas.on('after:render', function (o) {
     if (exporting) return;
     var ctx = o.ctx || canvas.getContext(), v = canvas.viewportTransform, z = v[0];
-    var x = v[4], y = v[5], w = W * z, h = H * z, cw = canvas.getWidth(), ch = canvas.getHeight();
-    ctx.save();
-    ctx.setTransform(1, 0, 0, 1, 0, 0);
     var dpr = canvas.getRetinaScaling ? canvas.getRetinaScaling() : 1;
-    ctx.scale(dpr, dpr);
-    ctx.fillStyle = 'rgba(23,23,31,.82)';
-    ctx.fillRect(0, 0, cw, y); ctx.fillRect(0, y + h, cw, ch - y - h);
-    ctx.fillRect(0, y, x, h); ctx.fillRect(x + w, y, cw - x - w, h);
-    ctx.strokeStyle = 'rgba(255,255,255,.08)'; ctx.lineWidth = 1; ctx.strokeRect(x - .5, y - .5, w + 1, h + 1);
+    var dark = document.documentElement.getAttribute('data-theme') === 'dark';
+    ctx.save(); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    labelRects = [];
+    ctx.font = '500 11px Inter, system-ui, sans-serif'; ctx.textBaseline = 'bottom';
+    frames().forEach(function (f) {
+      var x = v[4] + f.left * z, y = v[5] + f.top * z;
+      var txt = f.name || 'Frame', size = Math.round(fw(f)) + ' × ' + Math.round(fh(f));
+      var w1 = ctx.measureText(txt).width;
+      ctx.fillStyle = f === page ? ACC : (dark ? '#b3b3b3' : '#6b6b6b');
+      ctx.fillText(txt, x, y - 5);
+      ctx.fillStyle = dark ? '#7a7a7a' : '#a0a0a0';
+      if (fw(f) * z > w1 + 90) ctx.fillText(size, x + w1 + 8, y - 5);
+      labelRects.push({ f: f, x: x, y: y - 19, w: Math.max(w1 + 8, 40), h: 18 });
+    });
     if (guides.length) {
-      ctx.strokeStyle = '#ff4fd8'; ctx.lineWidth = 1; ctx.setLineDash([4, 3]);
+      ctx.strokeStyle = '#ff3d9a'; ctx.lineWidth = 1;
       guides.forEach(function (g) {
         ctx.beginPath();
-        if (g.x != null) { ctx.moveTo(x + g.x * z, y); ctx.lineTo(x + g.x * z, y + h); }
-        else { ctx.moveTo(x, y + g.y * z); ctx.lineTo(x + w, y + g.y * z); }
+        if (g.x != null) { ctx.moveTo(v[4] + g.x * z + .5, v[5] + g.a * z); ctx.lineTo(v[4] + g.x * z + .5, v[5] + g.b * z); }
+        else { ctx.moveTo(v[4] + g.a * z, v[5] + g.y * z + .5); ctx.lineTo(v[4] + g.b * z, v[5] + g.y * z + .5); }
         ctx.stroke();
       });
+    }
+    if (crop) {
+      var img = crop.img, fr = crop.frame;
+      var ix = v[4] + img.left * z, iy = v[5] + img.top * z, iw = crop.ew * img.scaleX * z, ih = crop.eh * img.scaleY * z;
+      var fx = v[4] + fr.left * z, fy = v[5] + fr.top * z, fwd = fr.width * fr.scaleX * z, fht = fr.height * fr.scaleY * z;
+      ctx.fillStyle = 'rgba(10,10,16,.55)';
+      ctx.beginPath(); ctx.rect(ix, iy, iw, ih); ctx.rect(fx + fwd, fy, -fwd, fht); ctx.fill('evenodd');
     }
     ctx.restore();
   });
 
-  // snap to page centre and edges while dragging
+  // snap to the parent frame's edges and centre
+  var dragFrameOf = null;
+  canvas.on('mouse:down', function (o) { dragFrameOf = o.target && !o.target.isFrame ? frameOf(o.target) : null; });
   canvas.on('object:moving', function (o) {
-    if (o.target.id === '__crop') return;
-    var obj = o.target, thr = 7 / canvas.getZoom();
-    guides = [];
-    var b = obj.getBoundingRect(true, true);
-    var xs = [[b.left, 0], [b.left + b.width / 2, W / 2], [b.left + b.width, W]];
-    var ys = [[b.top, 0], [b.top + b.height / 2, H / 2], [b.top + b.height, H]];
+    var obj = o.target;
+    if (obj.id === '__crop' || obj.isFrame) return;
+    var f = dragFrameOf || frameOf(obj); guides = [];
+    if (!f) return;
+    var thr = 6 / canvas.getZoom(), b = obj.getBoundingRect(true, true);
+    var L = f.left, T = f.top, R = f.left + fw(f), B = f.top + fh(f);
+    var xs = [[b.left, L], [b.left, (L + R) / 2], [b.left + b.width / 2, (L + R) / 2], [b.left + b.width, (L + R) / 2], [b.left + b.width, R]];
+    var ys = [[b.top, T], [b.top, (T + B) / 2], [b.top + b.height / 2, (T + B) / 2], [b.top + b.height, (T + B) / 2], [b.top + b.height, B]];
     var dx = null, dy = null;
-    xs.forEach(function (p) { if (dx === null && Math.abs(p[0] - p[1]) < thr) { dx = p[1] - p[0]; guides.push({ x: p[1] }); } });
-    ys.forEach(function (p) { if (dy === null && Math.abs(p[0] - p[1]) < thr) { dy = p[1] - p[0]; guides.push({ y: p[1] }); } });
+    xs.forEach(function (p) { if (dx === null && Math.abs(p[0] - p[1]) < thr) { dx = p[1] - p[0]; guides.push({ x: p[1], a: T, b: B }); } });
+    ys.forEach(function (p) { if (dy === null && Math.abs(p[0] - p[1]) < thr) { dy = p[1] - p[0]; guides.push({ y: p[1], a: L, b: R }); } });
     if (dx) obj.left += dx;
     if (dy) obj.top += dy;
     obj.setCoords();
   });
   canvas.on('mouse:up', function () { if (guides.length) { guides = []; canvas.requestRenderAll(); } });
 
-  // wheel: pan (trackpad / mouse) · ctrl/⌘ + wheel or pinch: zoom
-  canvas.on('mouse:wheel', function (o) {
-    var e = o.e; e.preventDefault(); e.stopPropagation();
-    if (e.ctrlKey || e.metaKey) zoomBy(Math.pow(0.998, e.deltaY), new fabric.Point(e.offsetX, e.offsetY));
-    else { var v = canvas.viewportTransform; v[4] -= e.deltaX; v[5] -= e.deltaY; canvas.setViewportTransform(v); }
-  });
-
-  // space + drag / middle mouse: pan
-  var spaceDown = false, panning = false, last = null;
-  canvas.on('mouse:down', function (o) {
-    var e = o.e;
-    if (spaceDown || e.button === 1) {
-      panning = true; canvas.selection = false; canvas.discardActiveObject();
-      last = { x: e.clientX, y: e.clientY }; canvas.setCursor('grabbing');
+  // frames: drag by their name label, or by their body once selected (children follow)
+  var frameDrag = null, frameKids = null, frameLast = null;
+  function screenPt(e) { var r = canvas.upperCanvasEl.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
+  canvas.on('mouse:down:before', function (o) {
+    if (tool !== 'move' || spaceDown || o.e.button === 1) return;
+    var p = screenPt(o.e);
+    for (var i = labelRects.length - 1; i >= 0; i--) {
+      var r = labelRects[i];
+      if (p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h) {
+        frameDrag = { f: r.f, x: p.x, y: p.y, kids: childrenOf(r.f), moved: false };
+        canvas.selection = false;
+        return;
+      }
     }
   });
-  canvas.on('mouse:move', function (o) {
-    if (!panning) return;
-    var e = o.e, v = canvas.viewportTransform;
-    v[4] += e.clientX - last.x; v[5] += e.clientY - last.y; last = { x: e.clientX, y: e.clientY };
-    canvas.setViewportTransform(v);
+  canvas.on('mouse:down', function (o) {
+    if (o.target && o.target.isFrame) { frameKids = childrenOf(o.target); frameLast = { l: o.target.left, t: o.target.top }; }
   });
-  canvas.on('mouse:up', function () { if (panning) { panning = false; canvas.selection = true; } });
+  canvas.on('object:moving', function (o) {
+    var f = o.target;
+    if (!f.isFrame || !frameKids) return;
+    var dx = f.left - frameLast.l, dy = f.top - frameLast.t;
+    frameKids.forEach(function (k) { k.set({ left: k.left + dx, top: k.top + dy }); k.setCoords(); });
+    frameLast = { l: f.left, t: f.top };
+  });
+  canvas.on('mouse:move', function (o) {
+    if (!frameDrag) return;
+    var p = screenPt(o.e), z = canvas.getZoom();
+    var dx = (p.x - frameDrag.x) / z, dy = (p.y - frameDrag.y) / z;
+    if (dx || dy) {
+      moveFrame(frameDrag.f, dx, dy, frameDrag.kids);
+      frameDrag.x = p.x; frameDrag.y = p.y; frameDrag.moved = true;
+      canvas.requestRenderAll();
+    }
+  });
+  canvas.on('mouse:up', function () {
+    frameKids = null;
+    if (!frameDrag) return;
+    var f = frameDrag.f, moved = frameDrag.moved;
+    frameDrag = null; canvas.selection = true;
+    setTimeout(function () { selectFrame(f); if (moved) commit(); refreshUI(); }, 0);
+  });
+  canvas.on('object:modified', function (o) {
+    var f = o.target;
+    if (f && f.isFrame && (f.scaleX !== 1 || f.scaleY !== 1)) {
+      f.set({ width: Math.max(1, Math.round(f.width * f.scaleX)), height: Math.max(1, Math.round(f.height * f.scaleY)), scaleX: 1, scaleY: 1 });
+      f.setCoords(); setCurrent(f);
+    }
+  });
+
+  // ---------- tools (dock) ----------
+
+  var tool = 'move', shapeKind = 'rect', spaceDown = false, panning = false, panLast = null;
+  var draw = { tool: 'pen', color: '#6d56fa', size: 0 };
+  var SHAPE_NAMES = { rect: 'Тэгш өнцөгт', rounded: 'Бөөрөнхий', ellipse: 'Эллипс', triangle: 'Гурвалжин', line: 'Шугам', star: 'Од' };
+  var SHAPE_KEYS = { rect: 'R', ellipse: 'O', line: 'L' };
+
+  function renderDock() {
+    var t = function (id, ic, title, extra) { return '<button type="button" class="tool' + (tool === id ? ' on' : '') + '" data-tool="' + id + '" title="' + title + '">' + icon(ic) + (extra || '') + '</button>'; };
+    $('#dock').innerHTML =
+      t('move', 'move', 'Сонгох, зөөх (V)') + t('hand', 'hand', 'Гар — гүйлгэх (H, эсвэл Space + чирэх)') +
+      '<span class="sep"></span>' +
+      t('frame', 'frame', 'Frame — шинэ хуудас (F)') +
+      '<div class="pw">' + t('shape', shapeKind, SHAPE_NAMES[shapeKind] + ' (R, O, L)', '<svg class="i caret" viewBox="0 0 24 24" data-shape-menu><path d="m6 9 6 6 6-6"/></svg>') +
+        '<div class="menu up" id="shape-menu" hidden>' + Object.keys(SHAPE_NAMES).map(function (k) {
+          return '<button type="button" data-shape="' + k + '">' + icon(k) + '<span style="flex:1">' + SHAPE_NAMES[k] + '</span><i>' + (SHAPE_KEYS[k] || '') + '</i></button>';
+        }).join('') + '</div></div>' +
+      t('text', 'text', 'Текст (T)') + t('draw', 'pen', 'Зурах (P)') +
+      '<span class="sep"></span><button type="button" class="tool" data-act="upload" title="Зураг оруулах">' + icon('image') + '</button>';
+  }
+  function setTool(id) {
+    if (crop) endCrop(false);
+    if (tool === 'draw' && id !== 'draw') stopDraw();
+    tool = id;
+    var making = ['frame', 'shape', 'text'].indexOf(id) >= 0;
+    canvas.selection = id === 'move';
+    canvas.skipTargetFind = making || id === 'hand' || (id === 'draw' && draw.tool === 'eraser');
+    canvas.defaultCursor = making ? 'crosshair' : id === 'hand' ? 'grab' : 'default';
+    canvas.hoverCursor = making ? 'crosshair' : id === 'hand' ? 'grab' : 'move';
+    if (making || id === 'hand') { canvas.discardActiveObject(); canvas.requestRenderAll(); }
+    if (id === 'draw') startDraw();
+    renderDock(); renderCtxbar();
+  }
+  $('#dock').addEventListener('click', function (e) {
+    if (e.target.closest('[data-shape-menu]')) { var m = $('#shape-menu'); m.hidden = !m.hidden; e.stopPropagation(); return; }
+    var s = e.target.closest('[data-shape]');
+    if (s) { shapeKind = s.dataset.shape; setTool('shape'); return; }
+    var b = e.target.closest('[data-tool],[data-act]'); if (!b) return;
+    if (b.dataset.act === 'upload') { $('#ed-file').click(); return; }
+    setTool(b.dataset.tool);
+  });
+
+  // click or drag to create frames, shapes and text; hand / space / middle mouse to pan
+  var creating = null;
+  canvas.on('mouse:down', function (o) {
+    var e = o.e;
+    if (spaceDown || tool === 'hand' || e.button === 1) {
+      panning = true; panLast = { x: e.clientX, y: e.clientY }; canvas.setCursor('grabbing'); return;
+    }
+    if (['frame', 'shape', 'text'].indexOf(tool) < 0) return;
+    var p = canvas.getPointer(e);
+    if (tool === 'text') {
+      var t = addText('b', null, 'Текст', p);
+      setTool('move'); canvas.setActiveObject(t); t.enterEditing(); t.selectAll(); canvas.requestRenderAll();
+      return;
+    }
+    var obj = tool === 'frame' ? makeFrame({ left: p.x, top: p.y, width: 1, height: 1 }) : newShape(shapeKind, 1, 1);
+    obj.set({ left: p.x, top: p.y });
+    restoring = true;
+    if (tool === 'frame') canvas.insertAt(obj, frames().length); else canvas.add(obj);
+    restoring = false;
+    creating = { obj: obj, x: p.x, y: p.y, kind: tool === 'frame' ? 'frame' : shapeKind };
+  });
+  canvas.on('mouse:move', function (o) {
+    var e = o.e;
+    if (panning) {
+      var v = canvas.viewportTransform; v[4] += e.clientX - panLast.x; v[5] += e.clientY - panLast.y;
+      panLast = { x: e.clientX, y: e.clientY }; canvas.setViewportTransform(v); return;
+    }
+    if (!creating) return;
+    var p = canvas.getPointer(e), w = p.x - creating.x, h = p.y - creating.y;
+    if (e.shiftKey) { var m = Math.max(Math.abs(w), Math.abs(h)); w = w < 0 ? -m : m; h = h < 0 ? -m : m; }
+    sizeShape(creating.obj, creating.kind, Math.abs(w), Math.abs(h));
+    creating.obj.set({ left: Math.min(creating.x, creating.x + w), top: Math.min(creating.y, creating.y + h) });
+    creating.obj.setCoords(); canvas.requestRenderAll();
+  });
+  canvas.on('mouse:up', function () {
+    if (panning) { panning = false; canvas.setCursor(tool === 'hand' ? 'grab' : 'default'); return; }
+    if (!creating) return;
+    var c = creating, o = c.obj; creating = null;
+    var small = o.getScaledWidth() < 6 && o.getScaledHeight() < 6;
+    if (small) {
+      var d = c.kind === 'frame' ? [1080, 1350] : c.kind === 'line' ? [300, 0] : [200, 200];
+      sizeShape(o, c.kind, d[0], d[1]);
+      o.set({ left: c.x - (c.kind === 'frame' ? 0 : d[0] / 2), top: c.y - (c.kind === 'frame' ? 0 : d[1] / 2) });
+    }
+    o.setCoords();
+    setTool('move');
+    if (c.kind === 'frame') { o.set({ width: Math.round(o.width), height: Math.round(o.height) }); selectFrame(o); }
+    else { o.set({ name: SHAPE_NAMES[c.kind] }); canvas.setActiveObject(o); }
+    commit(); refreshUI();
+  });
+  function newShape(k, w, h) {
+    var fill = '#816dfb';
+    if (k === 'rect') return new fabric.Rect({ width: w, height: h, fill: fill });
+    if (k === 'rounded') return new fabric.Rect({ width: w, height: h, rx: 24, ry: 24, fill: fill });
+    if (k === 'ellipse') return new fabric.Ellipse({ rx: w / 2, ry: h / 2, fill: fill });
+    if (k === 'triangle') return new fabric.Triangle({ width: w, height: h, fill: fill });
+    if (k === 'line') return new fabric.Line([0, 0, w, h], { stroke: '#1e1e1e', strokeWidth: 4, strokeLineCap: 'round' });
+    var pts = [], R = 50, r = 22;
+    for (var i = 0; i < 10; i++) { var a = Math.PI / 5 * i - Math.PI / 2, rr = i % 2 ? r : R; pts.push({ x: Math.cos(a) * rr + R, y: Math.sin(a) * rr + R }); }
+    var s = new fabric.Polygon(pts, { fill: fill }); s.scaleX = w / 100; s.scaleY = h / 100; return s;
+  }
+  function sizeShape(o, k, w, h) {
+    w = Math.max(1, w); h = Math.max(k === 'line' ? 0 : 1, h);
+    if (k === 'frame' || k === 'rect' || k === 'rounded' || k === 'triangle') o.set({ width: w, height: h });
+    else if (k === 'ellipse') o.set({ rx: w / 2, ry: h / 2, width: w, height: h });
+    else if (k === 'line') o.set({ x2: w, y2: h });
+    else o.set({ scaleX: w / 100, scaleY: h / 100 });
+  }
 
   // ---------- history + autosave ----------
 
-  var hist = [], hi = -1, restoring = false, commitT, saveT;
-  function snapshot() {
-    return JSON.stringify({ v: 1, W: W, H: H, name: $('#ed-name').value, transparent: pageTransparent, canvas: canvas.toJSON(PROPS) });
-  }
+  var hist = [], hi = -1, commitT, saveT;
+  function snapshot() { return JSON.stringify({ v: 2, name: $('#ed-name').value, current: page && page.id, canvas: canvas.toJSON(PROPS) }); }
   function commit() {
     if (restoring || crop) return;
-    clearTimeout(commitT);
-    commitT = setTimeout(pushHistory, 180);
+    clearTimeout(commitT); commitT = setTimeout(pushHistory, 160);
     $('#ed-saved').textContent = 'Хадгалж байна…';
   }
   function pushHistory() {
@@ -317,22 +542,31 @@
   }
   function histButtons() { $('#ed-undo').disabled = hi <= 0; $('#ed-redo').disabled = hi >= hist.length - 1; }
   function restore(s, keepView) {
-    var d = JSON.parse(s);
+    var d = JSON.parse(s), vpt = canvas.viewportTransform.slice();
     restoring = true;
-    var vpt = canvas.viewportTransform.slice();
     return new Promise(function (res) {
       canvas.loadFromJSON(d.canvas, function () {
-        canvas.backgroundColor = '#17171f';
-        findPage();
+        canvas.backgroundColor = canvasBg();
+        // designs from the previous editor had one "page" rect at (0,0)
+        canvas.getObjects().forEach(function (o) {
+          if (o.id === 'page') o.set({ isFrame: true, id: 'frame-legacy', name: 'Frame 1' });
+        });
+        var fs = frames();
+        fs.forEach(function (f, i) {
+          f.set({ selectable: false, evented: false, hoverCursor: 'default', objectCaching: false, lockRotation: true });
+          f.setControlsVisibility({ mtr: false });
+          if (f.gTransparent || (f.fill && typeof f.fill !== 'string')) { f.gTransparent = true; f.set('fill', checker()); }
+          canvas.moveTo(f, i);
+        });
+        if (!fs.length) addFrame(1080, 1350);
+        setCurrent(frames().filter(function (f) { return f.id === d.current; })[0] || frames()[0]);
         if (d.name) $('#ed-name').value = d.name;
-        pageTransparent = !!d.transparent;
-        if (pageTransparent) page.set('fill', checker());
-        canvas.getObjects().forEach(function (o) { if (o.locked) lockObj(o, true); });
-        if (keepView) canvas.setViewportTransform(vpt); else fit();
+        userObjects().forEach(function (o) { if (o.locked) lockObj(o, true); });
+        if (keepView) canvas.setViewportTransform(vpt); else fitAll();
         canvas.renderAll();
         restoring = false;
         userObjects().forEach(function (o) { if (o.fontFamily) ensureFont(primary(o.fontFamily)).then(function () { refreshText(o); }); });
-        refreshAll();
+        refreshUI();
         res();
       });
     });
@@ -340,95 +574,85 @@
   function undo() { if (hi > 0) { hi--; restore(hist[hi], true).then(function () { histButtons(); dbSet('doc', hist[hi]); }); } }
   function redo() { if (hi < hist.length - 1) { hi++; restore(hist[hi], true).then(function () { histButtons(); dbSet('doc', hist[hi]); }); } }
 
-  canvas.on('object:added', function (o) { if (o.target !== page) { commit(); refreshLayers(); updateHint(); } });
-  canvas.on('object:removed', function () { commit(); refreshLayers(); updateHint(); });
-  canvas.on('object:modified', function () { commit(); refreshLayers(); refreshCtx(); });
-  canvas.on('text:changed', function () { commit(); refreshLayers(); });
-  canvas.on('selection:created', function () { refreshCtx(); refreshLayers(); });
-  canvas.on('selection:updated', function () { refreshCtx(); refreshLayers(); });
-  canvas.on('selection:cleared', function () { refreshCtx(); refreshLayers(); });
+  canvas.on('object:added', function (o) { if (!restoring && !o.target.isFrame) { commit(); scheduleUI(); } });
+  canvas.on('object:removed', function () { if (!restoring) { commit(); scheduleUI(); } });
+  canvas.on('object:modified', function () { commit(); scheduleUI(); });
+  canvas.on('text:changed', function () { commit(); scheduleUI(); });
+  canvas.on('selection:created', onSelect);
+  canvas.on('selection:updated', onSelect);
+  canvas.on('selection:cleared', function () { deactivateFrames(); refreshUI(); });
+  canvas.on('object:moving', syncGeom); canvas.on('object:scaling', syncGeom); canvas.on('object:rotating', syncGeom);
   $('#ed-name').addEventListener('input', commit);
-
-  function updateHint() { $('#ed-hint').hidden = userObjects().length > 0 || draw.on; }
+  function onSelect() {
+    var o = canvas.getActiveObject();
+    if (o && !o.isFrame) { deactivateFrames(); var f = frameOf(o); if (f) setCurrent(f); }
+    if (o && o.isFrame) setCurrent(o);
+    refreshUI();
+  }
+  var uiT;
+  function scheduleUI() { clearTimeout(uiT); uiT = setTimeout(refreshUI, 30); }
 
   // ---------- adding things ----------
 
-  var NAMES = { textbox: 'Текст', image: 'Зураг', rect: 'Дөрвөлжин', circle: 'Тойрог', triangle: 'Гурвалжин', line: 'Шугам', polygon: 'Од' };
-  function place(obj, opts) {
-    opts = opts || {};
+  var NAMES = { textbox: 'Текст', image: 'Зураг', rect: 'Тэгш өнцөгт', ellipse: 'Эллипс', circle: 'Тойрог', triangle: 'Гурвалжин', line: 'Шугам', polygon: 'Од', path: 'Зураас', group: 'Бүлэг' };
+  // put an object at a point (default: centre of the current frame)
+  function place(obj, at) {
     obj.set({ name: obj.name || NAMES[obj.type] || 'Зүйл' });
-    canvas.add(obj);
-    if (!opts.keepPos) { obj.set({ left: W / 2, top: H / 2, originX: 'center', originY: 'center' }); normalizeOrigin(obj); }
+    restoring = true; canvas.add(obj); restoring = false;
+    var c = at || { x: page.left + W / 2, y: page.top + H / 2 };
+    obj.setPositionByOrigin(new fabric.Point(c.x, c.y), 'center', 'center');
     obj.setCoords();
-    canvas.setActiveObject(obj);
-    canvas.requestRenderAll();
+    canvas.setActiveObject(obj); canvas.requestRenderAll();
+    commit(); refreshUI();
     return obj;
   }
-  // keep all objects on top-left origin (simpler maths for align / snap)
-  function normalizeOrigin(obj) {
-    var c = obj.getCenterPoint();
-    obj.set({ originX: 'left', originY: 'top' });
-    obj.setPositionByOrigin(c, 'center', 'center');
-  }
-
   var TEXT_STYLES = {
     h: { text: 'Гарчиг нэмэх', size: 0.085, weight: 700, role: 'heading' },
     s: { text: 'Дэд гарчиг нэмэх', size: 0.05, weight: 600, role: 'heading' },
-    b: { text: 'Энд текстээ бичнэ үү. Давхар дарж засна.', size: 0.03, weight: 400, role: 'body' }
+    b: { text: 'Энд текстээ бичнэ үү', size: 0.032, weight: 400, role: 'body' }
   };
-  function addText(kind, fontName, text) {
+  function isDark(c) {
+    if (typeof c !== 'string' || c[0] !== '#') return false;
+    var n = parseInt(c.slice(1).padEnd(6, '0').slice(0, 6), 16);
+    return (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) < 128;
+  }
+  function addText(kind, fontName, text, at) {
     var st = TEXT_STYLES[kind], pair = currentPair();
     var f = fontName || (st.role === 'heading' ? pair.heading : pair.body);
     var base = Math.min(W, H * 0.9);
     var t = new fabric.Textbox(text || st.text, {
-      fontFamily: stack(f), fontWeight: st.weight, fontSize: Math.round(base * st.size),
-      fill: pageTransparent || isDark(page.fill) ? '#ffffff' : '#111118', width: Math.round(W * (kind === 'b' ? 0.6 : 0.8)),
-      textAlign: 'center', lineHeight: kind === 'b' ? 1.4 : 1.1, charSpacing: 0, splitByGrapheme: false
+      fontFamily: stack(f), fontWeight: st.weight, fontSize: Math.max(12, Math.round(base * st.size)),
+      fill: isDark(frameFill(page)) ? '#ffffff' : '#1e1e1e', width: Math.round(W * (kind === 'b' ? 0.6 : 0.8)),
+      textAlign: 'center', lineHeight: kind === 'b' ? 1.4 : 1.1
     });
-    place(t);
+    place(t, at);
     ensureFont(f).then(function () { refreshText(t); commit(); });
     return t;
   }
   function addPair(p) {
     var h = addText('h', p.heading, 'Гарчиг');
     var b = addText('b', p.body, 'Энд тайлбар текстээ бичнэ үү.');
-    h.set({ top: H / 2 - h.height - 10 }); b.set({ top: H / 2 + 10 });
+    h.set({ top: page.top + H / 2 - h.height - 10 }); b.set({ top: page.top + H / 2 + 10 });
     h.setCoords(); b.setCoords();
     canvas.setActiveObject(new fabric.ActiveSelection([h, b], { canvas: canvas }));
     canvas.requestRenderAll(); commit();
   }
-
-  function isDark(hex) {
-    if (typeof hex !== 'string' || hex[0] !== '#') return false;
-    var n = parseInt(hex.slice(1).padEnd(6, '0').slice(0, 6), 16);
-    return (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) < 128;
+  function addShape(k) {
+    var s = Math.round(Math.min(W, H) * 0.3), o = newShape(k, s, k === 'line' ? 0 : s);
+    o.set({ name: SHAPE_NAMES[k] });
+    place(o);
   }
-
-  var SHAPES = {
-    rect: function () { return new fabric.Rect({ width: W * 0.34, height: W * 0.34, rx: 0, ry: 0, fill: '#816dfb' }); },
-    rounded: function () { return new fabric.Rect({ width: W * 0.34, height: W * 0.34, rx: W * 0.04, ry: W * 0.04, fill: '#816dfb', name: 'Бөөрөнхий дөрвөлжин' }); },
-    circle: function () { return new fabric.Circle({ radius: W * 0.17, fill: '#816dfb' }); },
-    triangle: function () { return new fabric.Triangle({ width: W * 0.36, height: W * 0.31, fill: '#816dfb' }); },
-    line: function () { return new fabric.Line([0, 0, W * 0.4, 0], { stroke: '#111118', strokeWidth: Math.max(4, W * 0.006), strokeLineCap: 'round' }); },
-    star: function () {
-      var pts = [], R = W * 0.18, r = R * 0.45;
-      for (var i = 0; i < 10; i++) { var a = Math.PI / 5 * i - Math.PI / 2, rr = i % 2 ? r : R; pts.push({ x: Math.cos(a) * rr, y: Math.sin(a) * rr }); }
-      return new fabric.Polygon(pts, { fill: '#816dfb' });
-    }
-  };
-  function addShape(k) { place(SHAPES[k]()); }
 
   // images: downscale huge photos, keep as data URL so the design saves offline
   function readImage(blob) {
     return new Promise(function (res, rej) {
       var url = URL.createObjectURL(blob), img = new Image();
       img.onload = function () {
-        var max = 2400, k = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight));
+        var k = Math.min(1, 2400 / Math.max(img.naturalWidth, img.naturalHeight));
         var c = document.createElement('canvas'); c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
         c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
         URL.revokeObjectURL(url);
-        var png = /png|webp|svg/i.test(blob.type);
-        res({ url: c.toDataURL(png ? 'image/png' : 'image/jpeg', 0.92), w: c.width, h: c.height });
+        res({ url: c.toDataURL(/png|webp|svg/i.test(blob.type) ? 'image/png' : 'image/jpeg', 0.92), w: c.width, h: c.height });
       };
       img.onerror = function () { URL.revokeObjectURL(url); rej(new Error('image')); };
       img.src = url;
@@ -438,7 +662,7 @@
   function addImageBlob(blob, opts) {
     opts = opts || {};
     return readImage(blob).then(function (r) {
-      if (opts.recent !== false) { recent.unshift(r.url); recent = recent.slice(0, 12); if (activePanel === 'image') renderPanel('image'); }
+      recent.unshift(r.url); recent = recent.slice(0, 12);
       return addImageUrl(r.url, opts);
     }).catch(function () { toast('Зургийг уншиж чадсангүй'); });
   }
@@ -446,133 +670,147 @@
     opts = opts || {};
     return new Promise(function (res) {
       fabric.Image.fromURL(url, function (img) {
-        if (opts.fillPage && !userObjects().length) {
-          // empty design: make the page the photo's shape
-          var k = Math.min(1, 2400 / Math.max(img.width, img.height));
-          setSize(Math.round(img.width * k), Math.round(img.height * k), true);
-          img.scale(W / img.width);
-          place(img, { keepPos: true }); img.set({ left: 0, top: 0 }); img.setCoords();
+        if (opts.fillFrame) {
+          // empty design: make the frame the photo's shape
+          page.set({ width: img.width, height: img.height }); page.setCoords(); setCurrent(page);
+          img.set({ left: page.left, top: page.top, name: 'Зураг' });
+          restoring = true; canvas.add(img); restoring = false;
+          canvas.setActiveObject(img); fitFrame(page); commit(); refreshUI();
         } else {
           img.scale(Math.min((W * 0.7) / img.width, (H * 0.7) / img.height, 1));
-          place(img);
+          place(img, opts.at);
         }
         res(img);
       });
     });
   }
 
-  // ---------- selection helpers ----------
+  // ---------- selection actions ----------
 
   function active() { return canvas.getActiveObject(); }
   function kindOf(o) {
     if (!o) return null;
+    if (o.isFrame) return 'frame';
     if (o.type === 'activeSelection') return 'multi';
+    if (o.type === 'group') return 'group';
     if (o.isType('textbox') || o.isType('i-text') || o.isType('text')) return 'text';
     if (o.isType('image')) return 'image';
-    if (o.type === 'group') return 'group';
     if (o.isType('line') || o.isType('path')) return 'line';
     return 'shape';
   }
-  function eachSel(fn) {
-    var o = active(); if (!o) return;
-    if (o.type === 'activeSelection') o.getObjects().forEach(fn); else fn(o);
-  }
-  function setProp(k, v) { eachSel(function (o) { o.set(k, v); if (o.isType('textbox')) o.initDimensions(); o.setCoords(); }); canvas.requestRenderAll(); commit(); }
+  function eachSel(fn) { var o = active(); if (!o) return; if (o.type === 'activeSelection') o.getObjects().forEach(fn); else fn(o); }
   function lockObj(o, on) {
     o.locked = on;
     o.set({ lockMovementX: on, lockMovementY: on, lockScalingX: on, lockScalingY: on, lockRotation: on, hasControls: !on, editable: !on, hoverCursor: on ? 'default' : null });
   }
   function duplicate() {
     var o = active(); if (!o) return;
+    if (o.isFrame) { duplicateFrame(o); return; }
     o.clone(function (c) {
       canvas.discardActiveObject();
-      c.set({ left: c.left + 24, top: c.top + 24, evented: true });
+      c.set({ left: c.left + 20, top: c.top + 20, evented: true });
       if (c.type === 'activeSelection') { c.canvas = canvas; c.forEachObject(function (x) { canvas.add(x); }); c.setCoords(); }
       else canvas.add(c);
       canvas.setActiveObject(c); canvas.requestRenderAll(); commit();
     }, PROPS);
   }
+  function duplicateFrame(f) {
+    var kids = childrenOf(f), nf = addFrame(fw(f), fh(f), { fill: f.gTransparent ? '#ffffff' : frameFill(f), name: (f.name || 'Frame') + ' хуулбар' });
+    if (f.gTransparent) { nf.gTransparent = true; nf.set('fill', checker()); }
+    var dx = nf.left - f.left, dy = nf.top - f.top, n = kids.length;
+    if (!n) { selectFrame(nf); commit(); refreshUI(); return; }
+    restoring = true;
+    kids.forEach(function (k) {
+      k.clone(function (c) {
+        c.set({ left: c.left + dx, top: c.top + dy }); canvas.add(c);
+        if (--n === 0) { restoring = false; selectFrame(nf); canvas.requestRenderAll(); commit(); refreshUI(); }
+      }, PROPS);
+    });
+  }
   function removeSel() {
     var o = active(); if (!o || o.isEditing) return;
-    if (o.type === 'activeSelection') { o.getObjects().forEach(function (x) { canvas.remove(x); }); } else canvas.remove(o);
+    if (o.isFrame) {
+      if (frames().length === 1) { toast('Сүүлийн frame-ийг устгах боломжгүй'); return; }
+      childrenOf(o).forEach(function (k) { canvas.remove(k); });
+      canvas.remove(o); canvas.discardActiveObject(); setCurrent(frames()[0]); canvas.requestRenderAll(); commit(); refreshUI(); return;
+    }
+    if (o.type === 'activeSelection') o.getObjects().forEach(function (x) { canvas.remove(x); }); else canvas.remove(o);
     canvas.discardActiveObject(); canvas.requestRenderAll();
   }
   function arrange(dir) {
+    var min = frames().length, n = canvas.getObjects().length;
     eachSel(function (o) {
-      var i = canvas.getObjects().indexOf(o), n = canvas.getObjects().length;
+      if (o.isFrame) return;
+      var i = canvas.getObjects().indexOf(o);
       if (dir === 'up' && i < n - 1) canvas.moveTo(o, i + 1);
-      if (dir === 'down' && i > 1) canvas.moveTo(o, i - 1); // index 0 = page
+      if (dir === 'down' && i > min) canvas.moveTo(o, i - 1);
       if (dir === 'top') canvas.moveTo(o, n - 1);
-      if (dir === 'bottom') canvas.moveTo(o, 1);
+      if (dir === 'bottom') canvas.moveTo(o, min);
     });
-    canvas.requestRenderAll(); commit(); refreshLayers();
+    canvas.requestRenderAll(); commit(); refreshUI();
   }
-  function alignToPage(how) {
-    var o = active(); if (!o) return;
+  // align to the parent frame (one object) or to the selection bounds (several)
+  function align(how) {
+    var o = active(); if (!o || o.isFrame) return;
+    if (o.type === 'activeSelection') {
+      var items = o.getObjects(), b;
+      canvas.discardActiveObject();
+      b = bounds(items);
+      items.forEach(function (it) { alignObj(it, how, b); });
+      canvas.setActiveObject(new fabric.ActiveSelection(items, { canvas: canvas }));
+    } else {
+      var f = frameOf(o) || page;
+      alignObj(o, how, { left: f.left, top: f.top, width: fw(f), height: fh(f) });
+    }
+    canvas.requestRenderAll(); commit(); refreshUI();
+  }
+  function alignObj(o, how, box) {
     var b = o.getBoundingRect(true, true), dx = 0, dy = 0;
-    if (how === 'left') dx = -b.left; if (how === 'hcenter') dx = W / 2 - (b.left + b.width / 2); if (how === 'right') dx = W - (b.left + b.width);
-    if (how === 'top') dy = -b.top; if (how === 'vcenter') dy = H / 2 - (b.top + b.height / 2); if (how === 'bottom') dy = H - (b.top + b.height);
-    o.set({ left: o.left + dx, top: o.top + dy }); o.setCoords(); canvas.requestRenderAll(); commit();
+    if (how === 'L') dx = box.left - b.left;
+    if (how === 'C') dx = box.left + box.width / 2 - (b.left + b.width / 2);
+    if (how === 'R') dx = box.left + box.width - (b.left + b.width);
+    if (how === 'T') dy = box.top - b.top;
+    if (how === 'M') dy = box.top + box.height / 2 - (b.top + b.height / 2);
+    if (how === 'B') dy = box.top + box.height - (b.top + b.height);
+    o.set({ left: o.left + dx, top: o.top + dy }); o.setCoords();
   }
+  function distribute(axis) {
+    var o = active(); if (!o || o.type !== 'activeSelection') return;
+    var items = o.getObjects().slice(); if (items.length < 3) { toast('Дор хаяж 3 зүйл сонгоно уу'); return; }
+    canvas.discardActiveObject();
+    var bb = items.map(function (it) { return { it: it, b: it.getBoundingRect(true, true) }; });
+    bb.sort(function (a, c) { return axis === 'H' ? a.b.left - c.b.left : a.b.top - c.b.top; });
+    var first = bb[0].b, last = bb[bb.length - 1].b;
+    var total = bb.reduce(function (s, x) { return s + (axis === 'H' ? x.b.width : x.b.height); }, 0);
+    var span = axis === 'H' ? last.left + last.width - first.left : last.top + last.height - first.top;
+    var gap = (span - total) / (bb.length - 1), pos = axis === 'H' ? first.left : first.top;
+    bb.forEach(function (x) {
+      var d = pos - (axis === 'H' ? x.b.left : x.b.top);
+      if (axis === 'H') x.it.left += d; else x.it.top += d;
+      x.it.setCoords(); pos += (axis === 'H' ? x.b.width : x.b.height) + gap;
+    });
+    canvas.setActiveObject(new fabric.ActiveSelection(items, { canvas: canvas }));
+    canvas.requestRenderAll(); commit(); refreshUI();
+  }
+  function groupSel() { var o = active(); if (!o || o.type !== 'activeSelection') return; o.toGroup().set({ name: 'Бүлэг' }); canvas.requestRenderAll(); commit(); refreshUI(); }
+  function ungroupSel() { var o = active(); if (!o || o.type !== 'group') return; o.toActiveSelection(); canvas.requestRenderAll(); commit(); refreshUI(); }
   function setAsBackground() {
     var o = active(); if (!o || !o.isType('image')) return;
-    var s = Math.max(W / o.width, H / o.height);
-    o.set({ scaleX: s * (o.flipX ? 1 : 1), scaleY: s, angle: 0, left: (W - o.width * s) / 2, top: (H - o.height * s) / 2 });
-    o.setCoords(); canvas.moveTo(o, 1); canvas.requestRenderAll(); commit(); refreshLayers();
-    toast('Дэвсгэр болголоо');
+    var f = frameOf(o) || page, s = Math.max(fw(f) / o.width, fh(f) / o.height);
+    o.set({ scaleX: s, scaleY: s, angle: 0, left: f.left + (fw(f) - o.width * s) / 2, top: f.top + (fh(f) - o.height * s) / 2 });
+    o.setCoords(); canvas.moveTo(o, frames().length); canvas.requestRenderAll(); commit(); refreshUI();
+    toast('Frame-ийг бүтэн дүүргэлээ');
   }
-
-  // image adjustments (Fabric filters)
-  var F = fabric.Image.filters;
-  function getFilter(img, Type) { return (img.filters || []).filter(function (f) { return f instanceof Type; })[0]; }
-  function setFilter(img, Type, key, val, neutral) {
-    img.filters = img.filters || [];
-    var f = getFilter(img, Type);
-    if (Math.abs(val - neutral) < 0.001) { if (f) img.filters.splice(img.filters.indexOf(f), 1); }
-    else if (f) f[key] = val;
-    else { var o = {}; o[key] = val; img.filters.push(new Type(o)); }
-    img.applyFilters(); canvas.requestRenderAll();
-  }
-
-  // ---------- page size ----------
-
-  var SIZES = [
-    { id: 'ig45', name: 'Instagram пост', w: 1080, h: 1350 },
-    { id: 'ig11', name: 'Квадрат пост', w: 1080, h: 1080 },
-    { id: 'story', name: 'Story / Reels', w: 1080, h: 1920 },
-    { id: 'fb', name: 'Facebook пост', w: 1200, h: 630 },
-    { id: 'yt', name: 'YouTube thumbnail', w: 1280, h: 720 },
-    { id: 'pres', name: 'Танилцуулга 16:9', w: 1920, h: 1080 },
-    { id: 'a4', name: 'A4 постер', w: 1240, h: 1754 },
-    { id: 'card', name: 'Нэрийн хуудас', w: 1050, h: 600 }
-  ];
-  function setSize(w, h, silent) {
-    W = Math.round(clamp(w, 50, 6000)); H = Math.round(clamp(h, 50, 6000));
-    page.set({ width: W, height: H }); page.setCoords();
-    fit(); canvas.requestRenderAll();
-    if (!silent) { commit(); toast(W + ' × ' + H + ' px'); }
-    if (activePanel === 'size') renderPanel('size');
-  }
-  function newDesign() {
-    if (userObjects().length && !confirm('Одоогийн дизайныг арилгаж шинээр эхлэх үү?')) return;
-    canvas.discardActiveObject();
-    userObjects().forEach(function (o) { canvas.remove(o); });
-    pageTransparent = false; page.set('fill', '#ffffff');
-    $('#ed-name').value = 'Нэргүй дизайн';
-    setSize(1080, 1350, true); commit();
-  }
+  function rotate90(o) { o.rotate(((o.angle || 0) + 90) % 360); o.setCoords(); commit(); }
 
   // ---------- image: crop mode ----------
-  // The image temporarily shows in full; a dashed frame picks the part to keep.
 
   var crop = null;
   function startCrop() {
     var img = active(); if (!img || !img.isType('image') || crop) return;
-    closePop();
     if (img.angle) { img.rotate(0); img.setCoords(); }
     var el = img.getElement(), ew = el.naturalWidth || el.width, eh = el.naturalHeight || el.height, s = img.scaleX, t = img.scaleY;
     var saved = { cropX: img.cropX || 0, cropY: img.cropY || 0, width: img.width, height: img.height, left: img.left, top: img.top, clipPath: img.clipPath };
-    // where the full picture sits on the page (mirrored crops start from the other edge)
     var dxL = img.flipX ? (ew - saved.cropX - saved.width) * s : saved.cropX * s;
     var dyT = img.flipY ? (eh - saved.cropY - saved.height) * t : saved.cropY * t;
     img.set({ cropX: 0, cropY: 0, width: ew, height: eh, left: saved.left - dxL, top: saved.top - dyT, clipPath: null, selectable: false, evented: false });
@@ -580,23 +818,22 @@
     var frame = new fabric.Rect({
       left: saved.left, top: saved.top, width: saved.width * s, height: saved.height * t, fill: 'rgba(0,0,0,0)',
       stroke: '#ffffff', strokeWidth: 2, strokeUniform: true, strokeDashArray: [8, 6], lockRotation: true,
-      cornerColor: '#ffffff', cornerStrokeColor: '#816dfb', transparentCorners: false, excludeFromExport: true, id: '__crop', name: 'Тайралт'
+      cornerColor: '#ffffff', cornerStrokeColor: ACC, excludeFromExport: true, id: '__crop', name: 'Тайралт'
     });
     frame.setControlsVisibility({ mtr: false });
-    var bounds = { l: img.left, t: img.top, r: img.left + ew * s, b: img.top + eh * t };
+    var bd = { l: img.left, t: img.top, r: img.left + ew * s, b: img.top + eh * t };
     function keepInside() {
       var w = frame.width * frame.scaleX, h = frame.height * frame.scaleY;
-      if (w > bounds.r - bounds.l) { frame.scaleX = (bounds.r - bounds.l) / frame.width; w = bounds.r - bounds.l; }
-      if (h > bounds.b - bounds.t) { frame.scaleY = (bounds.b - bounds.t) / frame.height; h = bounds.b - bounds.t; }
-      frame.left = clamp(frame.left, bounds.l, bounds.r - w);
-      frame.top = clamp(frame.top, bounds.t, bounds.b - h);
+      if (w > bd.r - bd.l) { frame.scaleX = (bd.r - bd.l) / frame.width; w = bd.r - bd.l; }
+      if (h > bd.b - bd.t) { frame.scaleY = (bd.b - bd.t) / frame.height; h = bd.b - bd.t; }
+      frame.left = clamp(frame.left, bd.l, bd.r - w); frame.top = clamp(frame.top, bd.t, bd.b - h);
       frame.setCoords();
     }
     frame.on('moving', keepInside); frame.on('scaling', keepInside);
     crop = { img: img, frame: frame, saved: saved, ew: ew, eh: eh };
     restoring = true; canvas.add(frame); restoring = false;
     canvas.setActiveObject(frame); canvas.requestRenderAll();
-    refreshCtx();
+    refreshUI();
   }
   function endCrop(apply) {
     if (!crop) return;
@@ -606,55 +843,36 @@
     if (apply) {
       var dl = f.left - img.left, dt = f.top - img.top, w = f.width * f.scaleX, h = f.height * f.scaleY;
       var sx = img.flipX ? c.ew - (dl + w) / s : dl / s, sy = img.flipY ? c.eh - (dt + h) / t : dt / t;
-      img.set({ cropX: Math.max(0, sx), cropY: Math.max(0, sy), width: w / s, height: h / t, left: f.left, top: f.top, clipPath: c.saved.clipPath });
-    } else {
-      img.set(c.saved);
-    }
+      img.set({ cropX: Math.max(0, sx), cropY: Math.max(0, sy), width: w / s, height: h / t, left: f.left, top: f.top });
+    } else img.set(c.saved);
     img.set({ selectable: true, evented: true, dirty: true });
-    if (img.clipPath) fitMask(img, img.clipPath.gMask);
+    if (img.gMask) fitMask(img, img.gMask, img.gMaskR);
     img.setCoords();
     canvas.setActiveObject(img); canvas.requestRenderAll();
     if (apply) commit();
-    refreshCtx();
+    refreshUI();
   }
-  // darken the part of the photo that will be cut away
-  canvas.on('after:render', function (o) {
-    if (!crop || exporting) return;
-    var ctx2 = o.ctx || canvas.getContext(), v = canvas.viewportTransform, z = v[0], img = crop.img, f = crop.frame;
-    var ix = v[4] + img.left * z, iy = v[5] + img.top * z, iw = crop.ew * img.scaleX * z, ih = crop.eh * img.scaleY * z;
-    var fx = v[4] + f.left * z, fy = v[5] + f.top * z, fw = f.width * f.scaleX * z, fh = f.height * f.scaleY * z;
-    var dpr = canvas.getRetinaScaling ? canvas.getRetinaScaling() : 1;
-    ctx2.save(); ctx2.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx2.fillStyle = 'rgba(10,10,16,.62)';
-    ctx2.beginPath(); ctx2.rect(ix, iy, iw, ih); ctx2.rect(fx + fw, fy, -fw, fh); ctx2.fill('evenodd');
-    ctx2.restore();
-  });
 
   // shape masks (clipPath in the image's own coordinates)
-  function fitMask(img, kind) {
+  function fitMask(img, kind, radius) {
     var w = img.width, h = img.height, m = Math.min(w, h), cp = null;
     if (kind === 'circle') cp = new fabric.Circle({ radius: m / 2, originX: 'center', originY: 'center' });
     if (kind === 'oval') cp = new fabric.Ellipse({ rx: w / 2, ry: h / 2, originX: 'center', originY: 'center' });
-    if (kind === 'rounded') cp = new fabric.Rect({ width: w, height: h, rx: m * 0.12, ry: m * 0.12, originX: 'center', originY: 'center' });
+    if (kind === 'rounded') { var rr = radius != null ? radius / (img.scaleX || 1) : m * 0.12; cp = new fabric.Rect({ width: w, height: h, rx: rr, ry: rr, originX: 'center', originY: 'center' }); }
     if (kind === 'arch') cp = new fabric.Path('M ' + (-w / 2) + ' ' + (h / 2) + ' L ' + (-w / 2) + ' ' + (-h / 2 + w / 2) + ' A ' + (w / 2) + ' ' + (w / 2) + ' 0 0 1 ' + (w / 2) + ' ' + (-h / 2 + w / 2) + ' L ' + (w / 2) + ' ' + (h / 2) + ' Z', { originX: 'center', originY: 'center' });
-    if (cp) cp.gMask = kind;
+    img.gMask = cp ? kind : null;
+    img.gMaskR = kind === 'rounded' ? radius : null;
     img.set({ clipPath: cp, dirty: true });
   }
-  function setMask(kind) {
-    var img = active(); if (!img || !img.isType('image')) return;
-    fitMask(img, kind === 'none' ? null : kind);
-    canvas.requestRenderAll(); commit();
-  }
 
-  // ---------- image: AI background removal inside the editor (U²-Net-P) ----------
+  // ---------- image: AI background removal (U²-Net-P, in the browser) ----------
 
   var ORT = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.30.0/dist/';
   var rmbg = { ready: null, session: null };
   function rmbgReady() {
     if (rmbg.ready) return rmbg.ready;
     rmbg.ready = (window.ort ? Promise.resolve() : loadScript(ORT + 'ort.min.js')).then(function () {
-      window.ort.env.wasm.wasmPaths = ORT;
-      window.ort.env.wasm.numThreads = 1;
+      window.ort.env.wasm.wasmPaths = ORT; window.ort.env.wasm.numThreads = 1;
       return window.ort.InferenceSession.create('/assets/vendor/u2netp.onnx', { executionProviders: ['wasm'], graphOptimizationLevel: 'all' });
     }).then(function (s) { rmbg.session = s; });
     rmbg.ready.catch(function () { rmbg.ready = null; });
@@ -673,133 +891,92 @@
       var s = rmbg.session, feeds = {};
       feeds[s.inputNames[0]] = new window.ort.Tensor('float32', data, [1, 3, S, S]);
       return s.run(feeds).then(function (out) {
-        var m = out[s.outputNames[0]].data, lo = Infinity, hi = -Infinity;
-        for (i = 0; i < n; i++) { if (m[i] < lo) lo = m[i]; if (m[i] > hi) hi = m[i]; }
+        var m = out[s.outputNames[0]].data, lo = Infinity, hi2 = -Infinity;
+        for (i = 0; i < n; i++) { if (m[i] < lo) lo = m[i]; if (m[i] > hi2) hi2 = m[i]; }
         var mc = document.createElement('canvas'); mc.width = S; mc.height = S;
         var mx = mc.getContext('2d'), md = mx.createImageData(S, S);
-        for (i = 0; i < n; i++) { var a = ((m[i] - lo) / ((hi - lo) || 1) - 0.2) / 0.6; md.data[i * 4 + 3] = a <= 0 ? 0 : a >= 1 ? 255 : Math.round(a * 255); }
+        for (i = 0; i < n; i++) { var a = ((m[i] - lo) / ((hi2 - lo) || 1) - 0.2) / 0.6; md.data[i * 4 + 3] = a <= 0 ? 0 : a >= 1 ? 255 : Math.round(a * 255); }
         mx.putImageData(md, 0, 0);
         var o = document.createElement('canvas'); o.width = W0; o.height = H0;
         var ox = o.getContext('2d'); ox.imageSmoothingQuality = 'high';
-        ox.drawImage(el, 0, 0, W0, H0);
-        ox.globalCompositeOperation = 'destination-in';
-        ox.drawImage(mc, 0, 0, W0, H0);
+        ox.drawImage(el, 0, 0, W0, H0); ox.globalCompositeOperation = 'destination-in'; ox.drawImage(mc, 0, 0, W0, H0);
         return o.toDataURL('image/png');
       });
     }).then(function (url) {
       return new Promise(function (res) {
         var keep = { width: img.width, height: img.height, cropX: img.cropX, cropY: img.cropY };
-        img.setSrc(url, function () { img.set(keep); img.set('dirty', true); img.applyFilters(); canvas.requestRenderAll(); commit(); refreshLayers(); res(); });
+        img.setSrc(url, function () { img.set(keep); img.set('dirty', true); img.applyFilters(); canvas.requestRenderAll(); commit(); refreshUI(); res(); });
       });
     }).then(function () { toast('Дэвсгэр арилгалаа'); })
       .catch(function (e) { console.error(e); toast('Дэвсгэр арилгаж чадсангүй. Интернэтээ шалгана уу.'); });
   }
 
-  // ---------- image: filter presets ----------
+  // ---------- image filters ----------
 
-  var PRESETS = [
-    ['none', 'Анхны', null], ['bw', 'Хар цагаан', 'Grayscale'], ['sepia', 'Сепиа', 'Sepia'], ['vintage', 'Винтаж', 'Vintage'],
-    ['kodachrome', 'Кодахром', 'Kodachrome'], ['technicolor', 'Техниколор', 'Technicolor'], ['polaroid', 'Полароид', 'Polaroid'], ['brownie', 'Бор', 'Brownie']
-  ];
-  function presetOf(img) {
-    for (var i = 1; i < PRESETS.length; i++) if (F[PRESETS[i][2]] && getFilter(img, F[PRESETS[i][2]])) return PRESETS[i][0];
-    return 'none';
+  var F = fabric.Image.filters;
+  function getFilter(img, Type) { return (img.filters || []).filter(function (f) { return f instanceof Type; })[0]; }
+  function setFilter(img, Type, key, val, neutral) {
+    img.filters = img.filters || [];
+    var f = getFilter(img, Type);
+    if (Math.abs(val - neutral) < 0.001) { if (f) img.filters.splice(img.filters.indexOf(f), 1); }
+    else if (f) f[key] = val;
+    else { var o = {}; o[key] = val; img.filters.push(new Type(o)); }
+    img.applyFilters(); canvas.requestRenderAll();
   }
+  var PRESETS = [['none', 'Анхны', null], ['bw', 'Хар цагаан', 'Grayscale'], ['sepia', 'Сепиа', 'Sepia'], ['vintage', 'Винтаж', 'Vintage'],
+    ['kodachrome', 'Кодахром', 'Kodachrome'], ['technicolor', 'Техниколор', 'Technicolor'], ['polaroid', 'Полароид', 'Polaroid'], ['brownie', 'Бор', 'Brownie']];
+  function presetOf(img) { for (var i = 1; i < PRESETS.length; i++) if (F[PRESETS[i][2]] && getFilter(img, F[PRESETS[i][2]])) return PRESETS[i][0]; return 'none'; }
   function setPreset(img, id) {
-    img.filters = (img.filters || []).filter(function (f) {
-      return !PRESETS.some(function (p) { return p[2] && F[p[2]] && f instanceof F[p[2]]; });
-    });
+    img.filters = (img.filters || []).filter(function (f) { return !PRESETS.some(function (p) { return p[2] && F[p[2]] && f instanceof F[p[2]]; }); });
     var p = PRESETS.filter(function (x) { return x[0] === id; })[0];
     if (p && p[2] && F[p[2]]) img.filters.unshift(new F[p[2]]());
     img.applyFilters(); canvas.requestRenderAll(); commit();
   }
 
-  // ---------- effects: shadow, outline, text background ----------
+  // ---------- colours ----------
 
-  function shadowOf(o) { return o.shadow ? o.shadow : null; }
-  function setShadow(o, on, opts) {
-    if (!on) { o.set('shadow', null); return; }
-    var s = shadowOf(o) || {};
-    o.set('shadow', new fabric.Shadow({
-      color: opts.color != null ? opts.color : (s.color || 'rgba(0,0,0,0.45)'),
-      blur: opts.blur != null ? opts.blur : (s.blur != null ? s.blur : Math.round(W * 0.02)),
-      offsetX: opts.offset != null ? opts.offset : (s.offsetX != null ? s.offsetX : Math.round(W * 0.008)),
-      offsetY: opts.offset != null ? opts.offset : (s.offsetY != null ? s.offsetY : Math.round(W * 0.008))
-    }));
+  function parseCol(c) {
+    if (!c || typeof c !== 'string' || c === 'transparent') return { hex: '#000000', a: c === 'transparent' ? 0 : 1 };
+    var col = new fabric.Color(c), s = col.getSource();
+    return { hex: '#' + col.toHex().toLowerCase(), a: s[3] == null ? 1 : s[3] };
   }
-  function rgba(hexc, a) {
-    var n = parseInt(String(hexc).slice(1), 16);
-    return 'rgba(' + (n >> 16) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')';
-  }
-  function rgbaParts(c) {
-    var m = String(c || '').match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
-    if (!m) return { hex: '#000000', a: 0.45 };
-    var h = '#' + [m[1], m[2], m[3]].map(function (x) { return (+x).toString(16).padStart(2, '0'); }).join('');
-    return { hex: h, a: m[4] == null ? 1 : +m[4] };
-  }
-
-  // ---------- grouping ----------
-
-  function groupSel() {
-    var o = active(); if (!o || o.type !== 'activeSelection') return;
-    var g = o.toGroup(); g.set({ name: 'Бүлэг' });
-    canvas.requestRenderAll(); commit(); refreshLayers(); refreshCtx();
-  }
-  function ungroupSel() {
-    var o = active(); if (!o || o.type !== 'group') return;
-    o.toActiveSelection(); canvas.requestRenderAll(); commit(); refreshLayers(); refreshCtx();
+  function mkCol(hex, a) {
+    if (a >= 0.999) return hex;
+    var n = parseInt(hex.slice(1), 16);
+    return 'rgba(' + (n >> 16) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + r1(a * 100) / 100 + ')';
   }
 
   // ---------- drawing ----------
 
-  var draw = { on: false, tool: 'pen', color: '#816dfb', size: 0 };
   function brushSize() { return draw.size || Math.max(4, Math.round(Math.min(W, H) * 0.012)); }
   function applyBrush() {
-    if (draw.tool === 'eraser') { canvas.isDrawingMode = false; return; }
+    if (draw.tool === 'eraser') { canvas.isDrawingMode = false; canvas.skipTargetFind = true; canvas.defaultCursor = 'cell'; return; }
+    canvas.skipTargetFind = false; canvas.defaultCursor = 'default';
     var b = draw.tool === 'spray' ? new fabric.SprayBrush(canvas) : new fabric.PencilBrush(canvas);
-    b.color = draw.tool === 'marker' ? rgba(draw.color, 0.4) : draw.color;
+    b.color = draw.tool === 'marker' ? mkCol(draw.color, 0.4) : draw.color;
     b.width = draw.tool === 'marker' ? brushSize() * 2.5 : brushSize();
     if (b.decimate != null) b.decimate = 2;
     if (draw.tool === 'spray') { b.density = 30; b.dotWidth = Math.max(1, brushSize() / 6); }
-    canvas.freeDrawingBrush = b;
-    canvas.isDrawingMode = true;
+    canvas.freeDrawingBrush = b; canvas.isDrawingMode = true;
   }
-  function startDraw() {
-    if (crop) endCrop(false);
-    canvas.discardActiveObject();
-    draw.on = true; applyBrush();
-    canvas.selection = draw.tool !== 'eraser';
-    canvas.skipTargetFind = draw.tool === 'eraser'; // eraser finds lines itself, never selects
-    canvas.defaultCursor = draw.tool === 'eraser' ? 'cell' : 'default';
-    $('#ed-hint').hidden = true;
-    refreshCtx();
-  }
-  function stopDraw() {
-    if (!draw.on) return;
-    draw.on = false; canvas.isDrawingMode = false; canvas.selection = true; canvas.skipTargetFind = false; canvas.defaultCursor = 'default';
-    updateHint(); refreshCtx();
-  }
+  function startDraw() { canvas.discardActiveObject(); applyBrush(); canvas.selection = false; updateHint(); }
+  function stopDraw() { canvas.isDrawingMode = false; canvas.selection = true; canvas.skipTargetFind = false; canvas.defaultCursor = 'default'; updateHint(); }
   canvas.on('path:created', function (e) {
-    e.path.set({ name: draw.tool === 'marker' ? 'Маркер' : draw.tool === 'spray' ? 'Шүршигч' : 'Зураас', perPixelTargetFind: true });
-    commit(); refreshLayers();
+    e.path.set({ name: draw.tool === 'marker' ? 'Маркер' : 'Зураас', perPixelTargetFind: true });
+    commit(); scheduleUI();
   });
-  canvas.on('object:added', function (e) {
-    // spray brush adds a group — give it a name too
-    if (draw.on && e.target && e.target.type === 'group' && !e.target.name) e.target.set({ name: 'Шүршигч' });
-  });
-  // eraser: drag over drawn lines to delete them
   var erasing = false;
-  canvas.on('mouse:down', function (o) { if (draw.on && draw.tool === 'eraser') { erasing = true; eraseAt(o.e); } });
+  canvas.on('mouse:down', function (o) { if (tool === 'draw' && draw.tool === 'eraser') { erasing = true; eraseAt(o.e); } });
   canvas.on('mouse:move', function (o) { if (erasing) eraseAt(o.e); });
   canvas.on('mouse:up', function () { erasing = false; });
   function eraseAt(e) {
     canvas.skipTargetFind = false;
     var t = canvas.findTarget(e, true);
     canvas.skipTargetFind = true;
-    if (t && t !== page && (t.isType('path') || (t.type === 'group' && /Шүршигч/.test(t.name || '')))) { canvas.remove(t); canvas.requestRenderAll(); }
+    if (t && !t.isFrame && (t.isType('path') || (t.type === 'group' && !t.name))) { canvas.remove(t); canvas.requestRenderAll(); }
   }
 
-  // ---------- templates ----------
+  // ---------- templates (each one fills an empty frame or becomes a new one) ----------
 
   var TEMPLATES = [
     { id: 'sale', name: 'Хямдралын пост', w: 1080, h: 1350, bg: '#0b0b14', sw: ['#0b0b14', '#816dfb', '#e7e3fd'] },
@@ -809,37 +986,39 @@
     { id: 'yt', name: 'YouTube thumbnail', w: 1280, h: 720, bg: '#0b0b14', sw: ['#0b0b14', '#ffffff', '#ff4fd8'] },
     { id: 'card', name: 'Нэрийн хуудас', w: 1050, h: 600, bg: '#16161f', sw: ['#16161f', '#e7e3fd', '#816dfb'] }
   ];
-  function T(text, o) {
-    var pair = currentPair(), f = o.body ? pair.body : pair.heading;
-    var t = new fabric.Textbox(text, {
-      fontFamily: stack(f), fontWeight: o.weight || (o.body ? 400 : 700), fontSize: o.size, fill: o.color || '#ffffff',
-      width: o.width || W * 0.84, textAlign: o.align || 'center', lineHeight: o.lh || 1.1, charSpacing: o.cs || 0, name: o.name
-    });
-    t.set({ left: o.left != null ? o.left : (W - t.width) / 2, top: o.top });
-    if (o.stroke) t.set({ stroke: o.stroke, strokeWidth: o.strokeWidth || 4, paintFirst: 'stroke' });
-    ensureFont(f).then(function () { refreshText(t); });
-    canvas.add(t); return t;
-  }
-  function R(o) { var r = new fabric.Rect(o); canvas.add(r); return r; }
+  var SIZES = [
+    ['Instagram пост', 1080, 1350], ['Квадрат пост', 1080, 1080], ['Story / Reels', 1080, 1920], ['Facebook пост', 1200, 630],
+    ['YouTube thumbnail', 1280, 720], ['Танилцуулга 16:9', 1920, 1080], ['A4 постер', 1240, 1754], ['Нэрийн хуудас', 1050, 600]
+  ];
   function useTemplate(id) {
     var tp = TEMPLATES.filter(function (x) { return x.id === id; })[0]; if (!tp) return;
-    if (userObjects().length && !confirm('Одоогийн дизайныг загвараар солих уу?')) return;
-    restoring = true;
-    canvas.discardActiveObject();
-    userObjects().forEach(function (o) { canvas.remove(o); });
-    pageTransparent = false; page.set('fill', tp.bg);
-    W = tp.w; H = tp.h; page.set({ width: W, height: H }); page.setCoords();
+    var f = page && !childrenOf(page).length ? page : addFrame(tp.w, tp.h);
+    f.set({ width: tp.w, height: tp.h, fill: tp.bg, name: tp.name }); f.gTransparent = false; f.setCoords(); setCurrent(f);
+    var X = f.left, Y = f.top, pair = currentPair(), made = [];
+    function T(text, o) {
+      var fn = o.body ? pair.body : pair.heading;
+      var t = new fabric.Textbox(text, {
+        fontFamily: stack(fn), fontWeight: o.weight || (o.body ? 400 : 700), fontSize: o.size, fill: o.color || '#ffffff',
+        width: o.width || tp.w * 0.84, textAlign: o.align || 'center', lineHeight: o.lh || 1.1, charSpacing: o.cs || 0
+      });
+      t.set({ left: X + (o.left != null ? o.left : (tp.w - t.width) / 2), top: Y + o.top, name: 'Текст' });
+      if (o.stroke) t.set({ stroke: o.stroke, strokeWidth: o.strokeWidth || 4, paintFirst: 'stroke' });
+      ensureFont(fn).then(function () { refreshText(t); });
+      made.push(t);
+    }
+    function R(o, name) { var r = new fabric.Rect(o); r.set({ left: X + o.left, top: Y + o.top, name: name }); made.push(r); }
     if (id === 'sale') {
       T('ХЯМДРАЛ', { top: 150, size: 96, color: '#e7e3fd', cs: 300 });
       T('−30%', { top: 330, size: 330, color: '#816dfb', lh: 1 });
       T('Зөвхөн энэ долоо хоногт бүх бүтээгдэхүүнд', { top: 760, size: 44, color: '#a6a8b8', body: true, width: 760 });
-      R({ left: 290, top: 1010, width: 500, height: 120, rx: 60, ry: 60, fill: '#816dfb', name: 'Товч' });
+      R({ left: 290, top: 1010, width: 500, height: 120, rx: 60, ry: 60, fill: '#816dfb' }, 'Товч');
       T('Одоо захиалах', { top: 1042, size: 42, color: '#ffffff', body: true, weight: 700, width: 500, left: 290 });
     } else if (id === 'event') {
-      var c = new fabric.Circle({ left: 560, top: -220, radius: 420, fill: '#816dfb', name: 'Чимэглэл' }); canvas.add(c);
+      // centre stays inside the frame, so the circle belongs to it
+      made.push(new fabric.Circle({ left: X + 560, top: Y - 120, radius: 420, fill: '#816dfb', name: 'Чимэглэл' }));
       T('DEMO DAY · 2026', { top: 560, size: 38, color: '#34229e', cs: 250, align: 'left', left: 90 });
       T('Арга хэмжээний нэрээ энд бичнэ', { top: 640, size: 108, color: '#16161f', align: 'left', left: 90, width: 900 });
-      R({ left: 90, top: 1080, width: 900, height: 3, fill: '#16161f', name: 'Шугам' });
+      R({ left: 90, top: 1080, width: 900, height: 3, fill: '#16161f' }, 'Шугам');
       T('10.15 · 18:00  —  Улаанбаатар, Galaxy Tower', { top: 1120, size: 38, color: '#16161f', body: true, align: 'left', left: 90, width: 900 });
     } else if (id === 'quote') {
       T('“', { top: 70, size: 360, color: '#816dfb', lh: 1 });
@@ -847,588 +1026,623 @@
       T('— Стив Жобс', { top: 800, size: 36, color: '#a497ff', body: true });
     } else if (id === 'story') {
       T('ШИНЭ', { top: 180, size: 64, color: '#ffffff', cs: 400 });
-      R({ left: 140, top: 360, width: 800, height: 800, rx: 40, ry: 40, fill: 'rgba(255,255,255,0.18)', name: 'Зургийн байр' });
+      R({ left: 140, top: 360, width: 800, height: 800, rx: 40, ry: 40, fill: 'rgba(255,255,255,0.18)' }, 'Зургийн байр');
       T('Бүтээгдэхүүний зургаа энд чирж тавина', { top: 730, size: 38, color: '#ffffff', body: true, width: 640 });
       T('Бүтээгдэхүүний нэр', { top: 1280, size: 104, color: '#ffffff', width: 900 });
-      R({ left: 330, top: 1560, width: 420, height: 130, rx: 65, ry: 65, fill: '#ffffff', name: 'Үнийн шошго' });
+      R({ left: 330, top: 1560, width: 420, height: 130, rx: 65, ry: 65, fill: '#ffffff' }, 'Үнийн шошго');
       T('49,900₮', { top: 1590, size: 64, color: '#0b0b14', width: 420, left: 330 });
     } else if (id === 'yt') {
-      R({ left: 0, top: 560, width: 1280, height: 160, fill: '#ff4fd8', name: 'Тууз' });
+      R({ left: 0, top: 560, width: 1280, height: 160, fill: '#ff4fd8' }, 'Тууз');
       T('ГАРЧИГ ЭНД', { top: 150, size: 170, color: '#ffffff', stroke: '#000000', strokeWidth: 10, width: 1180, lh: 1 });
       T('Видеоны дэд гарчиг', { top: 600, size: 64, color: '#0b0b14', weight: 700, width: 1180 });
     } else if (id === 'card') {
       T('Нэр Овог', { top: 150, size: 72, color: '#e7e3fd', align: 'left', left: 90, width: 800 });
       T('График дизайнер', { top: 250, size: 34, color: '#816dfb', body: true, align: 'left', left: 90, width: 800 });
-      R({ left: 90, top: 340, width: 120, height: 4, fill: '#816dfb', name: 'Шугам' });
+      R({ left: 90, top: 340, width: 120, height: 4, fill: '#816dfb' }, 'Шугам');
       T('+976 8000 0000\nhello@graphican.online\ngraphican.online', { top: 380, size: 30, color: '#a6a8b8', body: true, align: 'left', left: 90, width: 800, lh: 1.5 });
     }
-    restoring = false;
-    fit(); canvas.requestRenderAll(); commit(); refreshAll();
-    toast('«' + tp.name + '» загвар — текстүүд дээр давхар дарж засна');
+    restoring = true; made.forEach(function (o) { canvas.add(o); }); restoring = false;
+    fitFrame(f); selectFrame(f); commit(); refreshUI();
+    toast('«' + tp.name + '» — текстүүд дээр давхар дарж засна');
   }
 
-  // ---------- shortcuts help ----------
+  // ---------- left panel ----------
 
-  $('#ed-help').addEventListener('click', function (e) {
-    var ex = $('#ed-help-pop'); if (ex) { ex.remove(); return; }
-    var p = document.createElement('div'); p.className = 'pop pop-r help-pop'; p.id = 'ed-help-pop';
-    p.innerHTML = '<p class="pop-t">Товчлолууд</p>' + [
-      ['Ctrl + Z / Ctrl + Shift + Z', 'Буцаах / дахин хийх'], ['Ctrl + C / V / D', 'Хуулах / буулгах / хувилах'], ['Delete', 'Устгах'],
-      ['Ctrl + G / Ctrl + Shift + G', 'Бүлэглэх / задлах'], ['Сум (Shift)', '1px (10px) зөөх'], ['Enter / давхар дарах', 'Текст засах'],
-      ['Space + чирэх', 'Хуудсыг гүйлгэх'], ['Ctrl + хулганы дугуй', 'Томруулах / жижигрүүлэх'], ['Ctrl + 0', 'Дэлгэцэнд багтаах'], ['Esc', 'Сонголт / горимоос гарах']
-    ].map(function (r) { return '<div class="kb"><kbd>' + r[0] + '</kbd><span>' + r[1] + '</span></div>'; }).join('');
-    this.parentNode.style.position = 'relative'; this.parentNode.appendChild(p);
-    e.stopPropagation();
+  var lpTab = 'layers', dragLy = null;
+  $('.lp-tabs').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-tab]'); if (!b) return;
+    lpTab = b.dataset.tab;
+    $$('.lp-tabs button').forEach(function (x) { x.classList.toggle('on', x === b); });
+    renderLeft();
   });
-  document.addEventListener('mousedown', function (e) { var p = $('#ed-help-pop'); if (p && !p.contains(e.target) && e.target.id !== 'ed-help') p.remove(); });
-
-  // ---------- panels ----------
-
-  var RAIL = [
-    { id: 'tpl', label: 'Загвар', icon: 'tpl' },
-    { id: 'size', label: 'Хэмжээ', icon: 'size' },
-    { id: 'text', label: 'Текст', icon: 'text' },
-    { id: 'image', label: 'Зураг', icon: 'image' },
-    { id: 'shape', label: 'Хэлбэр', icon: 'shape' },
-    { id: 'draw', label: 'Зурах', icon: 'pen' },
-    { id: 'color', label: 'Өнгө', icon: 'color' },
-    { id: 'layers', label: 'Давхарга', icon: 'layers' }
-  ];
-  var activePanel = null;
-  $('#ed-rail').innerHTML = RAIL.map(function (r) {
-    return '<button type="button" data-rail="' + r.id + '" aria-label="' + r.label + '">' + icon(r.icon) + '<span>' + r.label + '</span></button>';
-  }).join('');
-  $('#ed-rail').addEventListener('click', function (e) {
-    var b = e.target.closest('[data-rail]'); if (!b) return;
-    var id = b.getAttribute('data-rail');
-    openPanel(activePanel === id && window.innerWidth <= 820 ? null : id);
-  });
-  function openPanel(id) {
-    if (activePanel === 'draw' && id !== 'draw') stopDraw();
-    activePanel = id;
-    if (id === 'draw') startDraw();
-    $$('#ed-rail [data-rail]').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-rail') === id); });
-    $('#ed-panel').classList.toggle('closed', !id);
-    if (id) renderPanel(id);
-    setTimeout(function () { resizeCanvas(); if (window.innerWidth <= 820) fit(); canvas.requestRenderAll(); }, 0);
-  }
-
-  function renderPanel(id) {
-    var el = $('#ed-panel'), h = '';
-    if (id === 'tpl') {
-      h = '<div class="pn-h"><h2>Загвар</h2></div><p class="pn-note" style="margin:-4px 0 12px">Бэлэн загвараас эхлээд текст, өнгө, зургийг нь сольж өөрийнхөө болгоно.</p>' +
-        '<div class="tpl-grid">' + TEMPLATES.map(function (t) {
-          var k = 118 / Math.max(t.w, t.h);
-          return '<button type="button" class="tpl" data-tpl="' + t.id + '"><span class="tpl-prev" style="width:' + Math.round(t.w * k) + 'px;height:' + Math.round(t.h * k) + 'px;background:' + t.sw[0] + '">' +
-            '<i style="background:' + t.sw[1] + '"></i><i style="background:' + t.sw[2] + '"></i></span><b>' + esc(t.name) + '</b><span>' + t.w + ' × ' + t.h + '</span></button>';
-        }).join('') + '</div>';
-    }
-    if (id === 'draw') {
-      var tools = [['pen', 'Үзэг', 'pen'], ['marker', 'Маркер', 'marker'], ['spray', 'Шүршигч', 'spray'], ['eraser', 'Баллуур', 'eraser']];
-      var colors = [draw.color].concat(DG.brand, BASE_PALETTE).filter(function (c, i, a) { return c && a.indexOf(c) === i; }).slice(0, 14);
-      h = '<div class="pn-h"><h2>Зурах</h2></div>' +
-        '<div class="dr-tools">' + tools.map(function (t) { return '<button type="button" class="dr-t' + (draw.tool === t[0] ? ' on' : '') + '" data-draw-tool="' + t[0] + '">' + icon(t[2]) + '<span>' + t[1] + '</span></button>'; }).join('') + '</div>' +
-        (draw.tool === 'eraser' ? '<p class="pn-note">Зурсан зураас дээгүүр чирэхэд арилна.</p>' :
-          '<p class="pn-sub">Өнгө</p><div class="sw-row"><span class="sw-pick" title="Өөр өнгө"><input type="color" id="dr-pick" value="' + draw.color + '" aria-label="Өнгө сонгох"></span>' +
-          colors.map(function (c) { return '<button type="button" class="sw' + (c === draw.color ? ' on' : '') + '" data-draw-color="' + c + '" style="background:' + c + '" aria-label="' + c + '"></button>'; }).join('') + '</div>' +
-          '<p class="pn-sub">Зузаан <b id="dr-size-v" style="color:var(--text);font-weight:500">' + brushSize() + 'px</b></p>' +
-          '<input type="range" id="dr-size" min="1" max="' + Math.round(Math.min(W, H) * 0.08) + '" value="' + brushSize() + '" style="width:100%;accent-color:var(--v3)">') +
-        '<button type="button" class="pn-btn solid" id="dr-done" style="margin-top:18px">' + icon('check') + 'Зурж дуусгах</button>' +
-        '<p class="pn-note">Зурсан зураас бүр тусдаа давхарга болно — дараа нь сонгоод зөөж, өнгийг нь сольж болно.</p>';
-    }
-    if (id === 'size') {
-      h = '<div class="pn-h"><h2>Хэмжээ</h2><span class="ctx-lbl">' + W + ' × ' + H + '</span></div>' +
-        '<div class="sz-grid">' + SIZES.map(function (s) {
-          var k = 34 / Math.max(s.w, s.h);
-          return '<button type="button" class="sz-b' + (s.w === W && s.h === H ? ' on' : '') + '" data-size="' + s.id + '"><span class="sz-shape" style="width:' + Math.round(s.w * k) + 'px;height:' + Math.round(s.h * k) + 'px"></span><b>' + s.name + '</b><span>' + s.w + ' × ' + s.h + '</span></button>';
-        }).join('') + '</div>' +
-        '<p class="pn-sub">Өөрийн хэмжээ (px)</p>' +
-        '<div class="sz-custom"><input class="fld" id="sz-w" type="number" min="50" max="6000" value="' + W + '" aria-label="Өргөн"><span>×</span><input class="fld" id="sz-h" type="number" min="50" max="6000" value="' + H + '" aria-label="Өндөр"></div>' +
-        '<button type="button" class="pn-btn" id="sz-apply" style="margin-top:8px">Хэмжээ өөрчлөх</button>' +
-        '<p class="pn-sub">Дизайн</p>' +
-        '<button type="button" class="pn-btn" id="sz-new">＋ Шинэ дизайн</button>' +
-        '<p class="pn-note">Дизайн тань энэ төхөөрөмж дээр автоматаар хадгалагдана. Дараа орж ирэхэд үргэлжилнэ.</p>';
-    }
-    if (id === 'text') {
-      h = '<div class="pn-h"><h2>Текст</h2></div>' +
-        '<button type="button" class="tx-preset h" data-text="h">Гарчиг нэмэх</button>' +
-        '<button type="button" class="tx-preset s" data-text="s">Дэд гарчиг нэмэх</button>' +
-        '<button type="button" class="tx-preset b" data-text="b">Энгийн текст нэмэх</button>' +
-        '<p class="pn-sub">Design guide-ийн фонтын хослол</p>' +
-        (DG.pairs.length ? DG.pairs.map(function (p, i) {
-          return '<button type="button" class="pair" data-pair="' + i + '"><b style="font-family:\'' + esc(fam(p.heading)) + '\'">' + esc(p.heading) + '</b><span style="font-family:\'' + esc(fam(p.body)) + '\'">' + esc(p.body) + ' — ' + esc(p.desc) + '</span><i>' + esc(p.group) + (FONTS[p.heading] && FONTS[p.heading].cyr ? ' · Кирилл ✓' : '') + '</i></button>';
-        }).join('') : '<p class="pn-note">Фонтын хослол ачаалж байна…</p>');
-    }
-    if (id === 'image') {
-      h = '<div class="pn-h"><h2>Зураг</h2></div>' +
-        '<button type="button" class="pn-btn solid" id="up-btn">Зураг оруулах</button>' +
-        '<div class="drop-box" style="margin-top:10px"><b>эсвэл зургаа хуудас руу чирж тавина</b>Ctrl+V-ээр хуулсан зургаа буулгаж болно</div>' +
-        (recent.length ? '<p class="pn-sub">Оруулсан зургууд</p><div class="up-grid">' + recent.map(function (u, i) { return '<button type="button" data-recent="' + i + '" style="background-image:url(\'' + u + '\')" aria-label="Зураг нэмэх"></button>'; }).join('') + '</div>' : '') +
-        '<p class="pn-sub">Зургаа засах</p>' +
-        '<p class="pn-note">Зураг дээр дарахад дээд талд <b>Тайрах</b>, <b>Хэлбэр</b> (тойрог, бөөрөнхий…), <b>Засах</b> (шүүлтүүр, гэрэл, өнгө), <b>AI дэвсгэр арилгах</b>, <b>Эффект</b> гарна.</p>';
-    }
-    if (id === 'shape') {
-      var sv = {
-        rect: '<rect x="3" y="3" width="18" height="18"/>', rounded: '<rect x="3" y="3" width="18" height="18" rx="5"/>',
-        circle: '<circle cx="12" cy="12" r="10"/>', triangle: '<path d="M12 3 22 21H2z"/>',
-        line: '<rect x="2" y="11" width="20" height="2.4" rx="1.2"/>', star: '<path d="m12 2 2.9 6.6 7.1.6-5.4 4.7 1.6 7L12 17.3 5.8 21l1.6-7L2 9.2l7.1-.6z"/>'
-      };
-      h = '<div class="pn-h"><h2>Хэлбэр</h2></div><div class="sh-grid">' + Object.keys(sv).map(function (k) {
-        return '<button type="button" data-shape="' + k + '" aria-label="' + (NAMES[k] || k) + '"><svg viewBox="0 0 24 24">' + sv[k] + '</svg></button>';
-      }).join('') + '</div><p class="pn-note">Хэлбэр сонгоод өнгийг нь дээд талын самбараас эсвэл «Өнгө» хэсгээс солино.</p>';
-    }
-    if (id === 'color') {
-      var o = active(), target = o && kindOf(o) !== 'image' ? (kindOf(o) === 'text' ? 'текстийн өнгө' : kindOf(o) === 'multi' ? 'сонгосон зүйлс' : 'хэлбэрийн өнгө') : 'хуудасны дэвсгэр';
-      var sw = function (c) { return '<button type="button" class="sw" data-color="' + c + '" style="background:' + c + '" aria-label="' + c + '"></button>'; };
-      h = '<div class="pn-h"><h2>Өнгө</h2></div>' +
-        '<p class="target-note">Дарвал: <b>' + target + '</b> өөрчлөгдөнө</p>' +
-        '<div class="sw-row">' + '<span class="sw-pick" title="Өөр өнгө сонгох"><input type="color" id="col-pick" value="#816dfb" aria-label="Өнгө сонгох"></span>' +
-        BASE_PALETTE.map(sw).join('') + (target === 'хуудасны дэвсгэр' ? '<button type="button" class="sw clear" data-color="transparent" title="Тунгалаг дэвсгэр" aria-label="Тунгалаг"></button>' : '') + '</div>' +
-        (prefs.palette && prefs.palette.colors ? '<p class="pn-sub">Design guide-ээс сонгосон</p><div class="pal"><div class="pal-name"><span>' + esc(prefs.palette.name || '') + '</span></div><div class="sw-row">' + prefs.palette.colors.map(sw).join('') + '</div></div>' : '') +
-        (DG.brand.length ? '<p class="pn-sub">Graphican брэнд</p><div class="sw-row">' + DG.brand.map(sw).join('') + '</div>' : '') +
-        (DG.palettes.length ? '<p class="pn-sub">Өнгөний палитрууд</p>' + DG.palettes.map(function (p) {
-          return '<div class="pal"><div class="pal-name"><span>' + esc(p.name) + '</span></div><div class="sw-row">' + p.colors.map(sw).join('') + '</div></div>';
-        }).join('') : '');
-    }
-    if (id === 'layers') {
-      h = '<div class="pn-h"><h2>Давхарга</h2><span class="ctx-lbl">чирж дараалал солино</span></div><div class="ly-list" id="ly-list"></div>';
-    }
-    el.innerHTML = h;
-    if (id === 'layers') refreshLayers();
-    if (id === 'text') DG.pairs.forEach(function (p) { ensureFont(p.heading); ensureFont(p.body); });
-  }
-
-  $('#ed-panel').addEventListener('click', function (e) {
-    var t = e.target.closest('button'); if (!t) return;
-    if (t.dataset.size) { var s = SIZES.filter(function (x) { return x.id === t.dataset.size; })[0]; setSize(s.w, s.h); }
-    else if (t.id === 'sz-apply') setSize(+$('#sz-w').value || W, +$('#sz-h').value || H);
-    else if (t.id === 'sz-new') newDesign();
-    else if (t.dataset.text) addText(t.dataset.text);
-    else if (t.dataset.pair) addPair(DG.pairs[+t.dataset.pair]);
-    else if (t.id === 'up-btn') $('#ed-file').click();
-    else if (t.dataset.recent) addImageUrl(recent[+t.dataset.recent]);
-    else if (t.dataset.shape) addShape(t.dataset.shape);
-    else if (t.dataset.color) applyColor(t.dataset.color);
-    else if (t.dataset.tpl) useTemplate(t.dataset.tpl);
-    else if (t.dataset.drawTool) { draw.tool = t.dataset.drawTool; startDraw(); renderPanel('draw'); }
-    else if (t.dataset.drawColor) { draw.color = t.dataset.drawColor; applyBrush(); renderPanel('draw'); }
-    else if (t.id === 'dr-done') openPanel(window.innerWidth > 820 ? 'layers' : null);
-  });
-  $('#ed-panel').addEventListener('input', function (e) {
-    if (e.target.id === 'col-pick') applyColor(e.target.value, true);
-    if (e.target.id === 'dr-pick') { draw.color = e.target.value; applyBrush(); }
-    if (e.target.id === 'dr-size') { draw.size = +e.target.value; $('#dr-size-v').textContent = draw.size + 'px'; applyBrush(); }
-  });
-  $('#ed-panel').addEventListener('change', function (e) { if (e.target.id === 'col-pick') commit(); if (e.target.id === 'dr-pick') renderPanel('draw'); });
-
-  function applyColor(c, live) {
-    var o = active(), k = kindOf(o);
-    if (!o || k === 'image') { setPageColor(c); return; }
-    if (c === 'transparent') return;
-    eachSel(function (x) {
-      if (x.isType('line')) x.set('stroke', c);
-      else if (!x.isType('image')) x.set('fill', c);
-    });
-    canvas.requestRenderAll();
-    if (!live) commit();
-    refreshCtx();
-  }
-
-  // ---------- layers panel ----------
-
-  function layerIcon(o) {
+  function objIcon(o) {
     var k = kindOf(o);
-    if (k === 'image') return '<span class="ly-ic" style="background-image:url(\'' + (o.getSrc ? o.getSrc() : '') + '\')"></span>';
-    if (k === 'text') return '<span class="ly-ic">T</span>';
-    var fill = typeof o.fill === 'string' ? o.fill : (o.stroke || '#888');
-    return '<span class="ly-ic"><i style="width:14px;height:14px;border-radius:' + (o.isType('circle') ? '50%' : '3px') + ';background:' + esc(fill) + ';display:block"></i></span>';
+    if (k === 'text') return icon('textI');
+    if (k === 'image') return icon('image');
+    if (k === 'group') return icon('group');
+    if (k === 'line') return icon(o.isType('path') ? 'pathI' : 'line');
+    return icon(o.isType('ellipse') || o.isType('circle') ? 'ellipse' : o.isType('triangle') ? 'triangle' : o.isType('polygon') ? 'star' : 'shapeI');
   }
-  function layerName(o) {
+  function objName(o) {
     if (kindOf(o) === 'text') return (o.text || '').replace(/\s+/g, ' ').slice(0, 40) || 'Текст';
     return o.name || NAMES[o.type] || 'Зүйл';
   }
-  var dragIdx = null;
-  function refreshLayers() {
-    var list = $('#ly-list'); if (!list) return;
-    var objs = userObjects().slice().reverse(), sel = [];
-    eachSel(function (o) { sel.push(o); });
-    if (!objs.length) { list.innerHTML = '<p class="ly-empty">Одоохондоо хоосон байна. Текст, зураг, хэлбэр нэмээрэй.</p>'; return; }
-    list.innerHTML = objs.map(function (o, i) {
-      return '<div class="ly' + (sel.indexOf(o) >= 0 ? ' on' : '') + (o.visible === false ? ' hidden-obj' : '') + '" draggable="true" data-ly="' + i + '">' +
-        layerIcon(o) + '<span class="ly-name">' + esc(layerName(o)) + '</span>' +
-        '<button type="button" class="ib" data-ly-vis="' + i + '" title="' + (o.visible === false ? 'Харуулах' : 'Нуух') + '">' + icon(o.visible === false ? 'eyeOff' : 'eye') + '</button>' +
-        '<button type="button" class="ib' + (o.locked ? ' on' : '') + '" data-ly-lock="' + i + '" title="' + (o.locked ? 'Түгжээ тайлах' : 'Түгжих') + '">' + icon(o.locked ? 'lock' : 'unlock') + '</button>' +
-      '</div>';
-    }).join('');
-  }
-  $('#ed-panel').addEventListener('click', function (e) {
-    var row = e.target.closest('[data-ly]'); if (!row) return;
-    var objs = userObjects().slice().reverse();
-    var vb = e.target.closest('[data-ly-vis]'), lb = e.target.closest('[data-ly-lock]');
-    var o = objs[+row.getAttribute('data-ly')];
-    if (vb) { o.visible = o.visible === false; if (!o.visible) canvas.discardActiveObject(); canvas.requestRenderAll(); commit(); refreshLayers(); return; }
-    if (lb) { lockObj(o, !o.locked); canvas.requestRenderAll(); commit(); refreshLayers(); refreshCtx(); return; }
-    if (o.visible === false) return;
-    canvas.setActiveObject(o); canvas.requestRenderAll();
-  });
-  $('#ed-panel').addEventListener('dragstart', function (e) { var r = e.target.closest('[data-ly]'); if (!r) return; dragIdx = +r.getAttribute('data-ly'); r.classList.add('drag'); e.dataTransfer.effectAllowed = 'move'; });
-  $('#ed-panel').addEventListener('dragover', function (e) { var r = e.target.closest('[data-ly]'); if (!r || dragIdx === null) return; e.preventDefault(); $$('.ly.over').forEach(function (x) { x.classList.remove('over'); }); r.classList.add('over'); });
-  $('#ed-panel').addEventListener('dragend', function () { dragIdx = null; $$('.ly').forEach(function (x) { x.classList.remove('drag', 'over'); }); });
-  $('#ed-panel').addEventListener('drop', function (e) {
-    var r = e.target.closest('[data-ly]'); if (!r || dragIdx === null) return;
-    e.preventDefault();
-    var objs = userObjects().slice().reverse(), from = objs[dragIdx], toI = +r.getAttribute('data-ly');
-    var n = canvas.getObjects().length;
-    canvas.moveTo(from, n - 1 - toI); // list is top-first; canvas index 0 = page
-    dragIdx = null; canvas.requestRenderAll(); commit(); refreshLayers();
-  });
-
-  // ---------- context toolbar ----------
-
-  var ctx = $('#ed-ctx');
-  function fontOptions(cur) {
-    var names = Object.keys(FONTS).sort(function (a, b) { return (FONTS[b].cyr ? 1 : 0) - (FONTS[a].cyr ? 1 : 0) || a.localeCompare(b); });
-    var hit = false;
-    var opts = names.map(function (n) {
-      var sel = fam(n) === primary(cur) && !hit; if (sel) hit = true;
-      return '<option value="' + esc(n) + '"' + (sel ? ' selected' : '') + '>' + esc(n) + (FONTS[n].cyr ? '  · Кирилл' : '') + '</option>';
-    }).join('');
-    if (!hit) opts = '<option selected>' + esc(primary(cur)) + '</option>' + opts;
-    return opts;
-  }
-  function hex(c) { return typeof c === 'string' && /^#[0-9a-f]{6}$/i.test(c) ? c : '#816dfb'; }
-
-  function refreshCtx() {
-    var o = active(), k = kindOf(o);
-    if (crop) {
-      ctx.innerHTML = '<span class="ctx-lbl">' + icon('crop') + '</span><span class="ctx-lbl">Хүрээг чирж, булангаар нь тохируулна</span><span class="sep"></span>' +
-        '<button type="button" class="tb ok" data-c="crop-ok">' + icon('check') + 'Тайрах</button><button type="button" class="tb" data-c="crop-cancel">Болих</button>';
-      ctx.hidden = false; return;
+  function swRow(list) { return '<div class="sw-row">' + list.map(function (c) { return '<button type="button" class="sw" data-color="' + esc(c) + '" style="background:' + esc(c) + '" title="' + esc(c) + '"></button>'; }).join('') + '</div>'; }
+  function renderLeft() {
+    var el = $('#lp-body'), h = '';
+    if (lpTab === 'layers') {
+      var sel = []; eachSel(function (o) { sel.push(o); });
+      var all = canvas.getObjects(), row = function (o, d) {
+        var idx = all.indexOf(o);
+        return '<div class="ly' + (o.isFrame ? ' frame' : '') + (sel.indexOf(o) >= 0 ? ' on' : '') + (o.visible === false ? ' hid' : '') + '" style="--d:' + d + '" data-ly="' + idx + '"' + (o.isFrame ? '' : ' draggable="true"') + '>' +
+          '<span class="li">' + (o.isFrame ? icon('frameI') : objIcon(o)) + '</span><span class="ln">' + esc(o.isFrame ? o.name : objName(o)) + '</span>' +
+          '<span class="la"><button type="button" class="ib' + (o.locked ? ' on' : '') + '" data-ly-lock="' + idx + '" title="Түгжих">' + icon(o.locked ? 'lock' : 'unlock') + '</button>' +
+          '<button type="button" class="ib' + (o.visible === false ? ' on' : '') + '" data-ly-vis="' + idx + '" title="Нуух / харуулах">' + icon(o.visible === false ? 'eyeOff' : 'eye') + '</button></span></div>';
+      };
+      frames().slice().reverse().forEach(function (f) {
+        h += row(f, 0);
+        childrenOf(f).reverse().forEach(function (o) { h += row(o, 1); });
+      });
+      userObjects().filter(function (o) { return !frameOf(o); }).reverse().forEach(function (o) { h += row(o, 0); });
+      if (!userObjects().length) h += '<p class="ly-empty">Frame хоосон байна. Доод самбараас текст, хэлбэр, зураг нэмэх эсвэл «Загвар» табаас эхлээрэй.</p>';
+      h += '<button type="button" class="btn full" data-a="add-frame" style="margin-top:10px">' + icon('plus') + 'Шинэ frame</button>';
     }
-    if (draw.on) {
-      ctx.innerHTML = '<span class="ctx-lbl">' + icon(draw.tool === 'eraser' ? 'eraser' : 'pen') + '</span><span class="ctx-lbl">' + (draw.tool === 'eraser' ? 'Зураас дээгүүр чирж арилгана' : 'Хуудас дээр чирж зурна') + '</span><span class="sep"></span>' +
-        '<button type="button" class="tb ok" data-c="draw-done">' + icon('check') + 'Дуусгах</button>';
-      ctx.hidden = false; return;
-    }
-    if (!o) { ctx.hidden = true; ctx.innerHTML = ''; return; }
-    var h = '';
-    if (k === 'text') {
-      h += '<select class="fld font-sel" data-c="font" title="Фонт">' + fontOptions(o.fontFamily) + '</select>' +
-        '<button type="button" class="ib" data-c="size-" title="Жижигрүүлэх">' + icon('minus') + '</button>' +
-        '<input class="fld num" data-c="size" type="number" min="4" max="1000" value="' + Math.round(o.fontSize * (o.scaleY || 1)) + '" title="Үсгийн хэмжээ">' +
-        '<button type="button" class="ib" data-c="size+" title="Томруулах">' + icon('plus') + '</button>' +
-        '<span class="sep"></span>' +
-        '<label class="ctx-sw text" title="Текстийн өнгө"><i style="background:' + hex(o.fill) + '"></i><input type="color" data-c="fill" value="' + hex(o.fill) + '"></label>' +
-        '<button type="button" class="ib' + (o.fontWeight >= 600 || o.fontWeight === 'bold' ? ' on' : '') + '" data-c="bold" title="Тод (Ctrl+B)">' + icon('bold') + '</button>' +
-        '<button type="button" class="ib' + (o.fontStyle === 'italic' ? ' on' : '') + '" data-c="italic" title="Налуу (Ctrl+I)">' + icon('italic') + '</button>' +
-        '<button type="button" class="ib' + (o.underline ? ' on' : '') + '" data-c="underline" title="Доогуур зураас (Ctrl+U)">' + icon('underline') + '</button>' +
-        '<button type="button" class="ib" data-c="talign" title="Зэрэгцүүлэлт">' + icon(o.textAlign === 'left' ? 'alignL' : o.textAlign === 'right' ? 'alignR' : 'alignC') + '</button>' +
-        '<button type="button" class="ib" data-c="caps" title="ТОМ / жижиг үсэг">' + icon('caps') + '</button>' +
-        '<div class="pop-wrap"><button type="button" class="ib" data-pop="spacing" title="Зай">' + icon('spacing') + '</button></div>' +
-        '<div class="pop-wrap"><button type="button" class="tb" data-pop="effects" title="Сүүдэр, хүрээ, дэвсгэр">' + icon('fx') + 'Эффект</button></div>';
-    } else if (k === 'image') {
-      h += '<div class="pop-wrap"><button type="button" class="tb" data-pop="adjust" title="Шүүлтүүр, гэрэл, өнгө">' + icon('adjust') + 'Засах</button></div>' +
-        '<button type="button" class="tb" data-c="crop" title="Тайрах">' + icon('crop') + 'Тайрах</button>' +
-        '<div class="pop-wrap"><button type="button" class="tb" data-pop="mask" title="Тойрог, бөөрөнхий хэлбэрт оруулах">' + icon('mask') + 'Хэлбэр</button></div>' +
-        '<button type="button" class="ib" data-c="rotate" title="90° эргүүлэх">' + icon('rotate') + '</button>' +
-        '<button type="button" class="ib" data-c="flipX" title="Хэвтээ толин тусгал">' + icon('flipH') + '</button>' +
-        '<button type="button" class="ib" data-c="flipY" title="Босоо толин тусгал">' + icon('flipV') + '</button>' +
-        '<span class="sep"></span>' +
-        '<button type="button" class="tb" data-c="rmbg" title="AI-аар арын дэвсгэрийг арилгах">' + icon('wand') + 'Дэвсгэр арилгах</button>' +
-        '<button type="button" class="tb" data-c="asbg" title="Хуудсыг бүтэн дүүргэх">' + icon('bg') + 'Дэвсгэр болгох</button>' +
-        '<div class="pop-wrap"><button type="button" class="tb" data-pop="effects" title="Сүүдэр">' + icon('fx') + 'Эффект</button></div>' +
-        '<button type="button" class="tb" data-c="tool-up" title="Design tools дээр AI-аар 2–4 дахин томруулах">✦ Томруулах</button>';
-    } else if (k === 'group') {
-      h += '<span class="ctx-lbl">Бүлэг · ' + o.getObjects().length + ' зүйл</span>' +
-        '<button type="button" class="tb" data-c="ungroup" title="Задлах (Ctrl+Shift+G)">' + icon('group') + 'Задлах</button>' +
-        '<div class="pop-wrap"><button type="button" class="tb" data-pop="effects">' + icon('fx') + 'Эффект</button></div>';
-    } else if (k === 'shape' || k === 'line') {
-      var col = k === 'line' ? o.stroke : o.fill;
-      h += '<label class="ctx-sw" title="Өнгө"><i style="background:' + hex(col) + '"></i><input type="color" data-c="' + (k === 'line' ? 'stroke' : 'fill') + '" value="' + hex(col) + '"></label>';
-      if (k === 'shape') h += '<span class="ctx-lbl">Хүрээ</span><label class="ctx-sw" title="Хүрээний өнгө"><i style="background:' + hex(o.stroke || '#ffffff') + ';box-shadow:inset 0 0 0 5px var(--panel)"></i><input type="color" data-c="stroke" value="' + hex(o.stroke || '#ffffff') + '"></label>' +
-        '<input class="fld num" data-c="strokeWidth" type="number" min="0" max="200" value="' + Math.round(o.strokeWidth && o.stroke ? o.strokeWidth : 0) + '" title="Хүрээний зузаан">';
-      else h += '<input class="fld num" data-c="strokeWidth" type="number" min="1" max="200" value="' + Math.round(o.strokeWidth) + '" title="Зузаан">';
-      if (o.isType('rect')) h += '<span class="ctx-lbl">Булан</span><input class="fld num" data-c="radius" type="number" min="0" max="2000" value="' + Math.round(o.rx || 0) + '" title="Булангийн радиус">';
-      h += '<div class="pop-wrap"><button type="button" class="tb" data-pop="effects" title="Сүүдэр">' + icon('fx') + 'Эффект</button></div>';
-    } else if (k === 'multi') {
-      h += '<span class="ctx-lbl">' + o.getObjects().length + ' зүйл сонгосон</span>' +
-        '<button type="button" class="tb" data-c="group" title="Бүлэглэх (Ctrl+G)">' + icon('group') + 'Бүлэглэх</button>';
-    }
-    h += '<span class="sep"></span>' +
-      '<div class="pop-wrap"><button type="button" class="ib" data-pop="opacity" title="Тунгалаг байдал">' + icon('opacity') + '</button></div>' +
-      '<div class="pop-wrap"><button type="button" class="ib" data-pop="align" title="Байрлал, зэрэгцүүлэлт">' + icon('align') + '</button></div>' +
-      '<button type="button" class="ib" data-c="up" title="Урагш (Ctrl+])">' + icon('up') + '</button>' +
-      '<button type="button" class="ib" data-c="down" title="Хойш (Ctrl+[)">' + icon('down') + '</button>' +
-      '<button type="button" class="ib' + (o.locked ? ' on' : '') + '" data-c="lock" title="Түгжих">' + icon(o.locked ? 'lock' : 'unlock') + '</button>' +
-      '<button type="button" class="ib" data-c="dup" title="Хувилах (Ctrl+D)">' + icon('copy') + '</button>' +
-      '<button type="button" class="ib" data-c="del" title="Устгах (Delete)">' + icon('trash') + '</button>';
-    var wasHidden = ctx.hidden;
-    ctx.innerHTML = h; ctx.hidden = false;
-    if (wasHidden && canvas.getZoom() && !restoring) { /* keep view */ }
-    if (k === 'text') ensureFont(primary(o.fontFamily));
-    if (activePanel === 'color') renderPanel('color');
-  }
-
-  ctx.addEventListener('click', function (e) {
-    var b = e.target.closest('[data-c],[data-pop]'); if (!b) return;
-    var c = b.dataset.c;
-    if (c === 'crop-ok') { endCrop(true); return; }
-    if (c === 'crop-cancel') { endCrop(false); return; }
-    if (c === 'draw-done') { openPanel(window.innerWidth > 820 ? 'layers' : null); return; }
-    var o = active(); if (!o) return;
-    if (b.dataset.pop) { openCtxPop(b, b.dataset.pop); return; }
-    if (c === 'crop') { startCrop(); return; }
-    if (c === 'rmbg') { b.disabled = true; removeBackground(o).then(function () { refreshCtx(); }); return; }
-    if (c === 'rotate') { o.rotate(((o.angle || 0) + 90) % 360); o.setCoords(); canvas.requestRenderAll(); commit(); }
-    if (c === 'group') { groupSel(); return; }
-    if (c === 'ungroup') { ungroupSel(); return; }
-    if (c === 'size+' || c === 'size-') {
-      var cur = Math.round(o.fontSize * (o.scaleY || 1)), step = cur < 30 ? 2 : cur < 100 ? 4 : 10;
-      setFontSize(cur + (c === 'size+' ? step : -step));
-    }
-    if (c === 'bold') setProp('fontWeight', o.fontWeight >= 600 || o.fontWeight === 'bold' ? 400 : 700);
-    if (c === 'italic') setProp('fontStyle', o.fontStyle === 'italic' ? 'normal' : 'italic');
-    if (c === 'underline') setProp('underline', !o.underline);
-    if (c === 'talign') setProp('textAlign', { left: 'center', center: 'right', right: 'left', justify: 'left' }[o.textAlign] || 'center');
-    if (c === 'caps') eachSel(function (x) { if (x.text) { x.set('text', x.text === x.text.toUpperCase() ? x.text.toLowerCase() : x.text.toUpperCase()); x.initDimensions(); } }), canvas.requestRenderAll(), commit();
-    if (c === 'flipX') setProp('flipX', !o.flipX);
-    if (c === 'flipY') setProp('flipY', !o.flipY);
-    if (c === 'asbg') setAsBackground();
-    if (c === 'tool-bg') sendObject(o, 'bgremove');
-    if (c === 'tool-up') sendObject(o, 'upscale');
-    if (c === 'up') arrange('up');
-    if (c === 'down') arrange('down');
-    if (c === 'lock') { eachSel(function (x) { lockObj(x, !o.locked); }); canvas.requestRenderAll(); commit(); refreshLayers(); }
-    if (c === 'dup') duplicate();
-    if (c === 'del') removeSel();
-    refreshCtx();
-  });
-  ctx.addEventListener('input', function (e) {
-    var c = e.target.dataset.c, v = e.target.value; if (!c) return;
-    if (c === 'fill' || c === 'stroke') {
-      eachSel(function (x) { x.set(c, v); if (c === 'stroke' && x.isType && !x.isType('line') && !x.strokeWidth) x.set('strokeWidth', Math.max(2, W * 0.004)); });
-      var sw = e.target.previousElementSibling; if (sw) sw.style.background = v;
-      canvas.requestRenderAll();
-    }
-  });
-  ctx.addEventListener('change', function (e) {
-    var c = e.target.dataset.c, v = e.target.value; if (!c) return;
-    var o = active(); if (!o) return;
-    if (c === 'font') {
-      var family = fam(v);
-      ensureFont(v).then(function () { eachSel(function (x) { if (x.isType('textbox')) { x.set('fontFamily', stack(v)); refreshText(x); } }); commit(); });
-    }
-    if (c === 'size') setFontSize(+v);
-    if (c === 'fill' || c === 'stroke') commit();
-    if (c === 'strokeWidth') { eachSel(function (x) { x.set('strokeWidth', Math.max(0, +v)); if (!x.stroke && +v > 0) x.set('stroke', '#ffffff'); }); canvas.requestRenderAll(); commit(); }
-    if (c === 'radius') { eachSel(function (x) { if (x.isType('rect')) x.set({ rx: +v, ry: +v }); }); canvas.requestRenderAll(); commit(); }
-  });
-  function setFontSize(px) {
-    px = clamp(Math.round(px), 4, 1000);
-    eachSel(function (x) { if (x.isType('textbox')) { x.set({ fontSize: px / (x.scaleY || 1) }); x.initDimensions(); x.setCoords(); } });
-    canvas.requestRenderAll(); commit();
-  }
-
-  // small popovers anchored to the toolbar buttons
-  var openPop = null;
-  function closePop() { if (openPop) { openPop.remove(); openPop = null; } }
-  function openCtxPop(btn, kind) {
-    var again = openPop && openPop.dataset.kind === kind; closePop(); if (again) return;
-    var o = active(), h = '';
-    if (kind === 'opacity') h = row('Тунгалаг байдал', 'opacity', 0, 100, Math.round((o.opacity == null ? 1 : o.opacity) * 100), '%');
-    if (kind === 'spacing') h = row('Үсэг хоорондын зай', 'charSpacing', -200, 800, Math.round(o.charSpacing || 0), '') + row('Мөр хоорондын зай', 'lineHeight', 70, 300, Math.round((o.lineHeight || 1.16) * 100), '%');
-    if (kind === 'adjust') {
-      var gv = function (T, key, d) { var f = getFilter(o, T); return f ? f[key] : d; };
-      var cur = presetOf(o);
-      h = '<p class="pop-t">Шүүлтүүр</p><div class="pre-grid">' + PRESETS.map(function (p) {
-          return '<button type="button" class="pre' + (p[0] === cur ? ' on' : '') + '" data-preset="' + p[0] + '"><i class="pre-' + p[0] + '" style="background-image:url(\'' + (o.getSrc ? o.getSrc() : '') + '\')"></i><span>' + p[1] + '</span></button>';
+    if (lpTab === 'add') {
+      h = '<div class="sec-t">Текст</div>' +
+        '<button type="button" class="tx-p h" data-text="h">Гарчиг нэмэх</button><button type="button" class="tx-p s" data-text="s">Дэд гарчиг нэмэх</button><button type="button" class="tx-p b" data-text="b">Энгийн текст нэмэх</button>' +
+        '<div class="sec-t">Хэлбэр</div><div class="grid3">' + Object.keys(SHAPE_NAMES).map(function (k) {
+          return '<button type="button" class="tile" data-add-shape="' + k + '" title="' + SHAPE_NAMES[k] + '"><svg viewBox="0 0 24 24">' + (k === 'line' ? '<rect x="2" y="11" width="20" height="2.4" rx="1.2"/>' : P[k]) + '</svg></button>';
         }).join('') + '</div>' +
-        '<p class="pop-t">Тохируулга</p>' +
-        row('Гэрэлтэлт', 'brightness', -100, 100, Math.round(gv(F.Brightness, 'brightness', 0) * 100), '') +
-        row('Контраст', 'contrast', -100, 100, Math.round(gv(F.Contrast, 'contrast', 0) * 100), '') +
-        row('Ханалт', 'saturation', -100, 100, Math.round(gv(F.Saturation, 'saturation', 0) * 100), '') +
-        row('Өнгөний тон', 'hue', -100, 100, Math.round(gv(F.HueRotation, 'rotation', 0) * 100), '') +
-        row('Бүдгэрүүлэх', 'blur', 0, 100, Math.round(gv(F.Blur, 'blur', 0) * 100), '') +
-        '<button type="button" data-reset-filters>Анхны байдалд нь буцаах</button>';
+        '<div class="sec-t">Зураг</div><button type="button" class="btn acc full" data-a="upload">' + icon('image') + 'Зураг оруулах</button>' +
+        '<p class="note">Зургаа canvas руу чирж тавих эсвэл Ctrl+V-ээр буулгаж болно.</p>' +
+        (recent.length ? '<div class="grid3">' + recent.map(function (u, i) { return '<button type="button" class="thumb" data-recent="' + i + '" style="background-image:url(\'' + u + '\')" aria-label="Зураг нэмэх"></button>'; }).join('') + '</div>' : '') +
+        '<div class="sec-t">Фонтын хослол <span>Design guide</span></div>' +
+        (DG.pairs.length ? DG.pairs.map(function (p, i) {
+          return '<button type="button" class="pair" data-pair="' + i + '"><b style="font-family:\'' + esc(fam(p.heading)) + '\'">' + esc(p.heading) + '</b><span style="font-family:\'' + esc(fam(p.body)) + '\'">' + esc(p.body) + (FONTS[p.heading] && FONTS[p.heading].cyr ? ' · Кирилл ✓' : '') + '</span></button>';
+        }).join('') : '<p class="note">Ачаалж байна…</p>') +
+        '<div class="sec-t">Өнгө <span>сонгосон зүйл / frame</span></div>' +
+        swRow(BASE_PALETTE) +
+        (prefs.palette && prefs.palette.colors ? '<div class="pal" style="margin-top:8px"><div class="pal-n">Design guide-ээс: ' + esc(prefs.palette.name || '') + '</div>' + swRow(prefs.palette.colors) + '</div>' : '') +
+        (DG.brand.length ? '<div class="pal" style="margin-top:8px"><div class="pal-n">Graphican брэнд</div>' + swRow(DG.brand) + '</div>' : '') +
+        DG.palettes.map(function (p) { return '<div class="pal"><div class="pal-n">' + esc(p.name) + '</div>' + swRow(p.colors) + '</div>'; }).join('');
+      DG.pairs.forEach(function (p) { ensureFont(p.heading); ensureFont(p.body); });
     }
-    if (kind === 'mask') {
-      var mk = o.clipPath && o.clipPath.gMask || 'none';
-      h = '<p class="pop-t">Зургийг хэлбэрт оруулах</p>' +
-        [['none', 'Анхны (тэгш өнцөгт)'], ['rounded', 'Бөөрөнхий булантай'], ['circle', 'Тойрог'], ['oval', 'Зууван'], ['arch', 'Нуман хаалга']].map(function (m) {
-          return '<button type="button" data-mask="' + m[0] + '"' + (m[0] === mk ? ' class="on"' : '') + '>' + m[1] + (m[0] === mk ? ' <i>✓</i>' : '') + '</button>';
-        }).join('');
+    if (lpTab === 'templates') {
+      h = '<div class="sec-t">Шинэ frame</div>' + SIZES.map(function (s) {
+          var k = 22 / Math.max(s[1], s[2]);
+          return '<button type="button" class="size-row" data-size="' + s[1] + 'x' + s[2] + '"><span class="sz-shape" style="width:' + Math.round(s[1] * k) + 'px;height:' + Math.round(s[2] * k) + 'px"></span><b>' + s[0] + '</b><span>' + s[1] + '×' + s[2] + '</span></button>';
+        }).join('') +
+        '<div class="sec-t">Загварууд</div><div class="grid2">' + TEMPLATES.map(function (t) {
+          var k = 96 / Math.max(t.w, t.h);
+          return '<button type="button" class="tpl" data-tpl="' + t.id + '"><span class="tpl-prev" style="width:' + Math.round(t.w * k) + 'px;height:' + Math.round(t.h * k) + 'px;background:' + t.sw[0] + '"><i style="background:' + t.sw[1] + '"></i><i style="background:' + t.sw[2] + '"></i></span><b>' + esc(t.name) + '</b><span>' + t.w + '×' + t.h + '</span></button>';
+        }).join('') + '</div><p class="note">Загвар бүр шинэ frame болж нэмэгдэнэ (одоогийн frame хоосон бол түүнийг ашиглана).</p>';
     }
-    if (kind === 'effects') {
-      var sh = shadowOf(o), sp = rgbaParts(sh && sh.color), isText = kindOf(o) === 'text';
-      h = '<p class="pop-t">Сүүдэр</p>' +
-        '<label class="chk"><input type="checkbox" data-fx="shadow"' + (sh ? ' checked' : '') + '> Сүүдэр нэмэх</label>' +
-        '<div class="fx-sub"' + (sh ? '' : ' hidden') + '>' +
-          row('Бүдэг', 'sBlur', 0, 200, Math.round(sh ? sh.blur : W * 0.02), '') +
-          row('Зай', 'sOff', -100, 100, Math.round(sh ? sh.offsetX : W * 0.008), '') +
-          row('Тод байдал', 'sAlpha', 0, 100, Math.round(sp.a * 100), '%') +
-          '<div class="row"><label>Өнгө</label><input type="color" data-fx="sColor" value="' + sp.hex + '"></div>' +
-        '</div>' +
-        (isText ? '<p class="pop-t">Хүрээ (outline)</p>' +
-          row('Зузаан', 'oWidth', 0, 40, Math.round(o.stroke ? o.strokeWidth : 0), '') +
-          '<div class="row"><label>Өнгө</label><input type="color" data-fx="oColor" value="' + hex(o.stroke || '#000000') + '"></div>' +
-          '<p class="pop-t">Текстийн дэвсгэр</p>' +
-          '<label class="chk"><input type="checkbox" data-fx="tbg"' + (o.textBackgroundColor ? ' checked' : '') + '> Дэвсгэр өнгө</label>' +
-          '<div class="row"' + (o.textBackgroundColor ? '' : ' hidden') + ' data-tbg-row><label>Өнгө</label><input type="color" data-fx="tbgColor" value="' + hex(o.textBackgroundColor || '#816dfb') + '"></div>' : '');
-    }
-    if (kind === 'align') {
-      h = '<p class="pop-t">Хуудсанд зэрэгцүүлэх</p>' +
-        [['left', 'Зүүн'], ['hcenter', 'Хэвтээ голлуулах'], ['right', 'Баруун'], ['top', 'Дээд'], ['vcenter', 'Босоо голлуулах'], ['bottom', 'Доод']].map(function (a) { return '<button type="button" data-align="' + a[0] + '">' + a[1] + '</button>'; }).join('') +
-        '<p class="pop-t">Давхарга</p><button type="button" data-arr="top">Хамгийн урд</button><button type="button" data-arr="bottom">Хамгийн ард</button>';
-    }
-    var p = document.createElement('div'); p.className = 'pop'; p.dataset.kind = kind; p.innerHTML = h;
-    btn.parentNode.appendChild(p); openPop = p;
-    // keep it on screen
-    var r = p.getBoundingClientRect(); if (r.right > window.innerWidth - 8) { p.style.left = 'auto'; p.style.right = '0'; }
-    p.style.position = 'fixed'; var br = btn.getBoundingClientRect();
-    p.style.top = (br.bottom + 6) + 'px'; p.style.left = Math.max(8, Math.min(br.left, window.innerWidth - p.offsetWidth - 8)) + 'px'; p.style.right = 'auto';
-    p.addEventListener('input', function (e) {
-      var k = e.target.dataset.k, v = +e.target.value; if (!k) return;
-      e.target.previousElementSibling.querySelector('b').textContent = v + (e.target.dataset.u || '');
-      if (k === 'opacity') eachSel(function (x) { x.set('opacity', v / 100); });
-      if (k === 'charSpacing') eachSel(function (x) { if (x.isType('textbox')) { x.set('charSpacing', v); x.initDimensions(); } });
-      if (k === 'lineHeight') eachSel(function (x) { if (x.isType('textbox')) { x.set('lineHeight', v / 100); x.initDimensions(); } });
-      if (k === 'brightness') setFilter(o, F.Brightness, 'brightness', v / 100, 0);
-      if (k === 'contrast') setFilter(o, F.Contrast, 'contrast', v / 100, 0);
-      if (k === 'saturation') setFilter(o, F.Saturation, 'saturation', v / 100, 0);
-      if (k === 'blur') setFilter(o, F.Blur, 'blur', v / 100, 0);
-      if (k === 'hue') setFilter(o, F.HueRotation, 'rotation', v / 100, 0);
-      if (k === 'sBlur' || k === 'sOff' || k === 'sAlpha') {
-        var s = shadowOf(o), parts = rgbaParts(s && s.color);
-        eachSel(function (x) {
-          setShadow(x, true, {
-            blur: k === 'sBlur' ? v : null, offset: k === 'sOff' ? v : null,
-            color: k === 'sAlpha' ? rgba(parts.hex, v / 100) : null
-          });
-        });
-      }
-      if (k === 'oWidth') eachSel(function (x) { x.set({ strokeWidth: v, stroke: v ? (x.stroke || '#000000') : null, paintFirst: 'stroke', strokeUniform: true }); if (x.initDimensions) x.initDimensions(); });
-      canvas.requestRenderAll();
-    });
-    p.addEventListener('input', function (e) {
-      var f = e.target.dataset.fx; if (!f || e.target.type !== 'color') return;
-      var v = e.target.value;
-      if (f === 'sColor') { var a = rgbaParts((shadowOf(o) || {}).color).a; eachSel(function (x) { setShadow(x, true, { color: rgba(v, a) }); }); }
-      if (f === 'oColor') eachSel(function (x) { x.set({ stroke: v, paintFirst: 'stroke' }); if (!x.strokeWidth) x.set('strokeWidth', 4); });
-      if (f === 'tbgColor') eachSel(function (x) { x.set('textBackgroundColor', v); });
-      canvas.requestRenderAll();
-    });
-    p.addEventListener('change', function (e) {
-      var f = e.target.dataset.fx;
-      if (f === 'shadow') {
-        var on = e.target.checked;
-        eachSel(function (x) { setShadow(x, on, {}); });
-        p.querySelector('.fx-sub').hidden = !on;
-        canvas.requestRenderAll();
-      }
-      if (f === 'tbg') {
-        var tb = e.target.checked;
-        eachSel(function (x) { x.set('textBackgroundColor', tb ? (p.querySelector('[data-fx="tbgColor"]').value) : ''); });
-        p.querySelector('[data-tbg-row]').hidden = !tb;
-        canvas.requestRenderAll();
-      }
-      commit();
-    });
-    p.addEventListener('click', function (e) {
-      var b = e.target.closest('button'); if (!b) return;
-      if (b.dataset.align) alignToPage(b.dataset.align);
-      if (b.dataset.arr) arrange(b.dataset.arr);
-      if (b.dataset.preset) { setPreset(o, b.dataset.preset); p.querySelectorAll('.pre').forEach(function (x) { x.classList.toggle('on', x === b); }); }
-      if (b.dataset.mask) { setMask(b.dataset.mask); closePop(); }
-      if (b.hasAttribute('data-reset-filters')) { o.filters = []; o.applyFilters(); canvas.requestRenderAll(); commit(); closePop(); }
-    });
-    function row(label, k, min, max, val, unit) {
-      return '<div class="row"><label>' + label + ' <b>' + val + unit + '</b></label><input type="range" data-k="' + k + '" data-u="' + unit + '" min="' + min + '" max="' + max + '" value="' + val + '"></div>';
-    }
+    el.innerHTML = h;
   }
-  document.addEventListener('mousedown', function (e) {
-    if (openPop && !openPop.contains(e.target) && !e.target.closest('[data-pop]')) closePop();
-    if (!e.target.closest('.pop-wrap') && !e.target.closest('.help-pop')) $$('.ed-top .pop:not(.help-pop)').forEach(function (p) { p.hidden = true; });
+
+  $('#lp-body').addEventListener('click', function (e) {
+    var t = e.target.closest('button,[data-ly]'); if (!t) return;
+    var all = canvas.getObjects(), d = t.dataset;
+    if (d.lyLock) { var lo = all[+d.lyLock]; lockObj(lo, !lo.locked); canvas.requestRenderAll(); commit(); refreshUI(); return; }
+    if (d.lyVis) { var vo = all[+d.lyVis]; vo.visible = vo.visible === false; if (vo.visible === false && active() === vo) canvas.discardActiveObject(); canvas.requestRenderAll(); commit(); refreshUI(); return; }
+    if (d.ly) {
+      var o = all[+d.ly]; if (!o || o.visible === false) return;
+      if (o.isFrame) selectFrame(o); else { canvas.setActiveObject(o); canvas.requestRenderAll(); }
+      refreshUI(); return;
+    }
+    if (d.a === 'add-frame') { var f = addFrame(1080, 1350); fitAll(); selectFrame(f); commit(); refreshUI(); }
+    if (d.a === 'upload') $('#ed-file').click();
+    if (d.text) addText(d.text);
+    if (d.addShape) addShape(d.addShape);
+    if (d.recent) addImageUrl(recent[+d.recent]);
+    if (d.pair) addPair(DG.pairs[+d.pair]);
+    if (d.color) applyColor(d.color);
+    if (d.size) { var wh = d.size.split('x'), nf2 = addFrame(+wh[0], +wh[1]); fitFrame(nf2); selectFrame(nf2); commit(); refreshUI(); }
+    if (d.tpl) useTemplate(d.tpl);
+    $('#lp').classList.remove('open');
   });
-  canvas.on('selection:cleared', closePop);
+  // double-click a layer to rename it
+  $('#lp-body').addEventListener('dblclick', function (e) {
+    var r = e.target.closest('[data-ly]'); if (!r) return;
+    var o = canvas.getObjects()[+r.dataset.ly]; if (!o || kindOf(o) === 'text') return;
+    var ln = r.querySelector('.ln'); ln.innerHTML = '<input value="' + esc(o.name || '') + '">';
+    var inp = ln.querySelector('input'); inp.focus(); inp.select();
+    inp.addEventListener('keydown', function (ev) { ev.stopPropagation(); if (ev.key === 'Enter') inp.blur(); if (ev.key === 'Escape') { inp.value = o.name || ''; inp.blur(); } });
+    inp.addEventListener('blur', function () { o.name = inp.value.trim() || o.name; commit(); refreshUI(); canvas.requestRenderAll(); });
+  });
+  $('#lp-body').addEventListener('dragstart', function (e) { var r = e.target.closest('[data-ly]'); if (!r) return; dragLy = +r.dataset.ly; r.classList.add('drag'); e.dataTransfer.effectAllowed = 'move'; });
+  $('#lp-body').addEventListener('dragover', function (e) { var r = e.target.closest('[data-ly]'); if (!r || dragLy === null) return; e.preventDefault(); $$('.ly.over').forEach(function (x) { x.classList.remove('over'); }); r.classList.add('over'); });
+  $('#lp-body').addEventListener('dragend', function () { dragLy = null; $$('.ly').forEach(function (x) { x.classList.remove('drag', 'over'); }); });
+  $('#lp-body').addEventListener('drop', function (e) {
+    var r = e.target.closest('[data-ly]'); if (!r || dragLy === null) return;
+    e.preventDefault();
+    var all = canvas.getObjects(), from = all[dragLy], to = all[+r.dataset.ly];
+    if (to.isFrame) { from.setPositionByOrigin(to.getCenterPoint(), 'center', 'center'); from.setCoords(); } // move into that frame
+    else canvas.moveTo(from, Math.max(frames().length, all.indexOf(to)));
+    dragLy = null; canvas.requestRenderAll(); commit(); refreshUI();
+  });
 
-  // ---------- top bar ----------
+  function applyColor(c) {
+    var o = active();
+    if (!o || o.isFrame || kindOf(o) === 'image') { setFrameFill(o && o.isFrame ? o : page, c); refreshUI(); return; }
+    eachSel(function (x) { if (x.isType('line') || x.isType('path')) x.set('stroke', c); else if (!x.isType('image')) x.set('fill', c); });
+    canvas.requestRenderAll(); commit(); refreshUI();
+  }
 
-  $('#ed-undo').innerHTML = icon('undo'); $('#ed-redo').innerHTML = icon('redo');
-  $('#ed-zin').innerHTML = icon('plus'); $('#ed-zout').innerHTML = icon('minus');
-  $('#ed-undo').addEventListener('click', undo);
-  $('#ed-redo').addEventListener('click', redo);
-  $('#ed-zin').addEventListener('click', function () { zoomBy(1.2); });
-  $('#ed-zout').addEventListener('click', function () { zoomBy(1 / 1.2); });
-  $('#ed-zoom').addEventListener('click', fit);
+  // ---------- right panel: properties ----------
 
-  function toggleMenu(btn, menu) {
-    btn.addEventListener('click', function () {
-      var open = menu.hidden; $$('.ed-top .pop').forEach(function (p) { p.hidden = true; }); menu.hidden = !open;
+  var BLENDS = [['source-over', 'Normal'], ['multiply', 'Multiply'], ['screen', 'Screen'], ['overlay', 'Overlay'], ['darken', 'Darken'], ['lighten', 'Lighten'],
+    ['color-dodge', 'Color dodge'], ['color-burn', 'Color burn'], ['hard-light', 'Hard light'], ['soft-light', 'Soft light'], ['difference', 'Difference'],
+    ['exclusion', 'Exclusion'], ['hue', 'Hue'], ['saturation', 'Saturation'], ['color', 'Color'], ['luminosity', 'Luminosity']];
+  var WEIGHTS = [[300, 'Light'], [400, 'Regular'], [500, 'Medium'], [600, 'Semibold'], [700, 'Bold'], [800, 'Extrabold']];
+  var ratioLock = true, expFmt = 'png', expScale = 2;
+
+  function nf(label, p, val, opts) {
+    opts = opts || {};
+    return '<label class="nf' + (opts.full ? ' full' : '') + '"' + (opts.title ? ' title="' + opts.title + '"' : '') + '><span class="lb" data-scrub="' + p + '">' + label + '</span>' +
+      '<input data-p="' + p + '" value="' + esc(val) + '"' + (opts.text ? ' spellcheck="false"' : ' inputmode="decimal"') + '>' + (opts.unit ? '<span class="unit">' + opts.unit + '</span>' : '') + '</label>';
+  }
+  function colorRow(p, c, rm) {
+    var pc = parseCol(c);
+    return '<div class="cr"><label class="nf full"><span class="csw"><i style="background:' + esc(c && c !== 'transparent' ? mkCol(pc.hex, pc.a) : 'transparent') + '"></i><input type="color" data-p="' + p + '" value="' + pc.hex + '"></span>' +
+      '<input data-p="' + p + 'Hex" value="' + pc.hex.slice(1).toUpperCase() + '" maxlength="7" spellcheck="false"></label>' +
+      '<label class="nf op"><input data-p="' + p + 'Op" value="' + Math.round(pc.a * 100) + '" inputmode="decimal"><span class="unit">%</span></label>' +
+      (rm ? '<button type="button" class="ib rm" data-a="' + rm + '" title="Хасах">' + icon('minus') + '</button>' : '') + '</div>';
+  }
+  function seg(items, cur, attr) {
+    return '<div class="seg">' + items.map(function (it) {
+      return '<button type="button" data-a="' + attr + '" data-v="' + it[0] + '" title="' + it[2] + '"' + (it[0] === cur ? ' class="on"' : '') + '>' + icon(it[1]) + '</button>';
+    }).join('') + '</div>';
+  }
+  function sel(p, items, cur) {
+    return '<label class="nf full"><select data-p="' + p + '">' + items.map(function (it) { return '<option value="' + esc(it[0]) + '"' + (String(it[0]) === String(cur) ? ' selected' : '') + '>' + esc(it[1]) + '</option>'; }).join('') + '</select></label>';
+  }
+  function sl(label, p, min, max, v) { return '<div class="sl"><span>' + label + '</span><input type="range" data-p="' + p + '" min="' + min + '" max="' + max + '" value="' + v + '"><b>' + v + '</b></div>'; }
+  function exportSec(kind, o) {
+    return '<div class="ps"><div class="ps-h">Export</div><div class="r2">' +
+      sel('expScale', [[1, '1×'], [2, '2×'], [3, '3×']], expScale) + sel('expFmt', [['png', 'PNG'], ['jpg', 'JPG'], ['pdf', 'PDF']], expFmt) + '</div>' +
+      '<button type="button" class="btn full" style="margin-top:6px" data-a="export-' + kind + '">' + (kind === 'frame' ? 'Export «' + esc((o.name || 'Frame').slice(0, 20)) + '»' : 'Сонгосныг export хийх') + '</button></div>';
+  }
+  function geom(o) {
+    var f = frameOf(o), b = o.getBoundingRect(true, true);
+    return { x: Math.round(b.left - (f ? f.left : 0)), y: Math.round(b.top - (f ? f.top : 0)), w: Math.round(o.width * o.scaleX), h: Math.round(o.height * o.scaleY), r: Math.round(o.angle || 0) };
+  }
+  function alignBtns() {
+    var b = function (a) { return '<button type="button" data-a="align" data-v="' + a[0] + '" title="' + a[2] + '">' + icon(a[1]) + '</button>'; };
+    return '<div class="rowf"><div class="seg" style="flex:1">' + [['L', 'aL', 'Зүүн'], ['C', 'aC', 'Хэвтээ голлуулах'], ['R', 'aR', 'Баруун']].map(b).join('') + '</div>' +
+      '<div class="seg" style="flex:1">' + [['T', 'aT', 'Дээд'], ['M', 'aM', 'Босоо голлуулах'], ['B', 'aB', 'Доод']].map(b).join('') + '</div></div>';
+  }
+
+  function renderRight() {
+    var el = $('#rp-body'), o = active(), k = kindOf(o), h = '';
+    if (crop) { el.innerHTML = '<p class="empty-sel">Тайралтын хүрээг чирж тохируулаад доод талын <b>Тайрах</b> товч эсвэл Enter дарна. Болих бол Esc.</p>'; return; }
+    if (!o || k === 'frame') {
+      var f = o || page; if (!f) { el.innerHTML = ''; return; }
+      if (!o) h += '<p class="empty-sel" style="padding-bottom:0">Юу ч сонгоогүй — одоогийн frame:</p>';
+      h += '<div class="ps"><div class="ps-h">Frame<span class="acts">' +
+          '<button type="button" class="ib" data-a="dup" title="Хувилах (Ctrl+D)">' + icon('copy') + '</button>' +
+          '<button type="button" class="ib" data-a="del" title="Устгах">' + icon('trash') + '</button></span></div>' +
+        nf('Aa', 'fname', f.name || '', { full: true, text: true }) +
+        '<div class="ps-l">Хэмжээ</div>' + sel('fpreset', [['', 'Бэлэн хэмжээ…']].concat(SIZES.map(function (s) { return [s[1] + 'x' + s[2], s[0] + ' — ' + s[1] + '×' + s[2]]; })), '') +
+        '<div class="r2" style="margin-top:6px">' + nf('W', 'fw', Math.round(fw(f))) + nf('H', 'fh', Math.round(fh(f))) + '</div>' +
+        '<div class="ps-l">Байрлал</div><div class="r2">' + nf('X', 'fx', Math.round(f.left)) + nf('Y', 'fy', Math.round(f.top)) + '</div></div>' +
+        '<div class="ps"><div class="ps-h">Fill</div>' + (f.gTransparent ? '' : colorRow('ffill', frameFill(f))) +
+        '<label class="chk" style="margin-top:8px"><input type="checkbox" data-p="ftr"' + (f.gTransparent ? ' checked' : '') + '> Тунгалаг дэвсгэр (PNG)</label></div>' +
+        exportSec('frame', f);
+      el.innerHTML = h; return;
+    }
+    var g = geom(o), title = k === 'multi' ? o.getObjects().length + ' зүйл' : objName(o);
+    h += '<div class="ps"><div class="ps-h">' + esc(title.slice(0, 26)) + '<span class="acts">' +
+      '<button type="button" class="ib' + (o.locked ? ' on' : '') + '" data-a="lock" title="Түгжих">' + icon(o.locked ? 'lock' : 'unlock') + '</button>' +
+      '<button type="button" class="ib" data-a="dup" title="Хувилах (Ctrl+D)">' + icon('copy') + '</button>' +
+      '<button type="button" class="ib" data-a="del" title="Устгах (Delete)">' + icon('trash') + '</button></span></div>' +
+      '<div class="ps-l" style="margin-top:0">' + (k === 'multi' ? 'Хооронд нь зэрэгцүүлэх' : 'Frame дотор зэрэгцүүлэх') + '</div>' + alignBtns() +
+      (k === 'multi' ? '<div class="rowf" style="margin-top:6px"><button type="button" class="btn" style="flex:1" data-a="dist" data-v="H">' + icon('dH') + 'Хэвтээ тараах</button><button type="button" class="btn" style="flex:1" data-a="dist" data-v="V">' + icon('dV') + 'Босоо</button></div>' +
+        '<button type="button" class="btn acc full" style="margin-top:6px" data-a="group">' + icon('group') + 'Бүлэглэх (Ctrl+G)</button>' : '') +
+      (k === 'group' ? '<button type="button" class="btn full" style="margin-top:6px" data-a="ungroup">' + icon('group') + 'Задлах (Ctrl+Shift+G)</button>' : '') +
+      '</div>';
+    // position + layout
+    h += '<div class="ps"><div class="ps-l" style="margin-top:0">Байрлал</div><div class="r2">' + nf('X', 'x', g.x) + nf('Y', 'y', g.y) + '</div>' +
+      '<div class="r3" style="margin-top:6px">' + nf(icon('angle'), 'rot', g.r, { unit: '°', title: 'Эргэлт' }) +
+        '<button type="button" class="ib" data-a="rot90" title="90° эргүүлэх">' + icon('rotate') + '</button>' +
+        '<span class="rowf"><button type="button" class="ib" data-a="flipX" title="Хэвтээ толин тусгал">' + icon('flipH') + '</button><button type="button" class="ib" data-a="flipY" title="Босоо толин тусгал">' + icon('flipV') + '</button></span></div>' +
+      '<div class="ps-l">Хэмжээ</div><div class="r3">' + nf('W', 'w', g.w) + nf('H', 'h', g.h) +
+        '<button type="button" class="ib' + (ratioLock ? ' on' : '') + '" data-a="ratio" title="Харьцаа хадгалах">' + icon('ratio') + '</button></div></div>';
+    // appearance
+    var radius = null;
+    if (o.isType('rect')) radius = Math.round((o.rx || 0) * (o.scaleX || 1));
+    if (k === 'image') radius = o.gMask === 'rounded' ? Math.round(o.gMaskR != null ? o.gMaskR : Math.min(o.width, o.height) * 0.12 * o.scaleX) : 0;
+    h += '<div class="ps"><div class="ps-h">Харагдац</div><div class="r2">' + nf(icon('opacity'), 'op', Math.round((o.opacity == null ? 1 : o.opacity) * 100), { unit: '%', title: 'Тунгалаг байдал' }) +
+      (radius !== null ? nf(icon('radius'), 'rad', radius, { title: 'Булангийн радиус' }) : '<span></span>') + '</div>' +
+      '<div style="margin-top:6px">' + sel('blend', BLENDS, o.globalCompositeOperation || 'source-over') + '</div></div>';
+    // text
+    if (k === 'text') {
+      var fnames = Object.keys(FONTS).sort(function (a, b) { return (FONTS[b].cyr ? 1 : 0) - (FONTS[a].cyr ? 1 : 0) || a.localeCompare(b); });
+      var curF = primary(o.fontFamily), match = fnames.filter(function (n) { return fam(n) === curF; })[0];
+      var styleOn = +o.fontWeight >= 600 || o.fontWeight === 'bold' ? 'b' : o.fontStyle === 'italic' ? 'i' : o.underline ? 'u' : o.linethrough ? 's' : '';
+      h += '<div class="ps"><div class="ps-h">Текст</div>' +
+        sel('font', (match ? [] : [[curF, curF]]).concat(fnames.map(function (n) { return [n, n + (FONTS[n].cyr ? '  · Кирилл' : '')]; })), match || curF) +
+        '<div class="r2" style="margin-top:6px">' + sel('weight', WEIGHTS, o.fontWeight === 'bold' ? 700 : o.fontWeight === 'normal' ? 400 : +o.fontWeight) + nf('px', 'size', Math.round(o.fontSize * (o.scaleY || 1)), { title: 'Үсгийн хэмжээ' }) + '</div>' +
+        '<div class="r2" style="margin-top:6px">' + nf('↕', 'lh', Math.round((o.lineHeight || 1.16) * 100), { unit: '%', title: 'Мөр хоорондын зай' }) + nf('↔', 'ls', Math.round(o.charSpacing || 0), { title: 'Үсэг хоорондын зай' }) + '</div>' +
+        '<div class="rowf" style="margin-top:6px">' + seg([['left', 'tL', 'Зүүн'], ['center', 'tC', 'Голлуулах'], ['right', 'tR', 'Баруун'], ['justify', 'tJ', 'Тэгшлэх']], o.textAlign, 'talign') +
+          seg([['b', 'bold', 'Тод'], ['i', 'italic', 'Налуу'], ['u', 'underline', 'Доогуур зураас'], ['s', 'strike', 'Дундуур зураас']], styleOn, 'tstyle') + '</div>' +
+        '<div class="rowf" style="margin-top:6px"><button type="button" class="btn" style="flex:1" data-a="case" data-v="up">AA</button><button type="button" class="btn" style="flex:1" data-a="case" data-v="low">aa</button><button type="button" class="btn" style="flex:1" data-a="case" data-v="title">Aa</button></div></div>';
+    }
+    // image
+    if (k === 'image') {
+      var cur = presetOf(o), gv = function (T, key) { var ff = getFilter(o, T); return ff ? ff[key] : 0; };
+      h += '<div class="ps"><div class="ps-h">Зураг</div>' +
+        '<div class="r2"><button type="button" class="btn" data-a="crop">' + icon('crop') + 'Тайрах</button><button type="button" class="btn acc" data-a="rmbg">' + icon('wand') + 'Дэвсгэр арилгах</button></div>' +
+        '<div class="ps-l">Хэлбэр</div>' + sel('mask', [['none', 'Тэгш өнцөгт'], ['rounded', 'Бөөрөнхий булантай'], ['circle', 'Тойрог'], ['oval', 'Зууван'], ['arch', 'Нуман хаалга']], o.gMask || 'none') +
+        '<div class="r2" style="margin-top:6px"><button type="button" class="btn" data-a="asbg">' + icon('bg') + 'Frame дүүргэх</button><button type="button" class="btn" data-a="upscale">✦ Томруулах ↗</button></div>' +
+        '<div class="ps-l">Шүүлтүүр</div><div class="pre-grid">' + PRESETS.map(function (p) {
+          return '<button type="button" class="pre' + (p[0] === cur ? ' on' : '') + '" data-a="preset" data-v="' + p[0] + '"><i class="pre-' + p[0] + '" style="background-image:url(\'' + o.getSrc() + '\')"></i>' + p[1] + '</button>';
+        }).join('') + '</div>' +
+        sl('Гэрэлтэлт', 'f-bri', -100, 100, Math.round(gv(F.Brightness, 'brightness') * 100)) + sl('Контраст', 'f-con', -100, 100, Math.round(gv(F.Contrast, 'contrast') * 100)) +
+        sl('Ханалт', 'f-sat', -100, 100, Math.round(gv(F.Saturation, 'saturation') * 100)) + sl('Өнгөний тон', 'f-hue', -100, 100, Math.round(gv(F.HueRotation, 'rotation') * 100)) +
+        sl('Бүдгэрүүлэх', 'f-blur', 0, 100, Math.round(gv(F.Blur, 'blur') * 100)) +
+        '<button type="button" class="btn full" style="margin-top:8px" data-a="resetf">Анхны байдалд нь</button></div>';
+    }
+    // fill
+    if (k === 'shape' || k === 'text') h += '<div class="ps"><div class="ps-h">Fill</div>' + colorRow('fill', typeof o.fill === 'string' ? o.fill : '#816dfb') + '</div>';
+    // stroke
+    if (k !== 'multi' && k !== 'group') {
+      var hasStroke = !!o.stroke && (o.strokeWidth > 0 || k === 'line');
+      h += '<div class="ps"><div class="ps-h">' + (k === 'text' ? 'Хүрээ (outline)' : 'Stroke') + '<span class="acts">' + (hasStroke ? '' : '<button type="button" class="ib" data-a="addstroke" title="Нэмэх">' + icon('plus') + '</button>') + '</span></div>' +
+        (hasStroke ? colorRow('stroke', o.stroke, k === 'line' ? null : 'rmstroke') + '<div class="r2" style="margin-top:6px">' + nf('≡', 'sw', r1(o.strokeWidth), { title: 'Зузаан' }) + '<span></span></div>' : '') + '</div>';
+    }
+    // effects
+    var sh = o.shadow;
+    h += '<div class="ps"><div class="ps-h">Эффект<span class="acts">' + (sh ? '' : '<button type="button" class="ib" data-a="addshadow" title="Сүүдэр нэмэх">' + icon('plus') + '</button>') + '</span></div>' +
+      (sh ? '<div class="ps-l" style="margin-top:0">Drop shadow</div><div class="r3">' + nf('X', 'shx', Math.round(sh.offsetX)) + nf('Y', 'shy', Math.round(sh.offsetY)) + '<button type="button" class="ib rm" data-a="rmshadow" title="Хасах">' + icon('minus') + '</button></div>' +
+        '<div class="r2" style="margin-top:6px">' + nf('Blur', 'shb', Math.round(sh.blur)) + '<span></span></div><div style="margin-top:6px">' + colorRow('shc', sh.color) + '</div>' : '') +
+      (k === 'text' ? '<label class="chk" style="margin-top:8px"><input type="checkbox" data-p="tbg"' + (o.textBackgroundColor ? ' checked' : '') + '> Текстийн ард дэвсгэр өнгө</label>' + (o.textBackgroundColor ? '<div style="margin-top:6px">' + colorRow('tbgc', o.textBackgroundColor) + '</div>' : '') : '') + '</div>';
+    // layer order
+    h += '<div class="ps"><div class="ps-h">Давхаргын дараалал</div><div class="seg">' +
+      [['top', 'up2', 'Хамгийн урд (Ctrl+Shift+])'], ['up', 'up1', 'Урагш (Ctrl+])'], ['down', 'dn1', 'Хойш (Ctrl+[)'], ['bottom', 'dn2', 'Хамгийн ард (Ctrl+Shift+[)']].map(function (a) {
+        return '<button type="button" data-a="arr" data-v="' + a[0] + '" title="' + a[2] + '">' + icon(a[1]) + '</button>';
+      }).join('') + '</div></div>';
+    h += exportSec('sel', o);
+    el.innerHTML = h;
+  }
+
+  // live geometry while dragging on the canvas
+  function syncGeom() {
+    var o = active(); if (!o || o.isFrame) return;
+    var g = geom(o);
+    [['x', g.x], ['y', g.y], ['w', g.w], ['h', g.h], ['rot', g.r]].forEach(function (p) {
+      var i = $('#rp-body [data-p="' + p[0] + '"]'); if (i && document.activeElement !== i) i.value = p[1];
     });
   }
-  toggleMenu($('#ed-dl'), $('#ed-dl-menu'));
-  toggleMenu($('#ed-send'), $('#ed-send-menu'));
+
+  function num(v) { var n = parseFloat(String(v).replace(',', '.')); return isNaN(n) ? null : n; }
+  // colour inputs come as three fields: picker, HEX and opacity
+  function colorFrom(p, base, v, prev) {
+    var pc = parseCol(prev && typeof prev === 'string' ? prev : '#000000');
+    if (p === base) return mkCol(v, pc.a);
+    if (p === base + 'Hex') {
+      var hx = String(v).replace(/[^0-9a-f]/gi, '');
+      if (hx.length === 3) hx = hx[0] + hx[0] + hx[1] + hx[1] + hx[2] + hx[2];
+      return hx.length === 6 ? mkCol('#' + hx.toLowerCase(), pc.a) : prev;
+    }
+    if (p === base + 'Op') { var a = num(v); return a === null ? prev : mkCol(pc.hex, clamp(a, 0, 100) / 100); }
+    return prev;
+  }
+  function propInput(p, v) {
+    var o = active(), f = o && o.isFrame ? o : page, n = num(v);
+    if (p === 'expScale') { expScale = +v; return; }
+    if (p === 'expFmt') { expFmt = v; return; }
+    if (p === 'fname') { f.name = v; canvas.requestRenderAll(); return; }
+    if ((p === 'fw' || p === 'fh') && n > 0) { f.set(p === 'fw' ? { width: n } : { height: n }); f.setCoords(); setCurrent(f); canvas.requestRenderAll(); return; }
+    if ((p === 'fx' || p === 'fy') && n !== null) { moveFrame(f, p === 'fx' ? n - f.left : 0, p === 'fy' ? n - f.top : 0); canvas.requestRenderAll(); return; }
+    if (p === 'fpreset') { if (v) { var wh = v.split('x'); f.set({ width: +wh[0], height: +wh[1] }); f.setCoords(); setCurrent(f); fitFrame(f); canvas.requestRenderAll(); } return; }
+    if (p === 'ftr') { setFrameFill(f, v ? 'transparent' : '#ffffff'); return; }
+    if (/^ffill/.test(p)) { setFrameFill(f, colorFrom(p, 'ffill', v, frameFill(f))); return; }
+    if (!o || o.isFrame) return;
+    var g = geom(o);
+    if ((p === 'x' || p === 'y') && n !== null) o.set(p === 'x' ? { left: o.left + n - g.x } : { top: o.top + n - g.y });
+    if (p === 'rot' && n !== null) o.rotate(n);
+    if ((p === 'w' || p === 'h') && n > 0) {
+      if (kindOf(o) === 'text' && p === 'w') { o.set({ width: n / (o.scaleX || 1) }); o.initDimensions(); }
+      else {
+        var sx = p === 'w' ? n / o.width : o.scaleX, sy = p === 'h' ? n / (o.height || 1) : o.scaleY;
+        if (ratioLock) { if (p === 'w') sy = o.scaleY * (sx / o.scaleX); else sx = o.scaleX * (sy / o.scaleY); }
+        o.set({ scaleX: sx, scaleY: sy });
+      }
+    }
+    if (p === 'op' && n !== null) eachSel(function (x) { x.set('opacity', clamp(n, 0, 100) / 100); });
+    if (p === 'rad' && n !== null) {
+      if (o.isType('rect')) o.set({ rx: Math.max(0, n) / (o.scaleX || 1), ry: Math.max(0, n) / (o.scaleY || 1) });
+      if (kindOf(o) === 'image') fitMask(o, n > 0 ? 'rounded' : null, n);
+    }
+    if (p === 'blend') eachSel(function (x) { x.set('globalCompositeOperation', v); });
+    if (p === 'font') { ensureFont(v).then(function () { eachSel(function (x) { if (x.isType('textbox')) { x.set('fontFamily', stack(v)); refreshText(x); } }); commit(); }); return; }
+    var tx = function (fn) { eachSel(function (x) { if (x.isType('textbox')) { fn(x); x.initDimensions(); } }); };
+    if (p === 'weight') tx(function (x) { x.set('fontWeight', +v); });
+    if (p === 'size' && n > 0) tx(function (x) { x.set('fontSize', n / (x.scaleY || 1)); });
+    if (p === 'lh' && n > 0) tx(function (x) { x.set('lineHeight', n / 100); });
+    if (p === 'ls' && n !== null) tx(function (x) { x.set('charSpacing', n); });
+    if (/^fill/.test(p)) eachSel(function (x) { x.set('fill', colorFrom(p, 'fill', v, x.fill)); });
+    if (/^stroke/.test(p)) eachSel(function (x) { x.set('stroke', colorFrom(p, 'stroke', v, x.stroke)); });
+    if (p === 'sw' && n !== null) eachSel(function (x) { x.set({ strokeWidth: Math.max(0, n) }); if (x.isType('textbox')) { x.set({ paintFirst: 'stroke', strokeUniform: true }); x.initDimensions(); } });
+    if ((p === 'shx' || p === 'shy' || p === 'shb') && n !== null) eachSel(function (x) { if (x.shadow) { x.shadow[{ shx: 'offsetX', shy: 'offsetY', shb: 'blur' }[p]] = n; x.set('dirty', true); } });
+    if (/^shc/.test(p)) eachSel(function (x) { if (x.shadow) { x.shadow.color = colorFrom(p, 'shc', v, x.shadow.color); x.set('dirty', true); } });
+    if (p === 'tbg') eachSel(function (x) { x.set('textBackgroundColor', v ? '#e7e3fd' : ''); });
+    if (/^tbgc/.test(p)) eachSel(function (x) { x.set('textBackgroundColor', colorFrom(p, 'tbgc', v, x.textBackgroundColor)); });
+    if (p === 'mask') fitMask(o, v === 'none' ? null : v);
+    if (/^f-/.test(p) && n !== null) {
+      var map = { 'f-bri': [F.Brightness, 'brightness'], 'f-con': [F.Contrast, 'contrast'], 'f-sat': [F.Saturation, 'saturation'], 'f-hue': [F.HueRotation, 'rotation'], 'f-blur': [F.Blur, 'blur'] }[p];
+      setFilter(o, map[0], map[1], n / 100, 0);
+    }
+    o.setCoords(); canvas.requestRenderAll();
+  }
+
+  var rp = $('#rp-body');
+  // sliders, colour pickers and the frame name apply live; number fields on Enter / blur / arrows / scrubbing
+  rp.addEventListener('input', function (e) {
+    var t = e.target, p = t.dataset.p; if (!p) return;
+    if (t.type === 'range') { t.nextElementSibling.textContent = t.value; propInput(p, t.value); }
+    else if (t.type === 'color') { t.previousElementSibling.style.background = t.value; propInput(p, t.value); }
+    else if (p === 'fname') propInput(p, t.value);
+  });
+  rp.addEventListener('change', function (e) {
+    var t = e.target, p = t.dataset.p; if (!p) return;
+    propInput(p, t.type === 'checkbox' ? t.checked : t.value);
+    commit();
+    if (t.tagName === 'SELECT' || t.type === 'checkbox' || /Hex$|Op$/.test(p) || t.type === 'color' || p === 'fname') refreshUI();
+    else renderLeft();
+  });
+  rp.addEventListener('keydown', function (e) {
+    var t = e.target; if (t.tagName !== 'INPUT') return;
+    e.stopPropagation();
+    if (e.key === 'Enter') { t.blur(); return; }
+    if (e.key === 'Escape') { t.blur(); return; }
+    if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && t.getAttribute('inputmode') === 'decimal') {
+      e.preventDefault();
+      var n2 = (num(t.value) || 0) + (e.key === 'ArrowUp' ? 1 : -1) * (e.shiftKey ? 10 : 1);
+      t.value = n2; propInput(t.dataset.p, n2); commit();
+    }
+  });
+  // drag a field's label left/right to change the number (Figma "scrubbing")
+  var scrub = null;
+  rp.addEventListener('mousedown', function (e) {
+    var lb = e.target.closest('[data-scrub]'); if (!lb) return;
+    var inp = lb.parentNode.querySelector('input'); if (!inp || inp.getAttribute('inputmode') !== 'decimal') return;
+    e.preventDefault();
+    scrub = { inp: inp, x: e.clientX, v: num(inp.value) || 0 };
+    document.body.style.cursor = 'ew-resize';
+  });
+  window.addEventListener('mousemove', function (e) {
+    if (!scrub) return;
+    var v = Math.round(scrub.v + (e.clientX - scrub.x) * (e.shiftKey ? 10 : 1));
+    scrub.inp.value = v; propInput(scrub.inp.dataset.p, v);
+  });
+  window.addEventListener('mouseup', function () { if (scrub) { scrub = null; document.body.style.cursor = ''; commit(); refreshUI(); } });
+
+  function textEach(fn) { eachSel(function (x) { if (x.isType('textbox')) { fn(x); x.initDimensions(); } }); }
+  rp.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-a]'); if (!b) return;
+    var a = b.dataset.a, v = b.dataset.v, o = active();
+    if (a === 'dup') duplicate();
+    else if (a === 'del') { if (!o) selectFrame(page); removeSel(); }
+    else if (a === 'lock' && o) { var on = !o.locked; eachSel(function (x) { lockObj(x, on); }); if (o.type === 'activeSelection') o.locked = on; commit(); }
+    else if (a === 'align') align(v);
+    else if (a === 'dist') distribute(v);
+    else if (a === 'group') groupSel();
+    else if (a === 'ungroup') ungroupSel();
+    else if (a === 'rot90' && o) rotate90(o);
+    else if (a === 'flipX' && o) { eachSel(function (x) { x.set('flipX', !x.flipX); }); commit(); }
+    else if (a === 'flipY' && o) { eachSel(function (x) { x.set('flipY', !x.flipY); }); commit(); }
+    else if (a === 'ratio') ratioLock = !ratioLock;
+    else if (a === 'talign') { textEach(function (x) { x.set('textAlign', v); }); commit(); }
+    else if (a === 'tstyle') {
+      textEach(function (x) {
+        if (v === 'b') x.set('fontWeight', +x.fontWeight >= 600 || x.fontWeight === 'bold' ? 400 : 700);
+        if (v === 'i') x.set('fontStyle', x.fontStyle === 'italic' ? 'normal' : 'italic');
+        if (v === 'u') x.set('underline', !x.underline);
+        if (v === 's') x.set('linethrough', !x.linethrough);
+      });
+      commit();
+    }
+    else if (a === 'case') {
+      textEach(function (x) {
+        x.set('text', v === 'up' ? x.text.toUpperCase() : v === 'low' ? x.text.toLowerCase() : x.text.toLowerCase().replace(/(^|\s)(\S)/g, function (m, s1, c) { return s1 + c.toUpperCase(); }));
+      });
+      commit();
+    }
+    else if (a === 'crop') startCrop();
+    else if (a === 'rmbg' && o) { b.disabled = true; removeBackground(o); return; }
+    else if (a === 'asbg') setAsBackground();
+    else if (a === 'upscale' && o) { sendObject(o, 'upscale'); return; }
+    else if (a === 'preset' && o) setPreset(o, v);
+    else if (a === 'resetf' && o) { o.filters = []; o.applyFilters(); commit(); }
+    else if (a === 'addstroke') {
+      eachSel(function (x) {
+        var t = x.isType('textbox');
+        x.set({ stroke: t ? '#000000' : '#1e1e1e', strokeWidth: t ? 4 : 2 });
+        if (t) { x.set({ paintFirst: 'stroke', strokeUniform: true }); x.initDimensions(); }
+      });
+      commit();
+    }
+    else if (a === 'rmstroke') { eachSel(function (x) { x.set({ stroke: null, strokeWidth: 0 }); }); commit(); }
+    else if (a === 'addshadow') { eachSel(function (x) { x.set('shadow', new fabric.Shadow({ color: 'rgba(0,0,0,0.35)', blur: Math.round(Math.min(W, H) * 0.02), offsetX: 0, offsetY: Math.round(Math.min(W, H) * 0.01) })); }); commit(); }
+    else if (a === 'rmshadow') { eachSel(function (x) { x.set('shadow', null); }); commit(); }
+    else if (a === 'arr') arrange(v);
+    else if (a === 'export-frame') { exportFrames([o && o.isFrame ? o : page]); return; }
+    else if (a === 'export-sel' && o) { exportSelection(o); return; }
+    canvas.requestRenderAll();
+    refreshUI();
+  });
+
+  // ---------- contextual bar above the dock ----------
+
+  function renderCtxbar() {
+    var el = $('#ctxbar'), o = active(), k = kindOf(o), h = '';
+    var btn = function (a, ic, label, title, extra) { return '<button type="button" class="tool' + (extra || '') + '" data-c="' + a + '" title="' + (title || label) + '">' + icon(ic) + (label ? '<span>' + label + '</span>' : '') + '</button>'; };
+    if (crop) h = '<span class="ctx-lbl">Хүрээг чирж тохируулна</span><span class="sep"></span>' + btn('crop-ok', 'check', 'Тайрах', 'Enter', ' ok') + btn('crop-cancel', 'minus', 'Болих', 'Esc');
+    else if (tool === 'draw') {
+      var cols = [draw.color].concat(DG.brand.slice(0, 3), ['#1e1e1e', '#ffffff', '#ff4fd8']).filter(function (c, i, a) { return c && a.indexOf(c) === i; }).slice(0, 7);
+      h = [['pen', 'pen', 'Үзэг'], ['marker', 'marker', 'Маркер'], ['spray', 'spray', 'Шүршигч'], ['eraser', 'eraser', 'Баллуур (зураасыг бүтнээр нь устгана)']].map(function (t) {
+          return '<button type="button" class="tool' + (draw.tool === t[0] ? ' on' : '') + '" data-draw="' + t[0] + '" title="' + t[2] + '">' + icon(t[1]) + '</button>';
+        }).join('') + '<span class="sep"></span>' +
+        cols.map(function (c) { return '<button type="button" class="tool" data-dcol="' + esc(c) + '" title="' + esc(c) + '"><span class="sw" style="background:' + esc(c) + ';' + (c === draw.color ? 'box-shadow:0 0 0 2px var(--acc)' : '') + '"></span></button>'; }).join('') +
+        '<label class="tool" title="Өөр өнгө"><span class="csw" style="margin:0"><i style="background:conic-gradient(red,yellow,lime,cyan,blue,magenta,red)"></i><input type="color" data-dpick value="' + draw.color + '"></span></label>' +
+        '<span class="sep"></span><span class="ctx-lbl">Зузаан</span><input type="range" data-dsize min="1" max="' + Math.max(20, Math.round(Math.min(W, H) * 0.08)) + '" value="' + brushSize() + '" style="width:90px">' +
+        '<span class="sep"></span>' + btn('draw-done', 'check', 'Дуусгах', 'Esc', ' ok');
+    } else if (k === 'image') {
+      h = btn('crop', 'crop', 'Тайрах') + btn('rmbg', 'wand', 'Дэвсгэр арилгах') + '<span class="sep"></span>' + btn('asbg', 'bg', '', 'Frame-ийг дүүргэх') +
+        btn('rot90', 'rotate', '', '90° эргүүлэх') + btn('flipX', 'flipH', '', 'Хэвтээ толин тусгал') + btn('flipY', 'flipV', '', 'Босоо толин тусгал');
+    } else if (k === 'multi') {
+      h = btn('group', 'group', 'Бүлэглэх', 'Ctrl+G') + '<span class="sep"></span>' + btn('alignL', 'aL', '', 'Зүүн') + btn('alignC', 'aC', '', 'Голлуулах') + btn('alignR', 'aR', '', 'Баруун') +
+        btn('alignT', 'aT', '', 'Дээд') + btn('alignM', 'aM', '', 'Дунд') + btn('alignB', 'aB', '', 'Доод');
+    }
+    el.innerHTML = h; el.hidden = !h;
+  }
+  $('#ctxbar').addEventListener('click', function (e) {
+    var d = e.target.closest('[data-draw]'); if (d) { draw.tool = d.dataset.draw; applyBrush(); renderCtxbar(); return; }
+    var dc = e.target.closest('[data-dcol]'); if (dc) { draw.color = dc.dataset.dcol; applyBrush(); renderCtxbar(); return; }
+    var b = e.target.closest('[data-c]'); if (!b) return;
+    var c = b.dataset.c, o = active();
+    if (c === 'crop-ok') endCrop(true);
+    if (c === 'crop-cancel') endCrop(false);
+    if (c === 'draw-done') setTool('move');
+    if (c === 'crop') startCrop();
+    if (c === 'rmbg' && o) { b.disabled = true; removeBackground(o).then(function () { b.disabled = false; }); return; }
+    if (c === 'asbg') setAsBackground();
+    if (c === 'rot90' && o) rotate90(o);
+    if (c === 'flipX' && o) { o.set('flipX', !o.flipX); commit(); }
+    if (c === 'flipY' && o) { o.set('flipY', !o.flipY); commit(); }
+    if (c === 'group') groupSel();
+    if (/^align/.test(c)) align(c.slice(5));
+    canvas.requestRenderAll(); refreshUI();
+  });
+  $('#ctxbar').addEventListener('input', function (e) {
+    if (e.target.hasAttribute('data-dsize')) { draw.size = +e.target.value; applyBrush(); }
+    if (e.target.hasAttribute('data-dpick')) { draw.color = e.target.value; applyBrush(); }
+  });
+  $('#ctxbar').addEventListener('change', function (e) { if (e.target.hasAttribute('data-dpick')) renderCtxbar(); });
 
   // ---------- export ----------
 
-  function renderPage(mult, opaque) {
+  function renderRegion(l, t, w, h, mult, opaque, hideFrames, only) {
     canvas.discardActiveObject();
-    var vpt = canvas.viewportTransform.slice(), bg = canvas.backgroundColor, fill = page.fill;
-    exporting = true;
-    canvas.backgroundColor = null;
-    if (pageTransparent) page.set('fill', opaque ? '#ffffff' : 'rgba(0,0,0,0)');
+    var vpt = canvas.viewportTransform.slice(), bg = canvas.backgroundColor, saved = [], hidden = [];
+    // like Figma: a frame exports only its own layers, not ones spilling over from a neighbour
+    if (only) userObjects().forEach(function (o) { if (o.visible !== false && frameOf(o) !== only) { o.visible = false; hidden.push(o); } });
+    exporting = true; canvas.backgroundColor = null;
+    frames().forEach(function (f) {
+      saved.push([f, f.fill, f.visible]);
+      if (hideFrames) f.visible = false;
+      else if (f.gTransparent) f.set('fill', 'rgba(0,0,0,0)');
+    });
     canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
-    var out = canvas.toCanvasElement(mult || 1, { left: 0, top: 0, width: W, height: H });
+    var out = canvas.toCanvasElement(mult || 1, { left: l, top: t, width: w, height: h });
     canvas.setViewportTransform(vpt);
-    canvas.backgroundColor = bg; page.set('fill', fill);
-    exporting = false;
-    canvas.requestRenderAll();
+    saved.forEach(function (s) { s[0].set({ fill: s[1] }); s[0].visible = s[2]; });
+    hidden.forEach(function (o) { o.visible = true; });
+    canvas.backgroundColor = bg; exporting = false; canvas.requestRenderAll();
+    if (opaque) { var c = document.createElement('canvas'); c.width = out.width; c.height = out.height; var x = c.getContext('2d'); x.fillStyle = '#ffffff'; x.fillRect(0, 0, c.width, c.height); x.drawImage(out, 0, 0); return c; }
     return out;
   }
-  function fileBase() { return ($('#ed-name').value || 'graphican-design').trim().replace(/[\\/:*?"<>|]+/g, '_').slice(0, 60) || 'graphican-design'; }
-  function toBlob(c, type, q) { return new Promise(function (r) { c.toBlob(r, type, q); }); }
-
-  $('#ed-dl-menu').addEventListener('click', function (e) {
-    var b = e.target.closest('[data-dl]'); if (!b) return;
-    $('#ed-dl-menu').hidden = true;
-    var k = b.dataset.dl, name = fileBase();
-    if (k === 'png' || k === 'png2') toBlob(renderPage(k === 'png2' ? 2 : 1), 'image/png').then(function (bl) { saveBlob(name + '.png', bl); toast('PNG татагдлаа'); });
-    if (k === 'jpg') toBlob(renderPage(1, true), 'image/jpeg', 0.92).then(function (bl) { saveBlob(name + '.jpg', bl); toast('JPG татагдлаа'); });
-    if (k === 'pdf') {
-      toast('PDF бэлтгэж байна…');
-      var c = renderPage(2, true);
-      Promise.all([window.PDFLib ? Promise.resolve() : loadScript('/assets/vendor/pdf-lib.min.js'), toBlob(c, 'image/jpeg', 0.95)])
-        .then(function (r) { return r[1].arrayBuffer(); })
-        .then(function (buf) {
-          var L = window.PDFLib;
-          return L.PDFDocument.create().then(function (doc) {
-            return doc.embedJpg(buf).then(function (img) {
-              var pw = W * 0.75, ph = H * 0.75; // px → pt at 96 dpi
-              doc.addPage([pw, ph]).drawImage(img, { x: 0, y: 0, width: pw, height: ph });
-              return doc.save();
-            });
-          });
-        })
-        .then(function (bytes) { saveBlob(name + '.pdf', new Blob([bytes], { type: 'application/pdf' })); toast('PDF татагдлаа'); })
-        .catch(function (err) { console.error(err); toast('PDF үүсгэж чадсангүй'); });
+  function renderFrame(f, mult, opaque) { return renderRegion(f.left, f.top, fw(f), fh(f), mult, opaque, false, f); }
+  function safe(s) { return String(s).trim().replace(/[\\/:*?"<>|]+/g, '_').slice(0, 80); }
+  function fileBase(extra) { return safe(($('#ed-name').value || 'graphican') + (extra ? '-' + extra : '')); }
+  function exportFrames(list, fmt, scale) {
+    fmt = fmt || expFmt; scale = scale || expScale;
+    if (fmt === 'pdf') return exportPdf(list, scale);
+    var mime = fmt === 'jpg' ? 'image/jpeg' : 'image/png';
+    if (list.length === 1) {
+      var f = list[0];
+      return toBlob(renderFrame(f, scale, fmt === 'jpg'), mime, 0.92).then(function (b) {
+        var n = fileBase(frames().length > 1 ? f.name : '') + '.' + fmt; saveBlob(n, b); toast(n + ' татагдлаа');
+      });
     }
+    toast('ZIP бэлтгэж байна…');
+    return Promise.all(list.map(function (f, i) {
+      return toBlob(renderFrame(f, scale, fmt === 'jpg'), mime, 0.92)
+        .then(function (b) { return b.arrayBuffer(); })
+        .then(function (ab) { return { name: String(i + 1).padStart(2, '0') + '-' + safe(f.name || 'frame') + '.' + fmt, data: new Uint8Array(ab) }; });
+    })).then(function (files) { saveBlob(fileBase() + '.zip', makeZip(files)); toast(files.length + ' frame ZIP-ээр татагдлаа'); });
+  }
+  function exportPdf(list, scale) {
+    toast('PDF бэлтгэж байна…');
+    return (window.PDFLib ? Promise.resolve() : loadScript('/assets/vendor/pdf-lib.min.js')).then(function () {
+      var L = window.PDFLib;
+      return L.PDFDocument.create().then(function (doc) {
+        var chain = Promise.resolve();
+        list.forEach(function (f) {
+          chain = chain.then(function () { return toBlob(renderFrame(f, Math.max(2, scale), true), 'image/jpeg', 0.95); })
+            .then(function (b) { return b.arrayBuffer(); })
+            .then(function (ab) { return doc.embedJpg(ab); })
+            .then(function (img) { var pw = fw(f) * 0.75, ph = fh(f) * 0.75; doc.addPage([pw, ph]).drawImage(img, { x: 0, y: 0, width: pw, height: ph }); });
+        });
+        return chain.then(function () { return doc.save(); });
+      });
+    }).then(function (bytes) { saveBlob(fileBase() + '.pdf', new Blob([bytes], { type: 'application/pdf' })); toast('PDF татагдлаа (' + list.length + ' хуудас)'); })
+      .catch(function (e) { console.error(e); toast('PDF үүсгэж чадсангүй'); });
+  }
+  function exportSelection(o) {
+    var b = o.getBoundingRect(true, true), fmt = expFmt === 'pdf' ? 'png' : expFmt;
+    var c = renderRegion(b.left, b.top, b.width, b.height, expScale, fmt === 'jpg', true);
+    canvas.setActiveObject(o);
+    toBlob(c, fmt === 'jpg' ? 'image/jpeg' : 'image/png', 0.92).then(function (bl) { var n = fileBase('selection') + '.' + fmt; saveBlob(n, bl); toast(n + ' татагдлаа'); });
+  }
+  // tiny ZIP writer (stored, no compression) for multi-frame PNG/JPG export
+  var CRC = (function () { var t = [], c, n, k; for (n = 0; n < 256; n++) { c = n; for (k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+  function crc32(u8) { var c = 0xFFFFFFFF; for (var i = 0; i < u8.length; i++) c = CRC[(c ^ u8[i]) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+  function makeZip(files) {
+    var parts = [], central = [], offset = 0, enc = new TextEncoder();
+    files.forEach(function (f) {
+      var name = enc.encode(f.name), data = f.data, crc = crc32(data);
+      var lh = new DataView(new ArrayBuffer(30));
+      lh.setUint32(0, 0x04034b50, true); lh.setUint16(4, 20, true); lh.setUint16(6, 0x0800, true);
+      lh.setUint32(14, crc, true); lh.setUint32(18, data.length, true); lh.setUint32(22, data.length, true); lh.setUint16(26, name.length, true);
+      parts.push(lh.buffer, name, data);
+      var ch = new DataView(new ArrayBuffer(46));
+      ch.setUint32(0, 0x02014b50, true); ch.setUint16(4, 20, true); ch.setUint16(6, 20, true); ch.setUint16(8, 0x0800, true);
+      ch.setUint32(16, crc, true); ch.setUint32(20, data.length, true); ch.setUint32(24, data.length, true); ch.setUint16(28, name.length, true); ch.setUint32(42, offset, true);
+      central.push(ch.buffer, name);
+      offset += 30 + name.length + data.length;
+    });
+    var size = central.reduce(function (a, b) { return a + b.byteLength; }, 0), end = new DataView(new ArrayBuffer(22));
+    end.setUint32(0, 0x06054b50, true); end.setUint16(8, files.length, true); end.setUint16(10, files.length, true); end.setUint32(12, size, true); end.setUint32(16, offset, true);
+    return new Blob(parts.concat(central, [end.buffer]), { type: 'application/zip' });
+  }
+
+  // export menu (top right)
+  function renderExportMenu() {
+    var n = frames().length;
+    $('#ed-export-menu').innerHTML =
+      '<div class="mt">Формат</div><div class="row2"><select data-em="fmt"><option value="png"' + (expFmt === 'png' ? ' selected' : '') + '>PNG</option><option value="jpg"' + (expFmt === 'jpg' ? ' selected' : '') + '>JPG</option><option value="pdf"' + (expFmt === 'pdf' ? ' selected' : '') + '>PDF</option></select>' +
+      '<select data-em="scale"><option value="1"' + (expScale === 1 ? ' selected' : '') + '>1×</option><option value="2"' + (expScale === 2 ? ' selected' : '') + '>2×</option><option value="3"' + (expScale === 3 ? ' selected' : '') + '>3×</option></select></div>' +
+      '<button type="button" data-ex="cur">«' + esc((page.name || 'Frame').slice(0, 22)) + '» татах</button>' +
+      (n > 1 ? '<button type="button" data-ex="all">Бүх ' + n + ' frame <i>' + (expFmt === 'pdf' ? 'олон хуудастай PDF' : 'ZIP') + '</i></button>' : '') +
+      '<div class="sep"></div><div class="mt">Design tools руу илгээх</div>' +
+      '<button type="button" data-send="bgremove">Дэвсгэр арилгах</button><button type="button" data-send="upscale">✦ AI томруулах</button>' +
+      '<button type="button" data-send="socialcrop">Сошиал хэмжээ рүү тайрах</button><button type="button" data-send="pdf">PDF хөрвүүлэгч</button>';
+  }
+  $('#ed-export').addEventListener('click', function (e) {
+    var m = $('#ed-export-menu'), show = m.hidden; closeMenus();
+    if (show) { renderExportMenu(); m.hidden = false; }
+    e.stopPropagation();
+  });
+  $('#ed-export-menu').addEventListener('change', function (e) { var k = e.target.dataset.em; if (k === 'fmt') expFmt = e.target.value; if (k === 'scale') expScale = +e.target.value; renderExportMenu(); renderRight(); });
+  $('#ed-export-menu').addEventListener('click', function (e) {
+    var b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.ex) { $('#ed-export-menu').hidden = true; exportFrames(b.dataset.ex === 'all' ? frames() : [page]); }
+    if (b.dataset.send) { $('#ed-export-menu').hidden = true; toBlob(renderFrame(page, 1), 'image/png').then(function (bl) { handoff(bl, b.dataset.send); }); }
+    e.stopPropagation();
   });
 
-  // send the whole design (or one image) to a Design tools page; the design is saved first
+  // ---------- hand-off with /tools/ ----------
+
   function handoff(blob, target) {
     if (!window.GHandoff) { toast('Илгээж чадсангүй'); return; }
     pushHistory();
-    dbSet('doc', snapshot()).then(function () {
-      return window.GHandoff.put(blob, { name: fileBase() + '.png', target: target });
-    }).then(function () {
-      location.href = '/tools/' + target + '/';
-    }).catch(function () { toast('Илгээж чадсангүй'); });
+    dbSet('doc', snapshot()).then(function () { return window.GHandoff.put(blob, { name: fileBase() + '.png', target: target }); })
+      .then(function () { location.href = '/tools/' + target + '/'; })
+      .catch(function () { toast('Илгээж чадсангүй'); });
   }
-  $('#ed-send-menu').addEventListener('click', function (e) {
-    var b = e.target.closest('[data-send]'); if (!b) return;
-    $('#ed-send-menu').hidden = true;
-    toBlob(renderPage(1), 'image/png').then(function (bl) { handoff(bl, b.dataset.send); });
-  });
   function sendObject(o, target) {
     var el = o.getElement(), c = document.createElement('canvas');
     c.width = el.naturalWidth || el.width; c.height = el.naturalHeight || el.height;
@@ -1436,112 +1650,161 @@
     toBlob(c, 'image/png').then(function (bl) { handoff(bl, target); });
   }
 
+  // ---------- top-right: undo, zoom, theme, help ----------
+
+  $('#ed-undo').innerHTML = icon('undo'); $('#ed-redo').innerHTML = icon('redo');
+  $('#ed-undo').addEventListener('click', undo); $('#ed-redo').addEventListener('click', redo);
+  function closeMenus() { $$('.menu').forEach(function (m) { if (m.id === 'ed-help-menu') m.remove(); else m.hidden = true; }); }
+  $('#ed-zoom').addEventListener('click', function (e) { var m = $('#ed-zoom-menu'), show = m.hidden; closeMenus(); m.hidden = !show; e.stopPropagation(); });
+  $('#ed-zoom-menu').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-zoom]'); if (!b) return;
+    var z = b.dataset.zoom;
+    if (z === 'in') zoomTo(canvas.getZoom() * 1.25);
+    if (z === 'out') zoomTo(canvas.getZoom() / 1.25);
+    if (z === 'fit') fitAll();
+    if (z === 'frame') fitFrame();
+    if (z === '100') zoomTo(1);
+    $('#ed-zoom-menu').hidden = true;
+  });
+  function themeIcon() { $('#ed-theme').innerHTML = icon(document.documentElement.getAttribute('data-theme') === 'dark' ? 'sun' : 'moon'); }
+  $('#ed-theme').addEventListener('click', function () {
+    var dark = document.documentElement.getAttribute('data-theme') === 'dark';
+    if (dark) document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', 'dark');
+    try { localStorage.setItem('gc-editor-theme', dark ? '' : 'dark'); } catch (e) {}
+    canvas.backgroundColor = canvasBg(); canvas.requestRenderAll(); themeIcon();
+  });
+  themeIcon();
+  $('#ed-help').addEventListener('click', function (e) {
+    e.stopPropagation();
+    if ($('#ed-help-menu')) { closeMenus(); return; }
+    closeMenus();
+    var m = document.createElement('div'); m.className = 'menu r help'; m.id = 'ed-help-menu';
+    m.innerHTML = '<div class="mt">Товчлолууд</div>' + [
+      ['V · H', 'Сонгох · гар'], ['F · R · O · L', 'Frame · тэгш өнцөгт · эллипс · шугам'], ['T · P', 'Текст · зурах'],
+      ['Ctrl Z · Ctrl Shift Z', 'Буцаах · дахин хийх'], ['Ctrl C · V · D', 'Хуулах · буулгах · хувилах'], ['Delete', 'Устгах'],
+      ['Ctrl G · Ctrl Shift G', 'Бүлэглэх · задлах'], ['Ctrl ] · [', 'Урагш · хойш'], ['Сумнууд (+Shift)', '1px (10px) зөөх'],
+      ['Enter · давхар дарах', 'Текст засах'], ['Space + чирэх · дугуй', 'Гүйлгэх'], ['Ctrl + дугуй', 'Томруулах'],
+      ['Shift 1 · Shift 2', 'Бүгдийг · frame-ийг харах'], ['X, W… шошгыг чирэх', 'Тоог өөрчлөх'], ['Frame нэрийг чирэх', 'Frame зөөх']
+    ].map(function (r) { return '<div class="kb"><kbd>' + r[0] + '</kbd><span>' + r[1] + '</span></div>'; }).join('');
+    this.parentNode.appendChild(m);
+  });
+  document.addEventListener('mousedown', function (e) {
+    if (!e.target.closest('.menu') && !e.target.closest('#ed-zoom,#ed-export,#ed-help,[data-shape-menu]')) closeMenus();
+  });
+
+  // mobile: panels as sheets
+  document.addEventListener('click', function (e) {
+    var o = e.target.closest('[data-open]'); if (o) { $('#' + o.dataset.open).classList.add('open'); return; }
+    var c = e.target.closest('[data-close]'); if (c) $('#' + c.dataset.close).classList.remove('open');
+  });
+
   // ---------- files: picker, drag & drop, paste ----------
 
-  $('#ed-file').addEventListener('change', function () {
-    Array.prototype.forEach.call(this.files, function (f) { addImageBlob(f); });
-    this.value = '';
-  });
+  $('#ed-file').addEventListener('change', function () { Array.prototype.forEach.call(this.files, function (f) { addImageBlob(f); }); this.value = ''; });
   var dragDepth = 0;
+  function hasFiles(e) { return e.dataTransfer && Array.prototype.indexOf.call(e.dataTransfer.types, 'Files') >= 0; }
   stage.addEventListener('dragenter', function (e) { if (hasFiles(e)) { e.preventDefault(); dragDepth++; $('#ed-dropzone').hidden = false; } });
   stage.addEventListener('dragover', function (e) { if (hasFiles(e)) e.preventDefault(); });
   stage.addEventListener('dragleave', function () { if (--dragDepth <= 0) { dragDepth = 0; $('#ed-dropzone').hidden = true; } });
   stage.addEventListener('drop', function (e) {
+    if (!hasFiles(e)) return;
     e.preventDefault(); dragDepth = 0; $('#ed-dropzone').hidden = true;
-    Array.prototype.forEach.call(e.dataTransfer.files, function (f) { if (/^image\//.test(f.type)) addImageBlob(f); });
+    var at = canvas.getPointer(e);
+    Array.prototype.forEach.call(e.dataTransfer.files, function (f) { if (/^image\//.test(f.type)) addImageBlob(f, { at: at }); });
   });
-  function hasFiles(e) { return e.dataTransfer && Array.prototype.indexOf.call(e.dataTransfer.types, 'Files') >= 0; }
+  var clip = null;
   window.addEventListener('paste', function (e) {
     if (isTyping(e)) return;
     var items = (e.clipboardData || {}).items || [];
-    for (var i = 0; i < items.length; i++) {
-      if (items[i].type.indexOf('image') === 0) { e.preventDefault(); addImageBlob(items[i].getAsFile()); return; }
-    }
+    for (var i = 0; i < items.length; i++) if (items[i].type.indexOf('image') === 0) { e.preventDefault(); addImageBlob(items[i].getAsFile()); return; }
     if (clip) pasteClip();
   });
-
-  // ---------- keyboard ----------
-
-  var clip = null;
   function pasteClip() {
     clip.clone(function (c) {
       canvas.discardActiveObject();
-      c.set({ left: c.left + 24, top: c.top + 24, evented: true });
-      if (c.type === 'activeSelection') { c.canvas = canvas; c.forEachObject(function (x) { canvas.add(x); }); c.setCoords(); }
-      else canvas.add(c);
-      clip.left += 24; clip.top += 24;
+      c.set({ left: c.left + 20, top: c.top + 20, evented: true });
+      if (c.type === 'activeSelection') { c.canvas = canvas; c.forEachObject(function (x) { canvas.add(x); }); c.setCoords(); } else canvas.add(c);
+      clip.left += 20; clip.top += 20;
       canvas.setActiveObject(c); canvas.requestRenderAll(); commit();
     }, PROPS);
   }
+
+  // ---------- keyboard ----------
+
   function isTyping(e) {
     var t = e.target, o = active();
     return (o && o.isEditing) || (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable));
   }
   window.addEventListener('keydown', function (e) {
-    if (e.code === 'Space' && !isTyping(e)) { if (!spaceDown) { spaceDown = true; canvas.defaultCursor = 'grab'; canvas.setCursor('grab'); } e.preventDefault(); return; }
+    if (e.code === 'Space' && !isTyping(e)) { if (!spaceDown) { spaceDown = true; canvas.setCursor('grab'); } e.preventDefault(); return; }
     if (isTyping(e)) { if (e.key === 'Escape') { var t = active(); if (t && t.isEditing) { t.exitEditing(); canvas.requestRenderAll(); } } return; }
     var mod = e.ctrlKey || e.metaKey, k = e.key.toLowerCase(), o = active();
-    if (crop) {
-      if (e.key === 'Enter') { e.preventDefault(); endCrop(true); }
-      if (e.key === 'Escape') { e.preventDefault(); endCrop(false); }
-      return;
-    }
-    if (draw.on && e.key === 'Escape') { e.preventDefault(); openPanel(window.innerWidth > 820 ? 'layers' : null); return; }
-    if (mod && k === 'g') { e.preventDefault(); if (e.shiftKey) ungroupSel(); else groupSel(); return; }
+    if (crop) { if (e.key === 'Enter') { e.preventDefault(); endCrop(true); } if (e.key === 'Escape') { e.preventDefault(); endCrop(false); } return; }
+    if (e.key === 'Escape' && tool !== 'move') { setTool('move'); return; }
     if (mod && k === 'z') { e.preventDefault(); if (e.shiftKey) redo(); else undo(); return; }
     if (mod && k === 'y') { e.preventDefault(); redo(); return; }
     if (mod && k === 'd') { e.preventDefault(); duplicate(); return; }
-    if (mod && k === 'c' && o) { o.clone(function (c) { clip = c; }, PROPS); return; }
-    if (mod && k === 'a') { e.preventDefault(); var all = userObjects().filter(function (x) { return x.visible !== false && !x.locked; }); if (all.length) { canvas.setActiveObject(new fabric.ActiveSelection(all, { canvas: canvas })); canvas.requestRenderAll(); } return; }
-    if (mod && (k === '0')) { e.preventDefault(); fit(); return; }
-    if (mod && (k === '=' || k === '+')) { e.preventDefault(); zoomBy(1.2); return; }
-    if (mod && k === '-') { e.preventDefault(); zoomBy(1 / 1.2); return; }
+    if (mod && k === 'g') { e.preventDefault(); if (e.shiftKey) ungroupSel(); else groupSel(); return; }
+    if (mod && k === 'c' && o && !o.isFrame) { o.clone(function (c) { clip = c; }, PROPS); return; }
+    if (mod && k === 'a') {
+      e.preventDefault();
+      var all = userObjects().filter(function (x) { return x.visible !== false && !x.locked; });
+      if (all.length) { canvas.setActiveObject(new fabric.ActiveSelection(all, { canvas: canvas })); canvas.requestRenderAll(); }
+      return;
+    }
+    if (mod && k === '0') { e.preventDefault(); zoomTo(1); return; }
+    if (mod && (k === '=' || k === '+')) { e.preventDefault(); zoomTo(canvas.getZoom() * 1.25); return; }
+    if (mod && k === '-') { e.preventDefault(); zoomTo(canvas.getZoom() / 1.25); return; }
     if (mod && k === ']') { e.preventDefault(); arrange(e.shiftKey ? 'top' : 'up'); return; }
     if (mod && k === '[') { e.preventDefault(); arrange(e.shiftKey ? 'bottom' : 'down'); return; }
-    if (mod && o && kindOf(o) === 'text' && (k === 'b' || k === 'i' || k === 'u')) {
-      e.preventDefault();
-      if (k === 'b') setProp('fontWeight', o.fontWeight >= 600 ? 400 : 700);
-      if (k === 'i') setProp('fontStyle', o.fontStyle === 'italic' ? 'normal' : 'italic');
-      if (k === 'u') setProp('underline', !o.underline);
-      refreshCtx(); return;
+    if (e.shiftKey && e.code === 'Digit1') { fitAll(); return; }
+    if (e.shiftKey && e.code === 'Digit2') { fitFrame(o && !o.isFrame ? frameOf(o) || page : o || page); return; }
+    if (!mod && !e.altKey && !e.shiftKey) {
+      var tk = { v: 'move', h: 'hand', f: 'frame', t: 'text', p: 'draw' }[k];
+      var sk = { r: 'rect', o: 'ellipse', l: 'line' }[k];
+      if (tk) { setTool(tk); return; }
+      if (sk) { shapeKind = sk; setTool('shape'); return; }
     }
     if (!o) return;
     if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); removeSel(); return; }
     if (e.key === 'Escape') { canvas.discardActiveObject(); canvas.requestRenderAll(); return; }
     if (e.key === 'Enter' && kindOf(o) === 'text') { e.preventDefault(); o.enterEditing(); o.selectAll(); canvas.requestRenderAll(); return; }
     var step = e.shiftKey ? 10 : 1, mv = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[e.key];
-    if (mv && !o.locked) { e.preventDefault(); o.set({ left: o.left + mv[0], top: o.top + mv[1] }); o.setCoords(); canvas.requestRenderAll(); commit(); }
+    if (mv && !o.locked) {
+      e.preventDefault();
+      if (o.isFrame) moveFrame(o, mv[0], mv[1]); else { o.set({ left: o.left + mv[0], top: o.top + mv[1] }); o.setCoords(); }
+      canvas.requestRenderAll(); commit(); syncGeom();
+    }
   });
-  window.addEventListener('keyup', function (e) { if (e.code === 'Space') { spaceDown = false; canvas.defaultCursor = 'default'; canvas.setCursor('default'); } });
+  window.addEventListener('keyup', function (e) { if (e.code === 'Space') { spaceDown = false; canvas.setCursor(tool === 'hand' ? 'grab' : 'default'); } });
 
-  function refreshAll() { refreshLayers(); refreshCtx(); updateHint(); histButtons(); if (activePanel) renderPanel(activePanel); }
+  // ---------- UI refresh ----------
+
+  function updateHint() { $('#ed-hint').hidden = userObjects().length > 0 || tool === 'draw'; }
+  function refreshUI() { renderLeft(); renderRight(); renderCtxbar(); updateHint(); histButtons(); }
 
   // ---------- boot ----------
 
-  window.GEditor = { canvas: canvas, renderPage: renderPage }; // for debugging from the console
-  window.addEventListener('resize', function () { resizeCanvas(); fit(); canvas.requestRenderAll(); });
+  window.GEditor = { canvas: canvas, frames: frames, renderFrame: renderFrame, addFrame: addFrame, useTemplate: useTemplate, setTool: setTool };
+  window.addEventListener('resize', function () { resizeCanvas(); canvas.requestRenderAll(); });
+  renderDock();
   resizeCanvas();
-  canvas.add(makePage());
-  fit();
-  openPanel(window.innerWidth > 820 ? 'text' : null);
 
   loadDesignGuide().then(function () {
-    // warm up the chosen pair so the first text looks right
     var p = currentPair(); ensureFont('Manrope'); ensureFont(p.heading); ensureFont(p.body);
-    if (activePanel) renderPanel(activePanel);
     return dbGet('doc');
   }).then(function (saved) {
     if (saved) return restore(saved).then(function () { hist = [saved]; hi = 0; histButtons(); });
-    hist = [snapshot()]; hi = 0; histButtons();
+    addFrame(1080, 1350); fitAll();
+    hist = [snapshot()]; hi = 0; histButtons(); refreshUI();
   }).then(function () {
     return window.GHandoff ? window.GHandoff.take() : null;
   }).then(function (h) {
     if (h && h.blob) {
-      addImageBlob(h.blob, { fillPage: !userObjects().length }).then(function () { toast('Зураг засварлагчид орлоо'); });
-    } else if (prefs.pair && prefs.fresh) {
-      toast('Design guide-ээс: ' + prefs.pair.heading + ' + ' + prefs.pair.body);
-    }
+      var empty = !userObjects().length;
+      addImageBlob(h.blob, { fillFrame: empty }).then(function () { toast('Зураг засварлагчид орлоо'); });
+    } else if (prefs.pair && prefs.fresh) toast('Design guide-ээс: ' + prefs.pair.heading + ' + ' + prefs.pair.body);
     if (prefs.fresh) { prefs.fresh = false; try { localStorage.setItem('gc-editor-prefs', JSON.stringify(prefs)); } catch (e) {} }
-    updateHint();
+    refreshUI();
   });
 })();

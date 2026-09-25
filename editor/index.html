@@ -3,84 +3,90 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
-<script>if(location.hostname==='www.graphican.online')location.replace('https://graphican.online'+location.pathname+location.search+location.hash)</script>
-<title>Graphican Editor — Canva шиг үнэгүй онлайн дизайн засварлагч</title>
-<meta name="description" content="Сошиал пост, постер, баннерыг текст, зураг, хэлбэр нэмж бүтээх үнэгүй онлайн засварлагч. Кирилл фонт, өнгөний палитр, PNG / JPG / PDF татах. Бүртгэлгүй. Graphican.">
+<script>if(location.hostname==='www.graphican.online')location.replace('https://graphican.online'+location.pathname+location.search+location.hash);try{var t=localStorage.getItem('gc-editor-theme');if(t)document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
+<title>Graphican Editor — үнэгүй онлайн дизайн засварлагч</title>
+<meta name="description" content="Figma шиг цэвэрхэн, үнэгүй онлайн дизайн засварлагч: frame, текст, зураг, хэлбэр, AI дэвсгэр арилгах, кирилл фонт, PNG / JPG / PDF татах. Бүртгэлгүй. Graphican.">
 <link rel="canonical" href="https://graphican.online/editor/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Graphican">
 <meta property="og:url" content="https://graphican.online/editor/">
-<meta property="og:title" content="Graphican Editor — Canva шиг үнэгүй онлайн дизайн засварлагч">
+<meta property="og:title" content="Graphican Editor — үнэгүй онлайн дизайн засварлагч">
 <meta property="og:description" content="Сошиал пост, постер, баннерыг хөтөч дээрээ бүтээ. Бүртгэлгүй, үнэгүй.">
 <meta property="og:image" content="https://graphican.online/assets/uploads/og-cover.jpg">
-<meta name="theme-color" content="#0c0c12">
+<meta name="theme-color" content="#ffffff">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2308080a'/%3E%3Ccircle cx='16' cy='16' r='7' fill='%23a497ff'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap&subset=cyrillic" rel="stylesheet">
-<link rel="stylesheet" href="/assets/editor.css?v=2">
+<link rel="stylesheet" href="/assets/editor.css?v=3">
 </head>
 <body>
 
-<div class="ed" id="ed">
-  <header class="ed-top">
-    <div class="ed-top-l">
-      <a class="ed-logo" href="/tools/" title="Design tools руу буцах"><span class="ed-orb" aria-hidden="true"></span><span>Graphican</span></a>
-      <input class="ed-name" id="ed-name" value="Нэргүй дизайн" aria-label="Дизайны нэр" spellcheck="false">
-      <span class="ed-saved" id="ed-saved">Хадгалагдсан</span>
+<div class="app" id="app">
+  <!-- left: file, layers, add, templates -->
+  <aside class="lp" id="lp" aria-label="Давхарга ба нэмэх зүйлс">
+    <div class="lp-head">
+      <a class="logo" href="/tools/" title="Design tools руу буцах"><span class="orb" aria-hidden="true"></span><span>Graphican</span></a>
+      <button class="ib mob-only" data-close="lp" type="button" aria-label="Хаах">✕</button>
     </div>
-    <div class="ed-top-c">
+    <div class="lp-file">
+      <input class="file-name" id="ed-name" value="Нэргүй дизайн" aria-label="Дизайны нэр" spellcheck="false">
+      <span class="saved" id="ed-saved">Хадгалагдсан</span>
+    </div>
+    <div class="lp-tabs" role="tablist">
+      <button type="button" data-tab="layers" class="on">Давхарга</button>
+      <button type="button" data-tab="add">Нэмэх</button>
+      <button type="button" data-tab="templates">Загвар</button>
+    </div>
+    <div class="lp-body" id="lp-body"></div>
+  </aside>
+
+  <!-- canvas -->
+  <main class="stage" id="stage">
+    <canvas id="ed-canvas"></canvas>
+    <div class="hint" id="ed-hint">Доод самбараас <b>Текст</b>, <b>Хэлбэр</b>, <b>Зураг</b> нэмэх эсвэл зүүн талын <b>Загвар</b>-аас эхлээрэй</div>
+    <div class="ctxbar" id="ctxbar" hidden></div>
+    <div class="dock" id="dock" role="toolbar" aria-label="Хэрэгслүүд"></div>
+    <button class="mob-btn l mob-only" type="button" data-open="lp">☰ Давхарга</button>
+    <button class="mob-btn r mob-only" type="button" data-open="rp">Дизайн</button>
+    <div class="dropzone" id="ed-dropzone" hidden><span>Зургаа энд тавина уу</span></div>
+  </main>
+
+  <!-- right: properties -->
+  <aside class="rp" id="rp" aria-label="Тохиргоо">
+    <div class="rp-head">
       <button class="ib" id="ed-undo" type="button" title="Буцаах (Ctrl+Z)" aria-label="Буцаах" disabled></button>
       <button class="ib" id="ed-redo" type="button" title="Дахин хийх (Ctrl+Shift+Z)" aria-label="Дахин хийх" disabled></button>
-      <span class="ed-sep" aria-hidden="true"></span>
-      <button class="ib" id="ed-zout" type="button" title="Жижигрүүлэх" aria-label="Жижигрүүлэх"></button>
-      <button class="ed-zoom" id="ed-zoom" type="button" title="Дэлгэцэнд багтаах (Ctrl+0)">100%</button>
-      <button class="ib" id="ed-zin" type="button" title="Томруулах" aria-label="Томруулах"></button>
-    </div>
-    <div class="ed-top-r">
-      <button class="ib hide-sm" id="ed-help" type="button" title="Товчлолууд" aria-label="Товчлолууд">?</button>
-      <div class="pop-wrap">
-        <button class="tb ghost" id="ed-send" type="button" aria-haspopup="true">Tools ↗</button>
-        <div class="pop" id="ed-send-menu" hidden>
-          <p class="pop-t">Одоогийн дизайныг илгээх</p>
-          <button type="button" data-send="bgremove">Дэвсгэр арилгах</button>
-          <button type="button" data-send="upscale">✦ AI томруулах</button>
-          <button type="button" data-send="socialcrop">Сошиал хэмжээ рүү тайрах</button>
-          <button type="button" data-send="pdf">PDF болгох</button>
+      <div class="pw">
+        <button class="zoom" id="ed-zoom" type="button" title="Томруулалт">100%</button>
+        <div class="menu" id="ed-zoom-menu" hidden>
+          <button type="button" data-zoom="in">Томруулах <i>Ctrl +</i></button>
+          <button type="button" data-zoom="out">Жижигрүүлэх <i>Ctrl −</i></button>
+          <button type="button" data-zoom="fit">Бүгдийг харах <i>Shift 1</i></button>
+          <button type="button" data-zoom="frame">Сонгосон frame <i>Shift 2</i></button>
+          <button type="button" data-zoom="100">100% <i>Ctrl 0</i></button>
         </div>
       </div>
-      <div class="pop-wrap">
-        <button class="tb solid" id="ed-dl" type="button" aria-haspopup="true">Татах</button>
-        <div class="pop pop-r" id="ed-dl-menu" hidden>
-          <p class="pop-t">Татах</p>
-          <button type="button" data-dl="png">PNG <i>тунгалаг дэмжинэ</i></button>
-          <button type="button" data-dl="png2">PNG 2× <i>өндөр чанар</i></button>
-          <button type="button" data-dl="jpg">JPG <i>жижиг хэмжээтэй</i></button>
-          <button type="button" data-dl="pdf">PDF <i>хэвлэлд</i></button>
-        </div>
+      <span class="grow"></span>
+      <button class="ib" id="ed-theme" type="button" title="Цайвар / бараан" aria-label="Өнгөний горим"></button>
+      <button class="ib" id="ed-help" type="button" title="Товчлолууд" aria-label="Товчлолууд">?</button>
+      <div class="pw">
+        <button class="btn-primary" id="ed-export" type="button">Татах</button>
+        <div class="menu r" id="ed-export-menu" hidden></div>
       </div>
+      <button class="ib mob-only" data-close="rp" type="button" aria-label="Хаах">✕</button>
     </div>
-  </header>
-
-  <div class="ed-body">
-    <nav class="ed-rail" id="ed-rail" aria-label="Хэрэгслүүд"></nav>
-    <aside class="ed-panel" id="ed-panel" aria-label="Хэрэгслийн самбар"></aside>
-    <main class="ed-stage" id="ed-stage">
-      <div class="ed-ctx" id="ed-ctx" hidden></div>
-      <canvas id="ed-canvas"></canvas>
-      <div class="ed-hint" id="ed-hint">Зүүн талаас <b>текст</b>, <b>зураг</b>, <b>хэлбэр</b> нэмээд эхлээрэй · зургаа энд чирж тавьж болно</div>
-      <div class="ed-dropzone" id="ed-dropzone" hidden><span>Зургаа энд тавина уу</span></div>
-    </main>
-  </div>
+    <div class="rp-body" id="rp-body"></div>
+  </aside>
 </div>
 
 <input type="file" id="ed-file" accept="image/png,image/jpeg,image/webp,image/svg+xml" multiple hidden>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
-<noscript><p style="padding:40px;color:#fff">Засварлагчийг ашиглахын тулд JavaScript идэвхжүүлнэ үү.</p></noscript>
+<noscript><p style="padding:40px">Засварлагчийг ашиглахын тулд JavaScript идэвхжүүлнэ үү.</p></noscript>
 
-<!-- Fabric.js 5.3.0 (MIT) — canvas objects, selection, transforms -->
+<!-- Fabric.js 5.3.0 (MIT) -->
 <script src="https://cdn.jsdelivr.net/npm/fabric@5.3.0/dist/fabric.min.js"></script>
 <script src="/assets/handoff.js?v=28"></script>
-<script src="/assets/editor.js?v=2"></script>
+<script src="/assets/editor.js?v=3"></script>
 </body>
 </html>
