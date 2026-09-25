@@ -5,6 +5,8 @@
   "name": "graphican",
   "main": "worker/index.js",
   "compatibility_date": "2025-09-01",
+  // Workers AI — translation and summaries in the PDF editor (free daily allowance)
+  "ai": { "binding": "AI" },
   "assets": {
     "directory": ".",
     "binding": "ASSETS",

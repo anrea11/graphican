@@ -3,6 +3,9 @@
   Keys live in Cloudflare secrets (never in the browser):  PEXELS_KEY, PIXABAY_KEY
     GET /api/stock?src=pexels|pixabay&type=photo|vector|video&q=&page=
     GET /api/stock/file?u=<media url>          (CORS proxy so images can be used/exported on the canvas)
+  Workers AI (binding "AI" in wrangler.jsonc) for the PDF editor:
+    POST /api/ai/translate  {texts:[...], source, target}  -> {texts:[...]}   (m2m100, 100 languages incl. Mongolian)
+    POST /api/ai/chat       {mode:'summary'|'ask', text, question, lang} -> {answer}
 */
 const MEDIA_HOSTS = ['images.pexels.com', 'videos.pexels.com', 'cdn.pixabay.com', 'pixabay.com'];
 // find a key even if the secret was named slightly differently (PEXELS_API_KEY, pexels, trailing spaces…)
@@ -89,13 +92,79 @@ async function file(url) {
   return new Response(r.body, { status: 200, headers: h });
 }
 
+// ---------- Workers AI ----------
+const ALLOWED = /^https?:\/\/(graphican\.online|www\.graphican\.online|[\w-]+\.[\w-]+\.workers\.dev|localhost(:\d+)?|127\.0\.0\.1(:\d+)?)$/;
+function allowed(request) {
+  const o = request.headers.get('origin') || '';
+  return !o || ALLOWED.test(o);
+}
+async function readJson(request, max) {
+  const t = await request.text();
+  if (t.length > max) throw new Error('too_large');
+  return JSON.parse(t || '{}');
+}
+async function pool(items, n, fn) {
+  const out = new Array(items.length); let i = 0;
+  await Promise.all(Array.from({ length: Math.min(n, items.length) }, async () => {
+    while (i < items.length) { const k = i++; out[k] = await fn(items[k], k); }
+  }));
+  return out;
+}
+async function aiTranslate(request, env) {
+  if (!env.AI) return json({ error: 'no_ai' }, 503);
+  let b;
+  try { b = await readJson(request, 60000); } catch (e) { return json({ error: 'bad_request' }, 400); }
+  const texts = Array.isArray(b.texts) ? b.texts.slice(0, 250).map(t => String(t || '').slice(0, 1000)) : [];
+  const target = String(b.target || 'en').slice(0, 8), source = String(b.source || 'en').slice(0, 8);
+  if (!texts.length) return json({ texts: [] });
+  if (texts.join('').length > 20000) return json({ error: 'too_large' }, 413);
+  try {
+    const res = await pool(texts, 6, async t => {
+      if (!t.trim() || !/\p{L}/u.test(t)) return t;
+      const r = await env.AI.run('@cf/meta/m2m100-1.2b', { text: t, source_lang: source, target_lang: target });
+      return (r && r.translated_text) || t;
+    });
+    return json({ texts: res });
+  } catch (e) {
+    return json({ error: 'ai_failed', detail: String(e && e.message || e).slice(0, 200) }, 502);
+  }
+}
+async function aiChat(request, env) {
+  if (!env.AI) return json({ error: 'no_ai' }, 503);
+  let b;
+  try { b = await readJson(request, 90000); } catch (e) { return json({ error: 'bad_request' }, 400); }
+  const text = String(b.text || '').slice(0, 24000), q = String(b.question || '').slice(0, 1000);
+  const lang = b.lang === 'en' ? 'English' : 'Mongolian (Cyrillic script)';
+  if (!text.trim()) return json({ error: 'empty' }, 400);
+  const sys = b.mode === 'ask'
+    ? `You answer questions about a document. Use only the document. If the answer is not in it, say so. Reply in ${lang}, concisely.`
+    : `You summarise documents. Write a clear summary in ${lang}: first one sentence on what the document is, then 3-7 short bullet points with the key facts (names, dates, amounts, decisions). No preamble.`;
+  const user = (b.mode === 'ask' ? 'Question: ' + q + '\n\n' : '') + 'Document:\n<<<\n' + text + '\n>>>';
+  try {
+    const r = await env.AI.run('@cf/meta/llama-3.3-70b-instruct-fp8-fast', { messages: [{ role: 'system', content: sys }, { role: 'user', content: user }], max_tokens: 900, temperature: 0.2 });
+    return json({ answer: (r && (r.response || (r.result && r.result.response))) || '' });
+  } catch (e) {
+    return json({ error: 'ai_failed', detail: String(e && e.message || e).slice(0, 200) }, 502);
+  }
+}
+
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     if (url.pathname === '/api/stock') return search(url, env, ctx);
     if (url.pathname === '/api/stock/file') return file(url);
     if (url.pathname === '/api/stock/health') // names only — never values
-      return json({ pexels: !!findKey(env, 'PEXELS'), pixabay: !!findKey(env, 'PIXABAY'), names: Object.keys(env).filter(n => n !== 'ASSETS') }, 200, { 'cache-control': 'no-store' });
+      return json({ pexels: !!findKey(env, 'PEXELS'), pixabay: !!findKey(env, 'PIXABAY'), names: Object.keys(env).filter(n => n !== 'ASSETS' && n !== 'AI'), ai: !!env.AI }, 200, { 'cache-control': 'no-store' });
+    if (url.pathname === '/api/ai/ping') { // quick live check of the AI binding
+      if (!env.AI) return json({ ai: false }, 503, { 'cache-control': 'no-store' });
+      try { const r = await env.AI.run('@cf/meta/m2m100-1.2b', { text: 'Good morning', source_lang: 'en', target_lang: 'mn' }); return json({ ai: true, sample: r && r.translated_text }, 200, { 'cache-control': 'no-store' }); }
+      catch (e) { return json({ ai: true, error: String(e && e.message || e).slice(0, 200) }, 502, { 'cache-control': 'no-store' }); }
+    }
+    if (url.pathname === '/api/ai/translate' || url.pathname === '/api/ai/chat') {
+      if (request.method !== 'POST') return json({ error: 'method' }, 405);
+      if (!allowed(request)) return json({ error: 'forbidden' }, 403);
+      return url.pathname === '/api/ai/chat' ? aiChat(request, env) : aiTranslate(request, env);
+    }
     if (url.pathname.startsWith('/api/')) return json({ error: 'not_found' }, 404);
     return env.ASSETS.fetch(request);
   }
