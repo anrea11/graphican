@@ -144,7 +144,7 @@ def home():
                 + (f'<p><a href="mailto:{e(email)}">{e(email)}</a></p>' if email else "")
                 + (f'<p><a href="tel:+976{e(phone)}">{e(phone)}</a></p>' if phone else "")
                 + "".join(f'<p><a href="{e(u)}" rel="me">{e(u)}</a></p>' for u in socials) + "</section>")
-    body.append('<p><a href="/design/">Design guide — фонт, өнгөний хослол, PDF хөрвүүлэгч</a></p>')
+    body.append('<p><a href="/design/">Design guide — фонт, өнгөний хослол, брэнд гайд</a> · <a href="/tools/">Design tools — AI зураг томруулагч, дэвсгэр арилгагч, PDF, засварлагч</a></p>')
     body.append("</div>")
 
     p = os.path.join(ROOT, "index.html")
@@ -163,33 +163,9 @@ def design():
     title = seo.get("title") or "Design guide — Graphican"
     desc = seo.get("description") or ""
     img = absu((d.get("guide") or {}).get("image") or "/assets/uploads/design-guide.webp")
-    page = {"@context": "https://schema.org", "@graph": [
-        {"@type": "WebPage", "@id": SITE + "/design/#page", "url": SITE + "/design/", "name": title, "description": desc,
-         "inLanguage": "mn", "isPartOf": {"@id": SITE + "/#website"}, "primaryImageOfPage": img,
-         "breadcrumb": {"@type": "BreadcrumbList", "itemListElement": [
-             {"@type": "ListItem", "position": 1, "name": "Graphican", "item": SITE + "/"},
-             {"@type": "ListItem", "position": 2, "name": "Design guide", "item": SITE + "/design/"}]}},
-        {"@type": "WebApplication", "name": "PDF ⇄ PNG/JPG хөрвүүлэгч", "url": SITE + "/design/#tools",
-         "applicationCategory": "UtilitiesApplication", "operatingSystem": "Any", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "MNT"}},
-        *[{"@type": "WebApplication", "name": n, "url": SITE + u, "applicationCategory": "DesignApplication",
-          "operatingSystem": "Any", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "MNT"}}
-          for n, u in (("Арын дэвсгэр арилгагч (AI)", "/design/#bgremove"), ("Сошиал хэмжээ рүү тайрагч", "/design/#socialcrop"),
-                       ("Graphican Editor — онлайн зураг засварлагч", "/editor/"))],
-    ]}
-    head = "\n".join([
-        f"<title>{e(title)}</title>",
-        f'<meta name="description" content="{e(desc)}">',
-        '<meta name="robots" content="index, follow, max-image-preview:large">',
-        f'<link rel="canonical" href="{SITE}/design/">',
-        '<meta property="og:type" content="website">', '<meta property="og:site_name" content="Graphican">',
-        '<meta property="og:locale" content="mn_MN">', f'<meta property="og:url" content="{SITE}/design/">',
-        f'<meta property="og:title" content="{e(title)}">', f'<meta property="og:description" content="{e(desc)}">',
-        f'<meta property="og:image" content="{e(img)}">', '<meta name="twitter:card" content="summary_large_image">',
-        f'<meta name="twitter:title" content="{e(title)}">', f'<meta name="twitter:description" content="{e(desc)}">',
-        f'<meta name="twitter:image" content="{e(img)}">',
-        ld(page),
-    ])
-    fonts = d.get("fonts", {}); pals = d.get("palettes", {}); tools = d.get("tools", {})
+    page = {"@context": "https://schema.org", "@graph": [web_page("/design/", "Design guide", title, desc, img)]}
+    head = page_head("/design/", title, desc, img, page)
+    fonts = d.get("fonts", {}); pals = d.get("palettes", {}); kit = d.get("builder", {}); brand = d.get("guide", {})
     body = ['<div class="seo-static">', f'<h1>{e((d.get("hero") or {}).get("title_line1"))} {e((d.get("hero") or {}).get("title_line2"))} — Graphican</h1>',
             f'<p>{e((d.get("hero") or {}).get("text"))}</p>',
             f'<section><h2>{e(fonts.get("title"))}</h2><p>{e(fonts.get("description"))}</p><ul>']
@@ -199,19 +175,75 @@ def design():
     body.append(f'</ul></section><section><h2>{e(pals.get("title"))}</h2><p>{e(pals.get("description"))}</p><ul>')
     for pl in pals.get("items", []):
         body.append(f'<li>{e(pl.get("name"))}: ' + ", ".join(e(c.get("hex")) for c in pl.get("colors", [])) + f' — {e(pl.get("desc"))}</li>')
-    body.append(f'</ul></section><section><h2>{e(tools.get("title"))}</h2><p>{e(tools.get("description"))}</p></section>')
-    for key in ("bgremove", "socialcrop", "editor"):
-        s = d.get(key) or {}
+    body.append("</ul></section>")
+    for s in (kit, brand):
         if s.get("title"):
             body.append(f'<section><h2>{e(s.get("title"))}</h2><p>{e(s.get("description"))}</p></section>')
-    body.append('<p><a href="/editor/">Graphican Editor — онлайн зураг засварлагч</a></p></div>')
-    p = os.path.join(ROOT, "design", "index.html")
+    body.append('<p><a href="/tools/">Design tools — AI зураг томруулагч, дэвсгэр арилгагч, сошиал тайрагч, PDF, засварлагч</a></p></div>')
+    write_page(os.path.join("design", "index.html"), head, body)
+    return d
+
+
+def web_page(path, crumb, title, desc, img):
+    return {"@type": "WebPage", "@id": SITE + path + "#page", "url": SITE + path, "name": title, "description": desc,
+            "inLanguage": "mn", "isPartOf": {"@id": SITE + "/#website"}, "primaryImageOfPage": img,
+            "breadcrumb": {"@type": "BreadcrumbList", "itemListElement": [
+                {"@type": "ListItem", "position": 1, "name": "Graphican", "item": SITE + "/"},
+                {"@type": "ListItem", "position": 2, "name": crumb, "item": SITE + path}]}}
+
+
+def page_head(path, title, desc, img, page):
+    return "\n".join([
+        f"<title>{e(title)}</title>",
+        f'<meta name="description" content="{e(desc)}">',
+        '<meta name="robots" content="index, follow, max-image-preview:large">',
+        f'<link rel="canonical" href="{SITE}{path}">',
+        '<meta property="og:type" content="website">', '<meta property="og:site_name" content="Graphican">',
+        '<meta property="og:locale" content="mn_MN">', f'<meta property="og:url" content="{SITE}{path}">',
+        f'<meta property="og:title" content="{e(title)}">', f'<meta property="og:description" content="{e(desc)}">',
+        f'<meta property="og:image" content="{e(img)}">', '<meta name="twitter:card" content="summary_large_image">',
+        f'<meta name="twitter:title" content="{e(title)}">', f'<meta name="twitter:description" content="{e(desc)}">',
+        f'<meta name="twitter:image" content="{e(img)}">',
+        ld(page),
+    ])
+
+
+def write_page(rel, head, body):
+    p = os.path.join(ROOT, rel)
     t = open(p, encoding="utf-8").read()
     t2 = replace_block(t, "head", head)
     t2 = replace_block(t2, "body", "\n".join(body))
-    assert t2, "markers missing in design/index.html"
+    assert t2, f"markers missing in {rel}"
     open(p, "w", encoding="utf-8").write(t2)
-    return d
+
+
+# ------------------------------------------------------------------ tools page
+TOOL_KEYS = (("upscale", "#upscale"), ("bgremove", "#bgremove"), ("socialcrop", "#socialcrop"), ("tools", "#pdf"), ("editor", "#editor"))
+
+
+def tools_page(d):
+    th = d.get("tools_hero", {})
+    title = th.get("seo_title") or "Design tools — Graphican"
+    desc = th.get("seo_description") or th.get("text") or ""
+    img = absu("/assets/uploads/og-cover.jpg")
+    apps = []
+    for key, anchor in TOOL_KEYS:
+        s = d.get(key) or {}
+        if not s.get("title"):
+            continue
+        url = SITE + ("/editor/" if key == "editor" else "/tools/" + anchor)
+        apps.append({"@type": "WebApplication", "name": s.get("title", "").rstrip("."), "description": s.get("description", ""), "url": url,
+                     "applicationCategory": "DesignApplication", "operatingSystem": "Any",
+                     "offers": {"@type": "Offer", "price": "0", "priceCurrency": "MNT"}})
+    page = {"@context": "https://schema.org", "@graph": [web_page("/tools/", "Design tools", title, desc, img)] + apps}
+    head = page_head("/tools/", title, desc, img, page)
+    body = ['<div class="seo-static">', f'<h1>{e(th.get("title_line1"))} {e(th.get("title_line2"))} — Graphican</h1>', f'<p>{e(th.get("text"))}</p>']
+    for key, _ in TOOL_KEYS:
+        s = d.get(key) or {}
+        if s.get("title"):
+            body.append(f'<section><h2>{e(s.get("title"))}</h2><p>{e(s.get("description"))}</p></section>')
+    body.append('<p><a href="/editor/">Graphican Editor — онлайн зураг засварлагч</a> · <a href="/design/">Design guide — фонт, өнгө, брэнд гайд</a></p></div>')
+    write_page(os.path.join("tools", "index.html"), head, body)
 
 
 # ------------------------------------------------------------------ sitemap
@@ -237,6 +269,11 @@ def sitemap(projects, dd):
     <image:image><image:loc>{e(guide_img)}</image:loc></image:image>
   </url>
   <url>
+    <loc>{SITE}/tools/</loc>
+    <lastmod>{TODAY}</lastmod>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>{SITE}/editor/</loc>
     <lastmod>{TODAY}</lastmod>
     <priority>0.6</priority>
@@ -249,5 +286,6 @@ def sitemap(projects, dd):
 if __name__ == "__main__":
     _, projects = home()
     dd = design()
+    tools_page(dd)
     sitemap(projects, dd)
     print("prerender ok:", len(projects), "projects")

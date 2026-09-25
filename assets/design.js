@@ -415,7 +415,11 @@
     );
   }
 
-  function hero(h) {
+  var GUIDE_CHIPS = '<a href="#fonts">Фонт</a><a href="#colors">Өнгө</a><a class="hot" href="#kit">Нэг товшилтоор татах ↓</a><a class="brand" href="#guide"><span class="dp-orb" aria-hidden="true"></span>Graphican брэнд гайд</a><a href="/tools/">Design tools →</a>';
+  var TOOLS_CHIPS = '<a class="hot" href="#upscale">AI томруулагч ✦</a><a href="#bgremove">Дэвсгэр арилгагч</a><a href="#socialcrop">Сошиал тайрагч</a><a href="#pdf">PDF ⇄ PNG / JPG</a><a href="#editor">Засварлагч</a><a class="brand" href="/design/"><span class="dp-orb" aria-hidden="true"></span>Design guide →</a>';
+
+  function hero(h, page) {
+    var tools = page === 'tools';
     return (
       '<section class="hero d-hero" id="top">' + fx('hero') +
         '<div class="frame">' +
@@ -429,12 +433,10 @@
           '</div>' +
           '<div class="hero-copy">' +
             '<p class="lead">' + esc(h.text) + '</p>' +
-            '<div class="chips">' +
-              '<a href="#fonts">Фонт</a><a href="#colors">Өнгө</a><a class="hot" href="#kit">Нэг товшилтоор татах ↓</a><a href="#upscale">AI upscale ✦</a><a href="#tools">PDF ⇄ PNG / JPG</a><a class="brand" href="#guide"><span class="dp-orb" aria-hidden="true"></span>Graphican брэнд гайд</a>' +
-            '</div>' +
+            '<div class="chips">' + (tools ? TOOLS_CHIPS : GUIDE_CHIPS) + '</div>' +
           '</div>' +
-          '<div class="corner bl">01 TYPE · 02 COLOR · 03 KIT · 04 BRAND</div>' +
-          '<div class="corner br">' + new Date().getFullYear() + '<br>GUIDE</div>' +
+          '<div class="corner bl">' + (tools ? '01 UPSCALE · 02 BACKGROUND · 03 SOCIAL · 04 PDF · 05 EDITOR' : '01 TYPE · 02 COLOR · 03 KIT · 04 BRAND') + '</div>' +
+          '<div class="corner br">' + new Date().getFullYear() + '<br>' + (tools ? 'TOOLS' : 'GUIDE') + '</div>' +
         '</div>' +
       '</section>'
     );
@@ -664,6 +666,57 @@
     );
   }
 
+  // ---------- tool chaining: send a result to the next tool ----------
+  // Each tool registers FLOW[id] = function (file) { load it }. The editor lives on
+  // its own page, so images for it go through the IndexedDB hand-off (handoff.js).
+
+  var FLOW = {};
+  var FLOW_TARGETS = [
+    { id: 'upscale', label: '✦ Томруулах' },
+    { id: 'bgremove', label: 'Дэвсгэр арилгах' },
+    { id: 'socialcrop', label: 'Сошиал хэмжээ' },
+    { id: 'pdf', label: 'PDF болгох' },
+    { id: 'editor', label: 'Засварлагчид нээх ↗' }
+  ];
+
+  function blobToFile(blob, name) {
+    try { return new File([blob], name, { type: blob.type }); }
+    catch (e) { blob.name = name; return blob; }
+  }
+
+  function sendTo(target, blob, name) {
+    var file = blobToFile(blob, name);
+    if (target === 'editor') {
+      if (!window.GHandoff) { toast('Засварлагч руу илгээж чадсангүй'); return; }
+      window.GHandoff.put(blob, { name: name, target: 'editor' }).then(function () { location.href = '/editor/'; })
+        .catch(function () { toast('Засварлагч руу илгээж чадсангүй'); });
+      return;
+    }
+    if (!FLOW[target]) return;
+    FLOW[target](file);
+    var sec = document.getElementById(target);
+    if (sec) sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    toast('→ ' + FLOW_TARGETS.filter(function (t) { return t.id === target; })[0].label.replace(/[✦↗]/g, '').trim());
+  }
+
+  // Renders the "Үргэлжлүүлэх →" row into `el`; getBlob() returns Promise<{blob, name}>.
+  function flowRow(el, current, getBlob, title) {
+    el.innerHTML = '<span class="flow-t">' + esc(title || 'Үргэлжлүүлэх →') + '</span>' +
+      FLOW_TARGETS.filter(function (t) { return t.id !== current; }).map(function (t) {
+        return '<button type="button" class="btn ghost" data-flow-to="' + t.id + '">' + esc(t.label) + '</button>';
+      }).join('');
+    el.hidden = false;
+    el.querySelectorAll('[data-flow-to]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        getBlob().then(function (r) { sendTo(b.getAttribute('data-flow-to'), r.blob, r.name); });
+      });
+    });
+  }
+
+  function canvasToPng(c, name) {
+    return new Promise(function (res) { c.toBlob(function (b) { res({ blob: b, name: name }); }, 'image/png'); });
+  }
+
   // ---------- AI image upscaler (ESRGAN via TensorFlow.js, runs in the browser) ----------
 
   function upscaleSection(u) {
@@ -695,6 +748,7 @@
             '</div>' +
             '<p class="cmp-meta"></p>' +
           '</div>' +
+          '<div class="flow" data-flow hidden></div>' +
         '</div>' +
         '<p class="tool-note reveal">✦ Real-ESRGAN хиймэл оюун — бүдгийг тодруулж, шуугиан болон JPG шахалтын алдааг арилгана. Бүх боловсруулалт таны хөтөч дотор (GPU), файл серверт илгээгдэхгүй. Анх ашиглахад загвар (~5MB) нэг удаа ачаална.</p>' +
       '</section>'
@@ -841,6 +895,7 @@
     function pick(f) {
       if (!f || !/^image\/(png|jpe?g|webp)$/i.test(f.type)) { toast('PNG, JPG эсвэл WebP зураг сонгоно уу'); return; }
       file = f; resultCanvas = null; dlBtn.disabled = true;
+      $('[data-flow]').hidden = true;
       var url = URL.createObjectURL(f);
       srcImg = new Image();
       srcImg.onload = function () {
@@ -856,6 +911,7 @@
     ['dragenter', 'dragover'].forEach(function (ev) { drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.add('over'); }); });
     ['dragleave', 'drop'].forEach(function (ev) { drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.remove('over'); }); });
     drop.addEventListener('drop', function (e) { if (e.dataTransfer.files[0]) pick(e.dataTransfer.files[0]); });
+    FLOW.upscale = pick;
     $('[data-opt="upx"]').addEventListener('change', function () {
       if (!srcImg) return;
       var s = +this.value;
@@ -885,6 +941,7 @@
         meta.textContent = c.width + ' × ' + c.height + ' px → ' + resultCanvas.width + ' × ' + resultCanvas.height + ' px · ' + sec + ' сек';
         st.textContent = 'Болсон! Гулсуулагчаар өмнө / дараа харьцуулаад татаж аваарай.';
         barI.style.width = '100%'; dlBtn.disabled = false;
+        flowRow($('[data-flow]'), 'upscale', function () { return canvasToPng(resultCanvas, (file ? file.name.replace(/\.[^.]+$/, '') : 'image') + '-upscaled.png'); });
         setTimeout(function () { bar.hidden = true; }, 600);
       }).catch(function (e) {
         console.error(e); bar.hidden = true;
@@ -905,7 +962,7 @@
 
   function tools(t) {
     return (
-      '<section class="sec tools" id="tools">' + head(t) +
+      '<section class="sec tools" id="pdf">' + head(t) +
         '<div class="tool-tabs reveal" role="tablist">' +
           '<button type="button" class="tt active" data-tab="p2i" role="tab">PDF → PNG / JPG</button>' +
           '<button type="button" class="tt" data-tab="i2p" role="tab">PNG / JPG → PDF</button>' +
@@ -924,6 +981,7 @@
           '</div>' +
           '<p class="tool-status" data-status="p2i"></p>' +
           '<div class="thumbs" data-out="p2i"></div>' +
+          '<div class="flow" data-flow="p2i" hidden></div>' +
         '</div>' +
 
         '<div class="tool reveal" data-panel="i2p" hidden>' +
@@ -970,7 +1028,7 @@
   function canvasBlob(c, type, q) { return new Promise(function (r) { c.toBlob(r, type, q); }); }
 
   function setupTools() {
-    var root = document.getElementById('tools');
+    var root = document.getElementById('pdf');
     if (!root) return;
     function $(sel) { return root.querySelector(sel); }
 
@@ -1013,7 +1071,7 @@
     function renderAll() {
       if (!pdfDoc) return;
       var n = pdfDoc.numPages, i = 0;
-      rendered = []; out1.innerHTML = ''; allBtn.disabled = true;
+      rendered = []; out1.innerHTML = ''; allBtn.disabled = true; $('[data-flow="p2i"]').hidden = true;
       function next() {
         i++;
         if (i > n) { st1.textContent = n + ' хуудас бэлэн. Зураг дээр дарж тус тусад нь, эсвэл бүгдийг ZIP-ээр татна.'; allBtn.disabled = false; return; }
@@ -1023,10 +1081,15 @@
           var k = i;
           var fig = document.createElement('button');
           fig.type = 'button'; fig.className = 'thumb';
-          fig.innerHTML = '<span class="th-n">' + pad(k) + '</span><span class="th-dl">↓ ' + fmt().toUpperCase() + '</span>';
+          fig.innerHTML = '<span class="th-n">' + pad(k) + '</span><span class="th-dl">↓ ' + fmt().toUpperCase() + '</span><span class="th-x th-go" role="button" tabindex="0" aria-label="Хуудас ' + k + '-ийг өөр хэрэгсэл рүү илгээх" title="Өөр хэрэгсэл рүү →">→</span>';
           var img = new Image(); img.src = c.toDataURL('image/jpeg', .6); img.alt = 'Хуудас ' + k;
           fig.insertBefore(img, fig.firstChild);
-          fig.addEventListener('click', function () {
+          fig.addEventListener('click', function (e) {
+            if (e.target.closest('.th-go')) {
+              flowRow($('[data-flow="p2i"]'), 'pdf', function () { return canvasToPng(c, pdfName + '-' + pad(k) + '.png'); }, 'Хуудас ' + pad(k) + ' →');
+              $('[data-flow="p2i"]').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+              return;
+            }
             pageBlob(c).then(function (b) { saveBlob(fileName(k), b); toast(fileName(k) + ' татагдлаа'); });
           });
           out1.appendChild(fig);
@@ -1088,6 +1151,13 @@
       drawList();
     });
     clrBtn.addEventListener('click', function () { imgs.forEach(function (i) { URL.revokeObjectURL(i.url); }); imgs = []; drawList(); });
+
+    // results from other tools land in "images → PDF"
+    FLOW.pdf = function (f) {
+      root.querySelector('.tt[data-tab="i2p"]').click();
+      imgs.push({ name: f.name || 'image.png', url: URL.createObjectURL(f), file: f });
+      drawList();
+    };
 
     function toEmbeddable(it) { // webp (and odd files) → png via canvas
       if (/png|jpe?g/i.test(it.file.type)) return it.file.arrayBuffer().then(function (b) { return { bytes: b, png: /png/i.test(it.file.type) }; });
@@ -1152,6 +1222,7 @@
     ['dragenter', 'dragover'].forEach(function (ev) { drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.add('over'); }); });
     ['dragleave', 'drop'].forEach(function (ev) { drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.remove('over'); }); });
     drop.addEventListener('drop', function (e) { if (e.dataTransfer.files[0]) pick(e.dataTransfer.files[0]); });
+    return pick;
   }
 
   // ---------- AI background remover (U²-Net-P via ONNX Runtime Web, runs in the browser) ----------
@@ -1187,6 +1258,7 @@
             '</div>' +
             '<p class="cmp-meta"></p>' +
           '</div>' +
+          '<div class="flow" data-flow hidden></div>' +
         '</div>' +
         '<p class="tool-note reveal">✦ U²-Net хиймэл оюун (Apache-2.0) — хүн, бүтээгдэхүүн, амьтан гэх мэт тод гол объекттой зурагт хамгийн сайн ажиллана. Бүх боловсруулалт таны хөтөч дотор, файл серверт илгээгдэхгүй. Анх ашиглахад загвар (~5MB) нэг удаа ачаална.</p>' +
       '</section>'
@@ -1284,8 +1356,8 @@
     colorInp.addEventListener('input', render);
     edgeSel.addEventListener('change', render);
 
-    wireImageDrop($('[data-drop="bg"]'), function (img, f, url) {
-      file = f; srcImg = img; mask = null; result = null; dlBtn.disabled = true;
+    FLOW.bgremove = wireImageDrop($('[data-drop="bg"]'), function (img, f, url) {
+      file = f; srcImg = img; mask = null; result = null; dlBtn.disabled = true; $('[data-flow]').hidden = true;
       before.src = url; after.src = url; cmp.hidden = false; setSplit(50); range.value = 50;
       meta.textContent = img.naturalWidth + ' × ' + img.naturalHeight + ' px';
       runBtn.disabled = false;
@@ -1307,6 +1379,11 @@
         meta.textContent = srcImg.naturalWidth + ' × ' + srcImg.naturalHeight + ' px · ' + ((performance.now() - t0) / 1000).toFixed(1) + ' сек';
         st.textContent = 'Болсон! Ирмэг, дэвсгэрийн өнгийг сольж үзээд татаж аваарай.';
         dlBtn.disabled = false;
+        flowRow($('[data-flow]'), 'bgremove', function () {
+          var base = file ? file.name.replace(/\.[^.]+$/, '') : 'image';
+          return fill() === 'none' ? canvasToPng(result, base + '-no-bg.png')
+            : new Promise(function (res) { result.toBlob(function (b) { res({ blob: b, name: base + '-no-bg.jpg' }); }, 'image/jpeg', .95); });
+        });
         setTimeout(function () { bar.hidden = true; }, 600);
       }).catch(function (e) {
         console.error(e); bar.hidden = true;
@@ -1355,6 +1432,7 @@
           '</div>' +
           '<p class="tool-status" data-status="sc"></p>' +
           '<div class="sc-grid"></div>' +
+          '<div class="flow" data-flow="sc" hidden></div>' +
         '</div>' +
         '<p class="tool-note reveal">✦ Зургийн хамгийн чухал хэсгийг (нүүр, объект, тод хэсэг) автоматаар олж тайрна. Тайралт таарахгүй бол зураг дээр чирж байрлалыг нь засна. Бүх боловсруулалт таны хөтөч дотор.</p>' +
       '</section>'
@@ -1399,7 +1477,7 @@
       el.innerHTML =
         '<div class="sc-frame" style="aspect-ratio:' + s.w + '/' + s.h + '"><canvas></canvas>' +
           (modeSel.value === 'crop' ? '<span class="sc-hint">⇆ чирж засна</span>' : '') + '</div>' +
-        '<figcaption><span><b>' + esc(s.name) + '</b><i>' + s.w + '×' + s.h + '</i></span><button type="button" class="btn" data-dl="' + s.id + '">↓</button></figcaption>';
+        '<figcaption><span><b>' + esc(s.name) + '</b><i>' + s.w + '×' + s.h + '</i></span><span class="sc-acts"><button type="button" class="btn" data-go="' + s.id + '" title="Өөр хэрэгсэл рүү" aria-label="' + esc(s.name) + ' — өөр хэрэгсэл рүү илгээх">→</button><button type="button" class="btn" data-dl="' + s.id + '" aria-label="' + esc(s.name) + ' татах">↓</button></span></figcaption>';
       var cv = el.querySelector('canvas');
       function draw() {
         var full = renderFull(s);
@@ -1427,6 +1505,11 @@
       el.querySelector('[data-dl]').addEventListener('click', function () {
         var png = fmtSel.value === 'png', name = baseName() + '-' + s.id + '-' + s.w + 'x' + s.h + (png ? '.png' : '.jpg');
         renderFull(s).toBlob(function (b) { saveBlob(name, b); toast(name + ' татагдлаа'); }, png ? 'image/png' : 'image/jpeg', .92);
+      });
+      el.querySelector('[data-go]').addEventListener('click', function () {
+        var box = $('[data-flow="sc"]');
+        flowRow(box, 'socialcrop', function () { return canvasToPng(renderFull(s), baseName() + '-' + s.id + '-' + s.w + 'x' + s.h + '.png'); }, s.name + ' →');
+        box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       });
       return el;
     }
@@ -1456,7 +1539,7 @@
       });
     }
 
-    wireImageDrop($('[data-drop="sc"]'), function (img, f) { file = f; srcImg = img; crops = {}; build(); });
+    FLOW.socialcrop = wireImageDrop($('[data-drop="sc"]'), function (img, f) { file = f; srcImg = img; crops = {}; $('[data-flow="sc"]').hidden = true; build(); });
     root.querySelectorAll('.sz input').forEach(function (i) { i.addEventListener('change', build); });
     modeSel.addEventListener('change', build);
 
@@ -1647,6 +1730,19 @@
 
   // ---------- boot ----------
 
+  // /design/ = fonts, colours, starter kit, brand guide · /tools/ = image tools
+  var PAGE = /^\/tools(\/|$)/.test(location.pathname) ? 'tools' : 'guide';
+
+  // an image sent from the editor (or another page) opens in the requested tool
+  function receiveHandoff() {
+    if (!window.GHandoff) return;
+    window.GHandoff.take().then(function (h) {
+      if (!h || !h.blob) return;
+      var target = FLOW[h.target] ? h.target : (location.hash.slice(1) in FLOW ? location.hash.slice(1) : 'upscale');
+      setTimeout(function () { sendTo(target, h.blob, h.name || 'image.png'); }, 300);
+    });
+  }
+
   var app = document.getElementById('app');
   fetch('/content/design.json', { cache: 'no-cache' })
     .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
@@ -1656,17 +1752,26 @@
         var m = document.querySelector('meta[name="description"]');
         if (m && d.seo.description) m.setAttribute('content', d.seo.description);
       }
-      var html = hero(d.hero || {}) + fonts(d.fonts || {}) + palettes(d.palettes || {});
-      html += builder(d.builder || {}) + upscaleSection(d.upscale || {}) + tools(d.tools || {}) +
-        bgSection(d.bgremove || {}) + cropSection(d.socialcrop || {}) + editorSection(d.editor || {}) +
-        guide(d.guide || {}) + footer();
-      app.innerHTML = html;
-      enhance();
-      setupKit(d);
-      setupUpscale();
-      setupTools();
-      setupBgRemove();
-      setupSocialCrop();
+      if (PAGE === 'tools') {
+        var th = d.tools_hero || {};
+        if (th.seo_title) document.title = th.seo_title;
+        var md = document.querySelector('meta[name="description"]');
+        if (md && th.seo_description) md.setAttribute('content', th.seo_description);
+        app.innerHTML = hero(th, 'tools') +
+          upscaleSection(d.upscale || {}) + bgSection(d.bgremove || {}) + cropSection(d.socialcrop || {}) +
+          tools(d.tools || {}) + editorSection(d.editor || {}) + footer();
+        enhance();
+        setupUpscale();
+        setupBgRemove();
+        setupSocialCrop();
+        setupTools();
+        receiveHandoff();
+      } else {
+        app.innerHTML = hero(d.hero || {}, 'guide') + fonts(d.fonts || {}) + palettes(d.palettes || {}) +
+          builder(d.builder || {}) + guide(d.guide || {}) + footer();
+        enhance();
+        setupKit(d);
+      }
     })
     .catch(function (err) {
       console.error(err);

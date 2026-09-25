@@ -250,7 +250,7 @@ collections:
 
       # ================= DESIGN PAGE (/design) =================
       - name: design
-        label: "Дизайн хуудас (/design)"
+        label: "Design guide (/design) ба Design tools (/tools)"
         file: content/design.json
         format: json
         fields:
@@ -345,3 +345,26 @@ collections:
               - { name: title_en, label: "Англи гарчиг", widget: string, required: false }
               - { name: title, label: "Монгол гарчиг", widget: string }
               - { name: description, label: "Тайлбар", widget: text, required: false }
+          # ---------------- DESIGN TOOLS PAGE (/tools) ----------------
+          - name: tools_hero
+            label: "Design tools хуудас (/tools) — нүүр хэсэг"
+            widget: object
+            fields:
+              - { name: kicker, label: "Жижиг шошго (англиар)", widget: string }
+              - { name: title_line1, label: "Том гарчиг — 1-р мөр", widget: string }
+              - { name: title_line2, label: "Том гарчиг — 2-р мөр", widget: string }
+              - { name: text, label: "Тайлбар", widget: text }
+              - { name: seo_title, label: "SEO гарчиг", widget: string, required: false }
+              - { name: seo_description, label: "SEO тайлбар", widget: text, required: false }
+          - name: upscale
+            label: "Tools 01 · AI томруулагч"
+            widget: object
+            fields: &toolsec
+              - { name: kicker, label: "Жижиг шошго", widget: string }
+              - { name: title_en, label: "Англи гарчиг", widget: string, required: false }
+              - { name: title, label: "Монгол гарчиг", widget: string }
+              - { name: description, label: "Тайлбар", widget: text, required: false }
+          - { name: bgremove, label: "Tools 02 · Дэвсгэр арилгагч", widget: object, fields: *toolsec }
+          - { name: socialcrop, label: "Tools 03 · Сошиал тайрагч", widget: object, fields: *toolsec }
+          - { name: tools, label: "Tools 04 · PDF хөрвүүлэгч", widget: object, fields: *toolsec }
+          - { name: editor, label: "Tools 05 · Зураг засварлагч", widget: object, fields: *toolsec }
