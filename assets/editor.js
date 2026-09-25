@@ -2893,13 +2893,13 @@
         '<div class="cmp"><img class="cmp-a" alt="Сайжруулсан"><div class="cmp-b"><img alt="Анхны"></div><span class="cmp-l"></span>' +
         '<span class="cmp-t l">ӨМНӨ</span><span class="cmp-t r">ДАРАА</span><input class="cmp-r" type="range" min="0" max="100" value="50" aria-label="Өмнө / дараа"></div></div>' +
       '<div class="cut-side">' +
-        '<div class="ps-l" style="margin-top:0">Томруулах</div>' +
-        '<div class="seg up-seg"><button type="button" data-us="scale" data-v="2" class="on">2×<small>санал болгох</small></button><button type="button" data-us="scale" data-v="4">4×<small>удаан</small></button></div>' +
-        '<div class="ps-l">Шуугиан, JPG алдаа арилгах</div>' +
-        '<div class="seg up-seg"><button type="button" data-us="denoise" data-v="0.2">Бага</button><button type="button" data-us="denoise" data-v="0.6" class="on">Дунд</button><button type="button" data-us="denoise" data-v="1">Их</button></div>' +
-        '<div class="ps-l">Нэмэлт тодруулга</div>' +
-        '<div class="seg up-seg"><button type="button" data-us="sharpen" data-v="0" class="on">Байхгүй</button><button type="button" data-us="sharpen" data-v="0.25">Бага</button><button type="button" data-us="sharpen" data-v="0.5">Дунд</button></div>' +
-        '<button type="button" class="btn acc full" style="margin-top:12px;height:36px" data-up="run">✦ Сайжруулах</button>' +
+        '<div class="up-q"><b>1. Хэд дахин томруулах вэ?</b><span>Том хэвлэх, дэлгэцэнд тод харагдуулахад</span></div>' +
+        '<div class="seg up-seg"><button type="button" data-us="scale" data-v="2" class="on">2 дахин<small>Хурдан · ихэнхэд хангалттай</small></button><button type="button" data-us="scale" data-v="4">4 дахин<small>Удаан · маш жижиг зурагт</small></button></div>' +
+        '<div class="up-q"><b>2. Зургийг хэр цэвэрлэх вэ?</b><span>Бүдэг, цэг цэг, шахагдаж муудсан хэсгийг арилгана</span></div>' +
+        '<div class="seg up-seg"><button type="button" data-us="denoise" data-v="0.2">Зөөлөн<small>Жижиг хээг хадгална</small></button><button type="button" data-us="denoise" data-v="0.6" class="on">Энгийн<small>Санал болгох</small></button><button type="button" data-us="denoise" data-v="1">Хүчтэй<small>Гөлгөр, цэвэрхэн</small></button></div>' +
+        '<div class="up-q"><b>3. Ирмэгийг тодруулах уу?</b><span>Текст, лого, зураасыг илүү хурц харагдуулна</span></div>' +
+        '<div class="seg up-seg"><button type="button" data-us="sharpen" data-v="0" class="on">Үгүй<small>Байгалийн</small></button><button type="button" data-us="sharpen" data-v="0.25">Бага зэрэг</button><button type="button" data-us="sharpen" data-v="0.5">Илүү тод</button></div>' +
+        '<button type="button" class="btn acc full" style="margin-top:12px;height:36px" data-up="run">✦ Зургийг сайжруулах</button>' +
         '<div class="up-bar" hidden><i></i></div><p class="note up-st"></p>' +
         '<p class="note">Зураг canvas дээр яг одоогийн хэмжээгээрээ үлдэнэ — зөвхөн чанар, нарийвчлал нь нэмэгдэнэ. Хэрэглэсний дараа Ctrl+Z-ээр буцааж болно.</p>' +
         '<p class="note">Real-ESRGAN хиймэл оюун таны төхөөрөмж дээр ажиллана. Анх удаа загвар (~5MB) ачаална.</p>' +
@@ -2917,7 +2917,7 @@
     function meta() {
       var c = srcCanvas();
       q('.up-meta').textContent = W0 + '×' + H0 + ' px → ' + c.width * st.scale + '×' + c.height * st.scale + ' px' + (density < 1 ? ' · canvas дээр ' + Math.round(1 / density * 100) + '% томруулж харуулж байна' : '');
-      if (!st.out) q('.up-st').textContent = density < 0.9 ? 'Энэ зураг canvas дээр жинхэнэ хэмжээнээсээ том харагдаж байгаа тул бүдэг байна — сайжруулахад тохиромжтой.' : 'Бэлэн. «Сайжруулах» дарна уу.';
+      if (!st.out) q('.up-st').textContent = density < 0.9 ? 'Энэ зураг canvas дээр жинхэнэ хэмжээнээсээ том харагдаж байгаа тул бүдэг байна — сайжруулахад тохиромжтой.' : 'Бэлэн. Тохиргоогоо сонгоод «Зургийг сайжруулах» дарна уу.';
     }
     var url0 = (function () { var c = document.createElement('canvas'); c.width = W0; c.height = H0; c.getContext('2d').drawImage(el, 0, 0); return c.toDataURL('image/png'); })();
     a.src = b.src = url0;

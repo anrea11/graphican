@@ -820,9 +820,9 @@
             '<b>Зургаа энд чирж оруулна уу</b><span>PNG, JPG, WebP · эсвэл дарж сонгоно</span>' +
           '</label>' +
           '<div class="tool-opts">' +
-            '<label><span>Томруулах</span><select data-opt="upx"><option value="2" selected>2× (санал болгох)</option><option value="4">4× (удаан)</option></select></label>' +
-            '<label><span>Шуугиан / JPG алдаа арилгах</span><select data-opt="denoise"><option value="0.2">Бага (нарийн бүтэц хадгална)</option><option value="0.6" selected>Дунд</option><option value="1">Их (цэвэрхэн)</option></select></label>' +
-            '<label><span>Нэмэлт тодруулга</span><select data-opt="sharp"><option value="0" selected>Байхгүй</option><option value="0.25">Бага</option><option value="0.5">Дунд</option></select></label>' +
+            '<label><span>Хэд дахин томруулах</span><select data-opt="upx"><option value="2" selected>2 дахин — хурдан, ихэнхэд хангалттай</option><option value="4">4 дахин — удаан, маш жижиг зурагт</option></select></label>' +
+            '<label><span>Хэр цэвэрлэх (бүдэг, цэг цэг хэсэг)</span><select data-opt="denoise"><option value="0.2">Зөөлөн — жижиг хээг хадгална</option><option value="0.6" selected>Энгийн — санал болгох</option><option value="1">Хүчтэй — гөлгөр, цэвэрхэн</option></select></label>' +
+            '<label><span>Ирмэгийг тодруулах</span><select data-opt="sharp"><option value="0" selected>Үгүй — байгалийн</option><option value="0.25">Бага зэрэг</option><option value="0.5">Илүү тод (текст, лого)</option></select></label>' +
             '<label><span>Гаргах формат</span><select data-opt="upfmt"><option value="png">PNG</option><option value="jpg">JPG</option></select></label>' +
             '<button type="button" class="btn solid" data-act="up-run" disabled>Сайжруулах ✦</button>' +
             '<button type="button" class="btn" data-act="up-dl" disabled>Татах ↓</button>' +

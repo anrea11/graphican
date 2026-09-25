@@ -347,3 +347,8 @@ input[type="range"] { width:100%; accent-color:var(--acc); }
 .up-bar i { display:block; height:100%; width:0; background:var(--acc); transition:width .2s; }
 .up-st { margin-top:8px; min-height:1.4em; color:var(--text) !important; }
 
+.up-q { margin:14px 0 6px; display:flex; flex-direction:column; gap:2px; }
+.up-q:first-child { margin-top:0; }
+.up-q b { font-size:12.5px; font-weight:600; }
+.up-q span { font-size:11px; color:var(--muted); line-height:1.35; }
+.up-seg small { line-height:1.25; margin-top:2px; }
