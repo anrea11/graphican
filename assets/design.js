@@ -677,7 +677,8 @@
           '</label>' +
           '<div class="tool-opts">' +
             '<label><span>Томруулах</span><select data-opt="upx"><option value="2" selected>2× (санал болгох)</option><option value="4">4× (удаан)</option></select></label>' +
-            '<label><span>Нэмэлт тодруулга</span><select data-opt="sharp"><option value="0">Байхгүй</option><option value="0.35" selected>Бага</option><option value="0.7">Дунд</option></select></label>' +
+            '<label><span>Шуугиан / JPG алдаа арилгах</span><select data-opt="denoise"><option value="0.2">Бага (нарийн бүтэц хадгална)</option><option value="0.6" selected>Дунд</option><option value="1">Их (цэвэрхэн)</option></select></label>' +
+            '<label><span>Нэмэлт тодруулга</span><select data-opt="sharp"><option value="0" selected>Байхгүй</option><option value="0.25">Бага</option><option value="0.5">Дунд</option></select></label>' +
             '<label><span>Гаргах формат</span><select data-opt="upfmt"><option value="png">PNG</option><option value="jpg">JPG</option></select></label>' +
             '<button type="button" class="btn solid" data-act="up-run" disabled>Сайжруулах ✦</button>' +
             '<button type="button" class="btn" data-act="up-dl" disabled>Татах ↓</button>' +
@@ -695,7 +696,7 @@
             '<p class="cmp-meta"></p>' +
           '</div>' +
         '</div>' +
-        '<p class="tool-note reveal">✦ Хиймэл оюун (ESRGAN) зургийг таны хөтөч дотор томруулж, нарийн хэсгийг сэргээнэ. Файл серверт илгээгдэхгүй. Анх ашиглахад загвар (~3MB) нэг удаа ачаална. Том зураг утсан дээр удаан байж болно.</p>' +
+        '<p class="tool-note reveal">✦ Real-ESRGAN хиймэл оюун — бүдгийг тодруулж, шуугиан болон JPG шахалтын алдааг арилгана. Бүх боловсруулалт таны хөтөч дотор (GPU), файл серверт илгээгдэхгүй. Анх ашиглахад загвар (~5MB) нэг удаа ачаална.</p>' +
       '</section>'
     );
   }
@@ -707,16 +708,99 @@
       s.onload = function () { res(); }; s.onerror = rej; document.head.appendChild(s);
     });
   }
-  var upLibs = null, upscalers = {};
-  function getUpscaler(scale) {
-    if (!upLibs) upLibs = loadScript('/assets/vendor/tf.min.js').then(function () { return loadScript('/assets/vendor/upscaler.min.js'); });
-    return upLibs.then(function () { return loadScript('/assets/vendor/esrgan/x' + scale + '.min.js'); }).then(function () {
-      if (upscalers[scale]) return upscalers[scale];
-      var def = window['ESRGANMedium' + scale + 'x'];
-      var model = Object.assign({}, def, { path: '/assets/vendor/esrgan/x' + scale + '/model.json' });
-      upscalers[scale] = new window.Upscaler({ model: model });
-      return upscalers[scale];
+  // Real-ESRGAN (general-x4v3 + wdn-x4v3, SRVGGNetCompact) implemented directly on TF.js ops.
+  var esr = { tf: null, man: null, bins: {}, nets: {} };
+  function f16to32(u16) {
+    var out = new Float32Array(u16.length);
+    for (var i = 0; i < u16.length; i++) {
+      var h = u16[i], s = (h & 0x8000) ? -1 : 1, e = (h >> 10) & 0x1f, f = h & 0x3ff;
+      out[i] = e === 0 ? s * Math.pow(2, -14) * (f / 1024) : e === 31 ? (f ? NaN : s * Infinity) : s * Math.pow(2, e - 15) * (1 + f / 1024);
+    }
+    return out;
+  }
+  function esrReady() {
+    if (esr.ready) return esr.ready;
+    esr.ready = loadScript('/assets/vendor/tf.min.js').then(function () {
+      esr.tf = window.tf;
+      return esr.tf.ready().then(function () {
+        return Promise.all([
+          fetch('/assets/vendor/realesr/model.json').then(function (r) { return r.json(); }),
+          fetch('/assets/vendor/realesr/general.bin').then(function (r) { return r.arrayBuffer(); }),
+          fetch('/assets/vendor/realesr/wdn.bin').then(function (r) { return r.arrayBuffer(); })
+        ]);
+      });
+    }).then(function (r) {
+      esr.man = r[0];
+      esr.bins.general = f16to32(new Uint16Array(r[1]));
+      esr.bins.wdn = f16to32(new Uint16Array(r[2]));
     });
+    return esr.ready;
+  }
+  // denoise 0..1 → blend of the two official models (same as Real-ESRGAN's "denoise strength")
+  function esrNet(denoise) {
+    var key = denoise.toFixed(2);
+    if (esr.nets[key]) return esr.nets[key];
+    Object.keys(esr.nets).forEach(function (k) { esr.nets[k].forEach(function (l) { l.w && l.w.dispose(); l.b && l.b.dispose(); l.a && l.a.dispose(); }); delete esr.nets[k]; });
+    var tf = esr.tf, g = esr.bins.general, n = esr.bins.wdn, off = 0, layers = [];
+    function take(len) {
+      var o = new Float32Array(len);
+      for (var i = 0; i < len; i++) o[i] = denoise * g[off + i] + (1 - denoise) * n[off + i];
+      off += len; return o;
+    }
+    esr.man.layers.forEach(function (L) {
+      if (L.t === 'conv') {
+        var sh = L.shape, sz = sh[0] * sh[1] * sh[2] * sh[3];
+        layers.push({ t: 'conv', w: tf.tensor4d(take(sz), sh), b: tf.tensor1d(take(sh[3])) });
+      } else {
+        layers.push({ t: 'prelu', a: tf.tensor1d(take(L.n)) });
+      }
+    });
+    esr.nets[key] = layers;
+    return layers;
+  }
+  function esrInfer(x, layers) { // x: [1,H,W,3] 0..1 → [1,4H,4W,3]
+    var tf = esr.tf;
+    return tf.tidy(function () {
+      var h = x;
+      layers.forEach(function (L) {
+        if (L.t === 'conv') h = tf.add(tf.conv2d(h, L.w, 1, 'same'), L.b);
+        else h = tf.prelu(h, L.a);
+      });
+      h = tf.depthToSpace(h, 4, 'NHWC');
+      var up = tf.image.resizeNearestNeighbor(x, [x.shape[1] * 4, x.shape[2] * 4]);
+      return tf.clipByValue(tf.add(h, up), 0, 1);
+    });
+  }
+  // tiled upscale → canvas at outScale (2 or 4)
+  function esrUpscale(srcCanvas, outScale, denoise, onProgress) {
+    var tf = esr.tf, layers = esrNet(denoise);
+    var W = srcCanvas.width, H = srcCanvas.height, T = 96, P = 8, k = outScale / 4;
+    var out = document.createElement('canvas'); out.width = W * outScale; out.height = H * outScale;
+    var octx = out.getContext('2d'); octx.imageSmoothingQuality = 'high';
+    var tileC = document.createElement('canvas');
+    var src = tf.tidy(function () { return tf.browser.fromPixels(srcCanvas).toFloat().div(255); });
+    var tiles = [];
+    for (var y = 0; y < H; y += T) for (var x = 0; x < W; x += T) tiles.push([x, y]);
+    var i = 0;
+    function step() {
+      if (i >= tiles.length) { src.dispose(); return Promise.resolve(out); }
+      var x = tiles[i][0], y = tiles[i][1];
+      var tw = Math.min(T, W - x), th = Math.min(T, H - y);
+      var x0 = Math.max(0, x - P), y0 = Math.max(0, y - P), x1 = Math.min(W, x + tw + P), y1 = Math.min(H, y + th + P);
+      var res = tf.tidy(function () {
+        var crop = src.slice([y0, x0, 0], [y1 - y0, x1 - x0, 3]).expandDims(0);
+        var o = esrInfer(crop, layers).squeeze();
+        return o.slice([(y - y0) * 4, (x - x0) * 4, 0], [th * 4, tw * 4, 3]);
+      });
+      tileC.width = tw * 4; tileC.height = th * 4;
+      return tf.browser.toPixels(res, tileC).then(function () {
+        res.dispose();
+        octx.drawImage(tileC, x * outScale, y * outScale, tw * outScale, th * outScale);
+        i++; onProgress(i / tiles.length);
+        return tf.nextFrame().then(step);
+      });
+    }
+    return step();
   }
 
   // light unsharp mask on the upscaled canvas (amount 0..1)
@@ -783,28 +867,17 @@
       busy = true; runBtn.disabled = true; dlBtn.disabled = true;
       var scale = +$('[data-opt="upx"]').value, amt = +$('[data-opt="sharp"]').value;
       // keep the output reasonable for the browser: cap input so the result is ≤ ~4800px
-      var maxIn = scale === 4 ? 1200 : 2400;
+      var maxIn = scale === 4 ? 1000 : 1600;
       var w = srcImg.naturalWidth, h = srcImg.naturalHeight, k = Math.min(1, maxIn / Math.max(w, h));
       var c = document.createElement('canvas'); c.width = Math.round(w * k); c.height = Math.round(h * k);
       var cx = c.getContext('2d'); cx.imageSmoothingQuality = 'high'; cx.drawImage(srcImg, 0, 0, c.width, c.height);
       if (k < 1) toast('Зураг том тул ' + c.width + '×' + c.height + ' болгож багасгаад томруулна');
       bar.hidden = false; barI.style.width = '0%';
       st.textContent = 'AI загвар ачаалж байна…';
-      var t0 = performance.now();
-      getUpscaler(scale).then(function (up) {
-        st.textContent = 'Сайжруулж байна… 0%';
-        var input = window.tf.browser.fromPixels(c);
-        return up.upscale(input, {
-          output: 'tensor', patchSize: 64, padding: 6, awaitNextFrame: true,
-          progress: function (p) { if (p >= 1) { try { input.dispose(); } catch (e) {} } var pc = Math.round(p * 100); barI.style.width = pc + '%'; st.textContent = 'Сайжруулж байна… ' + pc + '%'; }
-        });
-      }).then(function (tensor) {
-        var tf = window.tf;
-        var t = tensor.shape.length === 4 ? tensor.squeeze() : tensor;
-        var clipped = tf.tidy(function () { return t.clipByValue(0, 255).cast('int32'); });
-        var out = document.createElement('canvas');
-        out.width = t.shape[1]; out.height = t.shape[0];
-        return tf.browser.toPixels(clipped, out).then(function () { tensor.dispose(); if (t !== tensor) t.dispose(); clipped.dispose(); return out; });
+      var t0 = performance.now(), dn = +$('[data-opt="denoise"]').value;
+      esrReady().then(function () {
+        st.textContent = 'Сайжруулж байна… 0% (' + esr.tf.getBackend() + ')';
+        return esrUpscale(c, scale, dn, function (p) { var pc = Math.round(p * 100); barI.style.width = pc + '%'; st.textContent = 'Сайжруулж байна… ' + pc + '%'; });
       }).then(function (out) {
         resultCanvas = sharpen(out, amt);
         after.src = resultCanvas.toDataURL('image/jpeg', .92);

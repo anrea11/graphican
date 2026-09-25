@@ -1,0 +1,2 @@
+Real-ESRGAN general-x4v3 / wdn-x4v3 weights (BSD-3-Clause), (c) Xintao Wang et al.
+https://github.com/xinntao/Real-ESRGAN
