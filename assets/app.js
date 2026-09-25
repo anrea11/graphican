@@ -130,6 +130,7 @@
           '<div class="corner tl">' + esc(h.artist_name || 'Graphican') + (h.artist_role ? ' — ' + esc(h.artist_role) : '') + '</div>' +
           '<div class="corner tr">DESIGN <span class="plus">+</span></div>' +
           '<div class="h2-copy">' +
+            '<a class="h2-new" href="#free-tools"><b>ҮНЭГҮЙ</b><span class="t-long">Дизайн хэрэгслүүд — PDF засварлагч, AI, Editor</span><span class="t-short">Дизайн хэрэгслүүд</span><i aria-hidden="true">→</i></a>' +
             '<p class="h2-eyebrow">' + esc(h.tagline_line1) + ' ' +
               (h.tagline_highlight ? '<em>' + esc(h.tagline_highlight) + '</em> ' : '') + esc(h.tagline_rest) + '</p>' +
             '<h1 class="mega h2-title" aria-label="' + esc((h.title_line1 || '') + ' ' + (h.title_line2 || '')) + '">' +
@@ -175,6 +176,35 @@
       }).join('');
     }
     return '<div class="marquee" aria-hidden="true"><div class="marquee-track"><div>' + row + '</div><div>' + row + '</div></div></div>';
+  }
+
+  // Free tools strip under the hero: tells first-time visitors the site has tools they can use
+  var FREE_TOOLS = [
+    { href: '/tools/pdfedit/', name: 'PDF засварлагч', text: 'PDF-ийн бичгийг засах, гарын үсэг зурах, орчуулах, Word болгох', tag: 'ШИНЭ',
+      ic: '<path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5"/><path d="m9 17 1-3 5-5 2 2-5 5z" fill="currentColor"/>' },
+    { href: '/editor/', name: 'Дизайн засварлагч', text: 'Пост, постер, баннерыг хөтөч дээрээ хялбар бүтээнэ',
+      ic: '<path d="M4 20l4.5-1 10-10-3.5-3.5-10 10z"/><path d="M13.5 7l3.5 3.5"/>' },
+    { href: '/tools/upscale/', name: 'AI зураг сайжруулагч', text: 'Бүдэг, жижиг зургийг 2–4 дахин тод, том болгоно',
+      ic: '<path d="M12 3l1.8 4.6L18.5 9l-4.7 1.4L12 15l-1.8-4.6L5.5 9l4.7-1.4z" fill="currentColor"/><path d="M18 14l.9 2.1L21 17l-2.1.9L18 20l-.9-2.1L15 17l2.1-.9z" fill="currentColor"/>' },
+    { href: '/tools/bgremove/', name: 'Дэвсгэр арилгагч', text: 'Зургийн арын дэвсгэрийг нэг товшилтоор арилгана',
+      ic: '<rect x="3" y="4" width="18" height="16" rx="2" stroke-dasharray="3 2"/><circle cx="12" cy="10" r="3"/><path d="M6.5 20c1-3 3-4.5 5.5-4.5s4.5 1.5 5.5 4.5"/>' },
+    { href: '/design/', name: 'Фонт ба өнгө', text: 'Кирилл фонт, өнгөний хослолыг татаж суулгана',
+      ic: '<path d="M4 20 9 5h2l5 15M6 15h8"/><circle cx="19" cy="7" r="2.5"/>' }
+  ];
+  function freeTools() {
+    return (
+      '<section class="free-tools" id="free-tools" aria-labelledby="ft-title">' +
+        '<div class="ft-head reveal"><div><span class="ft-kicker">ҮНЭГҮЙ · БҮРТГЭЛГҮЙ</span><h2 id="ft-title">Та ч бас ашиглаарай.</h2></div>' +
+          '<p>Өдөр тутам хэрэгтэй дизайн хэрэгслүүдийг хүн бүрт үнэгүй нээлттэй болгосон. Файл тань таны төхөөрөмжөөс гарахгүй.</p></div>' +
+        '<div class="ft-grid reveal">' + FREE_TOOLS.map(function (t) {
+          return '<a class="ft-card" href="' + t.href + '">' +
+            '<span class="ft-ic"><svg viewBox="0 0 24 24" aria-hidden="true">' + t.ic + '</svg></span>' +
+            (t.tag ? '<span class="ft-tag">' + t.tag + '</span>' : '') +
+            '<b>' + esc(t.name) + '</b><span class="ft-t">' + esc(t.text) + '</span><span class="ft-go">Нээх <i aria-hidden="true">→</i></span></a>';
+        }).join('') + '</div>' +
+        '<a class="ft-all" href="/tools/">Бүх хэрэгслийг үзэх →</a>' +
+      '</section>'
+    );
   }
 
   function sectionTop(s, id) {
@@ -700,6 +730,7 @@
       app.innerHTML =
         hero(d.hero || {}, list((d.work || {}).projects)) +
         marquee(d.marquee, (d.clients || {}).items) +
+        freeTools() +
         work(d.work || {}) +
         reels(d.reels || {}) +
         services(d.services || {}) +
