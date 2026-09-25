@@ -1394,7 +1394,7 @@
         '<div class="r2"><button type="button" class="btn" data-a="crop">' + icon('crop') + 'Тайрах</button><button type="button" class="btn acc" data-a="rmbg">' + icon('wand') + 'Дэвсгэр арилгах</button></div>' +
         '<button type="button" class="btn full" style="margin-top:6px" data-b="cut">' + icon('eraser') + 'Гараар засах (баллуур, саваа, лассо)</button>' +
         '<div class="ps-l">Маск хэлбэр</div>' + sel('mask', MASK_SHAPES, o.gMask || 'none') +
-        '<div class="r2" style="margin-top:6px"><button type="button" class="btn" data-a="asbg">' + icon('bg') + 'Frame дүүргэх</button><button type="button" class="btn" data-a="upscale">✦ Томруулах ↗</button></div>' +
+        '<div class="r2" style="margin-top:6px"><button type="button" class="btn" data-a="asbg">' + icon('bg') + 'Frame дүүргэх</button><button type="button" class="btn acc" data-b="upx">✦ AI сайжруулах</button></div>' +
         '<div class="ps-l">Шүүлтүүр</div><div class="pre-grid">' + PRESETS.map(function (p) {
           return '<button type="button" class="pre' + (p[0] === cur ? ' on' : '') + '" data-a="preset" data-v="' + p[0] + '"><i class="pre-' + p[0] + '" style="background-image:url(\'' + o.getSrc() + '\')"></i>' + p[1] + '</button>';
         }).join('') + '</div>' +
@@ -1630,7 +1630,7 @@
         '<span class="ctx-lbl">Тунгалаг</span><input type="range" data-dop min="10" max="100" value="' + Math.round((draw.op == null ? 1 : draw.op) * 100) + '" style="width:60px">' +
         '<span class="sep"></span>' + btn('draw-done', 'check', 'Дуусгах', 'Esc', ' ok');
     } else if (k === 'image') {
-      h = btn('crop', 'crop', 'Тайрах') + btn('rmbg', 'wand', 'Дэвсгэр арилгах') + btn('cut', 'eraser', 'Гараар засах', 'Баллуур, сэргээх, шидэт саваа, лассо') + '<span class="sep"></span>' + btn('asbg', 'bg', '', 'Frame-ийг дүүргэх') +
+      h = btn('crop', 'crop', 'Тайрах') + btn('rmbg', 'wand', 'Дэвсгэр арилгах') + btn('cut', 'eraser', 'Гараар засах', 'Баллуур, сэргээх, шидэт саваа, лассо') + btn('upx', 'wand', '✦ Сайжруулах', 'AI томруулж чанарыг сайжруулах') + '<span class="sep"></span>' + btn('asbg', 'bg', '', 'Frame-ийг дүүргэх') +
         btn('rot90', 'rotate', '', '90° эргүүлэх') + btn('flipX', 'flipH', '', 'Хэвтээ толин тусгал') + btn('flipY', 'flipV', '', 'Босоо толин тусгал');
     } else if (k === 'multi') {
       h = btn('group', 'group', 'Бүлэглэх', 'Ctrl+G') + btn('mask', 'maskI', 'Маск', 'Доод давхаргаар маск хийх (Ctrl+Alt+M)') + '<span class="sep"></span>' +
@@ -1653,6 +1653,7 @@
     if (c === 'mask') { makeMask(); return; }
     if (/^b-/.test(c)) { booleanOp(c.slice(2)); return; }
     if (c === 'cut' && o) { openCutout(o); return; }
+    if (c === 'upx' && o) { openUpscale(o); return; }
     if (c === 'crop') startCrop();
     if (c === 'rmbg' && o) { b.disabled = true; removeBackground(o).then(function () { b.disabled = false; }); return; }
     if (c === 'asbg') setAsBackground();
@@ -2530,6 +2531,7 @@
     if (a === 'bool') { booleanOp(parts[1]); return; }
     if (a === 'tovec' && o) { toVector(o); return; }
     if (a === 'cut' && o) { openCutout(o); return; }
+    if (a === 'upx' && o) { openUpscale(o); return; }
     if (a === 'unmask') { releaseMask(o); return; }
     if (a === 'vedit' && o) { if (vedit) endVEdit(); else startVEdit(o); return; }
   });
@@ -2866,6 +2868,109 @@
       window.addEventListener('resize', layout);
       setTool('erase'); layout();
     }
+  }
+
+
+  // ================= AI upscale inside the editor (Real-ESRGAN, in the browser) =================
+  var upP = null;
+  function upReady() {
+    if (!upP) upP = (window.GUpscale ? Promise.resolve() : loadScript('/assets/upscaler.js')).then(function () { return window.GUpscale.ready(); });
+    upP.catch(function () { upP = null; });
+    return upP;
+  }
+  function openUpscale(img) {
+    if (!img || !img.isType('image')) return;
+    var el = img._originalElement || img.getElement(), W0 = el.naturalWidth || el.width, H0 = el.naturalHeight || el.height;
+    var shownW = Math.round(img.getScaledWidth()), shownH = Math.round(img.getScaledHeight());
+    var st = { scale: 2, denoise: 0.6, sharpen: 0, busy: false, out: null, src: null };
+    // how blurry is it on the canvas right now? (image pixels per displayed pixel)
+    var density = W0 / Math.max(1, img.getScaledWidth());
+    var m = document.createElement('div'); m.className = 'cut-modal up-modal';
+    m.innerHTML =
+      '<div class="cut-top"><b>✦ AI сайжруулах</b><span class="up-meta"></span><span class="grow"></span>' +
+        '<button type="button" class="btn" data-up="cancel">Болих</button><button type="button" class="btn-primary" data-up="apply" disabled>Хэрэглэх</button></div>' +
+      '<div class="cut-body"><div class="cut-view up-view">' +
+        '<div class="cmp"><img class="cmp-a" alt="Сайжруулсан"><div class="cmp-b"><img alt="Анхны"></div><span class="cmp-l"></span>' +
+        '<span class="cmp-t l">ӨМНӨ</span><span class="cmp-t r">ДАРАА</span><input class="cmp-r" type="range" min="0" max="100" value="50" aria-label="Өмнө / дараа"></div></div>' +
+      '<div class="cut-side">' +
+        '<div class="ps-l" style="margin-top:0">Томруулах</div>' +
+        '<div class="seg up-seg"><button type="button" data-us="scale" data-v="2" class="on">2×<small>санал болгох</small></button><button type="button" data-us="scale" data-v="4">4×<small>удаан</small></button></div>' +
+        '<div class="ps-l">Шуугиан, JPG алдаа арилгах</div>' +
+        '<div class="seg up-seg"><button type="button" data-us="denoise" data-v="0.2">Бага</button><button type="button" data-us="denoise" data-v="0.6" class="on">Дунд</button><button type="button" data-us="denoise" data-v="1">Их</button></div>' +
+        '<div class="ps-l">Нэмэлт тодруулга</div>' +
+        '<div class="seg up-seg"><button type="button" data-us="sharpen" data-v="0" class="on">Байхгүй</button><button type="button" data-us="sharpen" data-v="0.25">Бага</button><button type="button" data-us="sharpen" data-v="0.5">Дунд</button></div>' +
+        '<button type="button" class="btn acc full" style="margin-top:12px;height:36px" data-up="run">✦ Сайжруулах</button>' +
+        '<div class="up-bar" hidden><i></i></div><p class="note up-st"></p>' +
+        '<p class="note">Зураг canvas дээр яг одоогийн хэмжээгээрээ үлдэнэ — зөвхөн чанар, нарийвчлал нь нэмэгдэнэ. Хэрэглэсний дараа Ctrl+Z-ээр буцааж болно.</p>' +
+        '<p class="note">Real-ESRGAN хиймэл оюун таны төхөөрөмж дээр ажиллана. Анх удаа загвар (~5MB) ачаална.</p>' +
+      '</div></div>';
+    document.body.appendChild(m);
+    var q = function (s) { return m.querySelector(s); };
+    var a = q('.cmp-a'), bWrap = q('.cmp-b'), b = q('.cmp-b img'), line = q('.cmp-l'), rng = q('.cmp-r');
+    // source canvas (pre-filter original); big images are reduced so the result stays ≤ ~4800px
+    function srcCanvas() {
+      var maxIn = st.scale === 4 ? 1000 : 1600, k = Math.min(1, maxIn / Math.max(W0, H0));
+      var c = document.createElement('canvas'); c.width = Math.round(W0 * k); c.height = Math.round(H0 * k);
+      var x = c.getContext('2d'); x.imageSmoothingQuality = 'high'; x.drawImage(el, 0, 0, c.width, c.height);
+      return c;
+    }
+    function meta() {
+      var c = srcCanvas();
+      q('.up-meta').textContent = W0 + '×' + H0 + ' px → ' + c.width * st.scale + '×' + c.height * st.scale + ' px' + (density < 1 ? ' · canvas дээр ' + Math.round(1 / density * 100) + '% томруулж харуулж байна' : '');
+      if (!st.out) q('.up-st').textContent = density < 0.9 ? 'Энэ зураг canvas дээр жинхэнэ хэмжээнээсээ том харагдаж байгаа тул бүдэг байна — сайжруулахад тохиромжтой.' : 'Бэлэн. «Сайжруулах» дарна уу.';
+    }
+    var url0 = (function () { var c = document.createElement('canvas'); c.width = W0; c.height = H0; c.getContext('2d').drawImage(el, 0, 0); return c.toDataURL('image/png'); })();
+    a.src = b.src = url0;
+    function split(v) { bWrap.style.clipPath = 'inset(0 ' + (100 - v) + '% 0 0)'; line.style.left = v + '%'; }
+    rng.addEventListener('input', function () { split(+rng.value); }); split(50);
+    // show the image as large as the view allows (small images are enlarged, so the difference is visible)
+    function fit() {
+      var r = q('.up-view').getBoundingClientRect(), k = Math.min((r.width - 32) / W0, (r.height - 32) / H0, 6);
+      a.style.width = Math.round(W0 * k) + 'px'; a.style.height = Math.round(H0 * k) + 'px';
+    }
+    fit(); window.addEventListener('resize', fit);
+    // zoom the preview so detail is visible: show 1:1 of the centre when the image is large
+    meta();
+    function close() { m.remove(); document.removeEventListener('keydown', onKey, true); window.removeEventListener('resize', fit); }
+    function onKey(e) { if (e.key === 'Escape') { e.stopPropagation(); if (!st.busy) close(); } }
+    document.addEventListener('keydown', onKey, true);
+    m.addEventListener('click', function (e) {
+      var o = e.target.closest('[data-us]');
+      if (o && !st.busy) {
+        st[o.dataset.us] = +o.dataset.v;
+        m.querySelectorAll('[data-us="' + o.dataset.us + '"]').forEach(function (x) { x.classList.toggle('on', x === o); });
+        if (st.out) { st.out = null; a.src = url0; q('[data-up="apply"]').disabled = true; }
+        meta(); return;
+      }
+      var btn = e.target.closest('[data-up]'); if (!btn) return;
+      var act = btn.dataset.up;
+      if (act === 'cancel' && !st.busy) close();
+      if (act === 'run' && !st.busy) {
+        st.busy = true; btn.disabled = true; q('.up-bar').hidden = false; q('.up-bar i').style.width = '0%';
+        q('.up-st').textContent = 'AI загвар ачаалж байна…';
+        var c = srcCanvas(), t0 = performance.now();
+        upReady().then(function () {
+          return window.GUpscale.run(c, st, function (p) { q('.up-bar i').style.width = Math.round(p * 100) + '%'; q('.up-st').textContent = 'Сайжруулж байна… ' + Math.round(p * 100) + '% (' + window.GUpscale.backend() + ')'; });
+        }).then(function (out) {
+          st.out = out;
+          a.src = out.toDataURL('image/png');
+          q('.up-st').textContent = 'Болсон · ' + out.width + '×' + out.height + ' px · ' + ((performance.now() - t0) / 1000).toFixed(1) + ' сек. Гулсуулагчаар харьцуулаад «Хэрэглэх» дарна уу.';
+          q('[data-up="apply"]').disabled = false;
+        }).catch(function (err) {
+          console.error(err); q('.up-st').textContent = 'Алдаа гарлаа. 2× сонгоод дахин оролдоно уу.';
+        }).then(function () { st.busy = false; btn.disabled = false; setTimeout(function () { q('.up-bar').hidden = true; }, 500); });
+      }
+      if (act === 'apply' && st.out && !st.busy) {
+        var out = st.out, url = out.toDataURL('image/png'), f = out.width / W0;
+        var keep = { width: img.width * f, height: img.height * f, cropX: (img.cropX || 0) * f, cropY: (img.cropY || 0) * f, scaleX: img.scaleX / f, scaleY: img.scaleY / f };
+        img.setSrc(url, function () {
+          img.set(keep); img.set('dirty', true); img.applyFilters(); img.setCoords();
+          canvas.requestRenderAll(); commit(); refreshUI();
+          toast('Зураг ' + out.width + '×' + out.height + 'px боллоо ✦');
+        });
+        close();
+      }
+    });
   }
 
 
