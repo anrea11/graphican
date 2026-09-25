@@ -35,6 +35,11 @@
     <image:image><image:loc>https://graphican.online/assets/uploads/design-guide.webp</image:loc></image:image>
   </url>
   <url>
+    <loc>https://graphican.online/tools/</loc>
+    <lastmod>2026-09-25</lastmod>
+    <priority>0.8</priority>
+  </url>
+  <url>
     <loc>https://graphican.online/editor/</loc>
     <lastmod>2026-09-25</lastmod>
     <priority>0.6</priority>
