@@ -257,3 +257,7 @@ input[type="range"] { width:100%; accent-color:var(--acc); }
   .dock { bottom:10px; max-width:calc(100% - 16px); overflow-x:auto; }
   .ctxbar { bottom:66px; }
 }
+
+/* canvas handles its own pinch/pan, the rest of the page can zoom (accessibility) */
+.stage, .stage canvas, .upper-canvas { touch-action:none; }
+.sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }

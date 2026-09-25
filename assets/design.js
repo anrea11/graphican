@@ -405,11 +405,13 @@
 
   // ---------- sections ----------
 
+  var H1_NEXT = /^\/tools\/(upscale|bgremove|socialcrop|pdf)\/?$/.test(location.pathname); // tool pages: first heading = H1
   function head(s) {
+    var isH1 = H1_NEXT; H1_NEXT = false;
     return (
       '<header class="sec-head reveal">' +
         '<div class="sec-meta"><span>' + esc(s.kicker) + '</span>' + (s.title_en ? '<span>' + esc(s.title_en) + ' +</span>' : '') + '</div>' +
-        '<h2 class="sec-title">' + blurText(s.title, 0.55) + '</h2>' +
+        (isH1 ? '<h1 class="sec-title">' + blurText(s.title, 0.55) + '</h1>' : '<h2 class="sec-title">' + blurText(s.title, 0.55) + '</h2>') +
         (s.description ? '<p class="sec-desc">' + esc(s.description) + '</p>' : '') +
       '</header>'
     );

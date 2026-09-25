@@ -2,7 +2,7 @@
 <html lang="mn">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <script>if(location.hostname==='www.graphican.online')location.replace('https://graphican.online'+location.pathname+location.search+location.hash);try{var t=localStorage.getItem('gc-editor-theme');if(t)document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
 <title>Graphican Editor — үнэгүй онлайн дизайн засварлагч</title>
 <meta name="description" content="Figma шиг цэвэрхэн, үнэгүй онлайн дизайн засварлагч: frame, текст, зураг, хэлбэр, AI дэвсгэр арилгах, кирилл фонт, PNG / JPG / PDF татах. Бүртгэлгүй. Graphican.">
@@ -15,10 +15,10 @@
 <meta property="og:image" content="https://graphican.online/assets/uploads/og-cover.jpg">
 <meta name="theme-color" content="#ffffff">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2308080a'/%3E%3Ccircle cx='16' cy='16' r='7' fill='%23a497ff'/%3E%3C/svg%3E">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap&subset=cyrillic" rel="stylesheet">
-<link rel="stylesheet" href="/assets/editor.css?v=3">
+<link rel="preload" href="/assets/fonts/web/InterTight-Bold.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/assets/fonts/web/Inter-Regular.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/assets/fonts/web/fonts.css">
+<link rel="stylesheet" href="/assets/editor.css?v=4">
 </head>
 <body>
 
@@ -34,15 +34,16 @@
       <span class="saved" id="ed-saved">Хадгалагдсан</span>
     </div>
     <div class="lp-tabs" role="tablist">
-      <button type="button" data-tab="layers" class="on">Давхарга</button>
-      <button type="button" data-tab="add">Нэмэх</button>
-      <button type="button" data-tab="templates">Загвар</button>
+      <button type="button" role="tab" aria-selected="true" data-tab="layers" class="on">Давхарга</button>
+      <button type="button" role="tab" aria-selected="false" data-tab="add">Нэмэх</button>
+      <button type="button" role="tab" aria-selected="false" data-tab="templates">Загвар</button>
     </div>
     <div class="lp-body" id="lp-body"></div>
   </aside>
 
   <!-- canvas -->
   <main class="stage" id="stage">
+    <h1 class="sr-only">Graphican Editor — үнэгүй онлайн дизайн засварлагч</h1>
     <canvas id="ed-canvas"></canvas>
     <div class="hint" id="ed-hint">Доод самбараас <b>Текст</b>, <b>Хэлбэр</b>, <b>Зураг</b> нэмэх эсвэл зүүн талын <b>Загвар</b>-аас эхлээрэй</div>
     <div class="ctxbar" id="ctxbar" hidden></div>
@@ -85,8 +86,8 @@
 <noscript><p style="padding:40px">Засварлагчийг ашиглахын тулд JavaScript идэвхжүүлнэ үү.</p></noscript>
 
 <!-- Fabric.js 5.3.0 (MIT) -->
-<script src="https://cdn.jsdelivr.net/npm/fabric@5.3.0/dist/fabric.min.js"></script>
+<script src="/assets/vendor/fabric.min.js"></script>
 <script src="/assets/handoff.js?v=28"></script>
-<script src="/assets/editor.js?v=3"></script>
+<script src="/assets/editor.js?v=5"></script>
 </body>
 </html>

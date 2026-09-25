@@ -1243,3 +1243,13 @@ body::after { animation:none; inset:0; }                  /* static grain instea
   }
   .qb-btn.solid { background:#fff; color:#0a0a0c; border-color:#fff; }
 }
+
+/* videos: when vertical (9:16) and horizontal reels are mixed, verticals take a tall side column */
+@media (min-width:900px) {
+  .reel-grid.mixed { grid-template-columns:repeat(3, minmax(0, 1fr)); grid-auto-flow:dense; }
+  .reel-grid.mixed .reel:not(.r-9x16) { grid-column:span 2; }
+  .reel-grid.mixed .reel.r-9x16 { grid-row:span 2; display:flex; flex-direction:column; }
+  .reel-grid.mixed .reel.r-9x16 .r-media { aspect-ratio:auto; flex:1; min-height:0; }
+}
+/* about stats: a word ("MAIN ARTIST") sits on the same baseline as the numbers */
+.about-stats .is-word b { font-size:clamp(15px, 1.35vw, 19px); line-height:1.15; letter-spacing:.02em; min-height:clamp(26px, 3vw, 38px); display:flex; align-items:flex-end; }

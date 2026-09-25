@@ -12,3 +12,5 @@ Loaded from jsDelivr at runtime:
   Fabric.js 5.3.0 — MIT — https://github.com/fabricjs/fabric.js
   ONNX Runtime Web — Microsoft — MIT — https://github.com/microsoft/onnxruntime
   smartcrop.js — Jonas Wagner — MIT — https://github.com/jwagner/smartcrop.js
+
+Fabric.js 5.3.0 — MIT License — http://fabricjs.com

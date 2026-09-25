@@ -1052,7 +1052,7 @@
   $('.lp-tabs').addEventListener('click', function (e) {
     var b = e.target.closest('[data-tab]'); if (!b) return;
     lpTab = b.dataset.tab;
-    $$('.lp-tabs button').forEach(function (x) { x.classList.toggle('on', x === b); });
+    $$('.lp-tabs button').forEach(function (x) { x.classList.toggle('on', x === b); x.setAttribute('aria-selected', x === b ? 'true' : 'false'); });
     renderLeft();
   });
   function objIcon(o) {
@@ -1378,6 +1378,16 @@
   }
 
   var rp = $('#rp-body');
+  // a11y: give every unlabeled input/select in the properties panel an accessible name
+  var P_LABELS = { fname: 'Frame-ийн нэр', ffillHex: 'Дэвсгэр өнгө (HEX)', fpreset: 'Бэлэн хэмжээ', expScale: 'Export хэмжээ', expFmt: 'Export формат' };
+  function labelFields() {
+    rp.querySelectorAll('input, select').forEach(function (el) {
+      if (el.getAttribute('aria-label') || el.id && document.querySelector('label[for="' + el.id + '"]') || el.closest('label')) return;
+      var k = el.getAttribute('data-p') || '', prev = el.previousElementSibling;
+      el.setAttribute('aria-label', P_LABELS[k] || (prev && prev.textContent.trim()) || el.getAttribute('placeholder') || k || 'Тохиргоо');
+    });
+  }
+  new MutationObserver(labelFields).observe(rp, { childList: true, subtree: true });
   // sliders, colour pickers and the frame name apply live; number fields on Enter / blur / arrows / scrubbing
   rp.addEventListener('input', function (e) {
     var t = e.target, p = t.dataset.p; if (!p) return;

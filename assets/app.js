@@ -27,6 +27,13 @@
   var ICON_MSG = '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2C6.4 2 2 6.1 2 11.3c0 2.9 1.4 5.5 3.7 7.2V22l3.4-1.9c.9.3 1.9.4 2.9.4 5.6 0 10-4.1 10-9.3S17.6 2 12 2Zm1 12.4-2.6-2.7-5 2.7 5.5-5.8 2.6 2.7 4.9-2.7-5.4 5.8Z"/></svg>';
   var ICON_TEL = '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1A17 17 0 0 1 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1l-2.3 2.2Z"/></svg>';
 
+  // small WebP copy made by .github/scripts/thumbs.py; falls back to the original if missing
+  function thumb(src) {
+    var s = String(src || '');
+    return /^\/assets\/uploads\/[^/]+\.(jpe?g|png|webp)$/i.test(s) ? s.replace('/assets/uploads/', '/assets/uploads/_t/') + '.webp' : s;
+  }
+  function fb(src) { return ' data-full="' + esc(src) + '" onerror="this.onerror=null;this.src=this.dataset.full"'; }
+
   function isVideo(src) { return /\.(mp4|webm|mov|m4v)(\?|#|$)/i.test(String(src || '')); }
 
   // Split text into letters that go from blurred → sharp (the "more." effect).
@@ -59,7 +66,8 @@
         '</video>'
       );
     }
-    return '<img class="' + (opts.cls || '') + '" src="' + esc(src) + '" alt="' + esc(opts.alt || '') + '" loading="lazy" decoding="async">';
+    var s2 = opts.thumb ? thumb(src) : src;
+    return '<img class="' + (opts.cls || '') + '" src="' + esc(s2) + '"' + (s2 !== src ? fb(src) : '') + ' alt="' + esc(opts.alt || '') + '" loading="lazy" decoding="async">';
   }
 
   // Shared decorative layers: light beam, dark ring, hairlines, grain
@@ -111,7 +119,7 @@
     var n = items.length;
     var cards = items.map(function (it, i) {
       return '<a class="rc" href="' + esc(it.href) + '" style="--i:' + i + '" aria-label="' + esc(it.name) + '" tabindex="-1">' +
-        '<span class="rc-halo"></span><span class="rc-in"><img src="' + esc(it.src) + '" alt="' + esc(it.name) + ' — Graphican дизайн" loading="' + (i < 5 ? 'eager' : 'lazy') + '" decoding="async"><span class="rc-light"></span><span class="rc-sheen"></span><span class="rc-dark"></span></span></a>';
+        '<span class="rc-halo"></span><span class="rc-in"><img src="' + esc(thumb(it.src)) + '"' + fb(it.src) + ' alt="' + esc(it.name) + ' — Graphican дизайн" loading="' + (i < 4 ? 'eager' : 'lazy') + '" fetchpriority="' + (i < 4 ? 'auto' : 'low') + '" decoding="async" width="250" height="330"><span class="rc-light"></span><span class="rc-sheen"></span><span class="rc-dark"></span></span></a>';
     }).join('');
     var portrait = h.portrait || '';
 
@@ -155,7 +163,7 @@
     if (clientsList.length) {
       row = clientsList.map(function (c, i) {
         return (c.logo
-          ? '<img class="m-logo" src="' + esc(c.logo) + '" alt="' + esc(c.name) + '" loading="lazy" decoding="async">'
+          ? '<img class="m-logo" src="' + esc(thumb(c.logo)) + '"' + fb(c.logo) + ' alt="' + esc(c.name) + '" loading="lazy" decoding="async">'
           : '<span class="' + (i % 2 ? 'soft' : '') + '">' + esc(c.name) + '</span>') + '<i></i>';
       }).join('');
       if (clientsList.length < 10) row += row; // keep the strip wider than large screens
@@ -190,8 +198,8 @@
       var g = list(p.gallery);
       var vids = g.filter(function (x) { return x.video || isVideo(x.image); }).length;
       var m = p.video
-        ? media(p.video, { auto: true, poster: p.image, alt: p.name })
-        : media(p.image, { alt: p.name });
+        ? media(p.video, { auto: true, poster: thumb(p.image), alt: p.name })
+        : media(p.image, { alt: p.name, thumb: true });
       return (
         '<a class="project reveal" href="#project/' + slug(p, i) + '" aria-label="' + esc(p.name) + ' — дэлгэрэнгүй үзэх">' +
           '<div class="p-media">' + m +
@@ -218,7 +226,7 @@
       var ratio = String(it.ratio || '16:9').replace(':', 'x');
       return (
         '<button class="reel reveal r-' + esc(ratio) + '" type="button" data-reel="' + i + '" aria-label="' + esc(it.title || 'Видео') + ' — дууг нь сонсож үзэх">' +
-          '<div class="r-media">' + media(it.video, { auto: true, poster: it.poster, alt: it.title }) +
+          '<div class="r-media">' + media(it.video, { auto: true, poster: thumb(it.poster), alt: it.title }) +
             '<span class="play" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z" fill="currentColor"/></svg></span>' +
             '<span class="tag tl">' + pad(i + 1) + '</span>' +
             (it.type ? '<span class="tag tr">' + esc(it.type) + '</span>' : '') +
@@ -229,7 +237,7 @@
     }).join('');
     return (
       '<section class="sec reels is-black" id="reels">' + sectionTop(r) +
-        (tiles ? '<div class="reel-grid n' + Math.min(items.length, 3) + '">' + tiles + '</div>'
+        (tiles ? '<div class="reel-grid n' + Math.min(items.length, 3) + (items.some(function (x) { return x.ratio === '9:16'; }) && items.some(function (x) { return (x.ratio || '16:9') !== '9:16'; }) ? ' mixed' : '') + '">' + tiles + '</div>'
                : '<p class="empty reveal">Удахгүй видео нэмэгдэнэ.</p>') +
       '</section>'
     );
@@ -283,7 +291,8 @@
 
   function about(a) {
     var stats = list(a.stats).map(function (s) {
-      return '<div><b>' + esc(s.value) + '</b><span>' + esc(s.label) + '</span></div>';
+      var word = /[A-Za-zА-Яа-яӨөҮү]{3,}/.test(String(s.value || ''));
+      return '<div' + (word ? ' class="is-word"' : '') + '><b>' + esc(s.value) + '</b><span>' + esc(s.label) + '</span></div>';
     }).join('');
     var photo = a.photo
       ? '<figure class="about-photo reveal">' + media(a.photo, { alt: a.name }) + '<div class="grain"></div>' +
