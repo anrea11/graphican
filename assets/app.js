@@ -211,32 +211,6 @@
     return '<section class="sec work has-fx" id="work">' + fx('alt-a') + sectionTop(w) + hint + '<div class="projects">' + cards + '</div></section>';
   }
 
-  // "Trusted by" wall: logo if uploaded, otherwise the name as a wordmark.
-  // A client that matches a project name links to that case study.
-  function clients(c, projects) {
-    var items = list(c.items).filter(function (it) { return it && (it.name || it.logo); });
-    if (!items.length) return '';
-    var cells = items.map(function (it) {
-      var k = -1;
-      projects.forEach(function (p, i) {
-        if (k < 0 && String(p.name || '').trim().toLowerCase() === String(it.name || '').trim().toLowerCase()) k = i;
-      });
-      var inner = it.logo
-        ? '<img src="' + esc(it.logo) + '" alt="' + esc(it.name) + '" loading="lazy" decoding="async">'
-        : '<span class="c-word">' + esc(it.name) + '</span>';
-      return k >= 0
-        ? '<li><a class="client" href="#project/' + slug(projects[k], k) + '" aria-label="' + esc(it.name) + ' — ажлуудыг үзэх">' + inner + '<span class="c-go" aria-hidden="true">↗</span></a></li>'
-        : '<li><span class="client">' + inner + '</span></li>';
-    }).join('');
-    return (
-      '<section class="sec clients" id="clients">' +
-        '<div class="sec-meta reveal"><span>' + esc(c.kicker) + '</span>' + (c.note ? '<span>' + esc(c.note) + ' +</span>' : '') + '</div>' +
-        (c.title ? '<h2 class="clients-title reveal">' + esc(c.title) + '</h2>' : '') +
-        '<ul class="client-grid reveal">' + cells + '</ul>' +
-      '</section>'
-    );
-  }
-
   function reels(r) {
     var items = list(r.items).filter(function (it) { return it && it.video; });
     if (!items.length && !r.title) return '';
@@ -614,7 +588,7 @@
     }
 
     document.addEventListener('click', function (e) {
-      if (e.target.closest('a.project, a.client')) { openedFromPage = modal.hidden; return; }
+      if (e.target.closest('a.project')) { openedFromPage = modal.hidden; return; }
       var swap = e.target.closest('[data-swap]');
       if (swap && modal.contains(swap)) { e.preventDefault(); location.replace(swap.getAttribute('href')); return; }
       if (e.target.closest('[data-close]') && modal.contains(e.target)) close();
@@ -709,7 +683,6 @@
         hero(d.hero || {}, list((d.work || {}).projects)) +
         marquee(d.marquee, (d.clients || {}).items) +
         work(d.work || {}) +
-        clients(d.clients || {}, list((d.work || {}).projects)) +
         reels(d.reels || {}) +
         services(d.services || {}) +
         about(d.about || {}) +

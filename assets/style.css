@@ -1198,53 +1198,6 @@ body::after { animation:none; inset:0; }                  /* static grain instea
 .seo-static { max-width:900px; margin:120px auto; padding:0 var(--gutter); color:var(--muted); }
 .seo-static img { max-width:240px; height:auto; }
 
-/* ---------- clients wall ---------- */
-
-.clients { padding-block:clamp(64px, 9vw, 110px); border-top:1px solid var(--line-soft); }
-.clients-title {
-  font:700 clamp(1.6rem, 3.2vw, 2.6rem)/1.1 var(--display);
-  letter-spacing:-.03em;
-  margin-bottom:clamp(28px, 4vw, 44px);
-  max-width:18ch;
-}
-.client-grid {
-  list-style:none;
-  display:grid;
-  grid-template-columns:repeat(4, minmax(0, 1fr));
-  border-top:1px solid var(--line);
-  border-left:1px solid var(--line);
-}
-.client-grid li { border-right:1px solid var(--line); border-bottom:1px solid var(--line); }
-.client {
-  position:relative;
-  display:grid;
-  place-items:center;
-  height:clamp(96px, 11vw, 140px);
-  padding:18px;
-  color:rgba(245,244,250,.62);
-}
-a.client:hover, a.client:focus-visible { color:#fff; }
-a.client:focus-visible { outline:2px solid var(--v2); outline-offset:-2px; }
-.c-word {
-  font:400 clamp(1.05rem, 1.7vw, 1.5rem)/1.1 var(--brand);
-  letter-spacing:.01em;
-  text-align:center;
-}
-.client img {
-  max-width:78%;
-  max-height:48px;
-  object-fit:contain;
-}
-.c-go {
-  position:absolute;
-  top:10px; right:12px;
-  font-size:12px;
-  opacity:.5;
-}
-@media (max-width:760px) {
-  .client-grid { grid-template-columns:repeat(2, minmax(0, 1fr)); }
-}
-
 /* ---------- contact buttons + phone quick bar ---------- */
 
 .btn .i, .qb-btn .i { width:18px; height:18px; flex:none; }

@@ -160,18 +160,15 @@ collections:
 
           # ---------------- CLIENTS ----------------
           - name: clients
-            label: "Хамтран ажилласан байгууллагууд"
+            label: "Хамтран ажилласан байгууллагууд (hero-ийн доорх гүйдэг мөр)"
             widget: object
             fields:
-              - { name: kicker, label: "Жижиг шошго (англиар)", widget: string, required: false }
-              - { name: title, label: "Гарчиг", widget: string, required: false }
-              - { name: note, label: "Баруун дээд жижиг бичиг", widget: string, required: false }
               - name: items
                 label: "Байгууллагууд"
                 label_singular: "Байгууллага"
                 widget: list
                 summary: "{{name}}"
-                hint: "Нэр нь 'Ажлууд' доторх төслийн нэртэй ижил бол дарахад тэр төсөл нээгдэнэ. Лого байхгүй бол нэр нь бичгээр харагдана."
+                hint: "Hero-ийн доор гүйж харагдана. Лого байхгүй бол нэр нь бичгээр харагдана."
                 fields:
                   - { name: name, label: "Нэр", widget: string }
                   - { name: logo, label: "Лого (цагаан эсвэл тунгалаг PNG/SVG)", widget: image, required: false, hint: "Хар дэвсгэр дээр харагдана — цагаан хувилбар нь хамгийн сайн" }
