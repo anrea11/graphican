@@ -430,7 +430,7 @@
           '<div class="hero-copy">' +
             '<p class="lead">' + esc(h.text) + '</p>' +
             '<div class="chips">' +
-              '<a href="#fonts">Фонт</a><a href="#colors">Өнгө</a><a class="hot" href="#kit">Нэг товшилтоор татах ↓</a><a href="#tools">PDF ⇄ PNG / JPG</a><a class="brand" href="#guide"><span class="dp-orb" aria-hidden="true"></span>Graphican брэнд гайд</a>' +
+              '<a href="#fonts">Фонт</a><a href="#colors">Өнгө</a><a class="hot" href="#kit">Нэг товшилтоор татах ↓</a><a href="#upscale">AI upscale ✦</a><a href="#tools">PDF ⇄ PNG / JPG</a><a class="brand" href="#guide"><span class="dp-orb" aria-hidden="true"></span>Graphican брэнд гайд</a>' +
             '</div>' +
           '</div>' +
           '<div class="corner bl">01 TYPE · 02 COLOR · 03 KIT · 04 BRAND</div>' +
@@ -662,6 +662,170 @@
         '</div>' +
       '</section>'
     );
+  }
+
+  // ---------- AI image upscaler (ESRGAN via TensorFlow.js, runs in the browser) ----------
+
+  function upscaleSection(u) {
+    return (
+      '<section class="sec upscale" id="upscale">' + head(u) +
+        '<div class="tool reveal">' +
+          '<label class="drop" data-drop="up">' +
+            '<input type="file" accept="image/png,image/jpeg,image/webp" hidden>' +
+            '<span class="drop-ic" aria-hidden="true">AI</span>' +
+            '<b>Зургаа энд чирж оруулна уу</b><span>PNG, JPG, WebP · эсвэл дарж сонгоно</span>' +
+          '</label>' +
+          '<div class="tool-opts">' +
+            '<label><span>Томруулах</span><select data-opt="upx"><option value="2" selected>2× (санал болгох)</option><option value="4">4× (удаан)</option></select></label>' +
+            '<label><span>Нэмэлт тодруулга</span><select data-opt="sharp"><option value="0">Байхгүй</option><option value="0.35" selected>Бага</option><option value="0.7">Дунд</option></select></label>' +
+            '<label><span>Гаргах формат</span><select data-opt="upfmt"><option value="png">PNG</option><option value="jpg">JPG</option></select></label>' +
+            '<button type="button" class="btn solid" data-act="up-run" disabled>Сайжруулах ✦</button>' +
+            '<button type="button" class="btn" data-act="up-dl" disabled>Татах ↓</button>' +
+          '</div>' +
+          '<div class="up-progress" hidden><i></i></div>' +
+          '<p class="tool-status" data-status="up"></p>' +
+          '<div class="compare" hidden>' +
+            '<div class="cmp-wrap">' +
+              '<img class="cmp-after" alt="Сайжруулсан">' +
+              '<div class="cmp-before"><img alt="Анхны"></div>' +
+              '<span class="cmp-line" aria-hidden="true"></span>' +
+              '<span class="cmp-tag l">ӨМНӨ</span><span class="cmp-tag r">ДАРАА</span>' +
+              '<input class="cmp-range" type="range" min="0" max="100" value="50" aria-label="Өмнө / дараа харьцуулах">' +
+            '</div>' +
+            '<p class="cmp-meta"></p>' +
+          '</div>' +
+        '</div>' +
+        '<p class="tool-note reveal">✦ Хиймэл оюун (ESRGAN) зургийг таны хөтөч дотор томруулж, нарийн хэсгийг сэргээнэ. Файл серверт илгээгдэхгүй. Анх ашиглахад загвар (~3MB) нэг удаа ачаална. Том зураг утсан дээр удаан байж болно.</p>' +
+      '</section>'
+    );
+  }
+
+  function loadScript(src) {
+    return new Promise(function (res, rej) {
+      if (document.querySelector('script[data-src="' + src + '"]')) return res();
+      var s = document.createElement('script'); s.src = src; s.dataset.src = src;
+      s.onload = function () { res(); }; s.onerror = rej; document.head.appendChild(s);
+    });
+  }
+  var upLibs = null, upscalers = {};
+  function getUpscaler(scale) {
+    if (!upLibs) upLibs = loadScript('/assets/vendor/tf.min.js').then(function () { return loadScript('/assets/vendor/upscaler.min.js'); });
+    return upLibs.then(function () { return loadScript('/assets/vendor/esrgan/x' + scale + '.min.js'); }).then(function () {
+      if (upscalers[scale]) return upscalers[scale];
+      var def = window['ESRGANMedium' + scale + 'x'];
+      var model = Object.assign({}, def, { path: '/assets/vendor/esrgan/x' + scale + '/model.json' });
+      upscalers[scale] = new window.Upscaler({ model: model });
+      return upscalers[scale];
+    });
+  }
+
+  // light unsharp mask on the upscaled canvas (amount 0..1)
+  function sharpen(canvas, amount) {
+    if (!amount) return canvas;
+    var w = canvas.width, h = canvas.height, ctx = canvas.getContext('2d');
+    var src = ctx.getImageData(0, 0, w, h), d = src.data, out = ctx.createImageData(w, h), o = out.data;
+    var a = amount, c = 1 + 4 * a;
+    for (var y = 0; y < h; y++) {
+      for (var x = 0; x < w; x++) {
+        var i = (y * w + x) * 4;
+        var up = ((y > 0 ? y - 1 : y) * w + x) * 4, dn = ((y < h - 1 ? y + 1 : y) * w + x) * 4;
+        var lf = (y * w + (x > 0 ? x - 1 : x)) * 4, rt = (y * w + (x < w - 1 ? x + 1 : x)) * 4;
+        for (var k = 0; k < 3; k++) {
+          var v = c * d[i + k] - a * (d[up + k] + d[dn + k] + d[lf + k] + d[rt + k]);
+          o[i + k] = v < 0 ? 0 : v > 255 ? 255 : v;
+        }
+        o[i + 3] = d[i + 3];
+      }
+    }
+    ctx.putImageData(out, 0, 0);
+    return canvas;
+  }
+
+  function setupUpscale() {
+    var root = document.getElementById('upscale');
+    if (!root) return;
+    function $(s) { return root.querySelector(s); }
+    var drop = $('[data-drop="up"]'), inp = drop.querySelector('input');
+    var runBtn = $('[data-act="up-run"]'), dlBtn = $('[data-act="up-dl"]'), st = $('[data-status="up"]');
+    var bar = $('.up-progress'), barI = bar.querySelector('i');
+    var cmp = $('.compare'), after = $('.cmp-after'), before = $('.cmp-before img'), beforeWrap = $('.cmp-before'), line = $('.cmp-line'), range = $('.cmp-range'), meta = $('.cmp-meta');
+    var file = null, srcImg = null, resultCanvas = null, busy = false;
+
+    function setSplit(v) { beforeWrap.style.clipPath = 'inset(0 ' + (100 - v) + '% 0 0)'; line.style.left = v + '%'; }
+    range.addEventListener('input', function () { setSplit(+range.value); });
+
+    function pick(f) {
+      if (!f || !/^image\/(png|jpe?g|webp)$/i.test(f.type)) { toast('PNG, JPG эсвэл WebP зураг сонгоно уу'); return; }
+      file = f; resultCanvas = null; dlBtn.disabled = true;
+      var url = URL.createObjectURL(f);
+      srcImg = new Image();
+      srcImg.onload = function () {
+        before.src = url; after.src = url; cmp.hidden = false; setSplit(50); range.value = 50;
+        runBtn.disabled = false;
+        var s = +$('[data-opt="upx"]').value;
+        meta.textContent = srcImg.naturalWidth + ' × ' + srcImg.naturalHeight + ' px → ' + srcImg.naturalWidth * s + ' × ' + srcImg.naturalHeight * s + ' px';
+        st.textContent = 'Бэлэн. "Сайжруулах" дарна уу.';
+      };
+      srcImg.src = url;
+    }
+    inp.addEventListener('change', function () { if (inp.files[0]) pick(inp.files[0]); inp.value = ''; });
+    ['dragenter', 'dragover'].forEach(function (ev) { drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.add('over'); }); });
+    ['dragleave', 'drop'].forEach(function (ev) { drop.addEventListener(ev, function (e) { e.preventDefault(); drop.classList.remove('over'); }); });
+    drop.addEventListener('drop', function (e) { if (e.dataTransfer.files[0]) pick(e.dataTransfer.files[0]); });
+    $('[data-opt="upx"]').addEventListener('change', function () {
+      if (!srcImg) return;
+      var s = +this.value;
+      meta.textContent = srcImg.naturalWidth + ' × ' + srcImg.naturalHeight + ' px → ' + srcImg.naturalWidth * s + ' × ' + srcImg.naturalHeight * s + ' px';
+    });
+
+    runBtn.addEventListener('click', function () {
+      if (!srcImg || busy) return;
+      busy = true; runBtn.disabled = true; dlBtn.disabled = true;
+      var scale = +$('[data-opt="upx"]').value, amt = +$('[data-opt="sharp"]').value;
+      // keep the output reasonable for the browser: cap input so the result is ≤ ~4800px
+      var maxIn = scale === 4 ? 1200 : 2400;
+      var w = srcImg.naturalWidth, h = srcImg.naturalHeight, k = Math.min(1, maxIn / Math.max(w, h));
+      var c = document.createElement('canvas'); c.width = Math.round(w * k); c.height = Math.round(h * k);
+      var cx = c.getContext('2d'); cx.imageSmoothingQuality = 'high'; cx.drawImage(srcImg, 0, 0, c.width, c.height);
+      if (k < 1) toast('Зураг том тул ' + c.width + '×' + c.height + ' болгож багасгаад томруулна');
+      bar.hidden = false; barI.style.width = '0%';
+      st.textContent = 'AI загвар ачаалж байна…';
+      var t0 = performance.now();
+      getUpscaler(scale).then(function (up) {
+        st.textContent = 'Сайжруулж байна… 0%';
+        var input = window.tf.browser.fromPixels(c);
+        return up.upscale(input, {
+          output: 'tensor', patchSize: 64, padding: 6, awaitNextFrame: true,
+          progress: function (p) { if (p >= 1) { try { input.dispose(); } catch (e) {} } var pc = Math.round(p * 100); barI.style.width = pc + '%'; st.textContent = 'Сайжруулж байна… ' + pc + '%'; }
+        });
+      }).then(function (tensor) {
+        var tf = window.tf;
+        var t = tensor.shape.length === 4 ? tensor.squeeze() : tensor;
+        var clipped = tf.tidy(function () { return t.clipByValue(0, 255).cast('int32'); });
+        var out = document.createElement('canvas');
+        out.width = t.shape[1]; out.height = t.shape[0];
+        return tf.browser.toPixels(clipped, out).then(function () { tensor.dispose(); if (t !== tensor) t.dispose(); clipped.dispose(); return out; });
+      }).then(function (out) {
+        resultCanvas = sharpen(out, amt);
+        after.src = resultCanvas.toDataURL('image/jpeg', .92);
+        var sec = ((performance.now() - t0) / 1000).toFixed(1);
+        meta.textContent = c.width + ' × ' + c.height + ' px → ' + resultCanvas.width + ' × ' + resultCanvas.height + ' px · ' + sec + ' сек';
+        st.textContent = 'Болсон! Гулсуулагчаар өмнө / дараа харьцуулаад татаж аваарай.';
+        barI.style.width = '100%'; dlBtn.disabled = false;
+        setTimeout(function () { bar.hidden = true; }, 600);
+      }).catch(function (e) {
+        console.error(e); bar.hidden = true;
+        st.textContent = 'Алдаа гарлаа. Жижиг зураг эсвэл 2× сонгоод дахин оролдоно уу.';
+      }).then(function () { busy = false; runBtn.disabled = !srcImg; });
+    });
+
+    dlBtn.addEventListener('click', function () {
+      if (!resultCanvas) return;
+      var jpg = $('[data-opt="upfmt"]').value === 'jpg';
+      var scale = $('[data-opt="upx"]').value;
+      var name = (file ? file.name.replace(/\.[^.]+$/, '') : 'image') + '-upscaled-' + scale + 'x.' + (jpg ? 'jpg' : 'png');
+      resultCanvas.toBlob(function (b) { saveBlob(name, b); toast(name + ' татагдлаа'); }, jpg ? 'image/jpeg' : 'image/png', .95);
+    });
   }
 
   // ---------- PDF ⇄ PNG/JPG converter (everything runs in the browser) ----------
@@ -1066,10 +1230,11 @@
         if (m && d.seo.description) m.setAttribute('content', d.seo.description);
       }
       var html = hero(d.hero || {}) + fonts(d.fonts || {}) + palettes(d.palettes || {});
-      html += builder(d.builder || {}) + tools(d.tools || {}) + guide(d.guide || {}) + footer();
+      html += builder(d.builder || {}) + upscaleSection(d.upscale || {}) + tools(d.tools || {}) + guide(d.guide || {}) + footer();
       app.innerHTML = html;
       enhance();
       setupKit(d);
+      setupUpscale();
       setupTools();
     })
     .catch(function (err) {
