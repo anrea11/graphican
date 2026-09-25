@@ -40,6 +40,26 @@
     <priority>0.8</priority>
   </url>
   <url>
+    <loc>https://graphican.online/tools/upscale/</loc>
+    <lastmod>2026-09-25</lastmod>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://graphican.online/tools/bgremove/</loc>
+    <lastmod>2026-09-25</lastmod>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://graphican.online/tools/socialcrop/</loc>
+    <lastmod>2026-09-25</lastmod>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://graphican.online/tools/pdf/</loc>
+    <lastmod>2026-09-25</lastmod>
+    <priority>0.7</priority>
+  </url>
+  <url>
     <loc>https://graphican.online/editor/</loc>
     <lastmod>2026-09-25</lastmod>
     <priority>0.6</priority>
