@@ -4,7 +4,7 @@
     GET /api/stock?src=pexels|pixabay&type=photo|vector|video&q=&page=
     GET /api/stock/file?u=<media url>          (CORS proxy so images can be used/exported on the canvas)
   Workers AI (binding "AI" in wrangler.jsonc) for the PDF editor:
-    POST /api/ai/translate  {texts:[...], source, target}  -> {texts:[...]}   (m2m100, 100 languages incl. Mongolian)
+    POST /api/ai/translate  {texts:[...], source, target}  -> {texts:[...]}   (Llama 3.3 in batches, m2m100 fallback)
     POST /api/ai/chat       {mode:'summary'|'ask', text, question, lang} -> {answer}
 */
 const MEDIA_HOSTS = ['images.pexels.com', 'videos.pexels.com', 'cdn.pixabay.com', 'pixabay.com'];
@@ -110,6 +110,26 @@ async function pool(items, n, fn) {
   }));
   return out;
 }
+const LANG_NAMES = { en: 'English', mn: 'Mongolian (Cyrillic)', ru: 'Russian', zh: 'Chinese (Simplified)', ja: 'Japanese', ko: 'Korean', de: 'German', fr: 'French',
+  es: 'Spanish', it: 'Italian', tr: 'Turkish', kk: 'Kazakh', uk: 'Ukrainian', pl: 'Polish', pt: 'Portuguese', ar: 'Arabic', hi: 'Hindi', vi: 'Vietnamese', th: 'Thai', id: 'Indonesian' };
+const LLM = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
+// translate a batch of lines with the LLM; returns null if the answer can't be parsed
+async function llmBatch(env, lines, source, target) {
+  const sys = `You are a professional translator. Translate each item from ${LANG_NAMES[source] || source} to ${LANG_NAMES[target] || target}. ` +
+    'Keep numbers, names, e-mails, URLs and codes unchanged. Keep it short and natural, like the original document line. ' +
+    'Answer ONLY with a JSON array of strings, same length and order as the input.';
+  const r = await env.AI.run(LLM, { messages: [{ role: 'system', content: sys }, { role: 'user', content: JSON.stringify(lines) }], max_tokens: 2400, temperature: 0.1 });
+  let t = (r && (r.response || (r.result && r.result.response))) || '';
+  if (typeof t !== 'string') t = JSON.stringify(t);
+  const m = t.match(/\[[\s\S]*\]/);
+  try { const arr = JSON.parse(m ? m[0] : t); if (Array.isArray(arr) && arr.length === lines.length) return arr.map(x => String(x)); } catch (e) {}
+  return null;
+}
+async function m2m(env, t, source, target) {
+  if (!t.trim() || !/\p{L}/u.test(t)) return t;
+  const r = await env.AI.run('@cf/meta/m2m100-1.2b', { text: t, source_lang: source, target_lang: target });
+  return (r && r.translated_text) || t;
+}
 async function aiTranslate(request, env) {
   if (!env.AI) return json({ error: 'no_ai' }, 503);
   let b;
@@ -119,12 +139,20 @@ async function aiTranslate(request, env) {
   if (!texts.length) return json({ texts: [] });
   if (texts.join('').length > 20000) return json({ error: 'too_large' }, 413);
   try {
-    const res = await pool(texts, 6, async t => {
-      if (!t.trim() || !/\p{L}/u.test(t)) return t;
-      const r = await env.AI.run('@cf/meta/m2m100-1.2b', { text: t, source_lang: source, target_lang: target });
-      return (r && r.translated_text) || t;
+    // LLM in chunks (much better for Mongolian); per-line m2m100 as a fallback
+    const chunks = [];
+    for (let i = 0; i < texts.length; i += 40) chunks.push(texts.slice(i, i + 40));
+    const res = await pool(chunks, 3, async ch => {
+      const todo = ch.map((t, i) => ({ t, i })).filter(x => x.t.trim() && /\p{L}/u.test(x.t));
+      const out = ch.slice();
+      if (!todo.length) return out;
+      let tr = null;
+      try { tr = await llmBatch(env, todo.map(x => x.t), source, target); } catch (e) { tr = null; }
+      if (!tr) tr = await pool(todo.map(x => x.t), 6, t => m2m(env, t, source, target));
+      todo.forEach((x, k) => { out[x.i] = tr[k] || x.t; });
+      return out;
     });
-    return json({ texts: res });
+    return json({ texts: [].concat(...res) });
   } catch (e) {
     return json({ error: 'ai_failed', detail: String(e && e.message || e).slice(0, 200) }, 502);
   }
@@ -157,7 +185,7 @@ export default {
       return json({ pexels: !!findKey(env, 'PEXELS'), pixabay: !!findKey(env, 'PIXABAY'), names: Object.keys(env).filter(n => n !== 'ASSETS' && n !== 'AI'), ai: !!env.AI }, 200, { 'cache-control': 'no-store' });
     if (url.pathname === '/api/ai/ping') { // quick live check of the AI binding
       if (!env.AI) return json({ ai: false }, 503, { 'cache-control': 'no-store' });
-      try { const r = await env.AI.run('@cf/meta/m2m100-1.2b', { text: 'Good morning', source_lang: 'en', target_lang: 'mn' }); return json({ ai: true, sample: r && r.translated_text }, 200, { 'cache-control': 'no-store' }); }
+      try { const r = await llmBatch(env, ['Good morning', 'Total amount due', 'Contract end date'], 'en', 'mn'); return json({ ai: true, sample: r }, 200, { 'cache-control': 'no-store' }); }
       catch (e) { return json({ ai: true, error: String(e && e.message || e).slice(0, 200) }, 502, { 'cache-control': 'no-store' }); }
     }
     if (url.pathname === '/api/ai/translate' || url.pathname === '/api/ai/chat') {
