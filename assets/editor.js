@@ -89,6 +89,12 @@
     neon: '<path d="M4 17c3-8 6 3 9-3s5-6 7-3"/><path d="M4 17c3-8 6 3 9-3s5-6 7-3" stroke-width="5" opacity=".25"/>',
     dots: '<circle cx="6" cy="16" r="2"/><circle cx="11" cy="11" r="2"/><circle cx="16" cy="9" r="2"/><circle cx="20" cy="5" r="1.5"/>',
     hatch: '<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 12 12 4M4 18 18 4M9 20 20 9M15 20l5-5"/>',
+    lassoI: '<path d="M7 18c-2.5-1-4-3-4-5.5C3 8 7.5 5 12 5s9 3 9 7-4 6-9 6c-1.2 0-2.3-.1-3.3-.4"/><path d="M7 18c0 2 1 3 2.5 3M7 18a2 2 0 1 0 0-.01"/>',
+    multiI: '<rect x="3" y="3" width="10" height="10" rx="2"/><rect x="11" y="11" width="10" height="10" rx="2" stroke-dasharray="3 2"/><path d="M17 3v6M14 6h6"/>',
+    bUnion: '<path d="M4 4h10v6h6v10H10v-6H4Z" fill="currentColor" fill-opacity=".35"/>',
+    bSub: '<path d="M4 4h10v6h-4v4H4Z" fill="currentColor" fill-opacity=".35"/><path d="M10 10h10v10H10Z" stroke-dasharray="2 2"/>',
+    bInt: '<path d="M4 4h10v10H4ZM10 10h10v10H10Z" stroke-dasharray="2 2"/><path d="M10 10h4v4h-4Z" fill="currentColor" fill-opacity=".6"/>',
+    bExc: '<path d="M4 4h10v6h-4v4H4ZM14 10h6v10H10v-6h4Z" fill="currentColor" fill-opacity=".35"/><path d="M10 10h4v4h-4Z"/>',
     maskI: '<circle cx="9" cy="12" r="6"/><path d="M13 7.5A6 6 0 1 1 13 16.5" stroke-dasharray="2 2"/><rect x="11" y="4" width="10" height="16" rx="2"/>'
   };
   function icon(n) { return '<svg class="i" viewBox="0 0 24 24" aria-hidden="true">' + (P[n] || '') + '</svg>'; }
@@ -426,7 +432,8 @@
   function renderDock() {
     var t = function (id, ic, title, extra) { return '<button type="button" class="tool' + (tool === id ? ' on' : '') + '" data-tool="' + id + '" title="' + title + '">' + icon(ic) + (extra || '') + '</button>'; };
     $('#dock').innerHTML =
-      t('move', 'move', 'Сонгох, зөөх (V)') + t('hand', 'hand', 'Гар — гүйлгэх (H, эсвэл Space + чирэх)') +
+      t('move', 'move', 'Сонгох, зөөх (V)') + '<button type="button" class="tool' + (multiSel ? ' on' : '') + '" data-act="multi" title="Олноор сонгох — дарсан зүйл бүрийг сонголтод нэмнэ (Shift + дарахтай адил)">' + icon('multiI') + '</button>' +
+      t('hand', 'hand', 'Гар — гүйлгэх (H, эсвэл Space + чирэх)') +
       '<span class="sep"></span>' +
       t('frame', 'frame', 'Frame — шинэ хуудас (F)') +
       '<div class="pw">' + t('shape', shapeKind, SHAPE_NAMES[shapeKind] + ' (R, O, L)', '<svg class="i caret" viewBox="0 0 24 24" data-shape-menu><path d="m6 9 6 6 6-6"/></svg>') +
@@ -458,6 +465,7 @@
     if (s) { shapeKind = s.dataset.shape; setTool('shape'); return; }
     var b = e.target.closest('[data-tool],[data-act]'); if (!b) return;
     if (b.dataset.act === 'upload') { $('#ed-file').click(); return; }
+    if (b.dataset.act === 'multi') { setMulti(!multiSel); return; }
     setTool(b.dataset.tool);
   });
 
@@ -887,9 +895,9 @@
     rmbg.ready.catch(function () { rmbg.ready = null; });
     return rmbg.ready;
   }
-  function removeBackground(img) {
-    var el = img.getElement(), W0 = el.naturalWidth || el.width, H0 = el.naturalHeight || el.height, S = 320;
-    toast('AI дэвсгэрийг арилгаж байна… (анх удаа ~5MB загвар ачаална)');
+  // U²-Net-P alpha mask (320×320 canvas) for any image element
+  function aiMask(el) {
+    var S = 320;
     return rmbgReady().then(function () {
       var c = document.createElement('canvas'); c.width = S; c.height = S;
       var cx = c.getContext('2d'); cx.drawImage(el, 0, 0, S, S);
@@ -904,13 +912,24 @@
         for (i = 0; i < n; i++) { if (m[i] < lo) lo = m[i]; if (m[i] > hi2) hi2 = m[i]; }
         var mc = document.createElement('canvas'); mc.width = S; mc.height = S;
         var mx = mc.getContext('2d'), md = mx.createImageData(S, S);
-        for (i = 0; i < n; i++) { var a = ((m[i] - lo) / ((hi2 - lo) || 1) - 0.2) / 0.6; md.data[i * 4 + 3] = a <= 0 ? 0 : a >= 1 ? 255 : Math.round(a * 255); }
+        for (i = 0; i < n; i++) { var a = ((m[i] - lo) / ((hi2 - lo) || 1) - 0.2) / 0.6; md.data[i * 4] = md.data[i * 4 + 1] = md.data[i * 4 + 2] = 255; md.data[i * 4 + 3] = a <= 0 ? 0 : a >= 1 ? 255 : Math.round(a * 255); }
         mx.putImageData(md, 0, 0);
+        return mc;
+      });
+    });
+  }
+  function removeBackground(img) {
+    var el = img._originalElement || img.getElement(), W0 = el.naturalWidth || el.width, H0 = el.naturalHeight || el.height;
+    toast('AI дэвсгэрийг арилгаж байна… (анх удаа ~5MB загвар ачаална)');
+    return aiMask(el).then(function (mc) {
+      {
         var o = document.createElement('canvas'); o.width = W0; o.height = H0;
         var ox = o.getContext('2d'); ox.imageSmoothingQuality = 'high';
         ox.drawImage(el, 0, 0, W0, H0); ox.globalCompositeOperation = 'destination-in'; ox.drawImage(mc, 0, 0, W0, H0);
-        return o.toDataURL('image/png');
-      });
+        var outUrl = o.toDataURL('image/png');
+        cutOrig[outUrl] = cutOrig[img.getSrc()] || img.getSrc();
+        return outUrl;
+      }
     }).then(function (url) {
       return new Promise(function (res) {
         var keep = { width: img.width, height: img.height, cropX: img.cropX, cropY: img.cropY };
@@ -1331,10 +1350,13 @@
       '<button type="button" class="ib" data-a="del" title="Устгах (Delete)">' + icon('trash') + '</button></span></div>' +
       '<div class="ps-l" style="margin-top:0">' + (k === 'multi' ? 'Хооронд нь зэрэгцүүлэх' : 'Frame дотор зэрэгцүүлэх') + '</div>' + alignBtns() +
       (k === 'multi' ? '<div class="rowf" style="margin-top:6px"><button type="button" class="btn" style="flex:1" data-a="dist" data-v="H">' + icon('dH') + 'Хэвтээ тараах</button><button type="button" class="btn" style="flex:1" data-a="dist" data-v="V">' + icon('dV') + 'Босоо</button></div>' +
-        '<div class="r2" style="margin-top:6px"><button type="button" class="btn acc" data-a="group">' + icon('group') + 'Бүлэглэх</button><button type="button" class="btn" data-b="mask" title="Хамгийн доод давхарга нь маск болно (Ctrl+Alt+M)">' + icon('maskI') + 'Маск болгох</button></div>' : '') +
+        '<div class="r2" style="margin-top:6px"><button type="button" class="btn acc" data-a="group">' + icon('group') + 'Бүлэглэх</button><button type="button" class="btn" data-b="mask" title="Хамгийн доод давхарга нь маск болно (Ctrl+Alt+M)">' + icon('maskI') + 'Маск болгох</button></div>' +
+        '<div class="ps-l">Хэлбэрүүдийг нэгтгэх</div><div class="seg bool-seg">' + [['union', 'bUnion', 'Нэгтгэх'], ['subtract', 'bSub', 'Хасах'], ['intersect', 'bInt', 'Огтлол'], ['exclude', 'bExc', 'Давхцал']].map(function (b) {
+          return '<button type="button" data-b="bool:' + b[0] + '" title="' + b[2] + '">' + icon(b[1]) + '<span>' + b[2] + '</span></button>'; }).join('') + '</div>' : '') +
       (k === 'group' && !o.gMaskGroup ? '<button type="button" class="btn full" style="margin-top:6px" data-a="ungroup">' + icon('group') + 'Задлах (Ctrl+Shift+G)</button>' : '') +
       (k === 'group' && o.gMaskGroup ? '<div class="ps-l">Маск · «' + esc(o.gMaskGroup.name || '') + '»</div><label class="chk"><input type="checkbox" data-p="maskinv"' + (o.clipPath && o.clipPath.inverted ? ' checked' : '') + '> Урвуу маск (хэлбэрийн гадна талыг харуулах)</label>' +
         '<button type="button" class="btn full" style="margin-top:6px" data-b="unmask">' + icon('maskI') + 'Маскыг задлах</button>' : '') +
+      (k === 'shape' && boolable(o) && !o.isType('path') ? '<button type="button" class="btn full" style="margin-top:6px" data-b="tovec">' + icon('penTool') + 'Вектор болгох (цэгийг засах)</button>' : '') +
       (o.isType && o.isType('path') && k !== 'multi' ? '<button type="button" class="btn full' + (vedit ? ' acc' : '') + '" style="margin-top:6px" data-b="vedit">' + icon('penTool') + (vedit ? 'Цэг засахаа дуусгах' : 'Цэгүүдийг засах (давхар дарах)') + '</button>' : '') +
       '</div>';
     // position + layout
@@ -1370,6 +1392,7 @@
       var cur = presetOf(o), gv = function (T, key) { var ff = getFilter(o, T); return ff ? ff[key] : 0; };
       h += '<div class="ps"><div class="ps-h">Зураг</div>' +
         '<div class="r2"><button type="button" class="btn" data-a="crop">' + icon('crop') + 'Тайрах</button><button type="button" class="btn acc" data-a="rmbg">' + icon('wand') + 'Дэвсгэр арилгах</button></div>' +
+        '<button type="button" class="btn full" style="margin-top:6px" data-b="cut">' + icon('eraser') + 'Гараар засах (баллуур, саваа, лассо)</button>' +
         '<div class="ps-l">Маск хэлбэр</div>' + sel('mask', MASK_SHAPES, o.gMask || 'none') +
         '<div class="r2" style="margin-top:6px"><button type="button" class="btn" data-a="asbg">' + icon('bg') + 'Frame дүүргэх</button><button type="button" class="btn" data-a="upscale">✦ Томруулах ↗</button></div>' +
         '<div class="ps-l">Шүүлтүүр</div><div class="pre-grid">' + PRESETS.map(function (p) {
@@ -1607,10 +1630,11 @@
         '<span class="ctx-lbl">Тунгалаг</span><input type="range" data-dop min="10" max="100" value="' + Math.round((draw.op == null ? 1 : draw.op) * 100) + '" style="width:60px">' +
         '<span class="sep"></span>' + btn('draw-done', 'check', 'Дуусгах', 'Esc', ' ok');
     } else if (k === 'image') {
-      h = btn('crop', 'crop', 'Тайрах') + btn('rmbg', 'wand', 'Дэвсгэр арилгах') + '<span class="sep"></span>' + btn('asbg', 'bg', '', 'Frame-ийг дүүргэх') +
+      h = btn('crop', 'crop', 'Тайрах') + btn('rmbg', 'wand', 'Дэвсгэр арилгах') + btn('cut', 'eraser', 'Гараар засах', 'Баллуур, сэргээх, шидэт саваа, лассо') + '<span class="sep"></span>' + btn('asbg', 'bg', '', 'Frame-ийг дүүргэх') +
         btn('rot90', 'rotate', '', '90° эргүүлэх') + btn('flipX', 'flipH', '', 'Хэвтээ толин тусгал') + btn('flipY', 'flipV', '', 'Босоо толин тусгал');
     } else if (k === 'multi') {
-      h = btn('group', 'group', 'Бүлэглэх', 'Ctrl+G') + btn('mask', 'maskI', 'Маск', 'Доод давхаргаар маск хийх (Ctrl+Alt+M)') + '<span class="sep"></span>' + btn('alignL', 'aL', '', 'Зүүн') + btn('alignC', 'aC', '', 'Голлуулах') + btn('alignR', 'aR', '', 'Баруун') +
+      h = btn('group', 'group', 'Бүлэглэх', 'Ctrl+G') + btn('mask', 'maskI', 'Маск', 'Доод давхаргаар маск хийх (Ctrl+Alt+M)') + '<span class="sep"></span>' +
+        btn('b-union', 'bUnion', '', 'Нэгтгэх (Union)') + btn('b-subtract', 'bSub', '', 'Хасах (Subtract)') + btn('b-intersect', 'bInt', '', 'Огтлолцол (Intersect)') + btn('b-exclude', 'bExc', '', 'Давхцлыг хасах (Exclude)') + '<span class="sep"></span>' + btn('alignL', 'aL', '', 'Зүүн') + btn('alignC', 'aC', '', 'Голлуулах') + btn('alignR', 'aR', '', 'Баруун') +
         btn('alignT', 'aT', '', 'Дээд') + btn('alignM', 'aM', '', 'Дунд') + btn('alignB', 'aB', '', 'Доод');
     }
     el.innerHTML = h; el.hidden = !h;
@@ -1627,6 +1651,8 @@
     if (c === 'pen-done') { setTool('move'); return; }
     if (c === 'vedit-done') { endVEdit(); return; }
     if (c === 'mask') { makeMask(); return; }
+    if (/^b-/.test(c)) { booleanOp(c.slice(2)); return; }
+    if (c === 'cut' && o) { openCutout(o); return; }
     if (c === 'crop') startCrop();
     if (c === 'rmbg' && o) { b.disabled = true; removeBackground(o).then(function () { b.disabled = false; }); return; }
     if (c === 'asbg') setAsBackground();
@@ -1802,7 +1828,7 @@
     closeMenus();
     var m = document.createElement('div'); m.className = 'menu r help'; m.id = 'ed-help-menu';
     m.innerHTML = '<div class="mt">Товчлолууд</div>' + [
-      ['V · H', 'Сонгох · гар'], ['F · R · O · L', 'Frame · тэгш өнцөгт · эллипс · шугам'], ['T · P · B', 'Текст · pen (вектор) · бийр'], ['Давхар дарах (зураас)', 'Цэгүүдийг засах'], ['Ctrl Alt M', 'Маск болгох'],
+      ['V · H', 'Сонгох · гар'], ['F · R · O · L', 'Frame · тэгш өнцөгт · эллипс · шугам'], ['T · P · B', 'Текст · pen (вектор) · бийр'], ['Давхар дарах (зураас)', 'Цэгүүдийг засах'], ['Ctrl Alt M', 'Маск болгох'], ['Shift + дарах', 'Олноор сонгох'],
       ['Ctrl Z · Ctrl Shift Z', 'Буцаах · дахин хийх'], ['Ctrl C · V · D', 'Хуулах · буулгах · хувилах'], ['Delete', 'Устгах'],
       ['Ctrl G · Ctrl Shift G', 'Бүлэглэх · задлах'], ['Ctrl ] · [', 'Урагш · хойш'], ['Сумнууд (+Shift)', '1px (10px) зөөх'],
       ['Enter · давхар дарах', 'Текст засах'], ['Space + чирэх · дугуй', 'Гүйлгэх'], ['Ctrl + дугуй', 'Томруулах'],
@@ -2239,7 +2265,8 @@
     var inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*';
     inp.onchange = function () {
       var f = inp.files[0]; if (!f) return;
-      readImage(f).then(function (url) {
+      readImage(f).then(function (r) {
+        var url = r.url;
         var list = []; if (target) list = [target]; else eachSel(function (x) { list.push(x); });
         return Promise.all(list.map(function (x) { return setPaint(x, 'fill', { type: 'image', src: url, fit: 'cover', scale: 1, stops: [{ p: 0, c: '#816dfb', a: 1 }] }); }));
       }).then(function () { canvas.requestRenderAll(); commit(); refreshUI(); });
@@ -2500,6 +2527,9 @@
       canvas.requestRenderAll(); commit(); refreshUI(); return;
     }
     if (a === 'mask') { makeMask(); return; }
+    if (a === 'bool') { booleanOp(parts[1]); return; }
+    if (a === 'tovec' && o) { toVector(o); return; }
+    if (a === 'cut' && o) { openCutout(o); return; }
     if (a === 'unmask') { releaseMask(o); return; }
     if (a === 'vedit' && o) { if (vedit) endVEdit(); else startVEdit(o); return; }
   });
@@ -2532,6 +2562,311 @@
   // angular / diamond / image paints are sized to the object: refresh them when text re-flows
   canvas.on('object:modified', function (ev) { var o = ev.target; if (o && o.isType && o.isType('textbox') && (o.gPaint || o.gPaintS)) { GX.applyPaint(o, 'fill'); GX.applyPaint(o, 'stroke'); } });
   canvas.on('text:changed', function (ev) { var o = ev.target; if (o && o.gPaint && /angular|diamond|image/.test(o.gPaint.type)) GX.applyPaint(o, 'fill').then(function () { canvas.requestRenderAll(); }); });
+
+
+  // ================= combine (boolean), multi-select, manual cut-out =================
+
+  // ---------- boolean operations with Paper.js ----------
+  var paperP = null;
+  function paperReady() {
+    if (!paperP) paperP = (window.paper ? Promise.resolve() : loadScript('/assets/vendor/paper-core.min.js')).then(function () {
+      window.paper.setup(document.createElement('canvas'));
+    });
+    paperP.catch(function () { paperP = null; });
+    return paperP;
+  }
+  function boolable(o) { return !o.isFrame && !o.isType('textbox') && !o.isType('image') && !o.isType('line') && !(o.isType('path') && !(o.fill && o.fill !== 'transparent')) && o.type !== 'group'; }
+  // one fabric object → one Paper path item in canvas coordinates
+  function toPaper(o) {
+    var P = window.paper, keep = { shadow: o.shadow, clipPath: o.clipPath };
+    o.shadow = null; o.clipPath = null;
+    var svg;
+    try { svg = '<svg xmlns="http://www.w3.org/2000/svg">' + o.toSVG() + '</svg>'; } finally { o.shadow = keep.shadow; o.clipPath = keep.clipPath; }
+    var item = P.project.importSVG(svg, { expandShapes: true, insert: false, applyMatrix: true });
+    var parts = item.getItems({ match: function (it) { return (it instanceof P.CompoundPath) || (it instanceof P.Path && !(it.parent instanceof P.CompoundPath)); } });
+    if (!parts.length) return null;
+    var r = null;
+    parts.forEach(function (src) { var m = src.parent ? src.parent.globalMatrix.clone() : new P.Matrix(), p = src.clone({ insert: false }); p.transform(m); r = r ? r.unite(p, { insert: false }) : p; });
+    return r;
+  }
+  var BOOL = { union: 'Нэгтгэх', subtract: 'Хасах', intersect: 'Огтлолцол', exclude: 'Давхцлыг хасах' };
+  function booleanOp(op) {
+    var sel = active();
+    if (!sel || sel.type !== 'activeSelection') return toast('2 ба түүнээс дээш хэлбэр сонгоно уу');
+    var all = canvas.getObjects(), objs = sel.getObjects().slice().sort(function (a, b) { return all.indexOf(a) - all.indexOf(b); });
+    var ok = objs.filter(boolable);
+    if (ok.length < 2) return toast('Хэлбэр, од, эллипс, pen-ээр зурсан хаалттай дүрсийг нэгтгэнэ (текст, зургийг биш — зурагт «Маск» ашиглана)');
+    toast(BOOL[op] + '…');
+    // objects inside an ActiveSelection have group-relative coordinates: release them first
+    canvas.discardActiveObject(); canvas.requestRenderAll();
+    paperReady().then(function () {
+      var base = toPaper(ok[0]);
+      for (var i = 1; i < ok.length && base; i++) {
+        var p = toPaper(ok[i]); if (!p) continue;
+        base = op === 'union' ? base.unite(p, { insert: false }) : op === 'subtract' ? base.subtract(p, { insert: false }) : op === 'intersect' ? base.intersect(p, { insert: false }) : base.exclude(p, { insert: false });
+      }
+      var d = base && base.pathData;
+      if (!d) { toast('Үр дүн хоосон байна — хэлбэрүүд давхцаагүй байж магадгүй'); return; }
+      var b0 = ok[0], idx = all.indexOf(b0);
+      var res = new fabric.Path(d, {
+        fill: typeof b0.fill === 'string' || !b0.fill ? (b0.fill || '#816dfb') : b0.fill, fillRule: 'evenodd', stroke: b0.stroke, strokeWidth: b0.strokeWidth || 0,
+        strokeLineJoin: b0.strokeLineJoin, opacity: b0.opacity, globalCompositeOperation: b0.globalCompositeOperation, name: BOOL[op]
+      });
+      res.gFx = dcopy(b0.gFx); res.gPaint = dcopy(b0.gPaint); res.gPaintS = dcopy(b0.gPaintS); res.gStrokePos = b0.gStrokePos;
+      canvas.discardActiveObject();
+      restoring = true;
+      ok.forEach(function (x) { canvas.remove(x); });
+      canvas.insertAt(res, Math.min(idx, canvas.getObjects().length));
+      restoring = false;
+      GX.sync(res);
+      Promise.all([GX.applyPaint(res, 'fill'), GX.applyPaint(res, 'stroke')]).then(function () {
+        canvas.setActiveObject(res); canvas.requestRenderAll(); commit(); refreshUI();
+      });
+    }).catch(function (e) { console.error(e); toast('Нэгтгэж чадсангүй'); });
+  }
+  // a single shape → editable vector path (so its points can be dragged)
+  function toVector(o) {
+    if (!o || !boolable(o) || o.isType('path')) return;
+    paperReady().then(function () {
+      var p = toPaper(o); if (!p) return;
+      var idx = canvas.getObjects().indexOf(o);
+      var res = new fabric.Path(p.pathData, { fill: o.fill, fillRule: 'evenodd', stroke: o.stroke, strokeWidth: o.strokeWidth || 0, opacity: o.opacity, name: (o.name || 'Хэлбэр') + ' (вектор)' });
+      res.gFx = dcopy(o.gFx); res.gPaint = dcopy(o.gPaint); res.gPaintS = dcopy(o.gPaintS); res.gStrokePos = o.gStrokePos;
+      restoring = true; canvas.remove(o); canvas.insertAt(res, idx); restoring = false;
+      GX.sync(res);
+      Promise.all([GX.applyPaint(res, 'fill'), GX.applyPaint(res, 'stroke')]).then(function () {
+        canvas.setActiveObject(res); commit(); startVEdit(res);
+      });
+    });
+  }
+
+  // ---------- multi-select mode (tap to add / remove — for touch screens) ----------
+  var multiSel = false, baseSelKey = canvas._isSelectionKeyPressed;
+  canvas._isSelectionKeyPressed = function (e) { return multiSel || baseSelKey.call(this, e); };
+  function setMulti(on) {
+    multiSel = on; renderDock();
+    toast(on ? 'Олноор сонгох: дарсан зүйл бүр сонголтод нэмэгдэнэ' : 'Олноор сонгох унтарлаа');
+  }
+
+  // ---------- manual cut-out editor: erase / restore brush, magic wand, lasso, AI ----------
+  var cutOrig = {}; // result dataURL → original dataURL (so "restore" works after re-opening)
+  function openCutout(img) {
+    if (!img || !img.isType('image')) return;
+    var srcNow = img.getSrc(), origSrc = cutOrig[srcNow] || srcNow;
+    var cur = new Image(), orig = new Image(), loaded = 0;
+    cur.crossOrigin = orig.crossOrigin = 'anonymous';
+    cur.onload = orig.onload = function () { if (++loaded === 2) build(); };
+    cur.onerror = orig.onerror = function () { toast('Зургийг нээж чадсангүй'); };
+    cur.src = srcNow; orig.src = origSrc;
+
+    function build() {
+      var W0 = cur.naturalWidth, H0 = cur.naturalHeight;
+      var k = Math.min(1, 3000 / Math.max(W0, H0)), Wc = Math.round(W0 * k), Hc = Math.round(H0 * k);
+      var O = mk(Wc, Hc), M = mk(Wc, Hc), C = mk(Wc, Hc);
+      var ox = O.getContext('2d'), mx = M.getContext('2d', { willReadFrequently: true }), cx = C.getContext('2d');
+      // original pixels (for restore); mask = current alpha
+      ox.drawImage(orig.naturalWidth === W0 ? orig : cur, 0, 0, Wc, Hc);
+      mx.drawImage(cur, 0, 0, Wc, Hc);
+      var st = { tool: 'erase', size: Math.max(8, Math.round(Math.max(Wc, Hc) / 30)), hard: 70, tol: 30, contig: true, ghost: true, zoom: 1 };
+      var undoS = [], redoS = [];
+
+      var m = document.createElement('div'); m.className = 'cut-modal';
+      m.innerHTML =
+        '<div class="cut-top"><b>Дэвсгэр гараар засах</b><span class="grow"></span>' +
+          '<button type="button" class="ib" data-cu="undo" title="Буцаах (Ctrl+Z)">' + icon('undo') + '</button><button type="button" class="ib" data-cu="redo" title="Дахин">' + icon('redo') + '</button>' +
+          '<button type="button" class="btn" data-cu="cancel">Болих</button><button type="button" class="btn-primary" data-cu="apply">Хадгалах</button></div>' +
+        '<div class="cut-body"><div class="cut-view"><canvas></canvas></div>' +
+        '<div class="cut-side">' +
+          '<div class="ps-l" style="margin-top:0">Хэрэгсэл</div><div class="cut-tools">' +
+            [['erase', 'eraser', 'Баллуур', 'Чирж арилгана'], ['restore', 'pen', 'Сэргээх', 'Арилгасан хэсгийг буцааж зурна'], ['wand', 'wand', 'Шидэт саваа', 'Ижил өнгөтэй хэсгийг дарж арилгана'],
+              ['lasso', 'lassoI', 'Лассо', 'Тойруулж зураад дотор талыг арилгана'], ['lassoOut', 'lassoI', 'Лассо — гадна', 'Тойруулж зураад гадна талыг арилгана'], ['lassoIn', 'lassoI', 'Лассо — сэргээх', 'Тойруулсан хэсгийг сэргээнэ']].map(function (t) {
+              return '<button type="button" class="ctool" data-ct="' + t[0] + '" title="' + t[3] + '">' + icon(t[1]) + '<span>' + t[2] + '</span></button>';
+            }).join('') + '</div>' +
+          '<div data-opt-brush><div class="sl"><span>Хэмжээ</span><input type="range" data-cs="size" min="2" max="' + Math.round(Math.max(Wc, Hc) / 6) + '" value="' + st.size + '"><b>' + st.size + '</b></div>' +
+            '<div class="sl"><span>Хатуулаг</span><input type="range" data-cs="hard" min="0" max="100" value="' + st.hard + '"><b>' + st.hard + '</b></div></div>' +
+          '<div data-opt-wand hidden><div class="sl"><span>Хүлцэл</span><input type="range" data-cs="tol" min="1" max="100" value="' + st.tol + '"><b>' + st.tol + '</b></div>' +
+            '<label class="chk"><input type="checkbox" data-cs="contig" checked> Зөвхөн залгаа хэсэг</label><p class="note">Shift + дарах: сэргээх</p></div>' +
+          '<div class="ps-l">Бүхэлд нь</div>' +
+          '<button type="button" class="btn acc full" data-cu="ai">' + icon('wand') + 'AI-аар дэвсгэр арилгах</button>' +
+          '<div class="r2" style="margin-top:6px"><button type="button" class="btn" data-cu="invert">Урвуулах</button><button type="button" class="btn" data-cu="reset">Анхных руу</button></div>' +
+          '<button type="button" class="btn full" style="margin-top:6px" data-cu="soften">Ирмэгийг зөөлрүүлэх</button>' +
+          '<div class="ps-l">Харагдац</div><label class="chk"><input type="checkbox" data-cs="ghost" checked> Арилгасан хэсгийг бүдэг харуулах</label>' +
+          '<div class="sl"><span>Томруулах</span><input type="range" data-cs="zoom" min="100" max="400" value="100"><b>100%</b></div>' +
+          '<p class="note">Зургийн жинхэнэ хэмжээ: ' + W0 + '×' + H0 + 'px. Хоёр хуруугаар / Ctrl+дугуйгаар томруулна.</p>' +
+        '</div></div>';
+      document.body.appendChild(m);
+      var view = m.querySelector('.cut-view'), V = m.querySelector('canvas'), vx = V.getContext('2d');
+      var fitK = 1, lasso = null, drawing = false, last = null, hover = null;
+
+      function mk(w, h) { var c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
+      function layout() {
+        var r = view.getBoundingClientRect();
+        fitK = Math.min((r.width - 24) / Wc, (r.height - 24) / Hc, 4);
+        var s = fitK * st.zoom;
+        V.style.width = Math.round(Wc * s) + 'px'; V.style.height = Math.round(Hc * s) + 'px';
+        var dpr = Math.min(2, window.devicePixelRatio || 1);
+        V.width = Math.max(1, Math.round(Wc * s * dpr)); V.height = Math.max(1, Math.round(Hc * s * dpr));
+        render();
+      }
+      function render() {
+        cx.globalCompositeOperation = 'copy'; cx.drawImage(M, 0, 0);
+        cx.globalCompositeOperation = 'source-in'; cx.drawImage(O, 0, 0);
+        cx.globalCompositeOperation = 'source-over';
+        var s = V.width / Wc;
+        vx.setTransform(1, 0, 0, 1, 0, 0); vx.clearRect(0, 0, V.width, V.height);
+        if (st.ghost) { vx.globalAlpha = 0.22; vx.drawImage(O, 0, 0, V.width, V.height); vx.globalAlpha = 1; }
+        vx.drawImage(C, 0, 0, V.width, V.height);
+        vx.setTransform(s, 0, 0, s, 0, 0);
+        if (lasso && lasso.length > 1) {
+          vx.beginPath(); vx.moveTo(lasso[0].x, lasso[0].y); lasso.forEach(function (p) { vx.lineTo(p.x, p.y); });
+          vx.lineWidth = 2 / s; vx.strokeStyle = '#fff'; vx.setLineDash([]); vx.stroke(); vx.strokeStyle = ACC; vx.setLineDash([6 / s, 4 / s]); vx.stroke(); vx.setLineDash([]);
+        }
+        if (hover && (st.tool === 'erase' || st.tool === 'restore')) {
+          vx.beginPath(); vx.arc(hover.x, hover.y, st.size / 2, 0, Math.PI * 2);
+          vx.lineWidth = 1.5 / s; vx.strokeStyle = '#fff'; vx.stroke(); vx.lineWidth = 0.75 / s; vx.strokeStyle = '#000'; vx.stroke();
+        }
+      }
+      function pos(e) { var r = V.getBoundingClientRect(); return { x: (e.clientX - r.left) * Wc / r.width, y: (e.clientY - r.top) * Hc / r.height }; }
+      function save() { undoS.push(mx.getImageData(0, 0, Wc, Hc)); if (undoS.length > 6) undoS.shift(); redoS = []; }
+      function stamp(x, y) {
+        var r = st.size / 2, h = st.hard / 100;
+        mx.globalCompositeOperation = st.tool === 'erase' ? 'destination-out' : 'source-over';
+        if (h >= 0.98) { mx.fillStyle = '#fff'; mx.beginPath(); mx.arc(x, y, r, 0, Math.PI * 2); mx.fill(); }
+        else {
+          var g = mx.createRadialGradient(x, y, r * h, x, y, r);
+          g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+          mx.fillStyle = g; mx.beginPath(); mx.arc(x, y, r, 0, Math.PI * 2); mx.fill();
+        }
+        mx.globalCompositeOperation = 'source-over';
+      }
+      function line(a, b) {
+        var d = Math.hypot(b.x - a.x, b.y - a.y), step = Math.max(1, st.size * 0.18), n = Math.ceil(d / step);
+        for (var i = 1; i <= n; i++) stamp(a.x + (b.x - a.x) * i / n, a.y + (b.y - a.y) * i / n);
+      }
+      function wand(p, restore) {
+        var x0 = Math.floor(p.x), y0 = Math.floor(p.y);
+        if (x0 < 0 || y0 < 0 || x0 >= Wc || y0 >= Hc) return;
+        var od = ox.getImageData(0, 0, Wc, Hc).data, md = mx.getImageData(0, 0, Wc, Hc), mdd = md.data;
+        var i0 = (y0 * Wc + x0) * 4, R0 = od[i0], G0 = od[i0 + 1], B0 = od[i0 + 2], tol = st.tol * st.tol * 7.5;
+        var match = function (i) { var dr = od[i] - R0, dg = od[i + 1] - G0, db = od[i + 2] - B0; return dr * dr + dg * dg + db * db <= tol; };
+        var hit = new Uint8Array(Wc * Hc), q;
+        if (st.contig) {
+          q = new Int32Array(Wc * Hc); var qh = 0, qt = 0; q[qt++] = y0 * Wc + x0; hit[y0 * Wc + x0] = 1;
+          while (qh < qt) {
+            var id = q[qh++], x = id % Wc, y = (id - x) / Wc;
+            var nb = [x > 0 ? id - 1 : -1, x < Wc - 1 ? id + 1 : -1, y > 0 ? id - Wc : -1, y < Hc - 1 ? id + Wc : -1];
+            for (var j = 0; j < 4; j++) { var t = nb[j]; if (t >= 0 && !hit[t] && match(t * 4)) { hit[t] = 1; q[qt++] = t; } }
+          }
+        } else for (var k2 = 0; k2 < Wc * Hc; k2++) if (match(k2 * 4)) hit[k2] = 1;
+        for (var k3 = 0; k3 < Wc * Hc; k3++) if (hit[k3]) { mdd[k3 * 4] = mdd[k3 * 4 + 1] = mdd[k3 * 4 + 2] = 255; mdd[k3 * 4 + 3] = restore ? 255 : 0; }
+        mx.putImageData(md, 0, 0);
+        // a 1px feather hides the jagged edge
+        soften(0.8);
+      }
+      function soften(r) {
+        var t = mk(Wc, Hc), tx = t.getContext('2d');
+        tx.drawImage(M, 0, 0); mx.clearRect(0, 0, Wc, Hc);
+        if (GX.HAS_FILTER) { mx.filter = 'blur(' + r + 'px)'; mx.drawImage(t, 0, 0); mx.filter = 'none'; }
+        else { GX.blurCanvas(t, r); mx.drawImage(t, 0, 0); }
+      }
+      function fillLasso(pts, mode) {
+        if (pts.length < 3) return;
+        save();
+        mx.beginPath();
+        if (mode === 'lassoOut') mx.rect(0, 0, Wc, Hc);
+        mx.moveTo(pts[0].x, pts[0].y); pts.forEach(function (p) { mx.lineTo(p.x, p.y); }); mx.closePath();
+        mx.globalCompositeOperation = mode === 'lassoIn' ? 'source-over' : 'destination-out';
+        mx.fillStyle = '#fff'; mx.fill(mode === 'lassoOut' ? 'evenodd' : 'nonzero');
+        mx.globalCompositeOperation = 'source-over';
+      }
+      function setTool(t) {
+        st.tool = t;
+        m.querySelectorAll('[data-ct]').forEach(function (b) { b.classList.toggle('on', b.dataset.ct === t); });
+        m.querySelector('[data-opt-brush]').hidden = !(t === 'erase' || t === 'restore');
+        m.querySelector('[data-opt-wand]').hidden = t !== 'wand';
+        V.style.cursor = t === 'wand' ? 'crosshair' : /lasso/.test(t) ? 'crosshair' : 'none';
+        render();
+      }
+      V.addEventListener('pointerdown', function (e) {
+        if (e.button !== 0 && e.pointerType === 'mouse') return;
+        V.setPointerCapture(e.pointerId);
+        var p = pos(e);
+        if (st.tool === 'wand') { save(); wand(p, e.shiftKey || e.altKey); render(); return; }
+        if (/lasso/.test(st.tool)) { lasso = [p]; drawing = true; return; }
+        save(); drawing = true; last = p; stamp(p.x, p.y); render();
+      });
+      V.addEventListener('pointermove', function (e) {
+        var p = pos(e); hover = p;
+        if (drawing && lasso) { var l = lasso[lasso.length - 1]; if (Math.hypot(p.x - l.x, p.y - l.y) > 2 / (V.width / Wc)) lasso.push(p); }
+        else if (drawing) { line(last, p); last = p; }
+        render();
+      });
+      V.addEventListener('pointerup', function () {
+        if (lasso) { fillLasso(lasso, st.tool); lasso = null; }
+        drawing = false; last = null; render();
+      });
+      V.addEventListener('pointerleave', function () { hover = null; render(); });
+      view.addEventListener('wheel', function (e) {
+        if (!(e.ctrlKey || e.metaKey)) return;
+        e.preventDefault(); zoomTo(st.zoom * (e.deltaY < 0 ? 1.15 : 1 / 1.15));
+      }, { passive: false });
+      var pinch = null;
+      view.addEventListener('touchstart', function (e) { if (e.touches.length === 2) { drawing = false; lasso = null; pinch = { d: Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY), z: st.zoom }; } }, { passive: true });
+      view.addEventListener('touchmove', function (e) { if (pinch && e.touches.length === 2) { e.preventDefault(); zoomTo(pinch.z * Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY) / pinch.d); } }, { passive: false });
+      view.addEventListener('touchend', function () { pinch = null; });
+      function zoomTo(z) {
+        st.zoom = clamp(z, 1, 6);
+        var zi = m.querySelector('[data-cs="zoom"]'); zi.value = Math.min(400, Math.round(st.zoom * 100)); zi.nextElementSibling.textContent = Math.round(st.zoom * 100) + '%';
+        layout();
+      }
+      m.addEventListener('input', function (e) {
+        var t = e.target, k = t.dataset.cs; if (!k) return;
+        if (t.type === 'range') { t.nextElementSibling.textContent = t.value + (k === 'zoom' ? '%' : ''); }
+        if (k === 'size' || k === 'hard' || k === 'tol') st[k] = +t.value;
+        if (k === 'zoom') { st.zoom = +t.value / 100; layout(); }
+        if (k === 'ghost') { st.ghost = t.checked; render(); }
+        if (k === 'contig') st.contig = t.checked;
+      });
+      function close() { m.remove(); window.removeEventListener('resize', layout); document.removeEventListener('keydown', onKey, true); }
+      function onKey(e) {
+        if (e.key === 'Escape') { e.stopPropagation(); close(); }
+        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); e.stopPropagation(); act(e.shiftKey ? 'redo' : 'undo'); }
+        if (e.key === '[' || e.key === ']') { st.size = clamp(st.size + (e.key === ']' ? 1 : -1) * Math.max(2, st.size * 0.15), 2, Math.max(Wc, Hc) / 6); var si = m.querySelector('[data-cs="size"]'); si.value = st.size; si.nextElementSibling.textContent = Math.round(st.size); render(); }
+      }
+      document.addEventListener('keydown', onKey, true);
+      function act(a) {
+        if (a === 'undo' && undoS.length) { redoS.push(mx.getImageData(0, 0, Wc, Hc)); mx.putImageData(undoS.pop(), 0, 0); }
+        if (a === 'redo' && redoS.length) { undoS.push(mx.getImageData(0, 0, Wc, Hc)); mx.putImageData(redoS.pop(), 0, 0); }
+        if (a === 'invert') { save(); var d = mx.getImageData(0, 0, Wc, Hc); for (var i = 3; i < d.data.length; i += 4) { d.data[i - 3] = d.data[i - 2] = d.data[i - 1] = 255; d.data[i] = 255 - d.data[i]; } mx.putImageData(d, 0, 0); }
+        if (a === 'reset') { save(); mx.globalCompositeOperation = 'copy'; mx.fillStyle = '#fff'; mx.fillRect(0, 0, Wc, Hc); mx.globalCompositeOperation = 'source-over'; }
+        if (a === 'soften') { save(); soften(Math.max(1, Math.max(Wc, Hc) / 800)); }
+        if (a === 'ai') {
+          var b = m.querySelector('[data-cu="ai"]'); b.disabled = true; b.lastChild.textContent = 'AI ажиллаж байна…';
+          aiMask(O).then(function (mc) {
+            save(); mx.globalCompositeOperation = 'copy'; mx.imageSmoothingQuality = 'high'; mx.drawImage(mc, 0, 0, Wc, Hc); mx.globalCompositeOperation = 'source-over';
+            render(); toast('AI дэвсгэрийг арилгалаа — илүүдэл, дутуу хэсгийг баллуур / сэргээхээр засаарай');
+          }).catch(function () { toast('AI ажиллаж чадсангүй. Интернэтээ шалгана уу.'); })
+            .then(function () { b.disabled = false; b.lastChild.textContent = 'AI-аар дэвсгэр арилгах'; });
+        }
+        if (a === 'cancel') return close();
+        if (a === 'apply') {
+          render();
+          var url = C.toDataURL('image/png');
+          cutOrig[url] = origSrc;
+          var kx = W0 / Wc, keep = { width: img.width / kx, height: img.height / kx, cropX: (img.cropX || 0) / kx, cropY: (img.cropY || 0) / kx, scaleX: img.scaleX * kx, scaleY: img.scaleY * kx };
+          img.setSrc(url, function () { img.set(keep); img.set('dirty', true); img.applyFilters(); canvas.requestRenderAll(); commit(); refreshUI(); toast('Зураг хадгалагдлаа'); });
+          return close();
+        }
+        render();
+      }
+      m.addEventListener('click', function (e) {
+        var t = e.target.closest('[data-ct]'); if (t) return setTool(t.dataset.ct);
+        var b = e.target.closest('[data-cu]'); if (b) act(b.dataset.cu);
+      });
+      window.addEventListener('resize', layout);
+      setTool('erase'); layout();
+    }
+  }
 
 
   // ---------- UI refresh ----------

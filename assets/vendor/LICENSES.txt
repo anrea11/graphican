@@ -13,6 +13,7 @@ xlsx.min.js — SheetJS Community Edition 0.18.5 — Apache License 2.0
 heic2any.min.js — heic2any 0.0.4 (HEIC/HEIF decoder) — MIT
 utif.js — UTIF.js 3.1.0 (TIFF decoder), Photopea — MIT
 pako-inflate.min.js — pako 1.0.11 — MIT / Zlib
+paper-core.min.js — Paper.js 0.12.18 (boolean path operations in the Editor) — MIT
 
 Loaded from jsDelivr at runtime:
   Fabric.js 5.3.0 — MIT — https://github.com/fabricjs/fabric.js

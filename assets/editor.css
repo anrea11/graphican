@@ -303,3 +303,29 @@ input[type="range"] { width:100%; accent-color:var(--acc); }
 .fx-menu { min-width:230px; }
 .fx-menu button { flex-direction:column; align-items:flex-start !important; gap:1px !important; }
 .ps.fx .note { margin:4px 0 0; }
+
+/* boolean buttons with labels */
+.bool-seg button { flex-direction:column; height:auto !important; padding:5px 2px; gap:2px; font-size:10px; }
+.bool-seg button svg.i { width:18px; height:18px; }
+
+/* ---------- manual cut-out editor ---------- */
+.cut-modal { position:fixed; inset:0; z-index:95; display:flex; flex-direction:column; background:var(--bg); color:var(--text); }
+.cut-top { display:flex; align-items:center; gap:6px; height:52px; padding:0 12px; border-bottom:1px solid var(--line); flex:none; }
+.cut-top b { font-size:13px; }
+.cut-top .btn-primary { height:32px; }
+.cut-body { flex:1; display:flex; min-height:0; }
+.cut-view { flex:1; overflow:auto; display:grid; place-items:center; padding:12px; background:repeating-conic-gradient(#d9d9de 0 25%, #f4f4f6 0 50%) 0 0/20px 20px; touch-action:none; min-width:0; }
+[data-theme="dark"] .cut-view { background:repeating-conic-gradient(#2a2a2e 0 25%, #36363b 0 50%) 0 0/20px 20px; }
+.cut-view canvas { display:block; box-shadow:0 0 0 1px rgba(0,0,0,.15), 0 10px 40px -10px rgba(0,0,0,.4); touch-action:none; }
+.cut-side { width:260px; flex:none; overflow-y:auto; padding:14px; border-left:1px solid var(--line); display:flex; flex-direction:column; gap:4px; }
+.cut-tools { display:grid; grid-template-columns:1fr 1fr 1fr; gap:4px; }
+.ctool { display:flex; flex-direction:column; align-items:center; gap:3px; padding:8px 2px; border-radius:7px; border:1px solid var(--line); font-size:10.5px; line-height:1.15; text-align:center; }
+.ctool:hover { background:var(--bg2); }
+.ctool.on { background:var(--acc); border-color:var(--acc); color:#fff; }
+.ctool svg.i { width:18px; height:18px; }
+@media (max-width:760px) {
+  .cut-body { flex-direction:column; }
+  .cut-side { width:auto; max-height:38vh; border-left:0; border-top:1px solid var(--line); }
+  .cut-tools { grid-template-columns:repeat(6, 1fr); }
+  .ctool span { font-size:9px; }
+}
