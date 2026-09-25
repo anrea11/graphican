@@ -147,12 +147,25 @@
     );
   }
 
-  function marquee(items) {
-    items = list(items);
-    if (!items.length) return '';
-    var row = items.map(function (t, i) {
-      return '<span class="' + (i % 2 ? 'soft' : '') + '">' + esc(t) + '</span><i></i>';
-    }).join('');
+  // Running strip under the hero. Shows client logos (name as text when a
+  // client has no logo); falls back to the plain marquee words if no clients.
+  function marquee(items, clientItems) {
+    var clientsList = list(clientItems).filter(function (c) { return c && (c.logo || c.name); });
+    var row;
+    if (clientsList.length) {
+      row = clientsList.map(function (c, i) {
+        return (c.logo
+          ? '<img class="m-logo" src="' + esc(c.logo) + '" alt="' + esc(c.name) + '" loading="lazy" decoding="async">'
+          : '<span class="' + (i % 2 ? 'soft' : '') + '">' + esc(c.name) + '</span>') + '<i></i>';
+      }).join('');
+      if (clientsList.length < 10) row += row; // keep the strip wider than large screens
+    } else {
+      items = list(items);
+      if (!items.length) return '';
+      row = items.map(function (t, i) {
+        return '<span class="' + (i % 2 ? 'soft' : '') + '">' + esc(t) + '</span><i></i>';
+      }).join('');
+    }
     return '<div class="marquee" aria-hidden="true"><div class="marquee-track"><div>' + row + '</div><div>' + row + '</div></div></div>';
   }
 
@@ -694,7 +707,7 @@
       var reelItems = list((d.reels || {}).items).filter(function (it) { return it && it.video; });
       app.innerHTML =
         hero(d.hero || {}, list((d.work || {}).projects)) +
-        marquee(d.marquee) +
+        marquee(d.marquee, (d.clients || {}).items) +
         work(d.work || {}) +
         clients(d.clients || {}, list((d.work || {}).projects)) +
         reels(d.reels || {}) +

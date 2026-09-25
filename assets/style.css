@@ -514,6 +514,7 @@ html:not(.ready) .bl { filter:blur(.1em); opacity:.5; }
 }
 .marquee span.soft { filter:blur(4px); opacity:.55; }
 .marquee i { width:12px; height:12px; border-radius:50%; background:var(--v2); flex:none; box-shadow:0 0 18px var(--v3); }
+.marquee .m-logo { height:clamp(30px, 4.4vw, 58px); width:auto; max-width:none; flex:none; object-fit:contain; }
 @keyframes marquee { to { transform:translateX(-50%); } }
 
 /* ---------- sections ---------- */
