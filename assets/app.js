@@ -449,6 +449,15 @@
   function setupMarquee() {
     var tracks = document.querySelectorAll('.marquee-track');
     if (!tracks.length) return;
+    // logos have very different shapes (1:1 badge vs 6:1 wordmark): give each the same
+    // visual area instead of the same height, so none looks bigger than the others
+    document.querySelectorAll('.marquee .m-logo').forEach(function (img) {
+      function fit() {
+        var r = img.naturalWidth / (img.naturalHeight || 1);
+        if (r > 0) img.style.setProperty('--k', Math.max(0.4, Math.min(1, 1.3 / Math.sqrt(r))).toFixed(3));
+      }
+      if (img.complete && img.naturalWidth) fit(); else img.addEventListener('load', fit);
+    });
     var ticking = false;
     function update() {
       ticking = false;

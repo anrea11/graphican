@@ -1,20 +1,20 @@
 {
   "seo": {
     "title": "Graphican — График дизайнер | Брэнд, лого, постер дизайн",
-    "description": "Graphican — Анхбаяр, Улаанбаатарын график дизайнер. Брэндинг, digital design, motion: лого, брэнд айдентити, сошиал постер, лого анимаци. 6+ жил, 25+ байгууллага."
+    "description": "Graphican — Анхбаяр, Улаанбаатарын график дизайнер. Брэндинг, digital design, видео: лого, брэнд айдентити, сошиал постер, лого анимаци. 6+ жил, 25+ байгууллага."
   },
   "hero": {
     "kicker": [
       "BRANDING",
       "DIGITAL DESIGN",
-      "MOTION"
+      "VIDEO"
     ],
     "title_line1": "Graphic",
     "title_line2": "+ Can",
     "tagline_line1": "Санааг",
     "tagline_highlight": "визуал",
     "tagline_rest": "хэлээр.",
-    "description": "Брэндинг, digital design болон motion чиглэлээр ажилладаг Graphican.",
+    "description": "Брэндинг, digital design болон видео чиглэлээр ажилладаг Graphican.",
     "primary_button": "Ажлуудыг үзэх",
     "secondary_button": "Чиглэл",
     "artist_name": "Ankhbayar M.",
@@ -50,7 +50,7 @@
   "marquee": [
     "BRANDING",
     "DIGITAL DESIGN",
-    "MOTION",
+    "VIDEO",
     "VISUAL IDENTITY",
     "CAMPAIGN"
   ],
@@ -145,7 +145,7 @@
         "image": "/assets/uploads/novanest-tv-stand.webp",
         "video": "/assets/uploads/novanest-intro.mp4",
         "name": "Novanest",
-        "type": "BRANDING / DIGITAL POSTER / MOTION",
+        "type": "BRANDING / DIGITAL POSTER / VIDEO",
         "description": "Тавилгын брэндийн лого анимаци болон бүтээгдэхүүний постерын цуврал.",
         "details": "Novanest Furniture-ийн брэндийн визуал. Гэрэлтэх шугамаар бүтдэг лого анимаци болон «Modern Nordic life style» цуврал бүтээгдэхүүний постерууд.\n\nГүн ногоон болон модны дулаан өнгийг брэндийн гол өнгө болгож, үнэ ба бүтээгдэхүүний нэрийг цэвэрхэн, тод харуулсан.",
         "gallery": [
@@ -262,7 +262,7 @@
         "image": "/assets/uploads/tru-business-card.webp",
         "video": "/assets/uploads/tru-intro.mp4",
         "name": "Tru",
-        "type": "BRANDING / VISUAL IDENTITY / MOTION",
+        "type": "BRANDING / VISUAL IDENTITY / VIDEO",
         "description": "Минимал үгэн лого, нэрийн хуудас болон лого анимаци.",
         "details": "Tru. — цэвэрхэн, итгэл төрүүлэх минимал брэнд. Цэнхэр цэгтэй үгэн лого нь энгийн атлаа тодорхой байдлыг илэрхийлнэ.\n\nБараан, цагаан, цэнхэр гурван өнгөний хувилбар, нэрийн хуудас, «Pass through with tru.e» уриатай лого анимацийг бүтээсэн.",
         "gallery": [
@@ -290,10 +290,10 @@
     ]
   },
   "reels": {
-    "kicker": "03 / MOTION",
-    "title_en": "MOTION & REELS",
-    "title": "Хөдөлгөөнт ажлууд.",
-    "description": "Лого анимаци, reels болон моушн график. Дарж дуутай үзнэ үү.",
+    "kicker": "03 / VIDEO",
+    "title_en": "VIDEO WORKS",
+    "title": "Видео ажлууд.",
+    "description": "Лого анимаци, reels болон богино видео. Дарж дуутай үзнэ үү.",
     "items": [
       {
         "video": "/assets/uploads/way-academy-intro.mp4",
@@ -391,13 +391,13 @@
         ]
       },
       {
-        "name": "MOTION",
-        "name_mn": "Хөдөлгөөнт дизайн",
-        "description": "Reels, motion graphic болон хөдөлгөөнт визуал.",
+        "name": "VIDEO",
+        "name_mn": "Видео контент",
+        "description": "Reels, лого анимаци болон богино видео.",
         "tags": [
           "Лого анимаци",
           "Reels",
-          "Motion graphic"
+          "Богино видео"
         ]
       }
     ]
@@ -412,7 +412,7 @@
     "title_line1": "Санааг",
     "title_highlight": "визуал хэлээр",
     "title_line2": "илэрхийлнэ.",
-    "text": "Намайг Анхбаяр гэдэг. Graphican-ийн ард ажилладаг дизайнер.\n\nБи брэндинг, digital design болон motion чиглэлээр ажилладаг. Сүүлийн 6 жилийн хугацаанд 25+ байгууллагын брэнд, бүтээгдэхүүн, контент дээр ажилласан.\n\nМиний хувьд сайн дизайн гэдэг нь олон элементтэй байхыг биш, хэрэгтэй зүйлээ зөв хэлбэрээр илэрхийлэхийг хэлнэ.\n\nТиймээс typography, өнгө, зохиомж болон motion-ийн жижиг деталь бүрийг тухайн брэндийн онцлогтой уялдуулж боловсруулдаг.",
+    "text": "Намайг Анхбаяр гэдэг. Graphican-ийн ард ажилладаг дизайнер.\n\nБи брэндинг, digital design болон видео чиглэлээр ажилладаг. Сүүлийн 6 жилийн хугацаанд 25+ байгууллагын брэнд, бүтээгдэхүүн, контент дээр ажилласан.\n\nМиний хувьд сайн дизайн гэдэг нь олон элементтэй байхыг биш, хэрэгтэй зүйлээ зөв хэлбэрээр илэрхийлэхийг хэлнэ.\n\nТиймээс typography, өнгө, зохиомж болон видеоны жижиг деталь бүрийг тухайн брэндийн онцлогтой уялдуулж боловсруулдаг.",
     "stats": [
       {
         "value": "6+",
@@ -430,15 +430,15 @@
   },
   "contact": {
     "kicker": "06 / CONTACT",
-    "title_line1": "Төсөл",
-    "title_line2": "ярилцъя.",
-    "text": "Дараагийн санаагаа надад илгээгээрэй.",
+    "title_line1": "LET'S TALK",
+    "title_line2": "DESIGN.",
+    "text": "Төслийнхөө талаар холбогдоорой.",
     "button": "Холбоо барих",
     "email": "ankhbayar0100@gmail.com",
     "phone": "80750675",
     "messenger": "https://m.me/anrea11",
     "quick_bar": true,
-    "big_text": "LET'S TALK",
+    "big_text": "CONTACT",
     "socials": [
       {
         "name": "Instagram",
@@ -456,6 +456,6 @@
   },
   "footer": {
     "copyright": "© 2026 GRAPHICAN",
-    "tagline": "BRANDING • DIGITAL DESIGN • MOTION"
+    "tagline": "BRANDING • DIGITAL DESIGN • VIDEO"
   }
 }
