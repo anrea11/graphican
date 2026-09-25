@@ -325,15 +325,15 @@
     "items": [
       {
         "name": "Munkh Energy",
-        "logo": ""
+        "logo": "/assets/uploads/munkh-energy-logo.png"
       },
       {
         "name": "Way Academy",
-        "logo": ""
+        "logo": "/assets/uploads/way-academy-logo.png"
       },
       {
         "name": "Protech",
-        "logo": ""
+        "logo": "/assets/uploads/protech-logo.png"
       },
       {
         "name": "Nomadabe",
@@ -345,7 +345,11 @@
       },
       {
         "name": "EduSmart",
-        "logo": ""
+        "logo": "/assets/uploads/edusmart-logo.png"
+      },
+      {
+        "name": "Prelov",
+        "logo": "/assets/uploads/prelov-logo.png"
       },
       {
         "name": "ButAfter",
@@ -353,7 +357,7 @@
       },
       {
         "name": "Tru",
-        "logo": ""
+        "logo": "/assets/uploads/tru-logo.png"
       }
     ],
     "kicker": "TRUSTED BY",
