@@ -218,7 +218,15 @@ def write_page(rel, head, body):
 
 
 # ------------------------------------------------------------------ tools page
-TOOL_KEYS = (("upscale", "#upscale"), ("bgremove", "#bgremove"), ("socialcrop", "#socialcrop"), ("tools", "#pdf"), ("editor", "#editor"))
+# (content key, page path) — every tool has its own page
+TOOL_KEYS = (("upscale", "/tools/upscale/"), ("bgremove", "/tools/bgremove/"), ("socialcrop", "/tools/socialcrop/"),
+             ("tools", "/tools/pdf/"), ("editor", "/editor/"))
+
+
+def tool_app(s, path):
+    return {"@type": "WebApplication", "name": s.get("title", "").rstrip("."), "description": s.get("description", ""), "url": SITE + path,
+            "applicationCategory": "DesignApplication", "operatingSystem": "Any",
+            "offers": {"@type": "Offer", "price": "0", "priceCurrency": "MNT"}}
 
 
 def tools_page(d):
@@ -226,24 +234,34 @@ def tools_page(d):
     title = th.get("seo_title") or "Design tools — Graphican"
     desc = th.get("seo_description") or th.get("text") or ""
     img = absu("/assets/uploads/og-cover.jpg")
-    apps = []
-    for key, anchor in TOOL_KEYS:
-        s = d.get(key) or {}
-        if not s.get("title"):
-            continue
-        url = SITE + ("/editor/" if key == "editor" else "/tools/" + anchor)
-        apps.append({"@type": "WebApplication", "name": s.get("title", "").rstrip("."), "description": s.get("description", ""), "url": url,
-                     "applicationCategory": "DesignApplication", "operatingSystem": "Any",
-                     "offers": {"@type": "Offer", "price": "0", "priceCurrency": "MNT"}})
+    apps = [tool_app(d.get(k) or {}, p) for k, p in TOOL_KEYS if (d.get(k) or {}).get("title")]
     page = {"@context": "https://schema.org", "@graph": [web_page("/tools/", "Design tools", title, desc, img)] + apps}
     head = page_head("/tools/", title, desc, img, page)
-    body = ['<div class="seo-static">', f'<h1>{e(th.get("title_line1"))} {e(th.get("title_line2"))} — Graphican</h1>', f'<p>{e(th.get("text"))}</p>']
-    for key, _ in TOOL_KEYS:
+    body = ['<div class="seo-static">', f'<h1>{e(th.get("title_line1"))} {e(th.get("title_line2"))} — Graphican</h1>', f'<p>{e(th.get("text"))}</p><ul>']
+    for key, path in TOOL_KEYS:
         s = d.get(key) or {}
         if s.get("title"):
-            body.append(f'<section><h2>{e(s.get("title"))}</h2><p>{e(s.get("description"))}</p></section>')
-    body.append('<p><a href="/editor/">Graphican Editor — онлайн зураг засварлагч</a> · <a href="/design/">Design guide — фонт, өнгө, брэнд гайд</a></p></div>')
+            body.append(f'<li><a href="{path}">{e(s.get("title"))}</a> — {e(s.get("description"))}</li>')
+    body.append('</ul><p><a href="/design/">Design guide — фонт, өнгө, брэнд гайд</a></p></div>')
     write_page(os.path.join("tools", "index.html"), head, body)
+
+    # one page per tool
+    for key, path in TOOL_KEYS:
+        s = d.get(key) or {}
+        if key == "editor" or not s.get("title"):
+            continue
+        name = s.get("title", "").rstrip(".")
+        t = f"{name} — үнэгүй онлайн | Graphican Design tools"
+        crumbs = web_page(path, name, t, s.get("description", ""), img)
+        crumbs["breadcrumb"]["itemListElement"] = [
+            {"@type": "ListItem", "position": 1, "name": "Graphican", "item": SITE + "/"},
+            {"@type": "ListItem", "position": 2, "name": "Design tools", "item": SITE + "/tools/"},
+            {"@type": "ListItem", "position": 3, "name": name, "item": SITE + path}]
+        page = {"@context": "https://schema.org", "@graph": [crumbs, tool_app(s, path)]}
+        others = " · ".join(f'<a href="{p}">{e((d.get(k) or {}).get("title", "").rstrip("."))}</a>' for k, p in TOOL_KEYS if k != key and (d.get(k) or {}).get("title"))
+        body = ['<div class="seo-static">', f'<h1>{e(name)}</h1>', f'<p>{e(s.get("description"))}</p>',
+                f'<p><a href="/tools/">Design tools</a> · {others}</p></div>']
+        write_page(os.path.join(path.strip("/"), "index.html"), page_head(path, t, s.get("description", ""), img, page), body)
 
 
 # ------------------------------------------------------------------ sitemap
@@ -255,6 +273,8 @@ def sitemap(projects, dd):
                 imgs.append((src, p.get("name")))
     home_imgs = "".join(f"\n    <image:image><image:loc>{e(absu(s))}</image:loc></image:image>" for s, _ in imgs[:1000])
     guide_img = absu((dd.get("guide") or {}).get("image") or "/assets/uploads/design-guide.webp")
+    tool_urls = "".join(f"\n  <url>\n    <loc>{SITE}{p}</loc>\n    <lastmod>{TODAY}</lastmod>\n    <priority>0.7</priority>\n  </url>"
+                        for k, p in TOOL_KEYS if k != "editor")
     xml = f"""<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
   <url>
@@ -272,7 +292,7 @@ def sitemap(projects, dd):
     <loc>{SITE}/tools/</loc>
     <lastmod>{TODAY}</lastmod>
     <priority>0.8</priority>
-  </url>
+  </url>{tool_urls}
   <url>
     <loc>{SITE}/editor/</loc>
     <lastmod>{TODAY}</lastmod>

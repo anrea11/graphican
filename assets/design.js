@@ -416,7 +416,7 @@
   }
 
   var GUIDE_CHIPS = '<a href="#fonts">Фонт</a><a href="#colors">Өнгө</a><a class="hot" href="#kit">Нэг товшилтоор татах ↓</a><a class="brand" href="#guide"><span class="dp-orb" aria-hidden="true"></span>Graphican брэнд гайд</a><a href="/tools/">Design tools →</a>';
-  var TOOLS_CHIPS = '<a class="hot" href="#upscale">AI томруулагч ✦</a><a href="#bgremove">Дэвсгэр арилгагч</a><a href="#socialcrop">Сошиал тайрагч</a><a href="#pdf">PDF ⇄ PNG / JPG</a><a href="#editor">Засварлагч</a><a class="brand" href="/design/"><span class="dp-orb" aria-hidden="true"></span>Design guide →</a>';
+  var TOOLS_CHIPS = '<a class="hot" href="/tools/upscale/">AI томруулагч ✦</a><a href="/tools/bgremove/">Дэвсгэр арилгагч</a><a href="/tools/socialcrop/">Сошиал тайрагч</a><a href="/tools/pdf/">PDF ⇄ PNG / JPG</a><a href="/editor/">Засварлагч ↗</a><a class="brand" href="/design/"><span class="dp-orb" aria-hidden="true"></span>Design guide →</a>';
 
   function hero(h, page) {
     var tools = page === 'tools';
@@ -688,18 +688,24 @@
   ];
   function toolInfo(id) { return TOOL_INFO.filter(function (t) { return t.id === id; })[0] || {}; }
 
-  function toolPicker() {
-    var cards = TOOL_INFO.map(function (t, i) {
+  function toolHref(t) { return t.href || '/tools/' + t.id + '/'; }
+  function toolCards(skip) {
+    return TOOL_INFO.filter(function (t) { return t.id !== skip; }).map(function (t) {
+      var i = TOOL_INFO.indexOf(t);
       return (
-        '<a class="tp-card" href="' + (t.href || '#' + t.id) + '">' +
+        '<a class="tp-card" href="' + toolHref(t) + '">' +
           '<span class="tp-top"><span class="drop-ic" aria-hidden="true">' + esc(t.badge) + '</span><span class="tp-n">' + pad(i + 1) + '</span></span>' +
           '<b>' + esc(t.name) + '</b>' +
           '<span class="tp-what">' + esc(t.what) + '</span>' +
           '<span class="tp-when"><i>Хэзээ:</i> ' + esc(t.when) + '</span>' +
-          '<span class="tp-go">' + (t.href ? 'Засварлагч нээх ↗' : 'Ашиглах ↓') + '</span>' +
+          '<span class="tp-go">' + (t.href ? 'Засварлагч нээх ↗' : 'Нээх →') + '</span>' +
         '</a>'
       );
     }).join('');
+  }
+
+  function toolPicker() {
+    var cards = toolCards();
     return (
       '<section class="sec picker" id="picker">' +
         '<header class="sec-head reveal"><div class="sec-meta"><span>ЭХЛЭХ</span><span>CHOOSE A TOOL +</span></div>' +
@@ -758,19 +764,25 @@
     catch (e) { blob.name = name; return blob; }
   }
 
+  // every tool has its own page, so a result travels through the IndexedDB hand-off
   function sendTo(target, blob, name) {
-    var file = blobToFile(blob, name);
-    if (target === 'editor') {
-      if (!window.GHandoff) { toast('Засварлагч руу илгээж чадсангүй'); return; }
-      window.GHandoff.put(blob, { name: name, target: 'editor' }).then(function () { location.href = '/editor/'; })
-        .catch(function () { toast('Засварлагч руу илгээж чадсангүй'); });
-      return;
-    }
-    if (!FLOW[target]) return;
-    FLOW[target](file);
-    var sec = document.getElementById(target);
-    if (sec) sec.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    toast('→ ' + FLOW_TARGETS.filter(function (t) { return t.id === target; })[0].label.replace(/[✦↗]/g, '').trim());
+    if (!window.GHandoff) { toast('Илгээж чадсангүй'); return; }
+    toast('Шилжиж байна…');
+    window.GHandoff.put(blob, { name: name, target: target }).then(function () {
+      location.href = target === 'editor' ? '/editor/' : '/tools/' + target + '/';
+    }).catch(function () { toast('Илгээж чадсангүй'); });
+  }
+
+  function toolCrumb(id) {
+    return '<nav class="tool-crumb" aria-label="Байршил"><a href="/tools/">Design tools</a><span aria-hidden="true">/</span><b>' + esc(toolInfo(id).name) + '</b></nav>';
+  }
+  function otherTools(id) {
+    return (
+      '<section class="sec other-tools">' +
+        '<div class="sec-meta"><span>БУСАД ХЭРЭГСЭЛ</span><span>MORE TOOLS +</span></div>' +
+        '<div class="tp-grid">' + toolCards(id) + '</div>' +
+      '</section>'
+    );
   }
 
   // Renders the "Үргэлжлүүлэх →" row into `el`; getBlob() returns Promise<{blob, name}>.
@@ -1633,21 +1645,6 @@
     });
   }
 
-  // ---------- online editor (self-hosted miniPaint) ----------
-
-  function editorSection(e) {
-    return (
-      '<section class="sec editorcta" id="editor">' + head(e) + toolGuide('editor') +
-        '<a class="tool ed-card reveal" href="/editor/">' +
-          '<span class="drop-ic" aria-hidden="true">Aa</span>' +
-          '<span class="ed-copy"><b>Засварлагч нээх</b><span>Сошиал пост, постер · текст, зураг, хэлбэр · Design guide-ийн фонт, өнгө · layer · PNG / JPG / PDF татах</span></span>' +
-          '<span class="btn solid">Нээх ↗</span>' +
-        '</a>' +
-        '<p class="tool-note reveal">✦ Canva шиг ажиллана: зүйлсээ чирж байрлуулж, дээр нь дараад засна. Автоматаар хадгалагдана. Пиксел түвшний нарийн засвар (сойз, соронзон баллуур, clone) хэрэгтэй бол засварлагч доторх <b>«Pro засвар»</b>-ыг ашиглана.</p>' +
-      '</section>'
-    );
-  }
-
   function footer() {
     return '<footer class="footer"><span>© ' + new Date().getFullYear() + ' GRAPHICAN</span><span class="mark" aria-hidden="true"></span><a href="/">← graphican.online</a></footer>';
   }
@@ -1816,18 +1813,27 @@
 
   // ---------- boot ----------
 
-  // /design/ = fonts, colours, starter kit, brand guide · /tools/ = image tools
-  var PAGE = /^\/tools(\/|$)/.test(location.pathname) ? 'tools' : 'guide';
+  // /design/ = fonts, colours, starter kit, brand guide
+  // /tools/ = tool picker · /tools/<id>/ = one tool per page
+  var toolMatch = location.pathname.match(/^\/tools\/(upscale|bgremove|socialcrop|pdf)\/?$/);
+  var TOOL = toolMatch ? toolMatch[1] : null;
+  var PAGE = TOOL ? 'tool' : /^\/tools(\/|$)/.test(location.pathname) ? 'tools' : 'guide';
 
-  // an image sent from the editor (or another page) opens in the requested tool
+  // an image sent from the editor or another tool opens in this page's tool
   function receiveHandoff() {
-    if (!window.GHandoff) return;
+    if (!window.GHandoff || !TOOL) return;
     window.GHandoff.take().then(function (h) {
-      if (!h || !h.blob) return;
-      var target = FLOW[h.target] ? h.target : (location.hash.slice(1) in FLOW ? location.hash.slice(1) : 'upscale');
-      setTimeout(function () { sendTo(target, h.blob, h.name || 'image.png'); }, 300);
+      if (!h || !h.blob || !FLOW[TOOL]) return;
+      setTimeout(function () { FLOW[TOOL](blobToFile(h.blob, h.name || 'image.png')); toast('Зураг орлоо'); }, 200);
     });
   }
+
+  var TOOL_VIEWS = {
+    upscale: { key: 'upscale', view: function (d) { return upscaleSection(d.upscale || {}); }, setup: function () { setupUpscale(); } },
+    bgremove: { key: 'bgremove', view: function (d) { return bgSection(d.bgremove || {}); }, setup: function () { setupBgRemove(); } },
+    socialcrop: { key: 'socialcrop', view: function (d) { return cropSection(d.socialcrop || {}); }, setup: function () { setupSocialCrop(); } },
+    pdf: { key: 'tools', view: function (d) { return tools(d.tools || {}); }, setup: function () { setupTools(); } }
+  };
 
   var app = document.getElementById('app');
   fetch('/content/design.json', { cache: 'no-cache' })
@@ -1843,14 +1849,16 @@
         if (th.seo_title) document.title = th.seo_title;
         var md = document.querySelector('meta[name="description"]');
         if (md && th.seo_description) md.setAttribute('content', th.seo_description);
-        app.innerHTML = hero(th, 'tools') + toolPicker() +
-          upscaleSection(d.upscale || {}) + bgSection(d.bgremove || {}) + cropSection(d.socialcrop || {}) +
-          tools(d.tools || {}) + editorSection(d.editor || {}) + footer();
+        app.innerHTML = hero(th, 'tools') + toolPicker() + footer();
         enhance();
-        setupUpscale();
-        setupBgRemove();
-        setupSocialCrop();
-        setupTools();
+      } else if (PAGE === 'tool') {
+        var tv = TOOL_VIEWS[TOOL], sd = d[tv.key] || {};
+        document.title = String(sd.title || toolInfo(TOOL).name).replace(/\.$/, '') + ' — Design tools | Graphican';
+        var mt = document.querySelector('meta[name="description"]');
+        if (mt && sd.description) mt.setAttribute('content', sd.description);
+        app.innerHTML = toolCrumb(TOOL) + tv.view(d) + otherTools(TOOL) + footer();
+        enhance();
+        tv.setup();
         receiveHandoff();
       } else {
         app.innerHTML = hero(d.hero || {}, 'guide') + fonts(d.fonts || {}) + palettes(d.palettes || {}) +

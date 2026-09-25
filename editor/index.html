@@ -18,7 +18,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap&subset=cyrillic" rel="stylesheet">
-<link rel="stylesheet" href="/assets/editor.css?v=1">
+<link rel="stylesheet" href="/assets/editor.css?v=2">
 </head>
 <body>
 
@@ -38,7 +38,7 @@
       <button class="ib" id="ed-zin" type="button" title="Томруулах" aria-label="Томруулах"></button>
     </div>
     <div class="ed-top-r">
-      <a class="tb ghost hide-sm" id="ed-pro" href="/editor/pro/" title="Сойз, соронзон баллуур, clone зэрэг пиксел түвшний засвар">Pro засвар</a>
+      <button class="ib hide-sm" id="ed-help" type="button" title="Товчлолууд" aria-label="Товчлолууд">?</button>
       <div class="pop-wrap">
         <button class="tb ghost" id="ed-send" type="button" aria-haspopup="true">Tools ↗</button>
         <div class="pop" id="ed-send-menu" hidden>
@@ -47,7 +47,6 @@
           <button type="button" data-send="upscale">✦ AI томруулах</button>
           <button type="button" data-send="socialcrop">Сошиал хэмжээ рүү тайрах</button>
           <button type="button" data-send="pdf">PDF болгох</button>
-          <button type="button" data-send="pro">Pro засварт нээх</button>
         </div>
       </div>
       <div class="pop-wrap">
@@ -82,6 +81,6 @@
 <!-- Fabric.js 5.3.0 (MIT) — canvas objects, selection, transforms -->
 <script src="https://cdn.jsdelivr.net/npm/fabric@5.3.0/dist/fabric.min.js"></script>
 <script src="/assets/handoff.js?v=28"></script>
-<script src="/assets/editor.js?v=1"></script>
+<script src="/assets/editor.js?v=2"></script>
 </body>
 </html>

@@ -2,7 +2,7 @@
   Graphican Editor — a Canva-style design editor on Fabric.js (MIT).
   • Page = a white rect at scene (0,0) sized W×H; everything outside it is dimmed.
   • Fonts, palettes and brand colours come from /content/design.json (Design guide).
-  • Autosaves to IndexedDB; images move to/from /tools/ and /editor/pro/ via handoff.js.
+  • Autosaves to IndexedDB; images move to/from the /tools/ pages via handoff.js.
 */
 (function () {
   'use strict';
@@ -66,7 +66,18 @@
     bg: '<rect x="3" y="3" width="18" height="18" rx="2"/><path d="m3 17 6-6 5 5 3-3 4 4"/>',
     wand: '<path d="m4 20 11-11M15 4v2M15 12v2M11 8H9M21 8h-2M18.5 4.5 17 6M18.5 11.5 17 10"/>',
     align: '<path d="M12 3v18M6 7h12M8 12h8M5 17h14"/>',
-    opacity: '<circle cx="12" cy="12" r="9"/><path d="M12 3v18M12 3a9 9 0 0 1 0 18" fill="currentColor" stroke="none"/>'
+    opacity: '<circle cx="12" cy="12" r="9"/><path d="M12 3v18M12 3a9 9 0 0 1 0 18" fill="currentColor" stroke="none"/>',
+    tpl: '<rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/>',
+    pen: '<path d="M4 20l4-1L19 8a2.1 2.1 0 0 0-3-3L5 16l-1 4Z"/><path d="m14 7 3 3"/>',
+    marker: '<path d="m9 15-4 4h5l2-2M9 15l7-7 3 3-7 7M9 15l3 3"/>',
+    spray: '<rect x="7" y="9" width="8" height="12" rx="2"/><path d="M9 9V6h4v3M16 4h.01M19 3h.01M19 6h.01M17 7h.01"/>',
+    eraser: '<path d="m7 21-4-4 11-11 7 7-8 8H7Z"/><path d="M21 21H11M9 11l7 7"/>',
+    crop: '<path d="M6 2v14a2 2 0 0 0 2 2h14"/><path d="M18 22V8a2 2 0 0 0-2-2H2"/>',
+    mask: '<circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18"/>',
+    rotate: '<path d="M20 11a8 8 0 1 0-2.3 5.7"/><path d="M20 4v7h-7"/>',
+    fx: '<path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/><circle cx="12" cy="12" r="3"/>',
+    group: '<rect x="3" y="3" width="8" height="8" rx="1"/><rect x="13" y="13" width="8" height="8" rx="1"/><path d="M11 7h4a2 2 0 0 1 2 2v4"/>',
+    check: '<path d="m5 12 5 5L20 7"/>', x: '<path d="M6 6l12 12M18 6 6 18"/>'
   };
   function icon(n) { return '<svg class="i" viewBox="0 0 24 24" aria-hidden="true">' + P[n] + '</svg>'; }
 
@@ -82,6 +93,9 @@
     'Clash Display': { fs: 'clash-display' }, 'Satoshi': { fs: 'satoshi' }, 'iBrand': { local: 1 }
   };
   function fam(name) { var f = FONTS[name] || {}; return f.fs || f.local ? name : (f.g || name); }
+  // canvas text falls back to a serif for missing glyphs, so always chain Manrope (has Cyrillic)
+  function stack(name) { var f = fam(name); return f === 'Manrope' ? '"Manrope", sans-serif' : '"' + f + '", "Manrope", sans-serif'; }
+  function primary(ff) { return String(ff || '').split(',')[0].replace(/["']/g, '').trim(); }
   var fontLinks = {}, fontReady = {};
   function ensureFont(name) {
     var family = fam(name), f = FONTS[name] || {};
@@ -179,7 +193,7 @@
     page.set({ selectable: false, evented: false });
     W = page.width; H = page.height;
   }
-  function userObjects() { return canvas.getObjects().filter(function (o) { return o !== page; }); }
+  function userObjects() { return canvas.getObjects().filter(function (o) { return o !== page && o.id !== '__crop'; }); }
 
   var CHECKER;
   function checker() {
@@ -240,6 +254,7 @@
 
   // snap to page centre and edges while dragging
   canvas.on('object:moving', function (o) {
+    if (o.target.id === '__crop') return;
     var obj = o.target, thr = 7 / canvas.getZoom();
     guides = [];
     var b = obj.getBoundingRect(true, true);
@@ -285,7 +300,7 @@
     return JSON.stringify({ v: 1, W: W, H: H, name: $('#ed-name').value, transparent: pageTransparent, canvas: canvas.toJSON(PROPS) });
   }
   function commit() {
-    if (restoring) return;
+    if (restoring || crop) return;
     clearTimeout(commitT);
     commitT = setTimeout(pushHistory, 180);
     $('#ed-saved').textContent = 'Хадгалж байна…';
@@ -316,7 +331,7 @@
         if (keepView) canvas.setViewportTransform(vpt); else fit();
         canvas.renderAll();
         restoring = false;
-        userObjects().forEach(function (o) { if (o.fontFamily) ensureFont(o.fontFamily).then(function () { refreshText(o); }); });
+        userObjects().forEach(function (o) { if (o.fontFamily) ensureFont(primary(o.fontFamily)).then(function () { refreshText(o); }); });
         refreshAll();
         res();
       });
@@ -334,7 +349,7 @@
   canvas.on('selection:cleared', function () { refreshCtx(); refreshLayers(); });
   $('#ed-name').addEventListener('input', commit);
 
-  function updateHint() { $('#ed-hint').hidden = userObjects().length > 0; }
+  function updateHint() { $('#ed-hint').hidden = userObjects().length > 0 || draw.on; }
 
   // ---------- adding things ----------
 
@@ -366,7 +381,7 @@
     var f = fontName || (st.role === 'heading' ? pair.heading : pair.body);
     var base = Math.min(W, H * 0.9);
     var t = new fabric.Textbox(text || st.text, {
-      fontFamily: fam(f), fontWeight: st.weight, fontSize: Math.round(base * st.size),
+      fontFamily: stack(f), fontWeight: st.weight, fontSize: Math.round(base * st.size),
       fill: pageTransparent || isDark(page.fill) ? '#ffffff' : '#111118', width: Math.round(W * (kind === 'b' ? 0.6 : 0.8)),
       textAlign: 'center', lineHeight: kind === 'b' ? 1.4 : 1.1, charSpacing: 0, splitByGrapheme: false
     });
@@ -454,7 +469,8 @@
     if (o.type === 'activeSelection') return 'multi';
     if (o.isType('textbox') || o.isType('i-text') || o.isType('text')) return 'text';
     if (o.isType('image')) return 'image';
-    if (o.isType('line')) return 'line';
+    if (o.type === 'group') return 'group';
+    if (o.isType('line') || o.isType('path')) return 'line';
     return 'shape';
   }
   function eachSel(fn) {
@@ -546,13 +562,335 @@
     setSize(1080, 1350, true); commit();
   }
 
+  // ---------- image: crop mode ----------
+  // The image temporarily shows in full; a dashed frame picks the part to keep.
+
+  var crop = null;
+  function startCrop() {
+    var img = active(); if (!img || !img.isType('image') || crop) return;
+    closePop();
+    if (img.angle) { img.rotate(0); img.setCoords(); }
+    var el = img.getElement(), ew = el.naturalWidth || el.width, eh = el.naturalHeight || el.height, s = img.scaleX, t = img.scaleY;
+    var saved = { cropX: img.cropX || 0, cropY: img.cropY || 0, width: img.width, height: img.height, left: img.left, top: img.top, clipPath: img.clipPath };
+    // where the full picture sits on the page (mirrored crops start from the other edge)
+    var dxL = img.flipX ? (ew - saved.cropX - saved.width) * s : saved.cropX * s;
+    var dyT = img.flipY ? (eh - saved.cropY - saved.height) * t : saved.cropY * t;
+    img.set({ cropX: 0, cropY: 0, width: ew, height: eh, left: saved.left - dxL, top: saved.top - dyT, clipPath: null, selectable: false, evented: false });
+    img.setCoords();
+    var frame = new fabric.Rect({
+      left: saved.left, top: saved.top, width: saved.width * s, height: saved.height * t, fill: 'rgba(0,0,0,0)',
+      stroke: '#ffffff', strokeWidth: 2, strokeUniform: true, strokeDashArray: [8, 6], lockRotation: true,
+      cornerColor: '#ffffff', cornerStrokeColor: '#816dfb', transparentCorners: false, excludeFromExport: true, id: '__crop', name: 'Тайралт'
+    });
+    frame.setControlsVisibility({ mtr: false });
+    var bounds = { l: img.left, t: img.top, r: img.left + ew * s, b: img.top + eh * t };
+    function keepInside() {
+      var w = frame.width * frame.scaleX, h = frame.height * frame.scaleY;
+      if (w > bounds.r - bounds.l) { frame.scaleX = (bounds.r - bounds.l) / frame.width; w = bounds.r - bounds.l; }
+      if (h > bounds.b - bounds.t) { frame.scaleY = (bounds.b - bounds.t) / frame.height; h = bounds.b - bounds.t; }
+      frame.left = clamp(frame.left, bounds.l, bounds.r - w);
+      frame.top = clamp(frame.top, bounds.t, bounds.b - h);
+      frame.setCoords();
+    }
+    frame.on('moving', keepInside); frame.on('scaling', keepInside);
+    crop = { img: img, frame: frame, saved: saved, ew: ew, eh: eh };
+    restoring = true; canvas.add(frame); restoring = false;
+    canvas.setActiveObject(frame); canvas.requestRenderAll();
+    refreshCtx();
+  }
+  function endCrop(apply) {
+    if (!crop) return;
+    var c = crop, img = c.img, f = c.frame, s = img.scaleX, t = img.scaleY;
+    crop = null;
+    restoring = true; canvas.remove(f); restoring = false;
+    if (apply) {
+      var dl = f.left - img.left, dt = f.top - img.top, w = f.width * f.scaleX, h = f.height * f.scaleY;
+      var sx = img.flipX ? c.ew - (dl + w) / s : dl / s, sy = img.flipY ? c.eh - (dt + h) / t : dt / t;
+      img.set({ cropX: Math.max(0, sx), cropY: Math.max(0, sy), width: w / s, height: h / t, left: f.left, top: f.top, clipPath: c.saved.clipPath });
+    } else {
+      img.set(c.saved);
+    }
+    img.set({ selectable: true, evented: true, dirty: true });
+    if (img.clipPath) fitMask(img, img.clipPath.gMask);
+    img.setCoords();
+    canvas.setActiveObject(img); canvas.requestRenderAll();
+    if (apply) commit();
+    refreshCtx();
+  }
+  // darken the part of the photo that will be cut away
+  canvas.on('after:render', function (o) {
+    if (!crop || exporting) return;
+    var ctx2 = o.ctx || canvas.getContext(), v = canvas.viewportTransform, z = v[0], img = crop.img, f = crop.frame;
+    var ix = v[4] + img.left * z, iy = v[5] + img.top * z, iw = crop.ew * img.scaleX * z, ih = crop.eh * img.scaleY * z;
+    var fx = v[4] + f.left * z, fy = v[5] + f.top * z, fw = f.width * f.scaleX * z, fh = f.height * f.scaleY * z;
+    var dpr = canvas.getRetinaScaling ? canvas.getRetinaScaling() : 1;
+    ctx2.save(); ctx2.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx2.fillStyle = 'rgba(10,10,16,.62)';
+    ctx2.beginPath(); ctx2.rect(ix, iy, iw, ih); ctx2.rect(fx + fw, fy, -fw, fh); ctx2.fill('evenodd');
+    ctx2.restore();
+  });
+
+  // shape masks (clipPath in the image's own coordinates)
+  function fitMask(img, kind) {
+    var w = img.width, h = img.height, m = Math.min(w, h), cp = null;
+    if (kind === 'circle') cp = new fabric.Circle({ radius: m / 2, originX: 'center', originY: 'center' });
+    if (kind === 'oval') cp = new fabric.Ellipse({ rx: w / 2, ry: h / 2, originX: 'center', originY: 'center' });
+    if (kind === 'rounded') cp = new fabric.Rect({ width: w, height: h, rx: m * 0.12, ry: m * 0.12, originX: 'center', originY: 'center' });
+    if (kind === 'arch') cp = new fabric.Path('M ' + (-w / 2) + ' ' + (h / 2) + ' L ' + (-w / 2) + ' ' + (-h / 2 + w / 2) + ' A ' + (w / 2) + ' ' + (w / 2) + ' 0 0 1 ' + (w / 2) + ' ' + (-h / 2 + w / 2) + ' L ' + (w / 2) + ' ' + (h / 2) + ' Z', { originX: 'center', originY: 'center' });
+    if (cp) cp.gMask = kind;
+    img.set({ clipPath: cp, dirty: true });
+  }
+  function setMask(kind) {
+    var img = active(); if (!img || !img.isType('image')) return;
+    fitMask(img, kind === 'none' ? null : kind);
+    canvas.requestRenderAll(); commit();
+  }
+
+  // ---------- image: AI background removal inside the editor (U²-Net-P) ----------
+
+  var ORT = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.30.0/dist/';
+  var rmbg = { ready: null, session: null };
+  function rmbgReady() {
+    if (rmbg.ready) return rmbg.ready;
+    rmbg.ready = (window.ort ? Promise.resolve() : loadScript(ORT + 'ort.min.js')).then(function () {
+      window.ort.env.wasm.wasmPaths = ORT;
+      window.ort.env.wasm.numThreads = 1;
+      return window.ort.InferenceSession.create('/assets/vendor/u2netp.onnx', { executionProviders: ['wasm'], graphOptimizationLevel: 'all' });
+    }).then(function (s) { rmbg.session = s; });
+    rmbg.ready.catch(function () { rmbg.ready = null; });
+    return rmbg.ready;
+  }
+  function removeBackground(img) {
+    var el = img.getElement(), W0 = el.naturalWidth || el.width, H0 = el.naturalHeight || el.height, S = 320;
+    toast('AI дэвсгэрийг арилгаж байна… (анх удаа ~5MB загвар ачаална)');
+    return rmbgReady().then(function () {
+      var c = document.createElement('canvas'); c.width = S; c.height = S;
+      var cx = c.getContext('2d'); cx.drawImage(el, 0, 0, S, S);
+      var px = cx.getImageData(0, 0, S, S).data, n = S * S, max = 1, i, k;
+      for (i = 0; i < n * 4; i++) if ((i & 3) !== 3 && px[i] > max) max = px[i];
+      var mean = [0.485, 0.456, 0.406], std = [0.229, 0.224, 0.225], data = new Float32Array(3 * n);
+      for (i = 0; i < n; i++) for (k = 0; k < 3; k++) data[k * n + i] = (px[i * 4 + k] / max - mean[k]) / std[k];
+      var s = rmbg.session, feeds = {};
+      feeds[s.inputNames[0]] = new window.ort.Tensor('float32', data, [1, 3, S, S]);
+      return s.run(feeds).then(function (out) {
+        var m = out[s.outputNames[0]].data, lo = Infinity, hi = -Infinity;
+        for (i = 0; i < n; i++) { if (m[i] < lo) lo = m[i]; if (m[i] > hi) hi = m[i]; }
+        var mc = document.createElement('canvas'); mc.width = S; mc.height = S;
+        var mx = mc.getContext('2d'), md = mx.createImageData(S, S);
+        for (i = 0; i < n; i++) { var a = ((m[i] - lo) / ((hi - lo) || 1) - 0.2) / 0.6; md.data[i * 4 + 3] = a <= 0 ? 0 : a >= 1 ? 255 : Math.round(a * 255); }
+        mx.putImageData(md, 0, 0);
+        var o = document.createElement('canvas'); o.width = W0; o.height = H0;
+        var ox = o.getContext('2d'); ox.imageSmoothingQuality = 'high';
+        ox.drawImage(el, 0, 0, W0, H0);
+        ox.globalCompositeOperation = 'destination-in';
+        ox.drawImage(mc, 0, 0, W0, H0);
+        return o.toDataURL('image/png');
+      });
+    }).then(function (url) {
+      return new Promise(function (res) {
+        var keep = { width: img.width, height: img.height, cropX: img.cropX, cropY: img.cropY };
+        img.setSrc(url, function () { img.set(keep); img.set('dirty', true); img.applyFilters(); canvas.requestRenderAll(); commit(); refreshLayers(); res(); });
+      });
+    }).then(function () { toast('Дэвсгэр арилгалаа'); })
+      .catch(function (e) { console.error(e); toast('Дэвсгэр арилгаж чадсангүй. Интернэтээ шалгана уу.'); });
+  }
+
+  // ---------- image: filter presets ----------
+
+  var PRESETS = [
+    ['none', 'Анхны', null], ['bw', 'Хар цагаан', 'Grayscale'], ['sepia', 'Сепиа', 'Sepia'], ['vintage', 'Винтаж', 'Vintage'],
+    ['kodachrome', 'Кодахром', 'Kodachrome'], ['technicolor', 'Техниколор', 'Technicolor'], ['polaroid', 'Полароид', 'Polaroid'], ['brownie', 'Бор', 'Brownie']
+  ];
+  function presetOf(img) {
+    for (var i = 1; i < PRESETS.length; i++) if (F[PRESETS[i][2]] && getFilter(img, F[PRESETS[i][2]])) return PRESETS[i][0];
+    return 'none';
+  }
+  function setPreset(img, id) {
+    img.filters = (img.filters || []).filter(function (f) {
+      return !PRESETS.some(function (p) { return p[2] && F[p[2]] && f instanceof F[p[2]]; });
+    });
+    var p = PRESETS.filter(function (x) { return x[0] === id; })[0];
+    if (p && p[2] && F[p[2]]) img.filters.unshift(new F[p[2]]());
+    img.applyFilters(); canvas.requestRenderAll(); commit();
+  }
+
+  // ---------- effects: shadow, outline, text background ----------
+
+  function shadowOf(o) { return o.shadow ? o.shadow : null; }
+  function setShadow(o, on, opts) {
+    if (!on) { o.set('shadow', null); return; }
+    var s = shadowOf(o) || {};
+    o.set('shadow', new fabric.Shadow({
+      color: opts.color != null ? opts.color : (s.color || 'rgba(0,0,0,0.45)'),
+      blur: opts.blur != null ? opts.blur : (s.blur != null ? s.blur : Math.round(W * 0.02)),
+      offsetX: opts.offset != null ? opts.offset : (s.offsetX != null ? s.offsetX : Math.round(W * 0.008)),
+      offsetY: opts.offset != null ? opts.offset : (s.offsetY != null ? s.offsetY : Math.round(W * 0.008))
+    }));
+  }
+  function rgba(hexc, a) {
+    var n = parseInt(String(hexc).slice(1), 16);
+    return 'rgba(' + (n >> 16) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + a + ')';
+  }
+  function rgbaParts(c) {
+    var m = String(c || '').match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
+    if (!m) return { hex: '#000000', a: 0.45 };
+    var h = '#' + [m[1], m[2], m[3]].map(function (x) { return (+x).toString(16).padStart(2, '0'); }).join('');
+    return { hex: h, a: m[4] == null ? 1 : +m[4] };
+  }
+
+  // ---------- grouping ----------
+
+  function groupSel() {
+    var o = active(); if (!o || o.type !== 'activeSelection') return;
+    var g = o.toGroup(); g.set({ name: 'Бүлэг' });
+    canvas.requestRenderAll(); commit(); refreshLayers(); refreshCtx();
+  }
+  function ungroupSel() {
+    var o = active(); if (!o || o.type !== 'group') return;
+    o.toActiveSelection(); canvas.requestRenderAll(); commit(); refreshLayers(); refreshCtx();
+  }
+
+  // ---------- drawing ----------
+
+  var draw = { on: false, tool: 'pen', color: '#816dfb', size: 0 };
+  function brushSize() { return draw.size || Math.max(4, Math.round(Math.min(W, H) * 0.012)); }
+  function applyBrush() {
+    if (draw.tool === 'eraser') { canvas.isDrawingMode = false; return; }
+    var b = draw.tool === 'spray' ? new fabric.SprayBrush(canvas) : new fabric.PencilBrush(canvas);
+    b.color = draw.tool === 'marker' ? rgba(draw.color, 0.4) : draw.color;
+    b.width = draw.tool === 'marker' ? brushSize() * 2.5 : brushSize();
+    if (b.decimate != null) b.decimate = 2;
+    if (draw.tool === 'spray') { b.density = 30; b.dotWidth = Math.max(1, brushSize() / 6); }
+    canvas.freeDrawingBrush = b;
+    canvas.isDrawingMode = true;
+  }
+  function startDraw() {
+    if (crop) endCrop(false);
+    canvas.discardActiveObject();
+    draw.on = true; applyBrush();
+    canvas.selection = draw.tool !== 'eraser';
+    canvas.skipTargetFind = draw.tool === 'eraser'; // eraser finds lines itself, never selects
+    canvas.defaultCursor = draw.tool === 'eraser' ? 'cell' : 'default';
+    $('#ed-hint').hidden = true;
+    refreshCtx();
+  }
+  function stopDraw() {
+    if (!draw.on) return;
+    draw.on = false; canvas.isDrawingMode = false; canvas.selection = true; canvas.skipTargetFind = false; canvas.defaultCursor = 'default';
+    updateHint(); refreshCtx();
+  }
+  canvas.on('path:created', function (e) {
+    e.path.set({ name: draw.tool === 'marker' ? 'Маркер' : draw.tool === 'spray' ? 'Шүршигч' : 'Зураас', perPixelTargetFind: true });
+    commit(); refreshLayers();
+  });
+  canvas.on('object:added', function (e) {
+    // spray brush adds a group — give it a name too
+    if (draw.on && e.target && e.target.type === 'group' && !e.target.name) e.target.set({ name: 'Шүршигч' });
+  });
+  // eraser: drag over drawn lines to delete them
+  var erasing = false;
+  canvas.on('mouse:down', function (o) { if (draw.on && draw.tool === 'eraser') { erasing = true; eraseAt(o.e); } });
+  canvas.on('mouse:move', function (o) { if (erasing) eraseAt(o.e); });
+  canvas.on('mouse:up', function () { erasing = false; });
+  function eraseAt(e) {
+    canvas.skipTargetFind = false;
+    var t = canvas.findTarget(e, true);
+    canvas.skipTargetFind = true;
+    if (t && t !== page && (t.isType('path') || (t.type === 'group' && /Шүршигч/.test(t.name || '')))) { canvas.remove(t); canvas.requestRenderAll(); }
+  }
+
+  // ---------- templates ----------
+
+  var TEMPLATES = [
+    { id: 'sale', name: 'Хямдралын пост', w: 1080, h: 1350, bg: '#0b0b14', sw: ['#0b0b14', '#816dfb', '#e7e3fd'] },
+    { id: 'event', name: 'Арга хэмжээний постер', w: 1080, h: 1350, bg: '#e7e3fd', sw: ['#e7e3fd', '#34229e', '#16161f'] },
+    { id: 'quote', name: 'Ишлэл', w: 1080, h: 1080, bg: '#16161f', sw: ['#16161f', '#816dfb', '#ffffff'] },
+    { id: 'story', name: 'Story — шинэ бүтээгдэхүүн', w: 1080, h: 1920, bg: '#816dfb', sw: ['#816dfb', '#ffffff', '#0b0b14'] },
+    { id: 'yt', name: 'YouTube thumbnail', w: 1280, h: 720, bg: '#0b0b14', sw: ['#0b0b14', '#ffffff', '#ff4fd8'] },
+    { id: 'card', name: 'Нэрийн хуудас', w: 1050, h: 600, bg: '#16161f', sw: ['#16161f', '#e7e3fd', '#816dfb'] }
+  ];
+  function T(text, o) {
+    var pair = currentPair(), f = o.body ? pair.body : pair.heading;
+    var t = new fabric.Textbox(text, {
+      fontFamily: stack(f), fontWeight: o.weight || (o.body ? 400 : 700), fontSize: o.size, fill: o.color || '#ffffff',
+      width: o.width || W * 0.84, textAlign: o.align || 'center', lineHeight: o.lh || 1.1, charSpacing: o.cs || 0, name: o.name
+    });
+    t.set({ left: o.left != null ? o.left : (W - t.width) / 2, top: o.top });
+    if (o.stroke) t.set({ stroke: o.stroke, strokeWidth: o.strokeWidth || 4, paintFirst: 'stroke' });
+    ensureFont(f).then(function () { refreshText(t); });
+    canvas.add(t); return t;
+  }
+  function R(o) { var r = new fabric.Rect(o); canvas.add(r); return r; }
+  function useTemplate(id) {
+    var tp = TEMPLATES.filter(function (x) { return x.id === id; })[0]; if (!tp) return;
+    if (userObjects().length && !confirm('Одоогийн дизайныг загвараар солих уу?')) return;
+    restoring = true;
+    canvas.discardActiveObject();
+    userObjects().forEach(function (o) { canvas.remove(o); });
+    pageTransparent = false; page.set('fill', tp.bg);
+    W = tp.w; H = tp.h; page.set({ width: W, height: H }); page.setCoords();
+    if (id === 'sale') {
+      T('ХЯМДРАЛ', { top: 150, size: 96, color: '#e7e3fd', cs: 300 });
+      T('−30%', { top: 330, size: 330, color: '#816dfb', lh: 1 });
+      T('Зөвхөн энэ долоо хоногт бүх бүтээгдэхүүнд', { top: 760, size: 44, color: '#a6a8b8', body: true, width: 760 });
+      R({ left: 290, top: 1010, width: 500, height: 120, rx: 60, ry: 60, fill: '#816dfb', name: 'Товч' });
+      T('Одоо захиалах', { top: 1042, size: 42, color: '#ffffff', body: true, weight: 700, width: 500, left: 290 });
+    } else if (id === 'event') {
+      var c = new fabric.Circle({ left: 560, top: -220, radius: 420, fill: '#816dfb', name: 'Чимэглэл' }); canvas.add(c);
+      T('DEMO DAY · 2026', { top: 560, size: 38, color: '#34229e', cs: 250, align: 'left', left: 90 });
+      T('Арга хэмжээний нэрээ энд бичнэ', { top: 640, size: 108, color: '#16161f', align: 'left', left: 90, width: 900 });
+      R({ left: 90, top: 1080, width: 900, height: 3, fill: '#16161f', name: 'Шугам' });
+      T('10.15 · 18:00  —  Улаанбаатар, Galaxy Tower', { top: 1120, size: 38, color: '#16161f', body: true, align: 'left', left: 90, width: 900 });
+    } else if (id === 'quote') {
+      T('“', { top: 70, size: 360, color: '#816dfb', lh: 1 });
+      T('Дизайн гэдэг зүгээр л гоё харагдах биш, хэрхэн ажиллахыг хэлнэ.', { top: 380, size: 64, color: '#ffffff', width: 860, lh: 1.25 });
+      T('— Стив Жобс', { top: 800, size: 36, color: '#a497ff', body: true });
+    } else if (id === 'story') {
+      T('ШИНЭ', { top: 180, size: 64, color: '#ffffff', cs: 400 });
+      R({ left: 140, top: 360, width: 800, height: 800, rx: 40, ry: 40, fill: 'rgba(255,255,255,0.18)', name: 'Зургийн байр' });
+      T('Бүтээгдэхүүний зургаа энд чирж тавина', { top: 730, size: 38, color: '#ffffff', body: true, width: 640 });
+      T('Бүтээгдэхүүний нэр', { top: 1280, size: 104, color: '#ffffff', width: 900 });
+      R({ left: 330, top: 1560, width: 420, height: 130, rx: 65, ry: 65, fill: '#ffffff', name: 'Үнийн шошго' });
+      T('49,900₮', { top: 1590, size: 64, color: '#0b0b14', width: 420, left: 330 });
+    } else if (id === 'yt') {
+      R({ left: 0, top: 560, width: 1280, height: 160, fill: '#ff4fd8', name: 'Тууз' });
+      T('ГАРЧИГ ЭНД', { top: 150, size: 170, color: '#ffffff', stroke: '#000000', strokeWidth: 10, width: 1180, lh: 1 });
+      T('Видеоны дэд гарчиг', { top: 600, size: 64, color: '#0b0b14', weight: 700, width: 1180 });
+    } else if (id === 'card') {
+      T('Нэр Овог', { top: 150, size: 72, color: '#e7e3fd', align: 'left', left: 90, width: 800 });
+      T('График дизайнер', { top: 250, size: 34, color: '#816dfb', body: true, align: 'left', left: 90, width: 800 });
+      R({ left: 90, top: 340, width: 120, height: 4, fill: '#816dfb', name: 'Шугам' });
+      T('+976 8000 0000\nhello@graphican.online\ngraphican.online', { top: 380, size: 30, color: '#a6a8b8', body: true, align: 'left', left: 90, width: 800, lh: 1.5 });
+    }
+    restoring = false;
+    fit(); canvas.requestRenderAll(); commit(); refreshAll();
+    toast('«' + tp.name + '» загвар — текстүүд дээр давхар дарж засна');
+  }
+
+  // ---------- shortcuts help ----------
+
+  $('#ed-help').addEventListener('click', function (e) {
+    var ex = $('#ed-help-pop'); if (ex) { ex.remove(); return; }
+    var p = document.createElement('div'); p.className = 'pop pop-r help-pop'; p.id = 'ed-help-pop';
+    p.innerHTML = '<p class="pop-t">Товчлолууд</p>' + [
+      ['Ctrl + Z / Ctrl + Shift + Z', 'Буцаах / дахин хийх'], ['Ctrl + C / V / D', 'Хуулах / буулгах / хувилах'], ['Delete', 'Устгах'],
+      ['Ctrl + G / Ctrl + Shift + G', 'Бүлэглэх / задлах'], ['Сум (Shift)', '1px (10px) зөөх'], ['Enter / давхар дарах', 'Текст засах'],
+      ['Space + чирэх', 'Хуудсыг гүйлгэх'], ['Ctrl + хулганы дугуй', 'Томруулах / жижигрүүлэх'], ['Ctrl + 0', 'Дэлгэцэнд багтаах'], ['Esc', 'Сонголт / горимоос гарах']
+    ].map(function (r) { return '<div class="kb"><kbd>' + r[0] + '</kbd><span>' + r[1] + '</span></div>'; }).join('');
+    this.parentNode.style.position = 'relative'; this.parentNode.appendChild(p);
+    e.stopPropagation();
+  });
+  document.addEventListener('mousedown', function (e) { var p = $('#ed-help-pop'); if (p && !p.contains(e.target) && e.target.id !== 'ed-help') p.remove(); });
+
   // ---------- panels ----------
 
   var RAIL = [
+    { id: 'tpl', label: 'Загвар', icon: 'tpl' },
     { id: 'size', label: 'Хэмжээ', icon: 'size' },
     { id: 'text', label: 'Текст', icon: 'text' },
     { id: 'image', label: 'Зураг', icon: 'image' },
     { id: 'shape', label: 'Хэлбэр', icon: 'shape' },
+    { id: 'draw', label: 'Зурах', icon: 'pen' },
     { id: 'color', label: 'Өнгө', icon: 'color' },
     { id: 'layers', label: 'Давхарга', icon: 'layers' }
   ];
@@ -566,7 +904,9 @@
     openPanel(activePanel === id && window.innerWidth <= 820 ? null : id);
   });
   function openPanel(id) {
+    if (activePanel === 'draw' && id !== 'draw') stopDraw();
     activePanel = id;
+    if (id === 'draw') startDraw();
     $$('#ed-rail [data-rail]').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-rail') === id); });
     $('#ed-panel').classList.toggle('closed', !id);
     if (id) renderPanel(id);
@@ -575,6 +915,27 @@
 
   function renderPanel(id) {
     var el = $('#ed-panel'), h = '';
+    if (id === 'tpl') {
+      h = '<div class="pn-h"><h2>Загвар</h2></div><p class="pn-note" style="margin:-4px 0 12px">Бэлэн загвараас эхлээд текст, өнгө, зургийг нь сольж өөрийнхөө болгоно.</p>' +
+        '<div class="tpl-grid">' + TEMPLATES.map(function (t) {
+          var k = 118 / Math.max(t.w, t.h);
+          return '<button type="button" class="tpl" data-tpl="' + t.id + '"><span class="tpl-prev" style="width:' + Math.round(t.w * k) + 'px;height:' + Math.round(t.h * k) + 'px;background:' + t.sw[0] + '">' +
+            '<i style="background:' + t.sw[1] + '"></i><i style="background:' + t.sw[2] + '"></i></span><b>' + esc(t.name) + '</b><span>' + t.w + ' × ' + t.h + '</span></button>';
+        }).join('') + '</div>';
+    }
+    if (id === 'draw') {
+      var tools = [['pen', 'Үзэг', 'pen'], ['marker', 'Маркер', 'marker'], ['spray', 'Шүршигч', 'spray'], ['eraser', 'Баллуур', 'eraser']];
+      var colors = [draw.color].concat(DG.brand, BASE_PALETTE).filter(function (c, i, a) { return c && a.indexOf(c) === i; }).slice(0, 14);
+      h = '<div class="pn-h"><h2>Зурах</h2></div>' +
+        '<div class="dr-tools">' + tools.map(function (t) { return '<button type="button" class="dr-t' + (draw.tool === t[0] ? ' on' : '') + '" data-draw-tool="' + t[0] + '">' + icon(t[2]) + '<span>' + t[1] + '</span></button>'; }).join('') + '</div>' +
+        (draw.tool === 'eraser' ? '<p class="pn-note">Зурсан зураас дээгүүр чирэхэд арилна.</p>' :
+          '<p class="pn-sub">Өнгө</p><div class="sw-row"><span class="sw-pick" title="Өөр өнгө"><input type="color" id="dr-pick" value="' + draw.color + '" aria-label="Өнгө сонгох"></span>' +
+          colors.map(function (c) { return '<button type="button" class="sw' + (c === draw.color ? ' on' : '') + '" data-draw-color="' + c + '" style="background:' + c + '" aria-label="' + c + '"></button>'; }).join('') + '</div>' +
+          '<p class="pn-sub">Зузаан <b id="dr-size-v" style="color:var(--text);font-weight:500">' + brushSize() + 'px</b></p>' +
+          '<input type="range" id="dr-size" min="1" max="' + Math.round(Math.min(W, H) * 0.08) + '" value="' + brushSize() + '" style="width:100%;accent-color:var(--v3)">') +
+        '<button type="button" class="pn-btn solid" id="dr-done" style="margin-top:18px">' + icon('check') + 'Зурж дуусгах</button>' +
+        '<p class="pn-note">Зурсан зураас бүр тусдаа давхарга болно — дараа нь сонгоод зөөж, өнгийг нь сольж болно.</p>';
+    }
     if (id === 'size') {
       h = '<div class="pn-h"><h2>Хэмжээ</h2><span class="ctx-lbl">' + W + ' × ' + H + '</span></div>' +
         '<div class="sz-grid">' + SIZES.map(function (s) {
@@ -603,8 +964,8 @@
         '<button type="button" class="pn-btn solid" id="up-btn">Зураг оруулах</button>' +
         '<div class="drop-box" style="margin-top:10px"><b>эсвэл зургаа хуудас руу чирж тавина</b>Ctrl+V-ээр хуулсан зургаа буулгаж болно</div>' +
         (recent.length ? '<p class="pn-sub">Оруулсан зургууд</p><div class="up-grid">' + recent.map(function (u, i) { return '<button type="button" data-recent="' + i + '" style="background-image:url(\'' + u + '\')" aria-label="Зураг нэмэх"></button>'; }).join('') + '</div>' : '') +
-        '<p class="pn-sub">Зургаа сайжруулах</p>' +
-        '<p class="pn-note">Зураг сонгоод дээд талын <b>«Дэвсгэр арилгах»</b> эсвэл <b>«AI томруулах»</b>-ыг дарвал Design tools руу илгээгээд, үр дүнг нь «Засварлагчид нээх»-ээр буцааж оруулна.</p>';
+        '<p class="pn-sub">Зургаа засах</p>' +
+        '<p class="pn-note">Зураг дээр дарахад дээд талд <b>Тайрах</b>, <b>Хэлбэр</b> (тойрог, бөөрөнхий…), <b>Засах</b> (шүүлтүүр, гэрэл, өнгө), <b>AI дэвсгэр арилгах</b>, <b>Эффект</b> гарна.</p>';
     }
     if (id === 'shape') {
       var sv = {
@@ -648,9 +1009,17 @@
     else if (t.dataset.recent) addImageUrl(recent[+t.dataset.recent]);
     else if (t.dataset.shape) addShape(t.dataset.shape);
     else if (t.dataset.color) applyColor(t.dataset.color);
+    else if (t.dataset.tpl) useTemplate(t.dataset.tpl);
+    else if (t.dataset.drawTool) { draw.tool = t.dataset.drawTool; startDraw(); renderPanel('draw'); }
+    else if (t.dataset.drawColor) { draw.color = t.dataset.drawColor; applyBrush(); renderPanel('draw'); }
+    else if (t.id === 'dr-done') openPanel(window.innerWidth > 820 ? 'layers' : null);
   });
-  $('#ed-panel').addEventListener('input', function (e) { if (e.target.id === 'col-pick') applyColor(e.target.value, true); });
-  $('#ed-panel').addEventListener('change', function (e) { if (e.target.id === 'col-pick') commit(); });
+  $('#ed-panel').addEventListener('input', function (e) {
+    if (e.target.id === 'col-pick') applyColor(e.target.value, true);
+    if (e.target.id === 'dr-pick') { draw.color = e.target.value; applyBrush(); }
+    if (e.target.id === 'dr-size') { draw.size = +e.target.value; $('#dr-size-v').textContent = draw.size + 'px'; applyBrush(); }
+  });
+  $('#ed-panel').addEventListener('change', function (e) { if (e.target.id === 'col-pick') commit(); if (e.target.id === 'dr-pick') renderPanel('draw'); });
 
   function applyColor(c, live) {
     var o = active(), k = kindOf(o);
@@ -721,16 +1090,26 @@
     var names = Object.keys(FONTS).sort(function (a, b) { return (FONTS[b].cyr ? 1 : 0) - (FONTS[a].cyr ? 1 : 0) || a.localeCompare(b); });
     var hit = false;
     var opts = names.map(function (n) {
-      var sel = fam(n) === cur && !hit; if (sel) hit = true;
+      var sel = fam(n) === primary(cur) && !hit; if (sel) hit = true;
       return '<option value="' + esc(n) + '"' + (sel ? ' selected' : '') + '>' + esc(n) + (FONTS[n].cyr ? '  · Кирилл' : '') + '</option>';
     }).join('');
-    if (!hit) opts = '<option selected>' + esc(cur) + '</option>' + opts;
+    if (!hit) opts = '<option selected>' + esc(primary(cur)) + '</option>' + opts;
     return opts;
   }
   function hex(c) { return typeof c === 'string' && /^#[0-9a-f]{6}$/i.test(c) ? c : '#816dfb'; }
 
   function refreshCtx() {
     var o = active(), k = kindOf(o);
+    if (crop) {
+      ctx.innerHTML = '<span class="ctx-lbl">' + icon('crop') + '</span><span class="ctx-lbl">Хүрээг чирж, булангаар нь тохируулна</span><span class="sep"></span>' +
+        '<button type="button" class="tb ok" data-c="crop-ok">' + icon('check') + 'Тайрах</button><button type="button" class="tb" data-c="crop-cancel">Болих</button>';
+      ctx.hidden = false; return;
+    }
+    if (draw.on) {
+      ctx.innerHTML = '<span class="ctx-lbl">' + icon(draw.tool === 'eraser' ? 'eraser' : 'pen') + '</span><span class="ctx-lbl">' + (draw.tool === 'eraser' ? 'Зураас дээгүүр чирж арилгана' : 'Хуудас дээр чирж зурна') + '</span><span class="sep"></span>' +
+        '<button type="button" class="tb ok" data-c="draw-done">' + icon('check') + 'Дуусгах</button>';
+      ctx.hidden = false; return;
+    }
     if (!o) { ctx.hidden = true; ctx.innerHTML = ''; return; }
     var h = '';
     if (k === 'text') {
@@ -745,15 +1124,24 @@
         '<button type="button" class="ib' + (o.underline ? ' on' : '') + '" data-c="underline" title="Доогуур зураас (Ctrl+U)">' + icon('underline') + '</button>' +
         '<button type="button" class="ib" data-c="talign" title="Зэрэгцүүлэлт">' + icon(o.textAlign === 'left' ? 'alignL' : o.textAlign === 'right' ? 'alignR' : 'alignC') + '</button>' +
         '<button type="button" class="ib" data-c="caps" title="ТОМ / жижиг үсэг">' + icon('caps') + '</button>' +
-        '<div class="pop-wrap"><button type="button" class="ib" data-pop="spacing" title="Зай">' + icon('spacing') + '</button></div>';
+        '<div class="pop-wrap"><button type="button" class="ib" data-pop="spacing" title="Зай">' + icon('spacing') + '</button></div>' +
+        '<div class="pop-wrap"><button type="button" class="tb" data-pop="effects" title="Сүүдэр, хүрээ, дэвсгэр">' + icon('fx') + 'Эффект</button></div>';
     } else if (k === 'image') {
-      h += '<div class="pop-wrap"><button type="button" class="tb" data-pop="adjust">' + icon('adjust') + 'Засах</button></div>' +
-        '<button type="button" class="ib" data-c="flipX" title="Хэвтээ эргүүлэх">' + icon('flipH') + '</button>' +
-        '<button type="button" class="ib" data-c="flipY" title="Босоо эргүүлэх">' + icon('flipV') + '</button>' +
-        '<button type="button" class="tb" data-c="asbg" title="Хуудсыг бүтэн дүүргэх">' + icon('bg') + 'Дэвсгэр болгох</button>' +
+      h += '<div class="pop-wrap"><button type="button" class="tb" data-pop="adjust" title="Шүүлтүүр, гэрэл, өнгө">' + icon('adjust') + 'Засах</button></div>' +
+        '<button type="button" class="tb" data-c="crop" title="Тайрах">' + icon('crop') + 'Тайрах</button>' +
+        '<div class="pop-wrap"><button type="button" class="tb" data-pop="mask" title="Тойрог, бөөрөнхий хэлбэрт оруулах">' + icon('mask') + 'Хэлбэр</button></div>' +
+        '<button type="button" class="ib" data-c="rotate" title="90° эргүүлэх">' + icon('rotate') + '</button>' +
+        '<button type="button" class="ib" data-c="flipX" title="Хэвтээ толин тусгал">' + icon('flipH') + '</button>' +
+        '<button type="button" class="ib" data-c="flipY" title="Босоо толин тусгал">' + icon('flipV') + '</button>' +
         '<span class="sep"></span>' +
-        '<button type="button" class="tb" data-c="tool-bg" title="Design tools дээр дэвсгэрийг нь арилгах">' + icon('wand') + 'Дэвсгэр арилгах</button>' +
-        '<button type="button" class="tb" data-c="tool-up" title="Design tools дээр AI-аар томруулах">✦ Томруулах</button>';
+        '<button type="button" class="tb" data-c="rmbg" title="AI-аар арын дэвсгэрийг арилгах">' + icon('wand') + 'Дэвсгэр арилгах</button>' +
+        '<button type="button" class="tb" data-c="asbg" title="Хуудсыг бүтэн дүүргэх">' + icon('bg') + 'Дэвсгэр болгох</button>' +
+        '<div class="pop-wrap"><button type="button" class="tb" data-pop="effects" title="Сүүдэр">' + icon('fx') + 'Эффект</button></div>' +
+        '<button type="button" class="tb" data-c="tool-up" title="Design tools дээр AI-аар 2–4 дахин томруулах">✦ Томруулах</button>';
+    } else if (k === 'group') {
+      h += '<span class="ctx-lbl">Бүлэг · ' + o.getObjects().length + ' зүйл</span>' +
+        '<button type="button" class="tb" data-c="ungroup" title="Задлах (Ctrl+Shift+G)">' + icon('group') + 'Задлах</button>' +
+        '<div class="pop-wrap"><button type="button" class="tb" data-pop="effects">' + icon('fx') + 'Эффект</button></div>';
     } else if (k === 'shape' || k === 'line') {
       var col = k === 'line' ? o.stroke : o.fill;
       h += '<label class="ctx-sw" title="Өнгө"><i style="background:' + hex(col) + '"></i><input type="color" data-c="' + (k === 'line' ? 'stroke' : 'fill') + '" value="' + hex(col) + '"></label>';
@@ -761,8 +1149,10 @@
         '<input class="fld num" data-c="strokeWidth" type="number" min="0" max="200" value="' + Math.round(o.strokeWidth && o.stroke ? o.strokeWidth : 0) + '" title="Хүрээний зузаан">';
       else h += '<input class="fld num" data-c="strokeWidth" type="number" min="1" max="200" value="' + Math.round(o.strokeWidth) + '" title="Зузаан">';
       if (o.isType('rect')) h += '<span class="ctx-lbl">Булан</span><input class="fld num" data-c="radius" type="number" min="0" max="2000" value="' + Math.round(o.rx || 0) + '" title="Булангийн радиус">';
+      h += '<div class="pop-wrap"><button type="button" class="tb" data-pop="effects" title="Сүүдэр">' + icon('fx') + 'Эффект</button></div>';
     } else if (k === 'multi') {
-      h += '<span class="ctx-lbl">' + o.getObjects().length + ' зүйл сонгосон</span>';
+      h += '<span class="ctx-lbl">' + o.getObjects().length + ' зүйл сонгосон</span>' +
+        '<button type="button" class="tb" data-c="group" title="Бүлэглэх (Ctrl+G)">' + icon('group') + 'Бүлэглэх</button>';
     }
     h += '<span class="sep"></span>' +
       '<div class="pop-wrap"><button type="button" class="ib" data-pop="opacity" title="Тунгалаг байдал">' + icon('opacity') + '</button></div>' +
@@ -775,15 +1165,23 @@
     var wasHidden = ctx.hidden;
     ctx.innerHTML = h; ctx.hidden = false;
     if (wasHidden && canvas.getZoom() && !restoring) { /* keep view */ }
-    if (k === 'text') ensureFont(o.fontFamily);
+    if (k === 'text') ensureFont(primary(o.fontFamily));
     if (activePanel === 'color') renderPanel('color');
   }
 
   ctx.addEventListener('click', function (e) {
     var b = e.target.closest('[data-c],[data-pop]'); if (!b) return;
+    var c = b.dataset.c;
+    if (c === 'crop-ok') { endCrop(true); return; }
+    if (c === 'crop-cancel') { endCrop(false); return; }
+    if (c === 'draw-done') { openPanel(window.innerWidth > 820 ? 'layers' : null); return; }
     var o = active(); if (!o) return;
     if (b.dataset.pop) { openCtxPop(b, b.dataset.pop); return; }
-    var c = b.dataset.c;
+    if (c === 'crop') { startCrop(); return; }
+    if (c === 'rmbg') { b.disabled = true; removeBackground(o).then(function () { refreshCtx(); }); return; }
+    if (c === 'rotate') { o.rotate(((o.angle || 0) + 90) % 360); o.setCoords(); canvas.requestRenderAll(); commit(); }
+    if (c === 'group') { groupSel(); return; }
+    if (c === 'ungroup') { ungroupSel(); return; }
     if (c === 'size+' || c === 'size-') {
       var cur = Math.round(o.fontSize * (o.scaleY || 1)), step = cur < 30 ? 2 : cur < 100 ? 4 : 10;
       setFontSize(cur + (c === 'size+' ? step : -step));
@@ -818,7 +1216,7 @@
     var o = active(); if (!o) return;
     if (c === 'font') {
       var family = fam(v);
-      ensureFont(v).then(function () { eachSel(function (x) { if (x.isType('textbox')) { x.set('fontFamily', family); refreshText(x); } }); commit(); });
+      ensureFont(v).then(function () { eachSel(function (x) { if (x.isType('textbox')) { x.set('fontFamily', stack(v)); refreshText(x); } }); commit(); });
     }
     if (c === 'size') setFontSize(+v);
     if (c === 'fill' || c === 'stroke') commit();
@@ -841,11 +1239,41 @@
     if (kind === 'spacing') h = row('Үсэг хоорондын зай', 'charSpacing', -200, 800, Math.round(o.charSpacing || 0), '') + row('Мөр хоорондын зай', 'lineHeight', 70, 300, Math.round((o.lineHeight || 1.16) * 100), '%');
     if (kind === 'adjust') {
       var gv = function (T, key, d) { var f = getFilter(o, T); return f ? f[key] : d; };
-      h = row('Гэрэлтэлт', 'brightness', -100, 100, Math.round(gv(F.Brightness, 'brightness', 0) * 100), '') +
+      var cur = presetOf(o);
+      h = '<p class="pop-t">Шүүлтүүр</p><div class="pre-grid">' + PRESETS.map(function (p) {
+          return '<button type="button" class="pre' + (p[0] === cur ? ' on' : '') + '" data-preset="' + p[0] + '"><i class="pre-' + p[0] + '" style="background-image:url(\'' + (o.getSrc ? o.getSrc() : '') + '\')"></i><span>' + p[1] + '</span></button>';
+        }).join('') + '</div>' +
+        '<p class="pop-t">Тохируулга</p>' +
+        row('Гэрэлтэлт', 'brightness', -100, 100, Math.round(gv(F.Brightness, 'brightness', 0) * 100), '') +
         row('Контраст', 'contrast', -100, 100, Math.round(gv(F.Contrast, 'contrast', 0) * 100), '') +
         row('Ханалт', 'saturation', -100, 100, Math.round(gv(F.Saturation, 'saturation', 0) * 100), '') +
+        row('Өнгөний тон', 'hue', -100, 100, Math.round(gv(F.HueRotation, 'rotation', 0) * 100), '') +
         row('Бүдгэрүүлэх', 'blur', 0, 100, Math.round(gv(F.Blur, 'blur', 0) * 100), '') +
         '<button type="button" data-reset-filters>Анхны байдалд нь буцаах</button>';
+    }
+    if (kind === 'mask') {
+      var mk = o.clipPath && o.clipPath.gMask || 'none';
+      h = '<p class="pop-t">Зургийг хэлбэрт оруулах</p>' +
+        [['none', 'Анхны (тэгш өнцөгт)'], ['rounded', 'Бөөрөнхий булантай'], ['circle', 'Тойрог'], ['oval', 'Зууван'], ['arch', 'Нуман хаалга']].map(function (m) {
+          return '<button type="button" data-mask="' + m[0] + '"' + (m[0] === mk ? ' class="on"' : '') + '>' + m[1] + (m[0] === mk ? ' <i>✓</i>' : '') + '</button>';
+        }).join('');
+    }
+    if (kind === 'effects') {
+      var sh = shadowOf(o), sp = rgbaParts(sh && sh.color), isText = kindOf(o) === 'text';
+      h = '<p class="pop-t">Сүүдэр</p>' +
+        '<label class="chk"><input type="checkbox" data-fx="shadow"' + (sh ? ' checked' : '') + '> Сүүдэр нэмэх</label>' +
+        '<div class="fx-sub"' + (sh ? '' : ' hidden') + '>' +
+          row('Бүдэг', 'sBlur', 0, 200, Math.round(sh ? sh.blur : W * 0.02), '') +
+          row('Зай', 'sOff', -100, 100, Math.round(sh ? sh.offsetX : W * 0.008), '') +
+          row('Тод байдал', 'sAlpha', 0, 100, Math.round(sp.a * 100), '%') +
+          '<div class="row"><label>Өнгө</label><input type="color" data-fx="sColor" value="' + sp.hex + '"></div>' +
+        '</div>' +
+        (isText ? '<p class="pop-t">Хүрээ (outline)</p>' +
+          row('Зузаан', 'oWidth', 0, 40, Math.round(o.stroke ? o.strokeWidth : 0), '') +
+          '<div class="row"><label>Өнгө</label><input type="color" data-fx="oColor" value="' + hex(o.stroke || '#000000') + '"></div>' +
+          '<p class="pop-t">Текстийн дэвсгэр</p>' +
+          '<label class="chk"><input type="checkbox" data-fx="tbg"' + (o.textBackgroundColor ? ' checked' : '') + '> Дэвсгэр өнгө</label>' +
+          '<div class="row"' + (o.textBackgroundColor ? '' : ' hidden') + ' data-tbg-row><label>Өнгө</label><input type="color" data-fx="tbgColor" value="' + hex(o.textBackgroundColor || '#816dfb') + '"></div>' : '');
     }
     if (kind === 'align') {
       h = '<p class="pop-t">Хуудсанд зэрэгцүүлэх</p>' +
@@ -868,13 +1296,49 @@
       if (k === 'contrast') setFilter(o, F.Contrast, 'contrast', v / 100, 0);
       if (k === 'saturation') setFilter(o, F.Saturation, 'saturation', v / 100, 0);
       if (k === 'blur') setFilter(o, F.Blur, 'blur', v / 100, 0);
+      if (k === 'hue') setFilter(o, F.HueRotation, 'rotation', v / 100, 0);
+      if (k === 'sBlur' || k === 'sOff' || k === 'sAlpha') {
+        var s = shadowOf(o), parts = rgbaParts(s && s.color);
+        eachSel(function (x) {
+          setShadow(x, true, {
+            blur: k === 'sBlur' ? v : null, offset: k === 'sOff' ? v : null,
+            color: k === 'sAlpha' ? rgba(parts.hex, v / 100) : null
+          });
+        });
+      }
+      if (k === 'oWidth') eachSel(function (x) { x.set({ strokeWidth: v, stroke: v ? (x.stroke || '#000000') : null, paintFirst: 'stroke', strokeUniform: true }); if (x.initDimensions) x.initDimensions(); });
       canvas.requestRenderAll();
     });
-    p.addEventListener('change', commit);
+    p.addEventListener('input', function (e) {
+      var f = e.target.dataset.fx; if (!f || e.target.type !== 'color') return;
+      var v = e.target.value;
+      if (f === 'sColor') { var a = rgbaParts((shadowOf(o) || {}).color).a; eachSel(function (x) { setShadow(x, true, { color: rgba(v, a) }); }); }
+      if (f === 'oColor') eachSel(function (x) { x.set({ stroke: v, paintFirst: 'stroke' }); if (!x.strokeWidth) x.set('strokeWidth', 4); });
+      if (f === 'tbgColor') eachSel(function (x) { x.set('textBackgroundColor', v); });
+      canvas.requestRenderAll();
+    });
+    p.addEventListener('change', function (e) {
+      var f = e.target.dataset.fx;
+      if (f === 'shadow') {
+        var on = e.target.checked;
+        eachSel(function (x) { setShadow(x, on, {}); });
+        p.querySelector('.fx-sub').hidden = !on;
+        canvas.requestRenderAll();
+      }
+      if (f === 'tbg') {
+        var tb = e.target.checked;
+        eachSel(function (x) { x.set('textBackgroundColor', tb ? (p.querySelector('[data-fx="tbgColor"]').value) : ''); });
+        p.querySelector('[data-tbg-row]').hidden = !tb;
+        canvas.requestRenderAll();
+      }
+      commit();
+    });
     p.addEventListener('click', function (e) {
       var b = e.target.closest('button'); if (!b) return;
       if (b.dataset.align) alignToPage(b.dataset.align);
       if (b.dataset.arr) arrange(b.dataset.arr);
+      if (b.dataset.preset) { setPreset(o, b.dataset.preset); p.querySelectorAll('.pre').forEach(function (x) { x.classList.toggle('on', x === b); }); }
+      if (b.dataset.mask) { setMask(b.dataset.mask); closePop(); }
       if (b.hasAttribute('data-reset-filters')) { o.filters = []; o.applyFilters(); canvas.requestRenderAll(); commit(); closePop(); }
     });
     function row(label, k, min, max, val, unit) {
@@ -883,7 +1347,7 @@
   }
   document.addEventListener('mousedown', function (e) {
     if (openPop && !openPop.contains(e.target) && !e.target.closest('[data-pop]')) closePop();
-    if (!e.target.closest('.pop-wrap')) $$('.ed-top .pop').forEach(function (p) { p.hidden = true; });
+    if (!e.target.closest('.pop-wrap') && !e.target.closest('.help-pop')) $$('.ed-top .pop:not(.help-pop)').forEach(function (p) { p.hidden = true; });
   });
   canvas.on('selection:cleared', closePop);
 
@@ -950,25 +1414,20 @@
     }
   });
 
-  // send the whole design (or one image) to Design tools / Pro editor
+  // send the whole design (or one image) to a Design tools page; the design is saved first
   function handoff(blob, target) {
     if (!window.GHandoff) { toast('Илгээж чадсангүй'); return; }
     pushHistory();
     dbSet('doc', snapshot()).then(function () {
-      return window.GHandoff.put(blob, { name: fileBase() + '.png', target: target === 'pro' ? 'editor' : target });
+      return window.GHandoff.put(blob, { name: fileBase() + '.png', target: target });
     }).then(function () {
-      location.href = target === 'pro' ? '/editor/pro/' : '/tools/#' + target;
+      location.href = '/tools/' + target + '/';
     }).catch(function () { toast('Илгээж чадсангүй'); });
   }
   $('#ed-send-menu').addEventListener('click', function (e) {
     var b = e.target.closest('[data-send]'); if (!b) return;
     $('#ed-send-menu').hidden = true;
     toBlob(renderPage(1), 'image/png').then(function (bl) { handoff(bl, b.dataset.send); });
-  });
-  $('#ed-pro').addEventListener('click', function (e) {
-    e.preventDefault();
-    if (!userObjects().length) { location.href = '/editor/pro/'; return; }
-    toBlob(renderPage(1), 'image/png').then(function (bl) { handoff(bl, 'pro'); });
   });
   function sendObject(o, target) {
     var el = o.getElement(), c = document.createElement('canvas');
@@ -1022,6 +1481,13 @@
     if (e.code === 'Space' && !isTyping(e)) { if (!spaceDown) { spaceDown = true; canvas.defaultCursor = 'grab'; canvas.setCursor('grab'); } e.preventDefault(); return; }
     if (isTyping(e)) { if (e.key === 'Escape') { var t = active(); if (t && t.isEditing) { t.exitEditing(); canvas.requestRenderAll(); } } return; }
     var mod = e.ctrlKey || e.metaKey, k = e.key.toLowerCase(), o = active();
+    if (crop) {
+      if (e.key === 'Enter') { e.preventDefault(); endCrop(true); }
+      if (e.key === 'Escape') { e.preventDefault(); endCrop(false); }
+      return;
+    }
+    if (draw.on && e.key === 'Escape') { e.preventDefault(); openPanel(window.innerWidth > 820 ? 'layers' : null); return; }
+    if (mod && k === 'g') { e.preventDefault(); if (e.shiftKey) ungroupSel(); else groupSel(); return; }
     if (mod && k === 'z') { e.preventDefault(); if (e.shiftKey) redo(); else undo(); return; }
     if (mod && k === 'y') { e.preventDefault(); redo(); return; }
     if (mod && k === 'd') { e.preventDefault(); duplicate(); return; }
@@ -1061,7 +1527,7 @@
 
   loadDesignGuide().then(function () {
     // warm up the chosen pair so the first text looks right
-    var p = currentPair(); ensureFont(p.heading); ensureFont(p.body);
+    var p = currentPair(); ensureFont('Manrope'); ensureFont(p.heading); ensureFont(p.body);
     if (activePanel) renderPanel(activePanel);
     return dbGet('doc');
   }).then(function (saved) {

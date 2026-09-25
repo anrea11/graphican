@@ -540,3 +540,11 @@
 .tg-steps li span { display:grid; place-items:center; width:22px; height:22px; border-radius:50%; flex:none; font:700 11px/1 var(--body); color:#0a0a0c; background:linear-gradient(135deg, #e7e3fd, #816dfb); }
 .tg-sample { height:38px; font-size:13px; }
 @media (max-width:600px) { .tg-steps { flex-direction:column; } .tg-sample { width:100%; } }
+
+/* ---------- single tool pages ---------- */
+.tool-crumb { display:flex; align-items:center; gap:10px; padding:calc(84px + 28px) var(--gutter) 0; font:500 13px/1 var(--body); color:var(--muted); }
+.tool-crumb a { color:var(--muted); }
+.tool-crumb a:hover { color:#fff; }
+.tool-crumb b { color:#fff; font-weight:600; }
+.tool-crumb + .sec { padding-top:clamp(28px, 4vw, 48px); }
+.other-tools { padding-top:clamp(40px, 6vw, 72px); border-top:1px solid var(--line-soft); }

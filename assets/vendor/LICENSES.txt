@@ -1,0 +1,14 @@
+Third-party components used by graphican.online (Design tools and Editor)
+
+u2netp.onnx — U^2-Net (U2NETP), Qin et al. — Apache License 2.0
+  https://github.com/xuebinqin/U-2-Net  (ONNX export: https://github.com/danielgatis/rembg)
+realesr/ — Real-ESRGAN (general-x4v3, wdn-x4v3), Xintao Wang et al. — BSD 3-Clause
+  https://github.com/xinntao/Real-ESRGAN
+tf.min.js — TensorFlow.js — Apache License 2.0
+pdf.min.mjs / pdf.worker.min.mjs — PDF.js, Mozilla — Apache License 2.0
+pdf-lib.min.js — pdf-lib — MIT
+
+Loaded from jsDelivr at runtime:
+  Fabric.js 5.3.0 — MIT — https://github.com/fabricjs/fabric.js
+  ONNX Runtime Web — Microsoft — MIT — https://github.com/microsoft/onnxruntime
+  smartcrop.js — Jonas Wagner — MIT — https://github.com/jwagner/smartcrop.js
