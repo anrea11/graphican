@@ -1,3 +1,6 @@
 .github
 .git
 ЗААВАР.md
+worker
+wrangler.jsonc
+node_modules

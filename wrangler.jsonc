@@ -1,0 +1,13 @@
+{
+  // Graphican — static site + a tiny API (worker/index.js) for stock photos/videos in /editor.
+  // Secrets (Cloudflare dashboard → Workers & Pages → graphican → Settings → Variables and Secrets):
+  //   PEXELS_KEY, PIXABAY_KEY
+  "name": "graphican",
+  "main": "worker/index.js",
+  "compatibility_date": "2025-09-01",
+  "assets": {
+    "directory": ".",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*"]
+  }
+}

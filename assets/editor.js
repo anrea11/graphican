@@ -1046,6 +1046,80 @@
     toast('«' + tp.name + '» — текстүүд дээр давхар дарж засна');
   }
 
+  // ---------- free stock media (Pexels / Pixabay via /api/stock on our Worker) ----------
+
+  var stock = { src: 'pexels', type: 'photo', q: '', page: 1, items: [], total: 0, loading: false, err: '' };
+  function stockPanel() {
+    var seg = function (key, opts) {
+      return '<div class="seg stk-seg">' + opts.map(function (o) {
+        return '<button type="button" class="' + (stock[key] === o[0] ? 'on' : '') + '" data-stk-' + key + '="' + o[0] + '">' + o[1] + '</button>';
+      }).join('') + '</div>';
+    };
+    return '<div class="sec-t">Үнэгүй зураг, видео</div>' +
+      seg('src', [['pexels', 'Pexels'], ['pixabay', 'Pixabay']]) +
+      seg('type', stock.src === 'pixabay' ? [['photo', 'Зураг'], ['vector', 'Вектор'], ['video', 'Видео']] : [['photo', 'Зураг'], ['video', 'Видео']]) +
+      '<form class="stk-form" id="stk-form"><input id="stk-q" type="search" placeholder="Хайх (англиар: coffee, city…)" value="' + esc(stock.q) + '" aria-label="Зураг хайх"><button type="submit" class="btn acc">Хайх</button></form>' +
+      '<div id="stk-res"></div>';
+  }
+  function renderStock() {
+    var el = document.getElementById('stk-res'); if (!el) return;
+    if (stock.err === 'no_key') { el.innerHTML = '<p class="note">' + (stock.src === 'pexels' ? 'Pexels' : 'Pixabay') + '-ийн API түлхүүр хараахан тохируулагдаагүй байна.</p>'; return; }
+    if (stock.err) { el.innerHTML = '<p class="note">Ачаалж чадсангүй. Дахин оролдоно уу.</p>'; return; }
+    if (!stock.items.length) { el.innerHTML = stock.loading ? '<p class="note">Хайж байна…</p>' : '<p class="note">Юу ч олдсонгүй. Өөр үгээр (англиар) хайгаад үзээрэй.</p>'; return; }
+    el.innerHTML = '<div class="stk-grid">' + stock.items.map(function (it, i) {
+      return '<button type="button" class="stk-it' + (it.kind === 'video' ? ' vid' : '') + '" data-stock="' + i + '" title="' + esc((it.alt || '') + ' — ' + (it.author || '')) + '" style="aspect-ratio:' + (it.w && it.h ? Math.max(.6, Math.min(1.8, it.w / it.h)) : 1) + '">' +
+        '<img src="' + esc(it.thumb) + '" alt="' + esc(it.alt || it.author || '') + '" loading="lazy" referrerpolicy="no-referrer">' +
+        (it.kind === 'video' ? '<span class="stk-dur">▶ ' + (it.dur ? Math.round(it.dur) + 'с' : '') + '</span>' : '') + '</button>';
+    }).join('') + '</div>' +
+      (stock.items.length < stock.total ? '<button type="button" class="btn full" data-stk-more="1" style="margin-top:8px">' + (stock.loading ? 'Ачаалж байна…' : 'Цааш үзэх') + '</button>' : '') +
+      '<p class="note stk-credit">Зураг, видео: <a href="' + (stock.src === 'pexels' ? 'https://www.pexels.com' : 'https://pixabay.com') + '" target="_blank" rel="noopener">' + (stock.src === 'pexels' ? 'Pexels' : 'Pixabay') + '</a> — арилжааны ажилд ч үнэгүй, заавал нэр дурдах шаардлагагүй. Зураг дээр дарахад canvas-д орно.</p>';
+  }
+  function loadStock(more) {
+    if (stock.loading) return;
+    if (!more) { stock.page = 1; stock.items = []; stock.total = 0; }
+    stock.loading = true; stock.err = ''; renderStock();
+    fetch('/api/stock?src=' + stock.src + '&type=' + stock.type + '&q=' + encodeURIComponent(stock.q) + '&page=' + stock.page)
+      .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+      .then(function (x) {
+        if (!x.ok) { stock.err = x.d.error || 'err'; return; }
+        stock.items = stock.items.concat(x.d.items || []); stock.total = x.d.total || 0; stock.page++;
+      })
+      .catch(function () { stock.err = 'net'; })
+      .then(function () { stock.loading = false; renderStock(); });
+  }
+  function proxied(u, dl) { return '/api/stock/file?u=' + encodeURIComponent(u) + (dl ? '&dl=' + encodeURIComponent(dl) : ''); }
+  function useStock(it) {
+    if (it.kind === 'video') return openStockVideo(it);
+    toast('Зураг ачаалж байна…');
+    fetch(proxied(it.full)).then(function (r) { if (!r.ok) throw 0; return r.blob(); })
+      .then(function (b) { return addImageBlob(b); })
+      .catch(function () { toast('Зургийг татаж чадсангүй'); });
+  }
+  function openStockVideo(it) {
+    var m = document.createElement('div');
+    m.className = 'stk-modal';
+    m.innerHTML = '<div class="stk-box" role="dialog" aria-modal="true" aria-label="Видео">' +
+      '<video src="' + esc(proxied(it.preview || it.full)) + '" crossorigin="anonymous" controls autoplay muted loop playsinline></video>' +
+      '<div class="stk-bar"><span>' + esc(it.author || '') + ' · ' + (stock.src === 'pexels' ? 'Pexels' : 'Pixabay') + '</span>' +
+      '<button type="button" class="btn" data-v="frame">Энэ кадрыг зураг болгох</button>' +
+      '<a class="btn-primary" href="' + esc(proxied(it.full || it.preview, 'graphican-' + it.id + '.mp4')) + '" download>Видео татах (HD)</a>' +
+      '<button type="button" class="btn" data-v="close" aria-label="Хаах">✕</button></div>' +
+      '<p class="note">Editor нь зурган дизайн хийдэг тул видеог бүтнээр нь байршуулахгүй — хүссэн кадраа зураг болгож оруулах эсвэл видеог татаж Reels/монтаждаа ашиглаарай.</p></div>';
+    document.body.appendChild(m);
+    var v = m.querySelector('video');
+    function close() { v.pause(); m.remove(); }
+    m.addEventListener('click', function (e) {
+      if (e.target === m || e.target.closest('[data-v="close"]')) return close();
+      if (e.target.closest('[data-v="frame"]')) {
+        if (!v.videoWidth) return toast('Видео ачаалагдаж дуусаагүй байна');
+        var c = document.createElement('canvas'); c.width = v.videoWidth; c.height = v.videoHeight;
+        c.getContext('2d').drawImage(v, 0, 0);
+        c.toBlob(function (b) { if (b) { addImageBlob(b); close(); } }, 'image/jpeg', .92);
+      }
+    });
+    document.addEventListener('keydown', function k(e) { if (e.key === 'Escape') { close(); document.removeEventListener('keydown', k); } });
+  }
+
   // ---------- left panel ----------
 
   var lpTab = 'layers', dragLy = null;
@@ -1117,10 +1191,25 @@
           return '<button type="button" class="tpl" data-tpl="' + t.id + '"><span class="tpl-prev" style="width:' + Math.round(t.w * k) + 'px;height:' + Math.round(t.h * k) + 'px;background:' + t.sw[0] + '"><i style="background:' + t.sw[1] + '"></i><i style="background:' + t.sw[2] + '"></i></span><b>' + esc(t.name) + '</b><span>' + t.w + '×' + t.h + '</span></button>';
         }).join('') + '</div><p class="note">Загвар бүр шинэ frame болж нэмэгдэнэ (одоогийн frame хоосон бол түүнийг ашиглана).</p>';
     }
+    if (lpTab === 'stock') h = stockPanel();
     el.innerHTML = h;
+    if (lpTab === 'stock') { renderStock(); if (!stock.items.length && !stock.loading && !stock.err) loadStock(); }
   }
 
+  $('#lp-body').addEventListener('submit', function (e) {
+    if (e.target.id !== 'stk-form') return;
+    e.preventDefault(); stock.q = document.getElementById('stk-q').value.trim(); loadStock();
+  });
   $('#lp-body').addEventListener('click', function (e) {
+    var sk = e.target.closest('[data-stk-src],[data-stk-type],[data-stock],[data-stk-more]');
+    if (sk) {
+      var sd = sk.dataset;
+      if (sd.stkSrc) { stock.src = sd.stkSrc; if (stock.src === 'pexels' && stock.type === 'vector') stock.type = 'photo'; renderLeft(); loadStock(); }
+      else if (sd.stkType) { stock.type = sd.stkType; renderLeft(); loadStock(); }
+      else if (sd.stkMore) loadStock(true);
+      else useStock(stock.items[+sd.stock]);
+      return;
+    }
     var t = e.target.closest('button,[data-ly]'); if (!t) return;
     var all = canvas.getObjects(), d = t.dataset;
     if (d.lyLock) { var lo = all[+d.lyLock]; lockObj(lo, !lo.locked); canvas.requestRenderAll(); commit(); refreshUI(); return; }
