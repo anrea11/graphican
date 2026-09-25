@@ -83,7 +83,13 @@
     sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
     moon: '<path d="M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5Z"/>',
     check: '<path d="m5 12 5 5L20 7"/>', frameI: '<path d="M8 3v18M16 3v18M3 8h18M3 16h18"/>', textI: '<path d="M6 7V5h12v2M12 5v14M9 19h6"/>',
-    shapeI: '<rect x="4" y="4" width="16" height="16" rx="2"/>', pathI: '<path d="M4 18c3-8 6 4 9-4s5-6 7-4"/>'
+    shapeI: '<rect x="4" y="4" width="16" height="16" rx="2"/>', pathI: '<path d="M4 18c3-8 6 4 9-4s5-6 7-4"/>',
+    penTool: '<path d="M12 19l7-7 3 3-7 7-3-3Z"/><path d="m18 13-1.5-7.5L2 2l3.5 14.5L13 18l5-5Z"/><path d="m2 2 7.6 7.6"/><circle cx="11" cy="11" r="2"/>',
+    ink: '<path d="M18.4 2.6a2 2 0 0 1 3 3L14 13l-3-3 7.4-7.4Z"/><path d="M11 10c-3 0-5 2-5 5 0 2-1 3-3 4 3 2 8 2 10-1 1.5-2 1-4-2-8Z"/>',
+    neon: '<path d="M4 17c3-8 6 3 9-3s5-6 7-3"/><path d="M4 17c3-8 6 3 9-3s5-6 7-3" stroke-width="5" opacity=".25"/>',
+    dots: '<circle cx="6" cy="16" r="2"/><circle cx="11" cy="11" r="2"/><circle cx="16" cy="9" r="2"/><circle cx="20" cy="5" r="1.5"/>',
+    hatch: '<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 12 12 4M4 18 18 4M9 20 20 9M15 20l5-5"/>',
+    maskI: '<circle cx="9" cy="12" r="6"/><path d="M13 7.5A6 6 0 1 1 13 16.5" stroke-dasharray="2 2"/><rect x="11" y="4" width="10" height="16" rx="2"/>'
   };
   function icon(n) { return '<svg class="i" viewBox="0 0 24 24" aria-hidden="true">' + (P[n] || '') + '</svg>'; }
 
@@ -165,7 +171,7 @@
 
   var ACC = '#6d56fa';
   var PROPS = ['id', 'name', 'isFrame', 'gTransparent', 'gMask', 'gMaskR', 'locked', 'selectable', 'evented', 'hasControls',
-    'lockMovementX', 'lockMovementY', 'lockScalingX', 'lockScalingY', 'lockRotation', 'hoverCursor', 'perPixelTargetFind'];
+    'lockMovementX', 'lockMovementY', 'lockScalingX', 'lockScalingY', 'lockRotation', 'hoverCursor', 'perPixelTargetFind'].concat(window.GFX ? window.GFX.EXTRA : []);
   var stage = $('#stage');
   var page = null, W = 1080, H = 1350;            // page = current frame
   var exporting = false, restoring = false, guides = [], labelRects = [];
@@ -427,21 +433,24 @@
         '<div class="menu up" id="shape-menu" hidden>' + Object.keys(SHAPE_NAMES).map(function (k) {
           return '<button type="button" data-shape="' + k + '">' + icon(k) + '<span style="flex:1">' + SHAPE_NAMES[k] + '</span><i>' + (SHAPE_KEYS[k] || '') + '</i></button>';
         }).join('') + '</div></div>' +
-      t('text', 'text', 'Текст (T)') + t('draw', 'pen', 'Зурах (P)') +
+      t('text', 'text', 'Текст (T)') + t('vector', 'penTool', 'Pen — вектор (P): дарах = цэг, чирэх = муруй, эхний цэгийг дарж хаана') + t('draw', 'pen', 'Бийр, харандаа (B)') +
       '<span class="sep"></span><button type="button" class="tool" data-act="upload" title="Зураг оруулах">' + icon('image') + '</button>';
   }
   function setTool(id) {
     if (crop) endCrop(false);
     if (tool === 'draw' && id !== 'draw') stopDraw();
+    if (tool === 'vector' && pen) penFinish(false);
+    if (vedit && id !== 'move') endVEdit();
     tool = id;
-    var making = ['frame', 'shape', 'text'].indexOf(id) >= 0;
+    var making = ['frame', 'shape', 'text', 'vector'].indexOf(id) >= 0;
     canvas.selection = id === 'move';
     canvas.skipTargetFind = making || id === 'hand' || (id === 'draw' && draw.tool === 'eraser');
     canvas.defaultCursor = making ? 'crosshair' : id === 'hand' ? 'grab' : 'default';
     canvas.hoverCursor = making ? 'crosshair' : id === 'hand' ? 'grab' : 'move';
     if (making || id === 'hand') { canvas.discardActiveObject(); canvas.requestRenderAll(); }
     if (id === 'draw') startDraw();
-    renderDock(); renderCtxbar();
+    if (id === 'vector') penStart();
+    renderDock(); renderCtxbar(); updateHint();
   }
   $('#dock').addEventListener('click', function (e) {
     if (e.target.closest('[data-shape-menu]')) { var m = $('#shape-menu'); m.hidden = !m.hidden; e.stopPropagation(); return; }
@@ -952,12 +961,7 @@
   function applyBrush() {
     if (draw.tool === 'eraser') { canvas.isDrawingMode = false; canvas.skipTargetFind = true; canvas.defaultCursor = 'cell'; return; }
     canvas.skipTargetFind = false; canvas.defaultCursor = 'default';
-    var b = draw.tool === 'spray' ? new fabric.SprayBrush(canvas) : new fabric.PencilBrush(canvas);
-    b.color = draw.tool === 'marker' ? mkCol(draw.color, 0.4) : draw.color;
-    b.width = draw.tool === 'marker' ? brushSize() * 2.5 : brushSize();
-    if (b.decimate != null) b.decimate = 2;
-    if (draw.tool === 'spray') { b.density = 30; b.dotWidth = Math.max(1, brushSize() / 6); }
-    canvas.freeDrawingBrush = b; canvas.isDrawingMode = true;
+    canvas.freeDrawingBrush = makeBrush(); canvas.isDrawingMode = true;
   }
   function startDraw() { canvas.discardActiveObject(); applyBrush(); canvas.selection = false; updateHint(); }
   function stopDraw() { canvas.isDrawingMode = false; canvas.selection = true; canvas.skipTargetFind = false; canvas.defaultCursor = 'default'; updateHint(); }
@@ -1133,7 +1137,7 @@
     var k = kindOf(o);
     if (k === 'text') return icon('textI');
     if (k === 'image') return icon('image');
-    if (k === 'group') return icon('group');
+    if (k === 'group') return icon(o.gMaskGroup ? 'maskI' : 'group');
     if (k === 'line') return icon(o.isType('path') ? 'pathI' : 'line');
     return icon(o.isType('ellipse') || o.isType('circle') ? 'ellipse' : o.isType('triangle') ? 'triangle' : o.isType('polygon') ? 'star' : 'shapeI');
   }
@@ -1327,8 +1331,11 @@
       '<button type="button" class="ib" data-a="del" title="Устгах (Delete)">' + icon('trash') + '</button></span></div>' +
       '<div class="ps-l" style="margin-top:0">' + (k === 'multi' ? 'Хооронд нь зэрэгцүүлэх' : 'Frame дотор зэрэгцүүлэх') + '</div>' + alignBtns() +
       (k === 'multi' ? '<div class="rowf" style="margin-top:6px"><button type="button" class="btn" style="flex:1" data-a="dist" data-v="H">' + icon('dH') + 'Хэвтээ тараах</button><button type="button" class="btn" style="flex:1" data-a="dist" data-v="V">' + icon('dV') + 'Босоо</button></div>' +
-        '<button type="button" class="btn acc full" style="margin-top:6px" data-a="group">' + icon('group') + 'Бүлэглэх (Ctrl+G)</button>' : '') +
-      (k === 'group' ? '<button type="button" class="btn full" style="margin-top:6px" data-a="ungroup">' + icon('group') + 'Задлах (Ctrl+Shift+G)</button>' : '') +
+        '<div class="r2" style="margin-top:6px"><button type="button" class="btn acc" data-a="group">' + icon('group') + 'Бүлэглэх</button><button type="button" class="btn" data-b="mask" title="Хамгийн доод давхарга нь маск болно (Ctrl+Alt+M)">' + icon('maskI') + 'Маск болгох</button></div>' : '') +
+      (k === 'group' && !o.gMaskGroup ? '<button type="button" class="btn full" style="margin-top:6px" data-a="ungroup">' + icon('group') + 'Задлах (Ctrl+Shift+G)</button>' : '') +
+      (k === 'group' && o.gMaskGroup ? '<div class="ps-l">Маск · «' + esc(o.gMaskGroup.name || '') + '»</div><label class="chk"><input type="checkbox" data-p="maskinv"' + (o.clipPath && o.clipPath.inverted ? ' checked' : '') + '> Урвуу маск (хэлбэрийн гадна талыг харуулах)</label>' +
+        '<button type="button" class="btn full" style="margin-top:6px" data-b="unmask">' + icon('maskI') + 'Маскыг задлах</button>' : '') +
+      (o.isType && o.isType('path') && k !== 'multi' ? '<button type="button" class="btn full' + (vedit ? ' acc' : '') + '" style="margin-top:6px" data-b="vedit">' + icon('penTool') + (vedit ? 'Цэг засахаа дуусгах' : 'Цэгүүдийг засах (давхар дарах)') + '</button>' : '') +
       '</div>';
     // position + layout
     h += '<div class="ps"><div class="ps-l" style="margin-top:0">Байрлал</div><div class="r2">' + nf('X', 'x', g.x) + nf('Y', 'y', g.y) + '</div>' +
@@ -1340,6 +1347,7 @@
     // appearance
     var radius = null;
     if (o.isType('rect')) radius = Math.round((o.rx || 0) * (o.scaleX || 1));
+    if (o.isType('triangle') || o.type === 'polygon') radius = Math.round((o.gRound || 0) * (o.scaleX || 1));
     if (k === 'image') radius = o.gMask === 'rounded' ? Math.round(o.gMaskR != null ? o.gMaskR : Math.min(o.width, o.height) * 0.12 * o.scaleX) : 0;
     h += '<div class="ps"><div class="ps-h">Харагдац</div><div class="r2">' + nf(icon('opacity'), 'op', Math.round((o.opacity == null ? 1 : o.opacity) * 100), { unit: '%', title: 'Тунгалаг байдал' }) +
       (radius !== null ? nf(icon('radius'), 'rad', radius, { title: 'Булангийн радиус' }) : '<span></span>') + '</div>' +
@@ -1362,7 +1370,7 @@
       var cur = presetOf(o), gv = function (T, key) { var ff = getFilter(o, T); return ff ? ff[key] : 0; };
       h += '<div class="ps"><div class="ps-h">Зураг</div>' +
         '<div class="r2"><button type="button" class="btn" data-a="crop">' + icon('crop') + 'Тайрах</button><button type="button" class="btn acc" data-a="rmbg">' + icon('wand') + 'Дэвсгэр арилгах</button></div>' +
-        '<div class="ps-l">Хэлбэр</div>' + sel('mask', [['none', 'Тэгш өнцөгт'], ['rounded', 'Бөөрөнхий булантай'], ['circle', 'Тойрог'], ['oval', 'Зууван'], ['arch', 'Нуман хаалга']], o.gMask || 'none') +
+        '<div class="ps-l">Маск хэлбэр</div>' + sel('mask', MASK_SHAPES, o.gMask || 'none') +
         '<div class="r2" style="margin-top:6px"><button type="button" class="btn" data-a="asbg">' + icon('bg') + 'Frame дүүргэх</button><button type="button" class="btn" data-a="upscale">✦ Томруулах ↗</button></div>' +
         '<div class="ps-l">Шүүлтүүр</div><div class="pre-grid">' + PRESETS.map(function (p) {
           return '<button type="button" class="pre' + (p[0] === cur ? ' on' : '') + '" data-a="preset" data-v="' + p[0] + '"><i class="pre-' + p[0] + '" style="background-image:url(\'' + o.getSrc() + '\')"></i>' + p[1] + '</button>';
@@ -1373,19 +1381,17 @@
         '<button type="button" class="btn full" style="margin-top:8px" data-a="resetf">Анхны байдалд нь</button></div>';
     }
     // fill
-    if (k === 'shape' || k === 'text') h += '<div class="ps"><div class="ps-h">Fill</div>' + colorRow('fill', typeof o.fill === 'string' ? o.fill : '#816dfb') + '</div>';
+    var closedPath = o.isType && o.isType('path') && (o.gPen ? o.gPen.closed : (o.path || []).some(function (c) { return c[0] === 'Z' || c[0] === 'z'; }));
+    if (k === 'shape' || k === 'text' || closedPath) h += '<div class="ps"><div class="ps-h">Fill' + (o.fill ? '' : '<span class="acts"><button type="button" class="ib" data-a="addfill" title="Нэмэх">' + icon('plus') + '</button></span>') + '</div>' + (o.fill ? paintUI('fill', o) : '') + '</div>';
     // stroke
     if (k !== 'multi' && k !== 'group') {
       var hasStroke = !!o.stroke && (o.strokeWidth > 0 || k === 'line');
-      h += '<div class="ps"><div class="ps-h">' + (k === 'text' ? 'Хүрээ (outline)' : 'Stroke') + '<span class="acts">' + (hasStroke ? '' : '<button type="button" class="ib" data-a="addstroke" title="Нэмэх">' + icon('plus') + '</button>') + '</span></div>' +
-        (hasStroke ? colorRow('stroke', o.stroke, k === 'line' ? null : 'rmstroke') + '<div class="r2" style="margin-top:6px">' + nf('≡', 'sw', r1(o.strokeWidth), { title: 'Зузаан' }) + '<span></span></div>' : '') + '</div>';
+      h += '<div class="ps"><div class="ps-h">' + (k === 'text' ? 'Хүрээ (outline)' : 'Stroke') + '<span class="acts">' + (hasStroke ? (k === 'line' ? '' : '<button type="button" class="ib" data-a="rmstroke" title="Stroke хасах">' + icon('minus') + '</button>') : '<button type="button" class="ib" data-a="addstroke" title="Нэмэх">' + icon('plus') + '</button>') + '</span></div>' +
+        (hasStroke ? paintUI('stroke', o) + strokeUI(o, k) : '') + '</div>';
     }
     // effects
-    var sh = o.shadow;
-    h += '<div class="ps"><div class="ps-h">Эффект<span class="acts">' + (sh ? '' : '<button type="button" class="ib" data-a="addshadow" title="Сүүдэр нэмэх">' + icon('plus') + '</button>') + '</span></div>' +
-      (sh ? '<div class="ps-l" style="margin-top:0">Drop shadow</div><div class="r3">' + nf('X', 'shx', Math.round(sh.offsetX)) + nf('Y', 'shy', Math.round(sh.offsetY)) + '<button type="button" class="ib rm" data-a="rmshadow" title="Хасах">' + icon('minus') + '</button></div>' +
-        '<div class="r2" style="margin-top:6px">' + nf('Blur', 'shb', Math.round(sh.blur)) + '<span></span></div><div style="margin-top:6px">' + colorRow('shc', sh.color) + '</div>' : '') +
-      (k === 'text' ? '<label class="chk" style="margin-top:8px"><input type="checkbox" data-p="tbg"' + (o.textBackgroundColor ? ' checked' : '') + '> Текстийн ард дэвсгэр өнгө</label>' + (o.textBackgroundColor ? '<div style="margin-top:6px">' + colorRow('tbgc', o.textBackgroundColor) + '</div>' : '') : '') + '</div>';
+    if (k !== 'multi') h += fxUI(o);
+    if (k === 'text') h += '<div class="ps"><label class="chk"><input type="checkbox" data-p="tbg"' + (o.textBackgroundColor ? ' checked' : '') + '> Текстийн ард дэвсгэр өнгө</label>' + (o.textBackgroundColor ? '<div style="margin-top:6px">' + colorRow('tbgc', o.textBackgroundColor) + '</div>' : '') + '</div>';
     // layer order
     h += '<div class="ps"><div class="ps-h">Давхаргын дараалал</div><div class="seg">' +
       [['top', 'up2', 'Хамгийн урд (Ctrl+Shift+])'], ['up', 'up1', 'Урагш (Ctrl+])'], ['down', 'dn1', 'Хойш (Ctrl+[)'], ['bottom', 'dn2', 'Хамгийн ард (Ctrl+Shift+[)']].map(function (a) {
@@ -1442,6 +1448,7 @@
     if (p === 'op' && n !== null) eachSel(function (x) { x.set('opacity', clamp(n, 0, 100) / 100); });
     if (p === 'rad' && n !== null) {
       if (o.isType('rect')) o.set({ rx: Math.max(0, n) / (o.scaleX || 1), ry: Math.max(0, n) / (o.scaleY || 1) });
+      if (o.isType('triangle') || o.type === 'polygon') o.set({ gRound: Math.max(0, n) / (o.scaleX || 1), dirty: true });
       if (kindOf(o) === 'image') fitMask(o, n > 0 ? 'rounded' : null, n);
     }
     if (p === 'blend') eachSel(function (x) { x.set('globalCompositeOperation', v); });
@@ -1456,9 +1463,10 @@
     if (p === 'sw' && n !== null) eachSel(function (x) { x.set({ strokeWidth: Math.max(0, n) }); if (x.isType('textbox')) { x.set({ paintFirst: 'stroke', strokeUniform: true }); x.initDimensions(); } });
     if ((p === 'shx' || p === 'shy' || p === 'shb') && n !== null) eachSel(function (x) { if (x.shadow) { x.shadow[{ shx: 'offsetX', shy: 'offsetY', shb: 'blur' }[p]] = n; x.set('dirty', true); } });
     if (/^shc/.test(p)) eachSel(function (x) { if (x.shadow) { x.shadow.color = colorFrom(p, 'shc', v, x.shadow.color); x.set('dirty', true); } });
+    if (p === 'maskinv' && o.clipPath) { o.clipPath.inverted = !!v; o.set('dirty', true); }
     if (p === 'tbg') eachSel(function (x) { x.set('textBackgroundColor', v ? '#e7e3fd' : ''); });
     if (/^tbgc/.test(p)) eachSel(function (x) { x.set('textBackgroundColor', colorFrom(p, 'tbgc', v, x.textBackgroundColor)); });
-    if (p === 'mask') fitMask(o, v === 'none' ? null : v);
+    if (p === 'mask') { if (!extraMask(o, v)) fitMask(o, v === 'none' ? null : v); }
     if (/^f-/.test(p) && n !== null) {
       var map = { 'f-bri': [F.Brightness, 'brightness'], 'f-con': [F.Contrast, 'contrast'], 'f-sat': [F.Saturation, 'saturation'], 'f-hue': [F.HueRotation, 'rotation'], 'f-blur': [F.Blur, 'blur'] }[p];
       setFilter(o, map[0], map[1], n / 100, 0);
@@ -1564,7 +1572,8 @@
       });
       commit();
     }
-    else if (a === 'rmstroke') { eachSel(function (x) { x.set({ stroke: null, strokeWidth: 0 }); }); commit(); }
+    else if (a === 'rmstroke') { eachSel(function (x) { x.set({ stroke: null, strokeWidth: 0, gPaintS: null, gStrokePos: null, dirty: true }); }); commit(); }
+    else if (a === 'addfill') { eachSel(function (x) { x.set({ fill: '#816dfb', gPaint: null }); }); commit(); }
     else if (a === 'addshadow') { eachSel(function (x) { x.set('shadow', new fabric.Shadow({ color: 'rgba(0,0,0,0.35)', blur: Math.round(Math.min(W, H) * 0.02), offsetX: 0, offsetY: Math.round(Math.min(W, H) * 0.01) })); }); commit(); }
     else if (a === 'rmshadow') { eachSel(function (x) { x.set('shadow', null); }); commit(); }
     else if (a === 'arr') arrange(v);
@@ -1580,20 +1589,28 @@
     var el = $('#ctxbar'), o = active(), k = kindOf(o), h = '';
     var btn = function (a, ic, label, title, extra) { return '<button type="button" class="tool' + (extra || '') + '" data-c="' + a + '" title="' + (title || label) + '">' + icon(ic) + (label ? '<span>' + label + '</span>' : '') + '</button>'; };
     if (crop) h = '<span class="ctx-lbl">Хүрээг чирж тохируулна</span><span class="sep"></span>' + btn('crop-ok', 'check', 'Тайрах', 'Enter', ' ok') + btn('crop-cancel', 'minus', 'Болих', 'Esc');
+    else if (tool === 'vector') {
+      h = '<span class="ctx-lbl">Дарах = цэг · чирэх = муруй · эхний цэгийг дарж хаана · давхар дарах / Enter = дуусгах</span><span class="sep"></span>' +
+        btn('pen-close', 'check', 'Хаах', 'Хэлбэр болгож хаах', ' ok') + btn('pen-done', 'minus', 'Нээлттэй дуусгах', 'Enter');
+    }
+    else if (vedit) {
+      h = '<span class="ctx-lbl">Цэг засах: чирэх · Alt+дарах муруй⇄булан · давхар дарах цэг нэмэх · Delete устгах</span><span class="sep"></span>' + btn('vedit-done', 'check', 'Дуусгах', 'Esc', ' ok');
+    }
     else if (tool === 'draw') {
       var cols = [draw.color].concat(DG.brand.slice(0, 3), ['#1e1e1e', '#ffffff', '#ff4fd8']).filter(function (c, i, a) { return c && a.indexOf(c) === i; }).slice(0, 7);
-      h = [['pen', 'pen', 'Үзэг'], ['marker', 'marker', 'Маркер'], ['spray', 'spray', 'Шүршигч'], ['eraser', 'eraser', 'Баллуур (зураасыг бүтнээр нь устгана)']].map(function (t) {
+      h = BRUSHES.map(function (t) {
           return '<button type="button" class="tool' + (draw.tool === t[0] ? ' on' : '') + '" data-draw="' + t[0] + '" title="' + t[2] + '">' + icon(t[1]) + '</button>';
         }).join('') + '<span class="sep"></span>' +
         cols.map(function (c) { return '<button type="button" class="tool" data-dcol="' + esc(c) + '" title="' + esc(c) + '"><span class="sw" style="background:' + esc(c) + ';' + (c === draw.color ? 'box-shadow:0 0 0 2px var(--acc)' : '') + '"></span></button>'; }).join('') +
         '<label class="tool" title="Өөр өнгө"><span class="csw" style="margin:0"><i style="background:conic-gradient(red,yellow,lime,cyan,blue,magenta,red)"></i><input type="color" data-dpick value="' + draw.color + '"></span></label>' +
-        '<span class="sep"></span><span class="ctx-lbl">Зузаан</span><input type="range" data-dsize min="1" max="' + Math.max(20, Math.round(Math.min(W, H) * 0.08)) + '" value="' + brushSize() + '" style="width:90px">' +
+        '<span class="sep"></span><span class="ctx-lbl">Зузаан</span><input type="range" data-dsize min="1" max="' + Math.max(20, Math.round(Math.min(W, H) * 0.08)) + '" value="' + brushSize() + '" style="width:80px">' +
+        '<span class="ctx-lbl">Тунгалаг</span><input type="range" data-dop min="10" max="100" value="' + Math.round((draw.op == null ? 1 : draw.op) * 100) + '" style="width:60px">' +
         '<span class="sep"></span>' + btn('draw-done', 'check', 'Дуусгах', 'Esc', ' ok');
     } else if (k === 'image') {
       h = btn('crop', 'crop', 'Тайрах') + btn('rmbg', 'wand', 'Дэвсгэр арилгах') + '<span class="sep"></span>' + btn('asbg', 'bg', '', 'Frame-ийг дүүргэх') +
         btn('rot90', 'rotate', '', '90° эргүүлэх') + btn('flipX', 'flipH', '', 'Хэвтээ толин тусгал') + btn('flipY', 'flipV', '', 'Босоо толин тусгал');
     } else if (k === 'multi') {
-      h = btn('group', 'group', 'Бүлэглэх', 'Ctrl+G') + '<span class="sep"></span>' + btn('alignL', 'aL', '', 'Зүүн') + btn('alignC', 'aC', '', 'Голлуулах') + btn('alignR', 'aR', '', 'Баруун') +
+      h = btn('group', 'group', 'Бүлэглэх', 'Ctrl+G') + btn('mask', 'maskI', 'Маск', 'Доод давхаргаар маск хийх (Ctrl+Alt+M)') + '<span class="sep"></span>' + btn('alignL', 'aL', '', 'Зүүн') + btn('alignC', 'aC', '', 'Голлуулах') + btn('alignR', 'aR', '', 'Баруун') +
         btn('alignT', 'aT', '', 'Дээд') + btn('alignM', 'aM', '', 'Дунд') + btn('alignB', 'aB', '', 'Доод');
     }
     el.innerHTML = h; el.hidden = !h;
@@ -1606,6 +1623,10 @@
     if (c === 'crop-ok') endCrop(true);
     if (c === 'crop-cancel') endCrop(false);
     if (c === 'draw-done') setTool('move');
+    if (c === 'pen-close') { penFinish(true); setTool('move'); return; }
+    if (c === 'pen-done') { setTool('move'); return; }
+    if (c === 'vedit-done') { endVEdit(); return; }
+    if (c === 'mask') { makeMask(); return; }
     if (c === 'crop') startCrop();
     if (c === 'rmbg' && o) { b.disabled = true; removeBackground(o).then(function () { b.disabled = false; }); return; }
     if (c === 'asbg') setAsBackground();
@@ -1618,6 +1639,7 @@
   });
   $('#ctxbar').addEventListener('input', function (e) {
     if (e.target.hasAttribute('data-dsize')) { draw.size = +e.target.value; applyBrush(); }
+    if (e.target.hasAttribute('data-dop')) { draw.op = +e.target.value / 100; applyBrush(); }
     if (e.target.hasAttribute('data-dpick')) { draw.color = e.target.value; applyBrush(); }
   });
   $('#ctxbar').addEventListener('change', function (e) { if (e.target.hasAttribute('data-dpick')) renderCtxbar(); });
@@ -1780,7 +1802,7 @@
     closeMenus();
     var m = document.createElement('div'); m.className = 'menu r help'; m.id = 'ed-help-menu';
     m.innerHTML = '<div class="mt">Товчлолууд</div>' + [
-      ['V · H', 'Сонгох · гар'], ['F · R · O · L', 'Frame · тэгш өнцөгт · эллипс · шугам'], ['T · P', 'Текст · зурах'],
+      ['V · H', 'Сонгох · гар'], ['F · R · O · L', 'Frame · тэгш өнцөгт · эллипс · шугам'], ['T · P · B', 'Текст · pen (вектор) · бийр'], ['Давхар дарах (зураас)', 'Цэгүүдийг засах'], ['Ctrl Alt M', 'Маск болгох'],
       ['Ctrl Z · Ctrl Shift Z', 'Буцаах · дахин хийх'], ['Ctrl C · V · D', 'Хуулах · буулгах · хувилах'], ['Delete', 'Устгах'],
       ['Ctrl G · Ctrl Shift G', 'Бүлэглэх · задлах'], ['Ctrl ] · [', 'Урагш · хойш'], ['Сумнууд (+Shift)', '1px (10px) зөөх'],
       ['Enter · давхар дарах', 'Текст засах'], ['Space + чирэх · дугуй', 'Гүйлгэх'], ['Ctrl + дугуй', 'Томруулах'],
@@ -1840,6 +1862,10 @@
     if (isTyping(e)) { if (e.key === 'Escape') { var t = active(); if (t && t.isEditing) { t.exitEditing(); canvas.requestRenderAll(); } } return; }
     var mod = e.ctrlKey || e.metaKey, k = e.key.toLowerCase(), o = active();
     if (crop) { if (e.key === 'Enter') { e.preventDefault(); endCrop(true); } if (e.key === 'Escape') { e.preventDefault(); endCrop(false); } return; }
+    if (tool === 'vector' && e.key === 'Enter') { e.preventDefault(); setTool('move'); return; }
+    if (vedit && (e.key === 'Escape' || e.key === 'Enter')) { e.preventDefault(); endVEdit(); return; }
+    if (vedit && (e.key === 'Delete' || e.key === 'Backspace')) { e.preventDefault(); vDelete(); return; }
+    if (mod && e.altKey && k === 'm') { e.preventDefault(); makeMask(); return; }
     if (e.key === 'Escape' && tool !== 'move') { setTool('move'); return; }
     if (mod && k === 'z') { e.preventDefault(); if (e.shiftKey) redo(); else undo(); return; }
     if (mod && k === 'y') { e.preventDefault(); redo(); return; }
@@ -1860,7 +1886,7 @@
     if (e.shiftKey && e.code === 'Digit1') { fitAll(); return; }
     if (e.shiftKey && e.code === 'Digit2') { fitFrame(o && !o.isFrame ? frameOf(o) || page : o || page); return; }
     if (!mod && !e.altKey && !e.shiftKey) {
-      var tk = { v: 'move', h: 'hand', f: 'frame', t: 'text', p: 'draw' }[k];
+      var tk = { v: 'move', h: 'hand', f: 'frame', t: 'text', p: 'vector', b: 'draw' }[k];
       var sk = { r: 'rect', o: 'ellipse', l: 'line' }[k];
       if (tk) { setTool(tk); return; }
       if (sk) { shapeKind = sk; setTool('shape'); return; }
@@ -1878,9 +1904,639 @@
   });
   window.addEventListener('keyup', function (e) { if (e.code === 'Space') { spaceDown = false; canvas.setCursor(tool === 'hand' ? 'grab' : 'default'); } });
 
+  // ================= PRO tools: pen & vector points, brushes, paints, stroke, effects, masks =================
+
+  var GX = window.GFX;
+  function dcopy(v) { return v == null ? v : JSON.parse(JSON.stringify(v)); }
+  function zoomNow() { return canvas.getZoom() || 1; }
+
+  // ---------- pen tool (P): click = corner, drag = curve, click the first point = close ----------
+  var pen = null, vedit = null;
+  function penStart() { pen = { pts: [], drag: false, hover: null }; canvas.discardActiveObject(); canvas.requestRenderAll(); }
+  function penD(pts, closed) {
+    if (!pts.length) return '';
+    var d = 'M ' + r1(pts[0].x) + ' ' + r1(pts[0].y);
+    function seg(a, b) {
+      if (a.ho || b.hi) { var c1 = a.ho || a, c2 = b.hi || b; d += ' C ' + r1(c1.x) + ' ' + r1(c1.y) + ' ' + r1(c2.x) + ' ' + r1(c2.y) + ' ' + r1(b.x) + ' ' + r1(b.y); }
+      else d += ' L ' + r1(b.x) + ' ' + r1(b.y);
+    }
+    for (var i = 1; i < pts.length; i++) seg(pts[i - 1], pts[i]);
+    if (closed && pts.length > 2) { seg(pts[pts.length - 1], pts[0]); d += ' Z'; }
+    return d;
+  }
+  function penFinish(closed) {
+    var p = pen; pen = null;
+    if (!p) return;
+    // a double-click leaves a duplicate last point
+    var n = p.pts.length;
+    if (n > 1 && Math.hypot(p.pts[n - 1].x - p.pts[n - 2].x, p.pts[n - 1].y - p.pts[n - 2].y) < 1 / zoomNow()) p.pts.pop();
+    if (p.pts.length < 2) { canvas.requestRenderAll(); return; }
+    var sw = Math.max(2, Math.round(Math.min(W, H) * 0.004));
+    var o = new fabric.Path(penD(p.pts, closed), {
+      fill: closed ? '#816dfb' : '', stroke: '#1e1e1e', strokeWidth: sw, strokeLineCap: 'round', strokeLineJoin: 'round', strokeUniform: true,
+      name: closed ? 'Вектор хэлбэр' : 'Вектор зураас', perPixelTargetFind: !closed
+    });
+    o.gPen = { pts: dcopy(p.pts), closed: !!closed };
+    canvas.add(o); canvas.setActiveObject(o); commit(); refreshUI();
+  }
+  canvas.on('mouse:down', function (o) {
+    if (tool !== 'vector' || spaceDown || o.e.button === 1) return;
+    if (!pen) penStart();
+    var pt = canvas.getPointer(o.e), tol = 9 / zoomNow();
+    if (pen.pts.length >= 2 && Math.hypot(pt.x - pen.pts[0].x, pt.y - pen.pts[0].y) < tol) { penFinish(true); setTool('move'); return; }
+    pen.pts.push({ x: pt.x, y: pt.y }); pen.drag = true; canvas.requestRenderAll();
+  });
+  canvas.on('mouse:move', function (o) {
+    if (tool !== 'vector' || !pen) return;
+    var pt = canvas.getPointer(o.e); pen.hover = pt;
+    if (pen.drag && pen.pts.length) {
+      var a = pen.pts[pen.pts.length - 1];
+      if (Math.hypot(pt.x - a.x, pt.y - a.y) > 2 / zoomNow()) {
+        a.ho = { x: pt.x, y: pt.y };
+        if (!o.e.altKey) a.hi = { x: 2 * a.x - pt.x, y: 2 * a.y - pt.y };
+      }
+    }
+    canvas.requestRenderAll();
+  });
+  canvas.on('mouse:up', function () { if (pen) pen.drag = false; });
+  canvas.on('mouse:dblclick', function (o) {
+    if (tool === 'vector') { penFinish(false); setTool('move'); return; }
+    var t = o.target;
+    if (vedit && t === vedit.o) { vInsertAt(t, canvas.getPointer(o.e)); return; }
+    if (t && tool === 'move' && t.isType('path') && !t.locked) startVEdit(t);
+  });
+
+  // overlay: pen preview, anchors and handles (never drawn into exports)
+  canvas.on('after:render', function (ev) {
+    var ctx = ev && ev.ctx; if (exporting || !ctx || ctx !== canvas.contextContainer) return;
+    if (!(pen && pen.pts.length) && !vedit) return;
+    var v = canvas.viewportTransform, z = v[0];
+    var P2 = function (p) { return { x: p.x * z + v[4], y: p.y * z + v[5] }; };
+    ctx.save();
+    if (canvas.enableRetinaScaling) { var r = canvas.getRetinaScaling(); ctx.setTransform(r, 0, 0, r, 0, 0); } else ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.lineWidth = 1.5; ctx.strokeStyle = ACC; ctx.fillStyle = '#fff';
+    if (pen && pen.pts.length) {
+      var pts = pen.pts.map(function (p) { return { x: P2(p).x, y: P2(p).y, hi: p.hi && P2(p.hi), ho: p.ho && P2(p.ho) }; });
+      ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
+      for (var i = 1; i < pts.length; i++) { var a = pts[i - 1], b = pts[i], c1 = a.ho || a, c2 = b.hi || b; ctx.bezierCurveTo(c1.x, c1.y, c2.x, c2.y, b.x, b.y); }
+      if (pen.hover && !pen.drag) { var l = pts[pts.length - 1], h = P2(pen.hover), c = l.ho || l; ctx.bezierCurveTo(c.x, c.y, h.x, h.y, h.x, h.y); }
+      ctx.stroke();
+      var last = pts[pts.length - 1];
+      [last.hi, last.ho].forEach(function (q) { if (!q) return; ctx.beginPath(); ctx.moveTo(last.x, last.y); ctx.lineTo(q.x, q.y); ctx.stroke(); ctx.beginPath(); ctx.arc(q.x, q.y, 3.5, 0, 7); ctx.fill(); ctx.stroke(); });
+      var nearFirst = pen.hover && pts.length >= 2 && Math.hypot(P2(pen.hover).x - pts[0].x, P2(pen.hover).y - pts[0].y) < 9;
+      pts.forEach(function (p, k) {
+        ctx.beginPath(); ctx.rect(p.x - 4, p.y - 4, 8, 8);
+        ctx.fillStyle = (k === 0 && nearFirst) || k === pts.length - 1 ? ACC : '#fff'; ctx.fill(); ctx.stroke();
+      });
+    }
+    if (vedit && vedit.o.canvas) {
+      var o = vedit.o, M = fabric.util.multiplyTransformMatrices(v, o.calcTransformMatrix());
+      var T = function (q) { var p = fabric.util.transformPoint({ x: q.x - o.pathOffset.x, y: q.y - o.pathOffset.y }, M); return p; };
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      if (canvas.enableRetinaScaling) { var rr = canvas.getRetinaScaling(); ctx.scale(rr, rr); }
+      ctx.strokeStyle = ACC; ctx.lineWidth = 1;
+      o.gPen.pts.forEach(function (p) {
+        var a = T(p);
+        [p.hi, p.ho].forEach(function (q) { if (!q) return; var b = T(q); ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); });
+      });
+    }
+    ctx.restore();
+  });
+
+  // ---------- vector point editing (double-click a path) ----------
+  function ptsFromPath(o) {
+    // pencil / imported paths: M, L, Q, C, Z → anchors with cubic handles
+    var pts = [], closed = false, cur = null;
+    (o.path || []).forEach(function (c) {
+      var k = c[0];
+      if (k === 'M') { cur = { x: c[1], y: c[2] }; if (!pts.length) pts.push(cur); }
+      else if (k === 'L') { cur = { x: c[1], y: c[2] }; pts.push(cur); }
+      else if (k === 'Q') {
+        var p0 = pts[pts.length - 1] || cur, q = { x: c[1], y: c[2] }, e = { x: c[3], y: c[4] };
+        p0.ho = { x: p0.x + 2 / 3 * (q.x - p0.x), y: p0.y + 2 / 3 * (q.y - p0.y) };
+        e.hi = { x: e.x + 2 / 3 * (q.x - e.x), y: e.y + 2 / 3 * (q.y - e.y) }; pts.push(e); cur = e;
+      } else if (k === 'C') {
+        var s = pts[pts.length - 1]; s.ho = { x: c[1], y: c[2] }; var e2 = { x: c[5], y: c[6], hi: { x: c[3], y: c[4] } }; pts.push(e2); cur = e2;
+      } else if (k === 'Z' || k === 'z') closed = true;
+    });
+    // drop the duplicated end point of closed paths
+    if (closed && pts.length > 2) { var f = pts[0], l = pts[pts.length - 1]; if (Math.hypot(f.x - l.x, f.y - l.y) < 0.01) { f.hi = l.hi; pts.pop(); } }
+    return { pts: pts, closed: closed };
+  }
+  function vRebuild(o) {
+    var M = o.calcTransformMatrix(), c = o.getCenterPoint(), off = { x: o.pathOffset.x, y: o.pathOffset.y };
+    o._setPath(penD(o.gPen.pts, o.gPen.closed), { left: o.left, top: o.top });
+    var dx = o.pathOffset.x - off.x, dy = o.pathOffset.y - off.y;
+    o.setPositionByOrigin(new fabric.Point(c.x + M[0] * dx + M[2] * dy, c.y + M[1] * dx + M[3] * dy), 'center', 'center');
+    o.set('dirty', true); o.setCoords();
+    if (o.gPaint || o.gPaintS) { GX.applyPaint(o, 'fill'); GX.applyPaint(o, 'stroke'); }
+  }
+  function vToPath(o, x, y) { var l = fabric.util.transformPoint({ x: x, y: y }, fabric.util.invertTransform(o.calcTransformMatrix())); return { x: l.x + o.pathOffset.x, y: l.y + o.pathOffset.y }; }
+  function vCtl(i, h) {
+    return new fabric.Control({
+      actionName: 'modifyPath', cursorStyle: 'pointer', sizeX: 16, sizeY: 16, touchSizeX: 28, touchSizeY: 28,
+      positionHandler: function (dim, fm, o) {
+        var p = o.gPen.pts[i], q = p && (h ? p[h] : p);
+        if (!q) return { x: -9999, y: -9999 };
+        return fabric.util.transformPoint({ x: q.x - o.pathOffset.x, y: q.y - o.pathOffset.y }, fabric.util.multiplyTransformMatrices(o.canvas.viewportTransform, o.calcTransformMatrix()));
+      },
+      mouseDownHandler: function (ev, tr) {
+        vedit.sel = i;
+        if (!h && ev.altKey) { vToggle(tr.target, i); commit(); }
+        canvas.requestRenderAll(); return false;
+      },
+      actionHandler: function (ev, tr, x, y) {
+        var o = tr.target, p = o.gPen.pts[i], np = vToPath(o, x, y);
+        if (!h) {
+          var dx = np.x - p.x, dy = np.y - p.y;
+          p.x = np.x; p.y = np.y;
+          if (p.hi) { p.hi.x += dx; p.hi.y += dy; } if (p.ho) { p.ho.x += dx; p.ho.y += dy; }
+        } else {
+          p[h] = np;
+          var other = h === 'hi' ? 'ho' : 'hi';
+          if (p[other] && !p.corner && !ev.altKey) {
+            var L = Math.hypot(p[other].x - p.x, p[other].y - p.y), a = Math.atan2(np.y - p.y, np.x - p.x) + Math.PI;
+            p[other] = { x: p.x + Math.cos(a) * L, y: p.y + Math.sin(a) * L };
+          }
+          if (ev.altKey) p.corner = true;
+        }
+        vRebuild(o); syncGeom();
+        return true;
+      },
+      mouseUpHandler: function () { commit(); },
+      render: function (ctx, left, top, st, o) {
+        var sel = vedit && vedit.sel === i && !h;
+        ctx.save(); ctx.lineWidth = 1.5; ctx.strokeStyle = ACC;
+        ctx.fillStyle = h ? '#fff' : sel ? ACC : '#fff';
+        ctx.beginPath();
+        if (h) ctx.arc(left, top, 3.5, 0, Math.PI * 2); else ctx.rect(left - 4.5, top - 4.5, 9, 9);
+        ctx.fill(); ctx.stroke(); ctx.restore();
+      }
+    });
+  }
+  function vControls(o) {
+    var ctr = {};
+    o.gPen.pts.forEach(function (p, i) {
+      if (p.hi) ctr['i' + i] = vCtl(i, 'hi');
+      if (p.ho) ctr['o' + i] = vCtl(i, 'ho');
+    });
+    o.gPen.pts.forEach(function (p, i) { ctr['a' + i] = vCtl(i, null); }); // anchors on top of handles
+    o.controls = ctr;
+  }
+  function vToggle(o, i) {
+    // Alt+click an anchor: curve ⇄ corner
+    var pts = o.gPen.pts, p = pts[i];
+    if (p.hi || p.ho) { delete p.hi; delete p.ho; delete p.corner; }
+    else {
+      var a = pts[(i - 1 + pts.length) % pts.length], b = pts[(i + 1) % pts.length];
+      var dx = (b.x - a.x) / 4, dy = (b.y - a.y) / 4;
+      p.hi = { x: p.x - dx, y: p.y - dy }; p.ho = { x: p.x + dx, y: p.y + dy };
+    }
+    vRebuild(o); vControls(o);
+  }
+  function startVEdit(o) {
+    if (vedit) endVEdit();
+    if (!o.gPen) {
+      var g = ptsFromPath(o);
+      if (g.pts.length < 2) return;
+      if (g.pts.length > 400) { toast('Энэ зураас хэт олон цэгтэй (' + g.pts.length + ')'); return; }
+      o.gPen = g;
+    } else o.gPen = dcopy(o.gPen);
+    vedit = { o: o, sel: -1 };
+    vControls(o);
+    o.set({ hasBorders: false, lockMovementX: true, lockMovementY: true });
+    canvas.setActiveObject(o); canvas.requestRenderAll(); refreshUI();
+    toast('Цэгийг чирж засна · Alt+дарах: муруй ⇄ булан · давхар дарах: цэг нэмэх · Delete: цэг устгах · Esc: дуусгах');
+  }
+  function endVEdit() {
+    if (!vedit) return;
+    var o = vedit.o; vedit = null;
+    o.controls = fabric.Object.prototype.controls;
+    o.set({ hasBorders: true, lockMovementX: !!o.locked, lockMovementY: !!o.locked });
+    o.setCoords(); canvas.requestRenderAll(); commit(); refreshUI();
+  }
+  function vDelete() {
+    if (!vedit || vedit.sel < 0) return false;
+    var o = vedit.o;
+    if (o.gPen.pts.length <= 2) { toast('Хамгийн багадаа 2 цэг байна'); return true; }
+    o.gPen.pts.splice(vedit.sel, 1); vedit.sel = -1;
+    vRebuild(o); vControls(o); canvas.requestRenderAll(); commit(); return true;
+  }
+  function vInsertAt(o, ptr) {
+    var p = vToPath(o, ptr.x, ptr.y), pts = o.gPen.pts, n = pts.length, best = null;
+    var segs = o.gPen.closed ? n : n - 1;
+    for (var s = 0; s < segs; s++) {
+      var a = pts[s], b = pts[(s + 1) % n], c1 = a.ho || a, c2 = b.hi || b;
+      for (var k = 1; k < 40; k++) {
+        var t = k / 40, u = 1 - t;
+        var x = u * u * u * a.x + 3 * u * u * t * c1.x + 3 * u * t * t * c2.x + t * t * t * b.x;
+        var y = u * u * u * a.y + 3 * u * u * t * c1.y + 3 * u * t * t * c2.y + t * t * t * b.y;
+        var d = Math.hypot(x - p.x, y - p.y);
+        if (!best || d < best.d) best = { d: d, s: s, t: t };
+      }
+    }
+    var scale = Math.max(o.scaleX, o.scaleY) * zoomNow();
+    if (!best || best.d * scale > 14) return;
+    var A = pts[best.s], B = pts[(best.s + 1) % n], C1 = A.ho || A, C2 = B.hi || B, t2 = best.t;
+    var lerp = function (p1, p2) { return { x: p1.x + (p2.x - p1.x) * t2, y: p1.y + (p2.y - p1.y) * t2 }; };
+    var np;
+    if (A.ho || B.hi) {
+      // de Casteljau split keeps the curve's shape
+      var p01 = lerp(A, C1), p12 = lerp(C1, C2), p23 = lerp(C2, B), p012 = lerp(p01, p12), p123 = lerp(p12, p23), m = lerp(p012, p123);
+      A.ho = p01; B.hi = p23; np = { x: m.x, y: m.y, hi: p012, ho: p123 };
+    } else np = lerp(A, B);
+    pts.splice(best.s + 1, 0, np); vedit.sel = best.s + 1;
+    vRebuild(o); vControls(o); canvas.requestRenderAll(); commit();
+  }
+  canvas.on('selection:cleared', function () { if (vedit) endVEdit(); });
+  canvas.on('selection:updated', function () { if (vedit && active() !== vedit.o) endVEdit(); });
+
+  // ---------- brushes ----------
+  var BRUSHES = [['pen', 'pen', 'Харандаа'], ['ink', 'ink', 'Бийр (үзүүр нь нарийсна)'], ['marker', 'marker', 'Маркер'], ['neon', 'neon', 'Неон'],
+    ['spray', 'spray', 'Шүршигч'], ['dots', 'dots', 'Цэгэн'], ['hatch', 'hatch', 'Судалтай'], ['eraser', 'eraser', 'Баллуур (зураасыг бүтнээр нь устгана)']];
+  function hatchSrc(color, size) {
+    var s = Math.max(6, Math.round(size)), c = document.createElement('canvas'); c.width = c.height = s;
+    var x = c.getContext('2d'); x.strokeStyle = color; x.lineWidth = Math.max(1, s / 5);
+    x.beginPath(); x.moveTo(0, s); x.lineTo(s, 0); x.moveTo(-s / 2, s / 2); x.lineTo(s / 2, -s / 2); x.moveTo(s / 2, s * 1.5); x.lineTo(s * 1.5, s / 2); x.stroke();
+    return c;
+  }
+  function mixWhite(hex, k) { var p = parseCol(hex).hex, n = parseInt(p.slice(1), 16), f = function (v) { return Math.round(v + (255 - v) * k); }; return '#' + [f(n >> 16), f(n >> 8 & 255), f(n & 255)].map(function (v) { return ('0' + v.toString(16)).slice(-2); }).join(''); }
+  function makeBrush() {
+    var t = draw.tool, s = brushSize(), a = draw.op == null ? 1 : draw.op, b;
+    if (t === 'spray') { b = new fabric.SprayBrush(canvas); b.density = 30; b.dotWidth = Math.max(1, s / 6); b.width = s * 2; b.color = mkCol(draw.color, a); return b; }
+    if (t === 'dots') { b = new fabric.CircleBrush(canvas); b.width = s; b.color = mkCol(draw.color, a); return b; }
+    if (t === 'hatch') {
+      b = new fabric.PatternBrush(canvas); var src = hatchSrc(draw.color, s * 0.8);
+      b.getPatternSrc = function () { return src; }; b.width = s * 2.5; return b;
+    }
+    b = new fabric.PencilBrush(canvas);
+    b.decimate = 2; b.strokeLineCap = 'round'; b.strokeLineJoin = 'round';
+    if (t === 'marker') { b.color = mkCol(draw.color, 0.45 * a); b.width = s * 2.5; b.strokeLineCap = 'square'; }
+    else if (t === 'neon') { b.color = mixWhite(draw.color, 0.65); b.width = s * 0.8; b.shadow = new fabric.Shadow({ color: draw.color, blur: s * 2.2, offsetX: 0, offsetY: 0 }); }
+    else { b.color = mkCol(draw.color, a); b.width = t === 'ink' ? s * 1.6 : s; }
+    return b;
+  }
+  // "ink" strokes become a filled outline that tapers at both ends
+  function inkOutline(path, width, color) {
+    var raw = [];
+    (path.path || []).forEach(function (c) { var n = c.length; if (n >= 3) raw.push({ x: c[n - 2], y: c[n - 1] }); });
+    var pts = [], step = Math.max(1.5, width / 4);
+    raw.forEach(function (p) { var l = pts[pts.length - 1]; if (!l || Math.hypot(p.x - l.x, p.y - l.y) >= step) pts.push(p); });
+    if (pts.length < 3) return null;
+    var n = pts.length, k = Math.max(2, Math.min(10, n / 3)), L = [], Rr = [];
+    for (var i = 0; i < n; i++) {
+      var a = pts[Math.max(0, i - 1)], b = pts[Math.min(n - 1, i + 1)], dx = b.x - a.x, dy = b.y - a.y, len = Math.hypot(dx, dy) || 1;
+      var nx = -dy / len, ny = dx / len, taper = Math.min(1, (i + 0.6) / k, (n - i - 0.4) / k);
+      var w = width / 2 * Math.max(0.08, Math.sin(taper * Math.PI / 2));
+      L.push({ x: pts[i].x + nx * w, y: pts[i].y + ny * w }); Rr.push({ x: pts[i].x - nx * w, y: pts[i].y - ny * w });
+    }
+    var all = L.concat(Rr.reverse()), d = 'M ' + r1(all[0].x) + ' ' + r1(all[0].y);
+    for (var j = 1; j < all.length; j++) { var p0 = all[j - 1], p1 = all[j]; d += ' Q ' + r1(p0.x) + ' ' + r1(p0.y) + ' ' + r1((p0.x + p1.x) / 2) + ' ' + r1((p0.y + p1.y) / 2); }
+    d += ' Z';
+    return new fabric.Path(d, { fill: color, stroke: null, strokeWidth: 0, name: 'Бийр', perPixelTargetFind: true });
+  }
+  canvas.on('path:created', function (e) {
+    var p = e.path;
+    if (draw.tool === 'marker') p.set({ globalCompositeOperation: 'multiply', name: 'Маркер' });
+    if (draw.tool === 'neon') p.set({ name: 'Неон' });
+    if (draw.tool === 'hatch') p.set({ name: 'Судал' });
+    if (draw.tool === 'ink') {
+      var o = inkOutline(p, brushSize() * 1.6, mkCol(draw.color, draw.op == null ? 1 : draw.op));
+      if (o) { restoring = true; canvas.remove(p); restoring = false; canvas.add(o); }
+    }
+  });
+
+  // ---------- paints (fill / stroke) ----------
+  var PAINT_TYPES = [['solid', 'Цул өнгө'], ['linear', 'Linear градиент'], ['radial', 'Radial градиент'], ['angular', 'Angular (конус)'], ['diamond', 'Diamond (ромбо)'], ['image', 'Зураг']];
+  function solidOf(v, dflt) { return typeof v === 'string' && v ? v : dflt; }
+  function paintOf(o, which) { var g = o[which === 'stroke' ? 'gPaintS' : 'gPaint']; return g && g.type && g.type !== 'solid' ? g : null; }
+  function setPaint(o, which, g) {
+    var key = which === 'stroke' ? 'gPaintS' : 'gPaint';
+    o[key] = g;
+    if (!g) return Promise.resolve();
+    return GX.applyPaint(o, which);
+  }
+  function eachPaint(which, fn) {
+    var jobs = [];
+    eachSel(function (x) { if (x.isFrame) return; var r = fn(x); if (r && r.then) jobs.push(r); });
+    return Promise.all(jobs).then(function () { canvas.requestRenderAll(); });
+  }
+  function switchPaint(which, type) {
+    return eachPaint(which, function (x) {
+      var cur = paintOf(x, which), base = cur ? cur.stops[0].c : solidOf(which === 'stroke' ? x.stroke : x.fill, '#816dfb');
+      if (type === 'solid') { x[which === 'stroke' ? 'gPaintS' : 'gPaint'] = null; x.set(which, cur ? GX.rgba(cur.stops[0].c, cur.stops[0].a) : base); x.set('dirty', true); return null; }
+      if (type === 'image') { pickFillImage(x); return null; }
+      var pc = parseCol(base), light = (parseInt(pc.hex.slice(1, 3), 16) + parseInt(pc.hex.slice(3, 5), 16) + parseInt(pc.hex.slice(5, 7), 16)) > 380;
+      var g = cur && cur.stops ? dcopy(cur) : { angle: 90, stops: [{ p: 0, c: pc.hex, a: pc.a }, { p: 1, c: light ? '#34229e' : '#e7e3fd', a: 1 }] };
+      g.type = type; if (g.angle == null) g.angle = 90;
+      return setPaint(x, which, g);
+    }).then(function () { commit(); refreshUI(); });
+  }
+  function editPaint(which, fn) {
+    return eachPaint(which, function (x) { var g = paintOf(x, which); if (!g) return null; g = dcopy(g); fn(g, x); return setPaint(x, which, g); });
+  }
+  function pickFillImage(target) {
+    var inp = document.createElement('input'); inp.type = 'file'; inp.accept = 'image/*';
+    inp.onchange = function () {
+      var f = inp.files[0]; if (!f) return;
+      readImage(f).then(function (url) {
+        var list = []; if (target) list = [target]; else eachSel(function (x) { list.push(x); });
+        return Promise.all(list.map(function (x) { return setPaint(x, 'fill', { type: 'image', src: url, fit: 'cover', scale: 1, stops: [{ p: 0, c: '#816dfb', a: 1 }] }); }));
+      }).then(function () { canvas.requestRenderAll(); commit(); refreshUI(); });
+    };
+    inp.click();
+  }
+  function paintUI(which, o) {
+    var g = paintOf(o, which), type = g ? g.type : 'solid', h = '';
+    var types = PAINT_TYPES.filter(function (t) { return which === 'fill' || t[0] !== 'image'; });
+    h += '<div class="r2 pt-row"><label class="nf full"><select data-q="' + which + ':type">' + types.map(function (t) { return '<option value="' + t[0] + '"' + (t[0] === type ? ' selected' : '') + '>' + t[1] + '</option>'; }).join('') + '</select></label>' +
+      (g && type !== 'image' ? '<span class="rowf"><button type="button" class="ib" data-b="' + which + ':swap" title="Эргүүлэх (өнгийг солих)">⇄</button><button type="button" class="ib" data-b="' + which + ':rot" title="90° эргүүлэх">' + icon('rotate') + '</button></span>' : '<span></span>') + '</div>';
+    if (!g) return h + '<div style="margin-top:6px">' + colorRow(which, solidOf(which === 'stroke' ? o.stroke : o.fill, '#816dfb')) + '</div>';
+    if (type === 'image') {
+      return h + '<div class="img-fill" style="background-image:url(\'' + esc(g.src) + '\')"></div>' +
+        '<div class="r2" style="margin-top:6px"><button type="button" class="btn" data-b="fill:img">' + icon('image') + 'Солих</button>' +
+        '<label class="nf full"><select data-q="fill:fit"><option value="cover"' + (g.fit === 'cover' ? ' selected' : '') + '>Дүүргэх</option><option value="fit"' + (g.fit === 'fit' ? ' selected' : '') + '>Багтаах</option><option value="tile"' + (g.fit === 'tile' ? ' selected' : '') + '>Давтах</option></select></label></div>' +
+        '<div class="sl"><span>Хэмжээ</span><input type="range" data-q="fill:scale" min="10" max="300" value="' + Math.round((g.scale || 1) * 100) + '"><b>' + Math.round((g.scale || 1) * 100) + '%</b></div>';
+    }
+    var stops = g.stops.map(function (s, i) { return { s: s, i: i }; }).sort(function (a, b) { return a.s.p - b.s.p; });
+    h += '<div class="gbar" data-gbar="' + which + '"><i class="gfill" style="background:' + GX.cssPreview(Object.assign({}, g, { type: 'linear' })) + '"></i>' +
+      g.stops.map(function (s, i) { return '<b class="gstop' + (paintSel[which] === i ? ' on' : '') + '" data-gstop="' + i + '" style="left:' + (s.p * 100) + '%"><em style="background:' + GX.rgba(s.c, s.a) + '"></em></b>'; }).join('') + '</div>';
+    if (type !== 'diamond' && type !== 'radial') h += '<div class="r2" style="margin-top:6px"><label class="nf"><span class="lb">' + icon('angle') + '</span><input data-q="' + which + ':angle" value="' + Math.round(g.angle || 0) + '" inputmode="decimal"><span class="unit">°</span></label><span></span></div>';
+    else if (type === 'radial') h += '<div class="sl"><span>Радиус</span><input type="range" data-q="' + which + ':radius" min="10" max="150" value="' + Math.round((g.r || 0.5) * 200) + '"><b>' + Math.round((g.r || 0.5) * 200) + '%</b></div>';
+    h += '<div class="ps-l">Stops <button type="button" class="ib" data-b="' + which + ':addstop" title="Өнгө нэмэх">' + icon('plus') + '</button></div>' +
+      stops.map(function (x) {
+        var s = x.s, pc = parseCol(s.c);
+        return '<div class="gs-row' + (paintSel[which] === x.i ? ' on' : '') + '"><label class="nf pos"><input data-q="' + which + ':p:' + x.i + '" value="' + Math.round(s.p * 100) + '" inputmode="decimal"><span class="unit">%</span></label>' +
+          '<label class="nf full"><span class="csw"><i style="background:' + GX.rgba(s.c, s.a) + '"></i><input type="color" data-q="' + which + ':c:' + x.i + '" value="' + pc.hex + '"></span><input data-q="' + which + ':h:' + x.i + '" value="' + pc.hex.slice(1).toUpperCase() + '" maxlength="7" spellcheck="false"></label>' +
+          '<label class="nf op"><input data-q="' + which + ':a:' + x.i + '" value="' + Math.round((s.a == null ? 1 : s.a) * 100) + '" inputmode="decimal"><span class="unit">%</span></label>' +
+          (g.stops.length > 2 ? '<button type="button" class="ib rm" data-b="' + which + ':delstop:' + x.i + '" title="Хасах">' + icon('minus') + '</button>' : '<span class="ib"></span>') + '</div>';
+      }).join('');
+    return h;
+  }
+  var paintSel = { fill: 0, stroke: 0 };
+
+  // ---------- stroke options ----------
+  var DASHES = [['solid', 'Цул', null], ['dash', 'Тасархай', [4, 2]], ['long', 'Урт тасархай', [8, 3]], ['dot', 'Цэгэн', [0.01, 2]], ['dashdot', 'Тасархай-цэг', [5, 2, 0.01, 2]]];
+  function dashOf(o) {
+    var d = o.strokeDashArray, sw = o.strokeWidth || 1;
+    if (!d || !d.length) return 'solid';
+    var norm = d.map(function (v) { return Math.round(v / sw * 100) / 100; }).join(',');
+    for (var i = 1; i < DASHES.length; i++) if (DASHES[i][2].join(',') === norm) return DASHES[i][0];
+    return 'dash';
+  }
+  function strokeUI(o, k) {
+    var closed = !(k === 'line' || k === 'text') || (o.isType('path') && (o.gPen ? o.gPen.closed : (o.path || []).some(function (c) { return c[0] === 'Z' || c[0] === 'z'; })));
+    var pos = o.gStrokePos || 'center', dash = dashOf(o);
+    var segB = function (items, cur, key) {
+      return '<div class="seg">' + items.map(function (it) { return '<button type="button" data-b="' + key + ':' + it[0] + '" title="' + it[2] + '"' + (it[0] === cur ? ' class="on"' : '') + '>' + it[1] + '</button>'; }).join('') + '</div>';
+    };
+    var h = '<div class="r2" style="margin-top:6px">' + nf('≡', 'sw', r1(o.strokeWidth), { title: 'Зузаан' }) +
+      (closed && k !== 'text' ? segB([['inside', '<svg class="i" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="1" stroke-dasharray="2 2"/><rect x="7" y="7" width="10" height="10" rx="1" stroke-width="3"/></svg>', 'Дотор'], ['center', '<svg class="i" viewBox="0 0 24 24"><rect x="6" y="6" width="12" height="12" rx="1" stroke-width="3"/></svg>', 'Голд'], ['outside', '<svg class="i" viewBox="0 0 24 24"><rect x="8" y="8" width="8" height="8" rx="1" stroke-dasharray="2 2"/><rect x="5" y="5" width="14" height="14" rx="1" stroke-width="3"/></svg>', 'Гадна']], pos, 'spos') : '<span></span>') + '</div>' +
+      '<div class="r2" style="margin-top:6px">' +
+        segB([['miter', '<svg class="i" viewBox="0 0 24 24"><path d="M5 19V5h14" stroke-width="3" stroke-linejoin="miter" stroke-linecap="butt"/></svg>', 'Үзүүртэй булан'], ['round', '<svg class="i" viewBox="0 0 24 24"><path d="M5 19V5h14" stroke-width="3" stroke-linejoin="round" stroke-linecap="butt"/></svg>', 'Бөөрөнхий булан'], ['bevel', '<svg class="i" viewBox="0 0 24 24"><path d="M5 19V5h14" stroke-width="3" stroke-linejoin="bevel" stroke-linecap="butt"/></svg>', 'Тайрсан булан']], o.strokeLineJoin || 'miter', 'sjoin') +
+        segB([['butt', '<svg class="i" viewBox="0 0 24 24"><path d="M6 12h12" stroke-width="5" stroke-linecap="butt"/></svg>', 'Шулуун үзүүр'], ['round', '<svg class="i" viewBox="0 0 24 24"><path d="M6 12h12" stroke-width="5" stroke-linecap="round"/></svg>', 'Бөөрөнхий үзүүр'], ['square', '<svg class="i" viewBox="0 0 24 24"><path d="M7 12h10" stroke-width="5" stroke-linecap="square"/></svg>', 'Дөрвөлжин үзүүр']], o.strokeLineCap || 'butt', 'scap') +
+      '</div>' +
+      '<div style="margin-top:6px"><label class="nf full"><select data-q="dash">' + DASHES.map(function (d) { return '<option value="' + d[0] + '"' + (d[0] === dash ? ' selected' : '') + '>' + d[1] + '</option>'; }).join('') + '</select></label></div>';
+    return h;
+  }
+
+  // ---------- effects ----------
+  var FX_NAMES = { drop: 'Drop shadow', inner: 'Inner shadow', blur: 'Layer blur', bgblur: 'Background blur', noise: 'Noise', glass: 'Glass' };
+  var FX_HELP = { drop: 'Ард сүүдэр', inner: 'Дотор сүүдэр', blur: 'Бүхэлд нь бүдгэрүүлэх', bgblur: 'Ард байгааг бүдгэрүүлэх', noise: 'Ширхэглэг бүтэц', glass: 'Шил (frosted)' };
+  function fxList(o) {
+    // older designs: a native shadow becomes the first effect
+    var l = dcopy(o.gFx) || [];
+    if (o.shadow && !l.some(function (e) { return e.t === 'drop'; })) l.unshift({ t: 'drop', on: true, x: o.shadow.offsetX, y: o.shadow.offsetY, b: o.shadow.blur, c: o.shadow.color });
+    return l;
+  }
+  function setFx(o, l) { o.gFx = l.length ? l : null; GX.sync(o); }
+  function fxDefaults(t) {
+    var u = Math.max(1, Math.round(Math.min(W, H) / 100));
+    if (t === 'drop') return { t: t, on: true, x: 0, y: u, b: u * 2, c: 'rgba(0,0,0,0.25)' };
+    if (t === 'inner') return { t: t, on: true, x: 0, y: u, b: u * 2, c: 'rgba(0,0,0,0.3)' };
+    if (t === 'blur') return { t: t, on: true, b: Math.max(2, Math.round(u * 0.6)) };
+    if (t === 'bgblur') return { t: t, on: true, b: u * 3 };
+    if (t === 'noise') return { t: t, on: true, a: 0.25, s: 1, mono: true };
+    return { t: 'glass', on: true, b: u * 3, a: 1 };
+  }
+  function fxUI(o) {
+    var l = fxList(o), h = '<div class="ps fx"><div class="ps-h">Эффект<span class="acts"><span class="pw"><button type="button" class="ib" data-b="fx:menu" title="Эффект нэмэх">' + icon('plus') + '</button>' +
+      '<div class="menu r fx-menu" hidden>' + Object.keys(FX_NAMES).map(function (t) { return '<button type="button" data-b="fx:add:' + t + '">' + FX_NAMES[t] + '<i>' + FX_HELP[t] + '</i></button>'; }).join('') + '</div></span></span></div>';
+    if (!l.length) h += '<p class="note" style="margin:0">Сүүдэр, бүдгэрүүлэлт, шил, ширхэг нэмэхийн тулд + дарна.</p>';
+    l.forEach(function (e, i) {
+      var q = function (key) { return 'fx:' + i + ':' + key; };
+      h += '<div class="fx-row' + (e.on === false ? ' off' : '') + '"><div class="fx-h"><button type="button" class="ib" data-b="fx:eye:' + i + '" title="Харуулах / нуух">' + icon(e.on === false ? 'eyeOff' : 'eye') + '</button>' +
+        '<b>' + FX_NAMES[e.t] + '</b><button type="button" class="ib rm" data-b="fx:del:' + i + '" title="Хасах">' + icon('minus') + '</button></div>';
+      if (e.t === 'drop' || e.t === 'inner') {
+        h += '<div class="r3">' + fnf('X', q('x'), e.x) + fnf('Y', q('y'), e.y) + fnf('Blur', q('b'), e.b) + '</div>' + fcol(q('c'), e.c);
+      } else if (e.t === 'blur' || e.t === 'bgblur') {
+        h += fsl('Хүч', q('b'), 0, Math.max(60, Math.round(Math.min(W, H) / 10)), e.b);
+      } else if (e.t === 'noise') {
+        h += fsl('Хэмжээ', q('a'), 0, 100, Math.round((e.a || 0) * 100), '%') + fsl('Ширхэг', q('s'), 1, 12, e.s || 1) +
+          '<label class="chk"><input type="checkbox" data-q="' + q('mono') + '"' + (e.mono ? ' checked' : '') + '> Өнгөгүй (саарал)</label>';
+      } else if (e.t === 'glass') {
+        h += fsl('Бүдэг', q('b'), 0, Math.max(60, Math.round(Math.min(W, H) / 10)), e.b) + fsl('Гэрэл', q('a'), 0, 100, Math.round((e.a == null ? 1 : e.a) * 100), '%');
+      }
+      h += '</div>';
+    });
+    if (!GX.HAS_FILTER && l.some(function (e) { return e.t === 'bgblur' || e.t === 'glass'; })) h += '<p class="note">Энэ хөтөч дээр background blur удаан ажиллаж магадгүй.</p>';
+    return h + '</div>';
+  }
+  function fnf(label, key, val) { return '<label class="nf"><span class="lb">' + label + '</span><input data-q="' + key + '" value="' + Math.round(val || 0) + '" inputmode="decimal"></label>'; }
+  function fsl(label, key, min, max, v, unit) { return '<div class="sl"><span>' + label + '</span><input type="range" data-q="' + key + '" min="' + min + '" max="' + max + '" value="' + Math.round(v || 0) + '"><b>' + Math.round(v || 0) + (unit || '') + '</b></div>'; }
+  function fcol(key, c) {
+    var pc = parseCol(c);
+    return '<div class="cr" style="margin-top:6px"><label class="nf full"><span class="csw"><i style="background:' + esc(c) + '"></i><input type="color" data-q="' + key + '" value="' + pc.hex + '"></span>' +
+      '<input data-q="' + key + 'H" value="' + pc.hex.slice(1).toUpperCase() + '" maxlength="7" spellcheck="false"></label>' +
+      '<label class="nf op"><input data-q="' + key + 'A" value="' + Math.round(pc.a * 100) + '" inputmode="decimal"><span class="unit">%</span></label></div>';
+  }
+  function editFx(fn) {
+    eachSel(function (x) { if (x.isFrame) return; var l = fxList(x); fn(l, x); setFx(x, l); });
+    canvas.requestRenderAll();
+  }
+
+  // ---------- masks ----------
+  function makeMask() {
+    var sel = active(); if (!sel || sel.type !== 'activeSelection') return toast('Маск хийхийн тулд 2+ зүйл сонгоно уу');
+    var all = canvas.getObjects(), objs = sel.getObjects().filter(function (x) { return !x.isFrame; }).sort(function (a, b) { return all.indexOf(a) - all.indexOf(b); });
+    if (objs.length < 2) return toast('Маск хийхийн тулд 2+ зүйл сонгоно уу');
+    var mask = objs[0], rest = objs.slice(1), idx = all.indexOf(mask);
+    canvas.discardActiveObject();
+    mask.clone(function (mc) {
+      restoring = true;
+      objs.forEach(function (x) { canvas.remove(x); });
+      var g = new fabric.Group(rest, { name: 'Маск' });
+      var gc = g.getCenterPoint(), mcc = mask.getCenterPoint();
+      mc.set({ originX: 'center', originY: 'center', left: mcc.x - gc.x, top: mcc.y - gc.y, shadow: null, opacity: 1, absolutePositioned: false, gFx: null });
+      g.clipPath = mc; g.gMaskGroup = { name: mask.name || objName(mask) };
+      canvas.insertAt(g, idx);
+      restoring = false;
+      canvas.setActiveObject(g); canvas.requestRenderAll(); commit(); refreshUI();
+      toast('Хамгийн доод давхарга маск боллоо');
+    }, PROPS);
+  }
+  function releaseMask(g) {
+    if (!g || g.type !== 'group' || !g.clipPath) return;
+    var cp = g.clipPath, M = g.calcTransformMatrix(), idx = canvas.getObjects().indexOf(g);
+    cp.clone(function (mc) {
+      var c = fabric.util.transformPoint({ x: cp.left, y: cp.top }, M);
+      mc.set({ originX: 'center', originY: 'center', left: c.x, top: c.y, angle: (cp.angle || 0) + (g.angle || 0), scaleX: cp.scaleX * g.scaleX, scaleY: cp.scaleY * g.scaleY, inverted: false, absolutePositioned: false, name: (g.gMaskGroup && g.gMaskGroup.name) || 'Маск хэлбэр' });
+      var tl = mc.getPointByOrigin('left', 'top'); mc.set({ originX: 'left', originY: 'top', left: tl.x, top: tl.y });
+      g.clipPath = null; g.gMaskGroup = null;
+      restoring = true;
+      canvas.setActiveObject(g); var s = g.toActiveSelection();
+      canvas.insertAt(mc, idx); mc.setCoords();
+      restoring = false;
+      canvas.discardActiveObject();
+      canvas.setActiveObject(new fabric.ActiveSelection(s.getObjects().concat([mc]), { canvas: canvas }));
+      canvas.requestRenderAll(); commit(); refreshUI();
+    }, PROPS);
+  }
+
+  // ---------- extra image mask shapes ----------
+  var MASK_SHAPES = [['none', 'Тэгш өнцөгт'], ['rounded', 'Бөөрөнхий булантай'], ['circle', 'Тойрог'], ['oval', 'Зууван'], ['arch', 'Нуман хаалга'],
+    ['star', 'Од'], ['triangle', 'Гурвалжин'], ['hexagon', 'Зургаан өнцөгт'], ['diamond', 'Ромбо'], ['heart', 'Зүрх'], ['blob', 'Бөөрөнхий хэлбэр']];
+  function polyPts(n, R, r, rot) { var p = []; for (var i = 0; i < n; i++) { var a = rot + Math.PI * 2 * i / n, rr = r != null && i % 2 ? r : R; p.push({ x: Math.cos(a) * rr, y: Math.sin(a) * rr }); } return p; }
+  function extraMask(img, kind) {
+    var w = img.width, h = img.height, m = Math.min(w, h) / 2, cp = null, o = { originX: 'center', originY: 'center' };
+    if (kind === 'star') cp = new fabric.Polygon(polyPts(10, m, m * 0.45, -Math.PI / 2), o);
+    if (kind === 'triangle') cp = new fabric.Polygon([{ x: 0, y: -h / 2 }, { x: w / 2, y: h / 2 }, { x: -w / 2, y: h / 2 }], o);
+    if (kind === 'hexagon') cp = new fabric.Polygon(polyPts(6, m, null, 0), o);
+    if (kind === 'diamond') cp = new fabric.Polygon([{ x: 0, y: -h / 2 }, { x: w / 2, y: 0 }, { x: 0, y: h / 2 }, { x: -w / 2, y: 0 }], o);
+    if (kind === 'heart') { var s = m / 12; cp = new fabric.Path('M 0 ' + (-3 * s) + ' C ' + (-2 * s) + ' ' + (-10 * s) + ' ' + (-12 * s) + ' ' + (-8 * s) + ' ' + (-11 * s) + ' ' + (-1 * s) + ' C ' + (-10 * s) + ' ' + (4 * s) + ' ' + (-3 * s) + ' ' + (7 * s) + ' 0 ' + (11 * s) + ' C ' + (3 * s) + ' ' + (7 * s) + ' ' + (10 * s) + ' ' + (4 * s) + ' ' + (11 * s) + ' ' + (-1 * s) + ' C ' + (12 * s) + ' ' + (-8 * s) + ' ' + (2 * s) + ' ' + (-10 * s) + ' 0 ' + (-3 * s) + ' Z', o); }
+    if (kind === 'blob') { var k = Math.min(w, h) / 200; cp = new fabric.Path('M 60 -85 C 95 -60 100 -15 90 25 C 80 70 40 95 -5 92 C -55 90 -95 60 -98 15 C -100 -35 -70 -80 -25 -95 C 5 -103 35 -100 60 -85 Z', Object.assign({ scaleX: k, scaleY: k }, o)); }
+    if (!cp) return false;
+    img.gMask = kind; img.gMaskR = null; img.set({ clipPath: cp, dirty: true });
+    return true;
+  }
+
+  // ---------- the panel handlers for all of the above ----------
+  function numq(v) { var n = parseFloat(String(v).replace(',', '.')); return isNaN(n) ? null : n; }
+  function hexq(v) { var hx = String(v).replace(/[^0-9a-f]/gi, ''); if (hx.length === 3) hx = hx.replace(/./g, '$&$&'); return hx.length === 6 ? '#' + hx.toLowerCase() : null; }
+  function qInput(key, v, live) {
+    var parts = key.split(':'), a = parts[0], n = numq(v);
+    if (a === 'fill' || a === 'stroke') {
+      var which = a, sub = parts[1], i = +parts[2];
+      if (sub === 'type') return switchPaint(which, v);
+      if (sub === 'fit' || sub === 'scale') return editPaint('fill', function (g) { if (sub === 'fit') g.fit = v; else g.scale = (n || 100) / 100; }).then(function () { if (!live) commit(); });
+      if (sub === 'angle' && n !== null) return editPaint(which, function (g) { g.angle = n; }).then(function () { if (!live) commit(); });
+      if (sub === 'radius' && n !== null) return editPaint(which, function (g) { g.r = n / 200; });
+      return editPaint(which, function (g) {
+        var s = g.stops[i]; if (!s) return;
+        paintSel[which] = i;
+        if (sub === 'p' && n !== null) s.p = clamp(n, 0, 100) / 100;
+        if (sub === 'c') s.c = v;
+        if (sub === 'h') { var hx = hexq(v); if (hx) s.c = hx; }
+        if (sub === 'a' && n !== null) s.a = clamp(n, 0, 100) / 100;
+      }).then(function () { if (!live) commit(); });
+    }
+    if (a === 'dash') { eachSel(function (x) { var d = DASHES.filter(function (dd) { return dd[0] === v; })[0], sw = x.strokeWidth || 1; x.set({ strokeDashArray: d && d[2] ? d[2].map(function (q) { return q * sw; }) : null }); if (d && d[0] === 'dot') x.set('strokeLineCap', 'round'); }); canvas.requestRenderAll(); commit(); return; }
+    if (a === 'fx') {
+      var j = +parts[1], k = parts[2];
+      editFx(function (l) {
+        var e = l[j]; if (!e) return;
+        if (k === 'mono') e.mono = !!v;
+        else if (k === 'c') e.c = mkCol(v, parseCol(e.c).a);
+        else if (k === 'cH') { var hx = hexq(v); if (hx) e.c = mkCol(hx, parseCol(e.c).a); }
+        else if (k === 'cA') { if (n !== null) e.c = mkCol(parseCol(e.c).hex, clamp(n, 0, 100) / 100); }
+        else if (n !== null) e[k] = k === 'a' ? n / 100 : n;
+      });
+      if (!live) commit();
+    }
+  }
+  rp.addEventListener('input', function (e) {
+    var t = e.target, q = t.dataset.q; if (!q) return;
+    if (t.type === 'range') { var b = t.nextElementSibling; if (b) b.textContent = t.value + (/:(a|scale|radius)$/.test(q) && !/^fx:\d+:s$/.test(q) ? '%' : ''); qInput(q, t.value, true); }
+    else if (t.type === 'color') { t.previousElementSibling.style.background = t.value; qInput(q, t.value, true); }
+  });
+  rp.addEventListener('change', function (e) {
+    var t = e.target, q = t.dataset.q; if (!q) return;
+    var r = qInput(q, t.type === 'checkbox' ? t.checked : t.value, false);
+    Promise.resolve(r).then(function () { commit(); if (t.type !== 'range') refreshUI(); });
+  });
+  rp.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-b]'); if (!b) return;
+    var parts = b.dataset.b.split(':'), a = parts[0], o = active();
+    if (a === 'fx') {
+      var sub = parts[1];
+      if (sub === 'menu') { var m = b.parentNode.querySelector('.fx-menu'); m.hidden = !m.hidden; e.stopPropagation(); return; }
+      if (sub === 'add') {
+        var t = parts[2];
+        editFx(function (l, x) {
+          if (t === 'drop' && l.some(function (q) { return q.t === 'drop'; })) return;
+          l.push(fxDefaults(t));
+          if (t === 'glass') {
+            if (typeof x.fill === 'string' && !x.isType('image')) x.set('fill', 'rgba(255,255,255,0.14)');
+            if (!x.isType('image') && !x.isType('textbox')) x.set({ stroke: 'rgba(255,255,255,0.5)', strokeWidth: Math.max(1, Math.round(Math.min(W, H) / 700)), gStrokePos: 'inside' });
+          }
+        });
+      }
+      if (sub === 'eye') editFx(function (l) { var q = l[+parts[2]]; if (q) q.on = q.on === false; });
+      if (sub === 'del') editFx(function (l) { l.splice(+parts[2], 1); });
+      commit(); refreshUI(); return;
+    }
+    if (a === 'fill' || a === 'stroke') {
+      var which = a, s2 = parts[1];
+      if (s2 === 'img') { pickFillImage(o); return; }
+      var job = editPaint(which, function (g) {
+        if (s2 === 'swap') g.stops.forEach(function (s) { s.p = 1 - s.p; });
+        if (s2 === 'rot') g.angle = ((g.angle || 0) + 90) % 360;
+        if (s2 === 'addstop') {
+          var srt = g.stops.slice().sort(function (x, y) { return x.p - y.p; }), gap = 0, at = 0.5;
+          for (var i = 1; i < srt.length; i++) if (srt[i].p - srt[i - 1].p > gap) { gap = srt[i].p - srt[i - 1].p; at = (srt[i].p + srt[i - 1].p) / 2; }
+          var c = GX.colorAt(g.stops, at), hex = '#' + [c[0], c[1], c[2]].map(function (v) { return ('0' + Math.round(v).toString(16)).slice(-2); }).join('');
+          g.stops.push({ p: at, c: hex, a: c[3] }); paintSel[which] = g.stops.length - 1;
+        }
+        if (s2 === 'delstop' && g.stops.length > 2) { g.stops.splice(+parts[2], 1); paintSel[which] = 0; }
+      });
+      job.then(function () { commit(); refreshUI(); }); return;
+    }
+    if (a === 'spos' || a === 'sjoin' || a === 'scap') {
+      eachSel(function (x) {
+        if (a === 'spos') x.set({ gStrokePos: parts[1] === 'center' ? null : parts[1], dirty: true });
+        if (a === 'sjoin') x.set('strokeLineJoin', parts[1]);
+        if (a === 'scap') x.set('strokeLineCap', parts[1]);
+      });
+      canvas.requestRenderAll(); commit(); refreshUI(); return;
+    }
+    if (a === 'mask') { makeMask(); return; }
+    if (a === 'unmask') { releaseMask(o); return; }
+    if (a === 'vedit' && o) { if (vedit) endVEdit(); else startVEdit(o); return; }
+  });
+  // drag gradient stops along the bar
+  var gdrag = null;
+  rp.addEventListener('pointerdown', function (e) {
+    var st = e.target.closest('[data-gstop]'), bar = e.target.closest('[data-gbar]');
+    if (!bar) return;
+    var which = bar.dataset.gbar, r = bar.getBoundingClientRect(), pos = clamp((e.clientX - r.left) / r.width, 0, 1);
+    if (!st) {
+      // click on the bar adds a stop there
+      editPaint(which, function (g) { var c = GX.colorAt(g.stops, pos); g.stops.push({ p: pos, c: '#' + [c[0], c[1], c[2]].map(function (v) { return ('0' + Math.round(v).toString(16)).slice(-2); }).join(''), a: c[3] }); paintSel[which] = g.stops.length - 1; })
+        .then(function () { commit(); refreshUI(); });
+      return;
+    }
+    e.preventDefault();
+    gdrag = { which: which, i: +st.dataset.gstop, bar: bar, el: st };
+    paintSel[which] = gdrag.i;
+    st.setPointerCapture && st.setPointerCapture(e.pointerId);
+  });
+  window.addEventListener('pointermove', function (e) {
+    if (!gdrag) return;
+    var r = gdrag.bar.getBoundingClientRect(), pos = clamp((e.clientX - r.left) / r.width, 0, 1), d = gdrag;
+    d.el.style.left = (pos * 100) + '%';
+    editPaint(d.which, function (g) { if (g.stops[d.i]) g.stops[d.i].p = Math.round(pos * 100) / 100; });
+  });
+  window.addEventListener('pointerup', function () { if (gdrag) { gdrag = null; commit(); refreshUI(); } });
+  document.addEventListener('mousedown', function (e) { if (!e.target.closest('.fx-menu') && !e.target.closest('[data-b="fx:menu"]')) $$('.fx-menu').forEach(function (m) { m.hidden = true; }); });
+
+  // angular / diamond / image paints are sized to the object: refresh them when text re-flows
+  canvas.on('object:modified', function (ev) { var o = ev.target; if (o && o.isType && o.isType('textbox') && (o.gPaint || o.gPaintS)) { GX.applyPaint(o, 'fill'); GX.applyPaint(o, 'stroke'); } });
+  canvas.on('text:changed', function (ev) { var o = ev.target; if (o && o.gPaint && /angular|diamond|image/.test(o.gPaint.type)) GX.applyPaint(o, 'fill').then(function () { canvas.requestRenderAll(); }); });
+
+
   // ---------- UI refresh ----------
 
-  function updateHint() { $('#ed-hint').hidden = userObjects().length > 0 || tool === 'draw'; }
+  function updateHint() { $('#ed-hint').hidden = userObjects().length > 0 || tool === 'draw' || tool === 'vector'; }
   function refreshUI() { renderLeft(); renderRight(); renderCtxbar(); updateHint(); histButtons(); }
 
   // ---------- boot ----------

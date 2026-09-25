@@ -280,3 +280,26 @@ input[type="range"] { width:100%; accent-color:var(--acc); }
 .stk-bar { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin-top:10px; }
 .stk-bar span { margin-right:auto; color:var(--muted); }
 .stk-bar a.btn-primary { display:inline-flex; align-items:center; text-decoration:none; }
+
+/* ---------- paints, stroke options, effects, masks ---------- */
+.pt-row { align-items:center; }
+.pt-row .rowf { justify-content:flex-end; }
+.gbar { position:relative; height:24px; margin:10px 7px 2px; border-radius:5px; cursor:copy; background:repeating-conic-gradient(#ccc 0 25%, #fff 0 50%) 0 0/8px 8px; box-shadow:inset 0 0 0 1px var(--line2); touch-action:none; }
+.gbar .gfill { position:absolute; inset:0; border-radius:5px; }
+.gstop { position:absolute; top:-5px; width:18px; height:34px; transform:translateX(-50%); cursor:ew-resize; display:grid; place-items:center; }
+.gstop em { width:14px; height:14px; border-radius:4px; border:2px solid #fff; box-shadow:0 0 0 1px rgba(0,0,0,.35), 0 2px 4px rgba(0,0,0,.25); }
+.gstop.on em { box-shadow:0 0 0 2px var(--acc), 0 2px 4px rgba(0,0,0,.25); }
+.gs-row { display:grid; grid-template-columns:54px 1fr 54px 26px; gap:4px; align-items:center; margin-top:4px; border-radius:6px; }
+.gs-row.on { background:var(--acc-soft); }
+.gs-row .nf.pos input { padding-left:6px; }
+.ps-l .ib { display:inline-grid; width:20px; height:20px; vertical-align:middle; margin-left:4px; }
+.img-fill { height:84px; margin-top:6px; border-radius:6px; background:center / cover no-repeat, var(--bg2); box-shadow:inset 0 0 0 1px var(--line); }
+.fx-row { margin-top:6px; padding:6px; border:1px solid var(--line); border-radius:7px; display:flex; flex-direction:column; gap:6px; }
+.fx-row.off > :not(.fx-h) { opacity:.45; pointer-events:none; }
+.fx-row.off .fx-h b { color:var(--dim); }
+.fx-h { display:flex; align-items:center; gap:4px; }
+.fx-h b { flex:1; font-weight:600; }
+.fx-row .sl { margin:0; }
+.fx-menu { min-width:230px; }
+.fx-menu button { flex-direction:column; align-items:flex-start !important; gap:1px !important; }
+.ps.fx .note { margin:4px 0 0; }
