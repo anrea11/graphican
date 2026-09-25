@@ -17,7 +17,7 @@
     "description": "Брэндийн санааг тодорхой дүр төрхтэй болгож, бүтээгдэхүүн, үйл явдал, контентын үнэ цэнийг орчин үеийн визуал шийдлээр илэрхийлнэ.",
     "primary_button": "Миний ажлууд",
     "secondary_button": "Үйлчилгээ",
-    "artist_name": "Ankhbayar",
+    "artist_name": "Ankhbayar M.",
     "artist_role": "MAIN ARTIST",
     "stats": [
       {
@@ -321,6 +321,21 @@
       }
     ]
   },
+  "clients": {
+    "kicker": "TRUSTED BY",
+    "title": "Хамтран ажилласан байгууллагууд",
+    "note": "25+ байгууллагатай хамтран ажилласан",
+    "items": [
+      { "name": "Munkh Energy", "logo": "" },
+      { "name": "Way Academy", "logo": "" },
+      { "name": "Protech", "logo": "" },
+      { "name": "Nomadabe", "logo": "" },
+      { "name": "Novanest", "logo": "" },
+      { "name": "EduSmart", "logo": "" },
+      { "name": "ButAfter", "logo": "" },
+      { "name": "Tru", "logo": "" }
+    ]
+  },
   "services": {
     "kicker": "04 / SERVICES",
     "title_en": "WHAT I DO",
@@ -364,8 +379,8 @@
     "photo": "/assets/uploads/file_00000000291082069e01d3ee962c554a.webp",
     "photo_label": "GRAPHICAN / LEAD DESIGNER",
     "role": "Graphican-ий үндсэн дизайнер",
-    "name": "Мөнхбаяр Анхбаяр",
-    "name_en": "MUNKHBAYAR ANKHBAYAR",
+    "name": "Ankhbayar M.",
+    "name_en": "BRAND & GRAPHIC DESIGNER",
     "title_line1": "Санааг",
     "title_highlight": "визуал хэлээр",
     "title_line2": "илэрхийлнэ.",
@@ -381,7 +396,7 @@
       },
       {
         "value": "MAIN ARTIST",
-        "label": "Анхбаяр Мөнхбаяр"
+        "label": "Ankhbayar M."
       },
       {
         "value": "4+",
@@ -397,6 +412,8 @@
     "button": "Холбоо барих",
     "email": "ankhbayar0100@gmail.com",
     "phone": "80750675",
+    "messenger": "https://m.me/anrea11",
+    "quick_bar": true,
     "big_text": "LET'S CREATE",
     "socials": [
       {

@@ -59,9 +59,10 @@ def home():
     socials = [s["url"] for s in contact.get("socials", []) if s.get("url")]
     email, phone = contact.get("email", ""), contact.get("phone", "")
 
+    person_name = about.get("name") or "Ankhbayar M."
     person = {
         "@type": "Person", "@id": SITE + "/#person",
-        "name": "Анхбаяр Мөнхбаяр", "alternateName": [about.get("name_en") or "Ankhbayar Munkhbayar", "Ankhbayar"],
+        "name": person_name, "alternateName": ["Анхбаяр", "Ankhbayar"],
         "jobTitle": "Graphic Designer / Brand Designer",
         "image": absu(about.get("photo") or hero.get("portrait")),
         "worksFor": {"@id": SITE + "/#org"}, "url": SITE, "sameAs": socials,
@@ -95,7 +96,7 @@ def home():
         f"<title>{e(title)}</title>",
         f'<meta name="description" content="{e(desc)}">',
         '<meta name="robots" content="index, follow, max-image-preview:large">',
-        '<meta name="author" content="Анхбаяр Мөнхбаяр">',
+        f'<meta name="author" content="{e(person_name)}">',
         f'<link rel="canonical" href="{SITE}/">',
         '<meta property="og:type" content="website">',
         '<meta property="og:site_name" content="Graphican">',
@@ -129,6 +130,11 @@ def home():
             f'<img src="{e(p.get("image"))}" alt="{e(p.get("name"))} — {e(p.get("type"))}" loading="lazy" width="600" height="600">'
             f'{paras(p.get("details") or p.get("description"))}</article></li>')
     body.append("</ul></section>")
+    clients = d.get("clients", {})
+    client_names = [c.get("name") for c in clients.get("items", []) if c.get("name")]
+    if client_names:
+        body.append(f'<section><h2>{e(clients.get("title"))}</h2><ul>'
+                    + "".join(f"<li>{e(n)}</li>" for n in client_names) + "</ul></section>")
     body.append(f'<section><h2>{e(svc.get("title"))} — {e(svc.get("title_en"))}</h2><p>{e(svc.get("description"))}</p><ul>')
     for it in svc.get("items", []):
         body.append(f'<li><h3>{e(it.get("name"))} — {e(it.get("name_mn"))}</h3><p>{e(it.get("description"))}</p></li>')

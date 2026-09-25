@@ -158,6 +158,24 @@ collections:
                       - { label: "Дөрвөлжин 1:1", value: "1:1" }
                       - { label: "Босоо 4:5 (Instagram пост)", value: "4:5" }
 
+          # ---------------- CLIENTS ----------------
+          - name: clients
+            label: "Хамтран ажилласан байгууллагууд"
+            widget: object
+            fields:
+              - { name: kicker, label: "Жижиг шошго (англиар)", widget: string, required: false }
+              - { name: title, label: "Гарчиг", widget: string, required: false }
+              - { name: note, label: "Баруун дээд жижиг бичиг", widget: string, required: false }
+              - name: items
+                label: "Байгууллагууд"
+                label_singular: "Байгууллага"
+                widget: list
+                summary: "{{name}}"
+                hint: "Нэр нь 'Ажлууд' доторх төслийн нэртэй ижил бол дарахад тэр төсөл нээгдэнэ. Лого байхгүй бол нэр нь бичгээр харагдана."
+                fields:
+                  - { name: name, label: "Нэр", widget: string }
+                  - { name: logo, label: "Лого (цагаан эсвэл тунгалаг PNG/SVG)", widget: image, required: false, hint: "Хар дэвсгэр дээр харагдана — цагаан хувилбар нь хамгийн сайн" }
+
           # ---------------- SERVICES ----------------
           - name: services
             label: "03 · Үйлчилгээ"
@@ -213,6 +231,8 @@ collections:
               - { name: button, label: "Товчны текст", widget: string }
               - { name: email, label: "Имэйл", widget: string }
               - { name: phone, label: "Утас (заавал биш)", widget: string, required: false }
+              - { name: messenger, label: "Messenger холбоос", widget: string, required: false, hint: "Жишээ: https://m.me/anrea11 — хоосон бол Messenger товч гарахгүй" }
+              - { name: quick_bar, label: "Утсан дээр доод талд Messenger / Залгах товч харуулах", widget: boolean, default: true, required: false }
               - { name: big_text, label: "Арын том бичиг (англиар)", widget: string, required: false }
               - name: socials
                 label: "Сошиал холбоос"

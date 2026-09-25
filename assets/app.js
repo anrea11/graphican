@@ -24,6 +24,8 @@
   function list(arr) { return Array.isArray(arr) ? arr : []; }
   function pad(n) { return (n < 10 ? '0' : '') + n; }
   var YEAR = new Date().getFullYear();
+  var ICON_MSG = '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2C6.4 2 2 6.1 2 11.3c0 2.9 1.4 5.5 3.7 7.2V22l3.4-1.9c.9.3 1.9.4 2.9.4 5.6 0 10-4.1 10-9.3S17.6 2 12 2Zm1 12.4-2.6-2.7-5 2.7 5.5-5.8 2.6 2.7 4.9-2.7-5.4 5.8Z"/></svg>';
+  var ICON_TEL = '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1A17 17 0 0 1 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1l-2.3 2.2Z"/></svg>';
 
   function isVideo(src) { return /\.(mp4|webm|mov|m4v)(\?|#|$)/i.test(String(src || '')); }
 
@@ -196,6 +198,32 @@
     return '<section class="sec work has-fx" id="work">' + fx('alt-a') + sectionTop(w) + hint + '<div class="projects">' + cards + '</div></section>';
   }
 
+  // "Trusted by" wall: logo if uploaded, otherwise the name as a wordmark.
+  // A client that matches a project name links to that case study.
+  function clients(c, projects) {
+    var items = list(c.items).filter(function (it) { return it && (it.name || it.logo); });
+    if (!items.length) return '';
+    var cells = items.map(function (it) {
+      var k = -1;
+      projects.forEach(function (p, i) {
+        if (k < 0 && String(p.name || '').trim().toLowerCase() === String(it.name || '').trim().toLowerCase()) k = i;
+      });
+      var inner = it.logo
+        ? '<img src="' + esc(it.logo) + '" alt="' + esc(it.name) + '" loading="lazy" decoding="async">'
+        : '<span class="c-word">' + esc(it.name) + '</span>';
+      return k >= 0
+        ? '<li><a class="client" href="#project/' + slug(projects[k], k) + '" aria-label="' + esc(it.name) + ' — ажлуудыг үзэх">' + inner + '<span class="c-go" aria-hidden="true">↗</span></a></li>'
+        : '<li><span class="client">' + inner + '</span></li>';
+    }).join('');
+    return (
+      '<section class="sec clients" id="clients">' +
+        '<div class="sec-meta reveal"><span>' + esc(c.kicker) + '</span>' + (c.note ? '<span>' + esc(c.note) + ' +</span>' : '') + '</div>' +
+        (c.title ? '<h2 class="clients-title reveal">' + esc(c.title) + '</h2>' : '') +
+        '<ul class="client-grid reveal">' + cells + '</ul>' +
+      '</section>'
+    );
+  }
+
   function reels(r) {
     var items = list(r.items).filter(function (it) { return it && it.video; });
     if (!items.length && !r.title) return '';
@@ -292,9 +320,16 @@
     );
   }
 
+  function telHref(phone) {
+    var d = String(phone || '').replace(/[^\d+]/g, '');
+    if (!d) return '';
+    return 'tel:' + (d.charAt(0) === '+' ? d : '+976' + d);
+  }
+
   function contact(c) {
     var email = String(c.email || '').trim();
     var phone = String(c.phone || '').trim();
+    var messenger = url(c.messenger);
     var socials = list(c.socials).filter(function (s) { return s && s.url; }).map(function (s) {
       return '<a class="social" href="' + esc(url(s.url)) + '" target="_blank" rel="noopener">' + esc(s.name) + ' ↗</a>';
     }).join('');
@@ -310,8 +345,11 @@
             '</h2>' +
             '<p class="lead">' + esc(c.text) + '</p>' +
             '<div class="actions">' +
-              (email ? '<a class="btn solid" href="mailto:' + esc(email) + '">' + esc(c.button) + ' →</a><a class="plain" href="mailto:' + esc(email) + '">' + esc(email) + '</a>' : '') +
-              (phone ? '<a class="plain" href="tel:' + esc(phone.replace(/\s+/g, '')) + '">' + esc(phone) + '</a>' : '') +
+              (messenger ? '<a class="btn solid" href="' + esc(messenger) + '" target="_blank" rel="noopener">' + ICON_MSG + 'Messenger-ээр бичих</a>' : '') +
+              (phone ? '<a class="btn" href="' + esc(telHref(phone)) + '">' + ICON_TEL + esc(phone) + '</a>' : '') +
+              (email ? (messenger
+                ? '<a class="plain" href="mailto:' + esc(email) + '">' + esc(email) + '</a>'
+                : '<a class="btn solid" href="mailto:' + esc(email) + '">' + esc(c.button) + ' →</a><a class="plain" href="mailto:' + esc(email) + '">' + esc(email) + '</a>') : '') +
             '</div>' +
             (socials ? '<div class="socials">' + socials + '</div>' : '') +
           '</div>' +
@@ -563,7 +601,7 @@
     }
 
     document.addEventListener('click', function (e) {
-      if (e.target.closest('a.project')) { openedFromPage = modal.hidden; return; }
+      if (e.target.closest('a.project, a.client')) { openedFromPage = modal.hidden; return; }
       var swap = e.target.closest('[data-swap]');
       if (swap && modal.contains(swap)) { e.preventDefault(); location.replace(swap.getAttribute('href')); return; }
       if (e.target.closest('[data-close]') && modal.contains(e.target)) close();
@@ -613,6 +651,34 @@
     document.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
   }
 
+  // Phone-only floating bar: Messenger + call, shown after the hero and hidden
+  // once the contact section is on screen (it already has the same buttons).
+  function setupQuickBar(c) {
+    var messenger = url(c.messenger);
+    var tel = telHref(c.phone);
+    if (c.quick_bar === false || (!messenger && !tel)) return;
+    var bar = document.createElement('div');
+    bar.className = 'quick-bar';
+    bar.innerHTML =
+      (messenger ? '<a class="qb-btn solid" href="' + esc(messenger) + '" target="_blank" rel="noopener">' + ICON_MSG + 'Messenger</a>' : '') +
+      (tel ? '<a class="qb-btn" href="' + esc(tel) + '">' + ICON_TEL + 'Залгах</a>' : '');
+    document.body.appendChild(bar);
+
+    var contactEl = document.getElementById('contact');
+    var contactVisible = false;
+    function update() {
+      bar.classList.toggle('show', window.scrollY > window.innerHeight * 0.7 && !contactVisible);
+    }
+    if (contactEl && 'IntersectionObserver' in window) {
+      new IntersectionObserver(function (entries) {
+        contactVisible = entries[0].isIntersecting;
+        update();
+      }, { threshold: 0.15 }).observe(contactEl);
+    }
+    window.addEventListener('scroll', update, { passive: true });
+    update();
+  }
+
   // ---------- boot ----------
 
   var app = document.getElementById('app');
@@ -630,6 +696,7 @@
         hero(d.hero || {}, list((d.work || {}).projects)) +
         marquee(d.marquee) +
         work(d.work || {}) +
+        clients(d.clients || {}, list((d.work || {}).projects)) +
         reels(d.reels || {}) +
         services(d.services || {}) +
         about(d.about || {}) +
@@ -638,6 +705,7 @@
       enhance();
       setupProjects(list((d.work || {}).projects));
       setupReelPlayer(reelItems);
+      setupQuickBar(d.contact || {});
     })
     .catch(function (err) {
       console.error(err);
