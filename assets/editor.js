@@ -1382,12 +1382,13 @@
   var P_LABELS = { fname: 'Frame-ийн нэр', ffillHex: 'Дэвсгэр өнгө (HEX)', fpreset: 'Бэлэн хэмжээ', expScale: 'Export хэмжээ', expFmt: 'Export формат' };
   function labelFields() {
     rp.querySelectorAll('input, select').forEach(function (el) {
-      if (el.getAttribute('aria-label') || el.id && document.querySelector('label[for="' + el.id + '"]') || el.closest('label')) return;
+      if (el.getAttribute('aria-label')) return;
       var k = el.getAttribute('data-p') || '', prev = el.previousElementSibling;
       el.setAttribute('aria-label', P_LABELS[k] || (prev && prev.textContent.trim()) || el.getAttribute('placeholder') || k || 'Тохиргоо');
     });
   }
   new MutationObserver(labelFields).observe(rp, { childList: true, subtree: true });
+  labelFields(); setTimeout(labelFields, 0); window.addEventListener('load', labelFields);
   // sliders, colour pickers and the frame name apply live; number fields on Enter / blur / arrows / scrubbing
   rp.addEventListener('input', function (e) {
     var t = e.target, p = t.dataset.p; if (!p) return;
