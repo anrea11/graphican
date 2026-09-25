@@ -366,5 +366,6 @@ collections:
               - { name: description, label: "Тайлбар", widget: text, required: false }
           - { name: bgremove, label: "Tools 02 · Дэвсгэр арилгагч", widget: object, fields: *toolsec }
           - { name: socialcrop, label: "Tools 03 · Сошиал тайрагч", widget: object, fields: *toolsec }
+          - { name: pdfedit, label: "Tools · PDF засварлагч", widget: object, fields: *toolsec }
           - { name: tools, label: "Tools 04 · PDF хөрвүүлэгч", widget: object, fields: *toolsec }
           - { name: editor, label: "Tools 05 · Зураг засварлагч", widget: object, fields: *toolsec }

@@ -418,7 +418,7 @@
   }
 
   var GUIDE_CHIPS = '<a href="#fonts">Фонт</a><a href="#colors">Өнгө</a><a class="hot" href="#kit">Нэг товшилтоор татах ↓</a><a class="brand" href="#guide"><span class="dp-orb" aria-hidden="true"></span>Graphican брэнд гайд</a><a href="/tools/">Design tools →</a>';
-  var TOOLS_CHIPS = '<a class="hot" href="/tools/upscale/">AI томруулагч ✦</a><a href="/tools/bgremove/">Дэвсгэр арилгагч</a><a href="/tools/socialcrop/">Сошиал тайрагч</a><a href="/tools/pdf/">PDF ⇄ PNG / JPG</a><a href="/editor/">Засварлагч ↗</a><a class="brand" href="/design/"><span class="dp-orb" aria-hidden="true"></span>Design guide →</a>';
+  var TOOLS_CHIPS = '<a class="hot" href="/tools/upscale/">AI томруулагч ✦</a><a href="/tools/bgremove/">Дэвсгэр арилгагч</a><a href="/tools/socialcrop/">Сошиал тайрагч</a><a href="/tools/pdfedit/">PDF засварлагч</a><a href="/tools/pdf/">PDF хөрвүүлэгч</a><a href="/editor/">Засварлагч ↗</a><a class="brand" href="/design/"><span class="dp-orb" aria-hidden="true"></span>Design guide →</a>';
 
   function hero(h, page) {
     var tools = page === 'tools';
@@ -681,9 +681,12 @@
     { id: 'socialcrop', badge: '✂', name: 'Сошиал тайрагч', what: 'Нэг зургийг IG, Story, Facebook, YouTube хэмжээ рүү тайрна.',
       when: 'Нэг постерыг бүх сошиал сувагт тавих', sample: '/assets/uploads/novanest-dining-table.webp',
       steps: ['Зургаа оруулна', 'Хэрэгтэй хэмжээнүүдээ чагтална · чирж засна', 'Нэг бүрчлэн эсвэл ZIP-ээр татна'] },
-    { id: 'pdf', badge: 'PDF', name: 'PDF хөрвүүлэгч', what: 'PDF-ийг зураг болгох, эсвэл олон зургийг нэг PDF болгох.',
-      when: 'Каталог, танилцуулгын хуудсыг сошиалд тавих / зургаас PDF хийх',
-      steps: ['Чиглэлээ сонгоно (PDF → зураг эсвэл зураг → PDF)', 'Файлаа оруулна', 'ZIP эсвэл PDF-ээр татна'] },
+    { id: 'pdfedit', badge: 'PDF', name: 'PDF засварлагч', what: 'PDF доторх бичгийг засах, текст, гарын үсэг, зураг нэмэх, хуудас эргүүлэх, нэгтгэх.',
+      when: 'Гэрээ, нэхэмжлэх, маягтанд засвар оруулах, гарын үсэг зурах', href: '/tools/pdfedit/',
+      steps: ['PDF (эсвэл Word, Excel, зураг) оруулна', '«Текст засах»-аар бичгийг дарж засна, эсвэл шинээр нэмнэ', 'PDF-ээр татна'] },
+    { id: 'pdf', badge: '⇄', name: 'PDF хөрвүүлэгч', what: 'PDF-ийг зураг болгох, эсвэл Word, Excel, зураг зэрэг олон файлыг нэг PDF болгох.',
+      when: 'Каталогийг сошиалд тавих / баримт, зургуудаа нэг PDF болгох',
+      steps: ['Чиглэлээ сонгоно (PDF → зураг эсвэл файл → PDF)', 'Файлаа оруулна (PDF, DOCX, XLSX, HEIC, WebP…)', 'ZIP эсвэл PDF-ээр татна'] },
     { id: 'editor', badge: 'Aa', name: 'Засварлагч', what: 'Canva шиг: текст, зураг, хэлбэр нэмж постер, сошиал пост бүтээнэ.',
       when: 'Бэлэн зурган дээр текст, лого нэмж пост хийх', href: '/editor/',
       steps: ['Хэмжээгээ сонгоно', 'Текст, зураг, хэлбэр нэмнэ', 'PNG, JPG, PDF-ээр татна'] }
@@ -1052,31 +1055,34 @@
     return (
       '<section class="sec tools" id="pdf">' + head(t) + toolGuide('pdf') +
         '<div class="tool-tabs reveal" role="tablist">' +
-          '<button type="button" class="tt active" data-tab="p2i" role="tab">PDF → PNG / JPG</button>' +
-          '<button type="button" class="tt" data-tab="i2p" role="tab">PNG / JPG → PDF</button>' +
+          '<button type="button" class="tt active" data-tab="p2i" role="tab">PDF → зураг</button>' +
+          '<button type="button" class="tt" data-tab="i2p" role="tab">Файл → PDF</button>' +
+          '<a class="tt tt-link" href="/tools/pdfedit/">PDF засварлагч ↗</a>' +
         '</div>' +
 
         '<div class="tool reveal" data-panel="p2i">' +
           '<label class="drop" data-drop="p2i">' +
-            '<input type="file" accept="application/pdf,.pdf" hidden>' +
+            '<input type="file" accept="' + (window.GFile ? GFile.ACCEPT : 'application/pdf,.pdf') + '" hidden>' +
             '<span class="drop-ic" aria-hidden="true">PDF</span>' +
-            '<b>PDF файлаа энд чирж оруулна уу</b><span>эсвэл дарж сонгоно</span>' +
+            '<b>PDF файлаа энд чирж оруулна уу</b><span>эсвэл дарж сонгоно · Word, Excel, TXT файлыг ч хуудас бүрээр нь зураг болгоно</span>' +
           '</label>' +
           '<div class="tool-opts">' +
-            '<label><span>Формат</span><select data-opt="fmt"><option value="png">PNG</option><option value="jpg">JPG</option></select></label>' +
+            '<label><span>Формат</span><select data-opt="fmt"><option value="png">PNG</option><option value="jpg">JPG</option><option value="webp">WebP</option></select></label>' +
             '<label><span>Чанар / хэмжээ</span><select data-opt="scale"><option value="1">Энгийн (72 dpi)</option><option value="2" selected>Өндөр (144 dpi)</option><option value="3">Хэвлэх (216 dpi)</option><option value="4">Маш өндөр (288 dpi)</option></select></label>' +
             '<button type="button" class="btn solid" data-act="p2i-all" disabled>Бүгдийг ZIP-ээр татах ↓</button>' +
           '</div>' +
           '<p class="tool-status" data-status="p2i"></p>' +
+          '<p class="tool-edit" data-edit hidden><button type="button" class="btn ghost" data-act="p2i-edit">Энэ PDF-ийг засварлагчид нээх ↗</button></p>' +
           '<div class="thumbs" data-out="p2i"></div>' +
           '<div class="flow" data-flow="p2i" hidden></div>' +
         '</div>' +
 
         '<div class="tool reveal" data-panel="i2p" hidden>' +
           '<label class="drop" data-drop="i2p">' +
-            '<input type="file" accept="image/png,image/jpeg,image/webp" multiple hidden>' +
-            '<span class="drop-ic" aria-hidden="true">IMG</span>' +
-            '<b>PNG / JPG зургуудаа энд чирж оруулна уу</b><span>олон зураг зэрэг сонгож болно · дарааллыг чирж солино</span>' +
+            '<input type="file" accept="' + (window.GFile ? GFile.ACCEPT : 'image/png,image/jpeg,image/webp') + '" multiple hidden>' +
+            '<span class="drop-ic" aria-hidden="true">+</span>' +
+            '<b>Файлуудаа энд чирж оруулна уу</b><span>олон файл зэрэг сонгож болно · дарааллыг чирж солино · бүгд нэг PDF болно</span>' +
+            (window.GFile ? '<span class="drop-types">' + GFile.LABEL.split(' · ').map(function (x) { return '<i>' + esc(x) + '</i>'; }).join('') + '</span>' : '') +
           '</label>' +
           '<div class="tool-opts">' +
             '<label><span>Хуудасны хэмжээ</span><select data-opt="page"><option value="fit">Зургийн хэмжээгээр</option><option value="a4">A4 босоо</option><option value="a4l">A4 хэвтээ</option></select></label>' +
@@ -1153,7 +1159,7 @@
         return page.render({ canvasContext: ctx, viewport: vp }).promise.then(function () { return c; });
       });
     }
-    function pageBlob(c) { return fmt() === 'jpg' ? canvasBlob(c, 'image/jpeg', .92) : canvasBlob(c, 'image/png'); }
+    function pageBlob(c) { return fmt() === 'jpg' ? canvasBlob(c, 'image/jpeg', .92) : fmt() === 'webp' ? canvasBlob(c, 'image/webp', .9) : canvasBlob(c, 'image/png'); }
     function fileName(i) { return pdfName + '-' + pad(i) + '.' + fmt(); }
 
     function renderAll() {
@@ -1187,15 +1193,23 @@
       next();
     }
 
+    var pdfBytes = null;
     wireDrop('p2i', function (files) {
-      var f = files.find(function (x) { return /pdf$/i.test(x.type) || /\.pdf$/i.test(x.name); });
-      if (!f) { toast('PDF файл сонгоно уу'); return; }
+      var f = files[0], G = window.GFile;
+      if (!G && !(/pdf$/i.test(f.type) || /\.pdf$/i.test(f.name))) { toast('PDF файл сонгоно уу'); return; }
+      if (G && !G.kind(f)) { toast(G.whyNot(f)); return; }
       pdfName = baseName(f.name);
-      st1.textContent = 'PDF уншиж байна…';
-      Promise.all([loadPdfJs(), f.arrayBuffer()]).then(function (r) {
-        return r[0].getDocument({ data: new Uint8Array(r[1]) }).promise;
-      }).then(function (doc) { pdfDoc = doc; renderAll(); })
-        .catch(function (e) { console.error(e); st1.textContent = 'PDF-ийг уншиж чадсангүй. Нууц үгтэй эсвэл гэмтсэн файл байж магадгүй.'; });
+      st1.textContent = G && G.kind(f) !== 'pdf' ? '«' + f.name + '» уншиж байна…' : 'PDF уншиж байна…';
+      Promise.all([loadPdfJs(), G ? G.toPdf(f) : f.arrayBuffer().then(function (b) { return new Uint8Array(b); })]).then(function (r) {
+        pdfBytes = r[1];
+        return r[0].getDocument({ data: r[1].slice() }).promise;
+      }).then(function (doc) { pdfDoc = doc; $('[data-edit]').hidden = false; renderAll(); })
+        .catch(function (e) { console.error(e); st1.textContent = (e && e.message && !/Invalid PDF|password/i.test(e.message)) ? e.message : 'Файлыг уншиж чадсангүй. Нууц үгтэй эсвэл гэмтсэн байж магадгүй.'; });
+    });
+    $('[data-act="p2i-edit"]').addEventListener('click', function () {
+      if (!pdfBytes || !window.GHandoff) { location.href = '/tools/pdfedit/'; return; }
+      GHandoff.put(new Blob([pdfBytes], { type: 'application/pdf' }), { name: pdfName + '.pdf', target: 'pdfedit' })
+        .then(function () { location.href = '/tools/pdfedit/'; }, function () { location.href = '/tools/pdfedit/'; });
     });
     root.querySelectorAll('[data-opt="fmt"], [data-opt="scale"]').forEach(function (s) { s.addEventListener('change', renderAll); });
     allBtn.addEventListener('click', function () {
@@ -1217,8 +1231,9 @@
       imgs.forEach(function (it, k) {
         var d = document.createElement('div');
         d.className = 'thumb'; d.draggable = true; d.dataset.k = k;
-        d.innerHTML = '<img src="' + it.url + '" alt=""><span class="th-n">' + pad(k + 1) + '</span><button type="button" class="th-x" aria-label="Хасах">✕</button>';
-        d.querySelector('.th-x').addEventListener('click', function (e) { e.stopPropagation(); URL.revokeObjectURL(it.url); imgs.splice(k, 1); drawList(); });
+        d.innerHTML = (it.url ? '<img src="' + it.url + '" alt="">' : '<span class="th-doc"><b>' + esc(it.ext) + '</b><small>' + esc(it.name) + '</small></span>') +
+          '<span class="th-n">' + pad(k + 1) + '</span><button type="button" class="th-x" aria-label="Хасах">✕</button>';
+        d.querySelector('.th-x').addEventListener('click', function (e) { e.stopPropagation(); if (it.url) URL.revokeObjectURL(it.url); imgs.splice(k, 1); drawList(); });
         d.addEventListener('dragstart', function (e) { e.dataTransfer.setData('text/plain', k); d.classList.add('dragging'); });
         d.addEventListener('dragend', function () { d.classList.remove('dragging'); });
         d.addEventListener('dragover', function (e) { e.preventDefault(); });
@@ -1230,24 +1245,37 @@
         out2.appendChild(d);
       });
       makeBtn.disabled = clrBtn.disabled = !imgs.length;
-      st2.textContent = imgs.length ? imgs.length + ' зураг · дарааллыг чирж солино' : '';
+      st2.textContent = imgs.length ? imgs.length + ' файл · дарааллыг чирж солино' : '';
     }
-    wireDrop('i2p', function (files) {
-      var ok = files.filter(function (f) { return /^image\/(png|jpe?g|webp)$/i.test(f.type); });
-      if (!ok.length) { toast('PNG эсвэл JPG зураг сонгоно уу'); return; }
-      ok.forEach(function (f) { imgs.push({ name: f.name, url: URL.createObjectURL(f), file: f }); });
-      drawList();
-    });
-    clrBtn.addEventListener('click', function () { imgs.forEach(function (i) { URL.revokeObjectURL(i.url); }); imgs = []; drawList(); });
+    function addItem(f) {
+      var G = window.GFile, k = G ? G.kind(f) : (/^image\/(png|jpe?g|webp)$/i.test(f.type) ? 'image' : null);
+      if (!k) { toast(G ? G.whyNot(f) : 'PNG эсвэл JPG зураг сонгоно уу'); return; }
+      var it = { name: f.name || 'file', file: f, kind: k, ext: (/\.([a-z0-9]+)$/i.exec(f.name || '') || [0, k])[1].toUpperCase() };
+      if (k === 'image' || k === 'svg') it.url = URL.createObjectURL(f);
+      else if ((k === 'heic' || k === 'tiff') && G) {
+        // browsers can't show these directly: make a small preview
+        G.imageCanvases(f).then(function (cs) {
+          var c = cs[0], s = Math.min(1, 480 / Math.max(c.width, c.height)), t = document.createElement('canvas');
+          t.width = Math.round(c.width * s); t.height = Math.round(c.height * s); t.getContext('2d').drawImage(c, 0, 0, t.width, t.height);
+          t.toBlob(function (b) { it.url = URL.createObjectURL(b); drawList(); }, 'image/jpeg', .8);
+        }).catch(function () {});
+      }
+      imgs.push(it);
+    }
+    wireDrop('i2p', function (files) { files.forEach(addItem); drawList(); });
+    clrBtn.addEventListener('click', function () { imgs.forEach(function (i) { if (i.url) URL.revokeObjectURL(i.url); }); imgs = []; drawList(); });
 
     // results from other tools land in "images → PDF"
     FLOW.pdf = function (f) {
       root.querySelector('.tt[data-tab="i2p"]').click();
-      imgs.push({ name: f.name || 'image.png', url: URL.createObjectURL(f), file: f });
+      imgs.push({ name: f.name || 'image.png', url: URL.createObjectURL(f), file: f, kind: 'image', ext: 'PNG' });
       drawList();
     };
 
-    function toEmbeddable(it) { // webp (and odd files) → png via canvas
+    function toEmbeddable(it) { // webp, gif, heic, tiff, svg… → png via canvas
+      if (window.GFile && !/^image\/(png|jpe?g)$/i.test(it.file.type)) return GFile.imageCanvases(it.file).then(function (cs) {
+        return canvasBlob(cs[0], 'image/png').then(function (b) { return b.arrayBuffer(); }).then(function (b) { return { bytes: b, png: true }; });
+      });
       if (/png|jpe?g/i.test(it.file.type)) return it.file.arrayBuffer().then(function (b) { return { bytes: b, png: /png/i.test(it.file.type) }; });
       return new Promise(function (res, rej) {
         var im = new Image();
@@ -1269,7 +1297,13 @@
           var chain = Promise.resolve();
           imgs.forEach(function (it, k) {
             chain = chain.then(function () {
-              st2.textContent = 'Зураг ' + (k + 1) + ' / ' + imgs.length + '…';
+              st2.textContent = 'Файл ' + (k + 1) + ' / ' + imgs.length + '…';
+              if (window.GFile && !/^(image|svg|heic|tiff)$/.test(it.kind)) {
+                // documents (PDF, Word, Excel, text…) keep their own pages
+                return GFile.toPdf(it.file).then(function (bytes) { return L.PDFDocument.load(bytes, { ignoreEncryption: true }); })
+                  .then(function (src) { return doc.copyPages(src, src.getPageIndices()); })
+                  .then(function (ps) { ps.forEach(function (pg) { doc.addPage(pg); }); });
+              }
               return toEmbeddable(it).then(function (e) { return e.png ? doc.embedPng(e.bytes) : doc.embedJpg(e.bytes); })
                 .then(function (img) {
                   var W, H;
@@ -1287,10 +1321,10 @@
           return chain.then(function () { return doc.save(); });
         });
       }).then(function (bytes) {
-        var name = (imgs.length === 1 ? baseName(imgs[0].name) : 'graphican-images') + '.pdf';
+        var name = (imgs.length === 1 ? baseName(imgs[0].name) : 'graphican-files') + '.pdf';
         saveBlob(name, new Blob([bytes], { type: 'application/pdf' }));
-        st2.textContent = imgs.length + ' зурагтай PDF татагдлаа.'; toast(name + ' татагдлаа');
-      }).catch(function (e) { console.error(e); st2.textContent = 'PDF үүсгэхэд алдаа гарлаа. Өөр зураг туршаад үзээрэй.'; })
+        st2.textContent = imgs.length + ' файлаас PDF үүсэж татагдлаа.'; toast(name + ' татагдлаа');
+      }).catch(function (e) { console.error(e); st2.textContent = 'PDF үүсгэхэд алдаа гарлаа' + (e && e.message ? ': ' + e.message : '') + '. Өөр файл туршаад үзээрэй.'; })
         .then(function () { makeBtn.disabled = !imgs.length; });
     });
   }

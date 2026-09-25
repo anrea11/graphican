@@ -144,7 +144,7 @@ def home():
                 + (f'<p><a href="mailto:{e(email)}">{e(email)}</a></p>' if email else "")
                 + (f'<p><a href="tel:+976{e(phone)}">{e(phone)}</a></p>' if phone else "")
                 + "".join(f'<p><a href="{e(u)}" rel="me">{e(u)}</a></p>' for u in socials) + "</section>")
-    body.append('<p><a href="/design/">Design guide — фонт, өнгөний хослол, брэнд гайд</a> · <a href="/tools/">Design tools — AI зураг томруулагч, дэвсгэр арилгагч, PDF, засварлагч</a></p>')
+    body.append('<p><a href="/design/">Design guide — фонт, өнгөний хослол, брэнд гайд</a> · <a href="/tools/">Design tools — AI зураг томруулагч, PDF засварлагч, дэвсгэр арилгагч, PDF хөрвүүлэгч</a></p>')
     body.append("</div>")
 
     p = os.path.join(ROOT, "index.html")
@@ -179,7 +179,7 @@ def design():
     for s in (kit, brand):
         if s.get("title"):
             body.append(f'<section><h2>{e(s.get("title"))}</h2><p>{e(s.get("description"))}</p></section>')
-    body.append('<p><a href="/tools/">Design tools — AI зураг томруулагч, дэвсгэр арилгагч, сошиал тайрагч, PDF, засварлагч</a></p></div>')
+    body.append('<p><a href="/tools/">Design tools — AI зураг томруулагч, PDF засварлагч, дэвсгэр арилгагч, сошиал тайрагч, PDF хөрвүүлэгч</a></p></div>')
     write_page(os.path.join("design", "index.html"), head, body)
     return d
 
@@ -219,8 +219,8 @@ def write_page(rel, head, body):
 
 # ------------------------------------------------------------------ tools page
 # (content key, page path) — every tool has its own page
-TOOL_KEYS = (("upscale", "/tools/upscale/"), ("bgremove", "/tools/bgremove/"), ("socialcrop", "/tools/socialcrop/"),
-             ("tools", "/tools/pdf/"), ("editor", "/editor/"))
+TOOL_KEYS = (("upscale", "/tools/upscale/"), ("pdfedit", "/tools/pdfedit/"), ("bgremove", "/tools/bgremove/"),
+             ("socialcrop", "/tools/socialcrop/"), ("tools", "/tools/pdf/"), ("editor", "/editor/"))
 
 
 def tool_app(s, path):

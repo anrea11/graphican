@@ -456,7 +456,16 @@
 .th-x:hover { background:#e5484d; }
 .tool-note { margin-top:16px; font-size:13px; color:var(--muted); }
 @media (hover:none) { .th-dl { opacity:1; } }
-@media (max-width:600px) { .tool-opts label, .tool-opts select, .tool-opts .btn { width:100%; } .tool-tabs { display:flex; } .tt { flex:1; padding:0 8px; font-size:12.5px; } }
+/* converter: link to the editor, doc cards, accepted types */
+.tt-link { display:inline-flex; align-items:center; text-decoration:none; color:var(--v2, #a497ff); }
+.tt-link:hover { color:#fff; }
+.tool-edit { margin:-6px 0 14px; }
+.drop .drop-types { display:flex; flex-wrap:wrap; justify-content:center; gap:4px; max-width:520px; margin-top:6px; }
+.drop .drop-types i { font-style:normal; font-size:10.5px; padding:2px 7px; border-radius:20px; border:1px solid var(--line); color:var(--muted); }
+.th-doc { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; padding:10px; background:linear-gradient(160deg, #1b1830, #0e0e14); color:#fff; text-align:center; }
+.th-doc b { font:700 15px/1 var(--display); letter-spacing:.04em; padding:6px 9px; border-radius:6px; background:#6d56fa; }
+.th-doc small { font-size:11px; line-height:1.3; color:rgba(255,255,255,.7); word-break:break-all; display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
+@media (max-width:600px) { .tool-opts label, .tool-opts select, .tool-opts .btn { width:100%; } .tool-tabs { display:flex; } .tt { flex:1; padding:0 8px; font-size:12.5px; } .tool-tabs { flex-wrap:wrap; border-radius:18px; } .tt-link { flex-basis:100%; justify-content:center; } }
 
 /* ---------- AI upscale ---------- */
 .up-progress { height:4px; margin-top:16px; border-radius:4px; background:rgba(255,255,255,.08); overflow:hidden; }
@@ -517,6 +526,7 @@
 
 /* ---------- tools page: picker ---------- */
 .tp-grid { display:grid; grid-template-columns:repeat(auto-fill, minmax(210px, 1fr)); gap:12px; }
+@media (min-width:900px) { .picker .tp-grid { grid-template-columns:repeat(3, minmax(0, 1fr)); } }
 .tp-card { display:flex; flex-direction:column; gap:10px; padding:20px; border:1px solid var(--line); border-radius:6px; background:rgba(14,14,20,.7); color:inherit; text-decoration:none; transition:border-color .25s, transform .25s; }
 .tp-card:hover, .tp-card:focus-visible { border-color:#a497ff; transform:translateY(-2px); }
 .tp-top { display:flex; align-items:flex-start; justify-content:space-between; }
