@@ -1159,6 +1159,25 @@
     }
     return addFrame(w, h);
   }
+  // real mini previews for the templates panel (drawn once with the same code, then cached as images)
+  var tplThumbs = {}, thumbQueue = Promise.resolve();
+  function tplThumb(t) {
+    if (tplThumbs[t.id]) return tplThumbs[t.id];
+    return (tplThumbs[t.id] = thumbQueue = thumbQueue.then(function () {
+      return Promise.all(t.fonts.map(function (f) { return ensureFont(f).catch(function () {}); }));
+    }).then(function () {
+      var objs = window.GTPL.objects(t, 0, 0, stack), faces = {};
+      objs.forEach(function (o) { if (o.fontFamily) faces[(o.fontStyle === 'italic' ? 'italic ' : '') + (o.fontWeight || 400) + ' 40px ' + o.fontFamily] = 1; });
+      return Promise.all(Object.keys(faces).map(function (k) { return document.fonts ? document.fonts.load(k, 'АаӨөҮү').catch(function () {}) : 0; })).then(function () {
+        var k = 200 / Math.max(t.w, t.h), el = document.createElement('canvas');
+        var c = new fabric.StaticCanvas(el, { width: Math.round(t.w * k), height: Math.round(t.h * k), backgroundColor: t.bg, renderOnAddRemove: false, enableRetinaScaling: false });
+        c.setZoom(k);
+        objs.forEach(function (o) { if (o.initDimensions) o.initDimensions(); c.add(o); });
+        c.renderAll();
+        var url = el.toDataURL('image/jpeg', 0.86); c.dispose(); return url;
+      });
+    }).catch(function () { delete tplThumbs[t.id]; return null; }));
+  }
   function useTemplate(id) {
     var tp = window.GTPL && window.GTPL.get(id); if (!tp) return false;
     var f = frameFor(tp.w, tp.h);
@@ -1324,6 +1343,13 @@
     }
     if (lpTab === 'stock') h = stockPanel();
     el.innerHTML = h;
+    if (lpTab === 'templates') el.querySelectorAll('.tpl[data-tpl]').forEach(function (b) {
+      var t = window.GTPL.get(b.dataset.tpl); if (!t) return;
+      tplThumb(t).then(function (url) {
+        var sp = b.querySelector('.tpl-prev'); if (!url || !sp) return;
+        sp.style.backgroundImage = 'url(' + url + ')'; sp.classList.add('img');
+      });
+    });
     if (lpTab === 'stock') { renderStock(); if (!stock.items.length && !stock.loading && !stock.err) loadStock(); }
   }
 

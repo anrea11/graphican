@@ -115,10 +115,10 @@ def build():
   <section class="hm-sec hm-editor" id="editor">
     <div class="he-copy">
       <p class="hm-kicker">ОНЛАЙН ЗАСВАРЛАГЧ · ҮНЭГҮЙ</p>
-      <h2>Пост, постерээ<br><em>өөрөө хий.</em></h2>
+      <h2>Пост, постероо<br><em>өөрөө хий.</em></h2>
       <p class="he-lead">Instagram пост, story, зар, мэндчилгээ, нэрийн хуудсыг програм суулгалгүй хөтөч дээрээ бүтээгээд PNG, PDF-ээр татаарай.</p>
       <ul class="he-feats">
-        <li><span>{svg("tpl")}</span><b>20 бэлэн загвар</b><small>Цагаан сар, Наадам, зар</small></li>
+        <li><span>{svg("tpl")}</span><b>34 бэлэн загвар</b><small>Цагаан сар, Наадам, зар</small></li>
         <li><span>{svg("font")}</span><b>178 монгол фонт</b><small>Ө, Ү эвдрэхгүй</small></li>
         <li><span>{svg("bg")}</span><b>AI хэрэгсэл</b><small>Дэвсгэр арилгах, тодруулах</small></li>
         <li><span>{svg("img")}</span><b>Үнэгүй зураг</b><small>Сая сая фото, видео</small></li>

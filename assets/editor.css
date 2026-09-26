@@ -136,6 +136,8 @@ svg.i { width:16px; height:16px; display:block; fill:none; stroke:currentColor; 
 .tpl-prev i { position:absolute; left:14%; right:14%; height:10%; border-radius:2px; }
 .tpl-prev i:first-child { top:30%; height:16%; }
 .tpl-prev i:last-child { top:56%; }
+.tpl-prev.img { background-size:cover !important; background-position:center; }
+.tpl-prev.img i { display:none; }
 .tpl b { font-size:11px; font-weight:600; line-height:1.25; }
 .tpl span:not(.tpl-prev) { font-size:10.5px; color:var(--muted); }
 .size-row { display:flex; align-items:center; gap:10px; width:100%; padding:7px 8px; border-radius:5px; text-align:left; }

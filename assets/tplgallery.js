@@ -10,14 +10,22 @@
   var fams = {};
   T.list.forEach(function (t) { t.fonts.forEach(function (f) { fams[f] = t; }); });
   Object.keys(fams).forEach(function (f) {
-    var l = document.createElement('link'); l.rel = 'stylesheet'; l.href = T.cssUrl({ fonts: [f] }); document.head.appendChild(l);
+    var l = document.createElement('link'); l.rel = 'stylesheet'; l.setAttribute('data-tplf', ''); l.href = T.cssUrl({ fonts: [f] }); document.head.appendChild(l);
   });
-  function fontsReady() {
+  // wait for exactly the faces a template's texts use (weight + style), not a guess
+  var faceWait = {};
+  function facesFor(objs) {
+    var need = {};
+    objs.forEach(function (o) {
+      if (!o.fontFamily) return;
+      var fam = (o.fontFamily.match(/"([^"]+)"/) || [0, o.fontFamily])[1];
+      need[(o.fontStyle === 'italic' ? 'italic ' : '') + (o.fontWeight || 400) + ' 40px "' + fam + '"'] = 1;
+    });
     if (!document.fonts) return Promise.resolve();
-    var loads = [];
-    Object.keys(fams).forEach(function (f) { [400, 600, 700, 800].forEach(function (w) { loads.push(document.fonts.load(w + ' 40px "' + f + '"', 'АаӨөҮү')); }); });
-    loads.push(document.fonts.load('italic 700 40px "Lora"', 'Аа'), document.fonts.load('italic 700 40px "Cormorant Garamond"', 'Аа'));
-    return Promise.all(loads.map(function (p) { return p.catch(function () {}); }));
+    return Promise.all(Object.keys(need).map(function (k) {
+      if (!faceWait[k]) faceWait[k] = document.fonts.load(k, 'АаӨөҮү').catch(function () {});
+      return faceWait[k];
+    }));
   }
 
   root.innerHTML = '<div class="tg-cats" id="tg-cats"></div><div class="tg-grid" id="tg-grid"></div>';
@@ -37,16 +45,21 @@
     }).join('');
     draw();
   }
-  var ready = fontsReady();
+  var sheets = Promise.all(Array.prototype.map.call(document.querySelectorAll('link[data-tplf]'), function (l) {
+    return new Promise(function (r) { if (l.sheet) r(); else { l.onload = l.onerror = r; setTimeout(r, 4000); } });
+  }));
   function draw() {
-    ready.then(function () {
-      grid.querySelectorAll('.tg-card').forEach(function (a) {
-        var t = T.get(a.dataset.id), el = a.querySelector('canvas'), box = a.querySelector('.tg-prev');
-        var W = Math.min(520, Math.round(box.clientWidth * (window.devicePixelRatio || 1) * 1.1)) || 360, k = W / t.w;
+    grid.querySelectorAll('.tg-card').forEach(function (a) {
+      var t = T.get(a.dataset.id), el = a.querySelector('canvas'), box = a.querySelector('.tg-prev');
+      var objs = T.objects(t, 0, 0);
+      sheets.then(function () { return facesFor(objs); }).then(function () {
+        if (!a.isConnected) return;
+        var W = Math.min(560, Math.round(box.clientWidth * (window.devicePixelRatio || 1) * 1.1)) || 360, k = W / t.w;
         var c = new fabric.StaticCanvas(el, { width: Math.round(t.w * k), height: Math.round(t.h * k), backgroundColor: t.bg, renderOnAddRemove: false, enableRetinaScaling: false });
         c.setZoom(k);
-        T.objects(t, 0, 0).forEach(function (o) { c.add(o); });
+        objs.forEach(function (o) { if (o.initDimensions) o.initDimensions(); c.add(o); });
         c.renderAll();
+        a.classList.add('ready');
         el.style.width = '100%'; el.style.height = '100%';
         var wrap = el.parentNode; if (wrap && wrap.classList.contains('canvas-container')) { wrap.style.width = '100%'; wrap.style.height = '100%'; }
       });
