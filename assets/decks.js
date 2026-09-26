@@ -10,7 +10,7 @@
 
   var DECKS = [
     // ======================= РЕСТОРАН — ногоон, алтан =======================
-    { id: 'resto', name: 'Ресторан — ногоон, алтан', fonts: ['Cormorant Garamond', 'Montserrat'], sw: ['#1c2a22', '#c9a45c', '#f3ead8'], slides: [
+    { id: 'resto', tag: 'Ресторан', name: 'Ресторан — ногоон, алтан', fonts: ['Cormorant Garamond', 'Montserrat'], sw: ['#1c2a22', '#c9a45c', '#f3ead8'], slides: [
       { name: 'Нүүр', items: function () { return [
         BG('#1c2a22'), PHOTO(0, 0, W, HH, 'pizza2'), R(0, 0, W, HH, '#0e1712', { opacity: 0.45, name: 'Бараан' }),
         R(560, 0, 800, HH, '#1c2a22', { opacity: 0.88, name: 'Панел' }),
@@ -74,7 +74,7 @@
     ] },
 
     // ======================= БИЗНЕС — минимал цэнхэр =======================
-    { id: 'biz', name: 'Бизнес — минимал цэнхэр', fonts: ['Inter Tight', 'Inter'], sw: ['#ffffff', '#1646ff', '#0b1033'], slides: [
+    { id: 'biz', tag: 'Бизнес', name: 'Бизнес — минимал цэнхэр', fonts: ['Inter Tight', 'Inter'], sw: ['#ffffff', '#1646ff', '#0b1033'], slides: [
       { name: 'Нүүр', items: function () { return flat([
         BG('#ffffff'), PHOTO(1000, 60, 860, 960, 'team', { mask: 'rounded', r: 40 }),
         pill(120, 150, 300, 60, '#eef2ff', '2026 · СТРАТЕГИ', '#1646ff', 22, { cs: 150 }),
@@ -148,7 +148,7 @@
     ] },
 
     // ======================= КРЕАТИВ — gradient =======================
-    { id: 'creative', name: 'Креатив — gradient', fonts: ['Geologica', 'Inter'], sw: ['#0e0b1f', '#7b61ff', '#ff6ad5'], slides: [
+    { id: 'creative', tag: 'Креатив', name: 'Креатив — gradient', fonts: ['Geologica', 'Inter'], sw: ['#0e0b1f', '#7b61ff', '#ff6ad5'], slides: [
       { name: 'Нүүр', items: function () { return flat([
         BG('#0e0b1f', { fx: H.GRAIN2 }), BLOB(1500, 250, 700, '#7b61ff', 0.75), BLOB(1700, 900, 520, '#ff6ad5', 0.55), BLOB(300, 1000, 500, '#2bd4ff', 0.25),
         pill(120, 140, 280, 60, 'rgba(255,255,255,0.08)', 'CREATIVE DECK', '#ffffff', 22, { cs: 200, stroke: 'rgba(255,255,255,0.25)', sw: 1.5 }),
@@ -211,7 +211,7 @@
     ] },
 
     // ======================= БОЛОВСРОЛ — дулаан =======================
-    { id: 'edu', name: 'Боловсрол — хичээл', fonts: ['Rubik', 'Onest'], sw: ['#fff6e5', '#ff7a1a', '#1b1b3a'], slides: [
+    { id: 'edu', tag: 'Боловсрол', name: 'Боловсрол — хичээл', fonts: ['Rubik', 'Onest'], sw: ['#fff6e5', '#ff7a1a', '#1b1b3a'], slides: [
       { name: 'Нүүр', items: function () { return flat([
         BG('#fff6e5'), C(1480, 540, 470, '#ffd9b3', { name: 'Тойрог' }), PHOTO(1060, 120, 840, 840, 'student', { mask: 'circle' }),
         C(160, 900, 60, '#06a77d', { name: 'Хэлбэр' }), R(820, 120, 70, 70, '#ff7a1a', { rx: 14, angle: 20, name: 'Хэлбэр' }),
@@ -273,7 +273,7 @@
     ] },
 
     // ======================= МОНГОЛ — байгаль, аялал =======================
-    { id: 'mongolia', name: 'Монгол — аялал, байгаль', fonts: ['Oswald', 'Inter'], sw: ['#141414', '#f4a261', '#ffffff'], slides: [
+    { id: 'mongolia', tag: 'Аялал', name: 'Монгол — аялал, байгаль', fonts: ['Oswald', 'Inter'], sw: ['#141414', '#f4a261', '#ffffff'], slides: [
       { name: 'Нүүр', items: function () { return [
         BG('#141414'), PHOTO(0, 0, W, HH, 'gobi'),
         SCRIM(0, 0, W, HH, 0, [[0, '#141414', 0.85], [0.6, '#141414', 0.2], [1, '#141414', 0]]),
@@ -326,8 +326,246 @@
         T('mongoltravel.mn  ·  9900 1122  ·  @mongoltravel', 540, 36, { body: 1, weight: 600, color: '#f4a261', w: 1600 })
       ]; } }
     ] }
+    ,
+    // ======================= ТАНСАГ ЗОЧИД БУУДАЛ =======================
+    { id: 'hotel', tag: 'Аялал', name: 'Тансаг зочид буудал', fonts: ['Cormorant Garamond', 'Montserrat'], sw: ['#0f0f0e', '#d6b67a', '#f4efe6'], slides: [
+      { name: 'Нүүр', items: function () { return [
+        BG('#0f0f0e'), PHOTO(0, 0, W, HH, 'pool'), R(0, 0, W, HH, '#0f0f0e', { opacity: 0.42, name: 'Бараан' }),
+        SCRIM(0, 560, W, 520, 90, [[0, '#0f0f0e', 0], [1, '#0f0f0e', 0.85]]),
+        T('ТАНЫ ЛОГО', 120, 24, { body: 1, weight: 600, color: '#d6b67a', cs: 600 }),
+        T('Тансаг', 300, 250, { weight: 500, italic: 1, color: '#f4efe6', lh: 1 }),
+        T('З О Ч И Д   Б У У Д А Л', 600, 44, { body: 1, weight: 300, color: '#f4efe6', cs: 300 }),
+        R(900, 700, 120, 1.5, '#d6b67a', { name: 'Шугам' }),
+        T('www.hotel.mn  ·  Улаанбаатар', 940, 24, { body: 1, color: '#d6b67a', cs: 200 })
+      ]; } },
+      { name: 'Тавтай морил', items: function () { return [
+        BG('#0f0f0e', { fx: GRAIN }), PHOTO(0, 0, 1000, HH, 'lobby'),
+        L('ТАВТАЙ МОРИЛ', 230, 24, 1110, 700, { body: 1, weight: 600, color: '#d6b67a', cs: 600 }),
+        L('Амралт бүрийг\nмартагдашгүй болгоно', 280, 88, 1106, 760, { weight: 500, italic: 1, color: '#f4efe6', lh: 1.02 }),
+        L('Хотын төвд байрлах 120 өрөө бүхий манай буудал таныг дээд зэргийн үйлчилгээ, тав тух, амт чанартай хоолоор угтана.', 540, 28, 1110, 680, { body: 1, color: '#b8b1a4', lh: 1.65 }),
+        L('Ерөнхий менежер', 820, 22, 1110, 500, { body: 1, color: '#d6b67a', cs: 200 }),
+        L('Нэр Овог', 855, 54, 1106, 600, { weight: 500, italic: 1, color: '#f4efe6' })
+      ]; } },
+      { name: 'Өрөөнүүд', items: function () {
+        var o = [BG('#0f0f0e', { fx: GRAIN }), T('ӨРӨӨНҮҮД', 100, 24, { body: 1, weight: 600, color: '#d6b67a', cs: 600 }), T('Таны сонголт', 140, 90, { weight: 500, italic: 1, color: '#f4efe6' })];
+        [['hroom', 'Делюкс', '380,000₮'], ['living2', 'Сюит', '650,000₮'], ['kitchen2', 'Президент', '1.2 сая₮']].forEach(function (d, i) {
+          var x = 140 + i * 560;
+          o.push(PHOTO(x, 330, 520, 520, d[0], { mask: 'rounded', r: 8 }));
+          o.push(L(d[1], 880, 52, x, 400, { weight: 500, italic: 1, color: '#f4efe6' }));
+          o.push(L(d[2] + ' / шөнө', 950, 24, x, 400, { body: 1, weight: 600, color: '#d6b67a' }));
+        });
+        return o;
+      } },
+      { name: 'Үйлчилгээ', items: function () {
+        var o = [BG('#0f0f0e'), PHOTO(0, 0, 1100, HH, 'pool2'), L('Үйлчилгээ', 200, 100, 1200, 640, { weight: 500, italic: 1, color: '#f4efe6' })];
+        ['Спа & массаж', 'Халуун усан сан', 'Ресторан & бар', 'Фитнес төв'].forEach(function (t, i) {
+          var y = 400 + i * 130;
+          o.push(C(1236, y + 26, 30, 'transparent', { stroke: '#d6b67a', sw: 1.5, name: 'Тэмдэг' }), T(String(i + 1), y + 6, 30, { weight: 600, color: '#d6b67a', x: 1206, w: 60 }));
+          o.push(L(t, y + 4, 40, 1300, 560, { weight: 500, color: '#f4efe6' }));
+        });
+        return o;
+      } },
+      { name: 'Ресторан', items: function () { return [
+        BG('#0f0f0e'), PHOTO(0, 0, W, HH, 'restin'), SCRIM(0, 0, W, HH, 0, [[0, '#0f0f0e', 0.9], [0.55, '#0f0f0e', 0.25], [1, '#0f0f0e', 0]]),
+        L('РЕСТОРАН & БАР', 380, 24, 140, 800, { body: 1, weight: 600, color: '#d6b67a', cs: 600 }),
+        L('Орой бүр\nамьд хөгжим', 430, 110, 136, 900, { weight: 500, italic: 1, color: '#f4efe6', lh: 1 }),
+        L('Өглөөний цай 07:00–10:00  ·  Оройн зоог 18:00–23:00', 720, 26, 140, 900, { body: 1, color: '#d9d2c5' })
+      ]; } },
+      { name: 'Холбоо барих', items: function () {
+        var o = [BG('#0f0f0e', { fx: GRAIN }), T('Бидэнтэй холбогдох', 250, 120, { weight: 500, italic: 1, color: '#f4efe6' })];
+        [['УТАС', '7700 1122'], ['И-МЭЙЛ', 'hello@hotel.mn'], ['ХАЯГ', 'Сүхбаатар дүүрэг, 1-р хороо']].forEach(function (d, i) {
+          var x = 160 + i * 540;
+          o.push(R(x, 560, 480, 1.5, '#d6b67a', { name: 'Шугам' }));
+          o.push(L(d[0], 600, 22, x, 480, { body: 1, weight: 600, color: '#d6b67a', cs: 400 }));
+          o.push(L(d[1], 645, 34, x, 480, { body: 1, color: '#f4efe6' }));
+        });
+        return o;
+      } }
+    ] },
+
+    // ======================= FINE DINING =======================
+    { id: 'fine', tag: 'Ресторан', name: 'Fine dining — хар, алтан', fonts: ['Playfair', 'Montserrat'], sw: ['#0b0b0b', '#c9a45c', '#f2ede4'], slides: [
+      { name: 'Нүүр', items: function () { return [
+        BG('#0b0b0b'), PHOTO(0, 0, W, HH, 'steak'), R(0, 0, W, HH, '#0b0b0b', { opacity: 0.55, name: 'Бараан' }),
+        R(560, 190, 800, 700, 'transparent', { stroke: '#c9a45c', sw: 1.5, name: 'Хүрээ' }), R(580, 210, 760, 660, 'transparent', { stroke: '#c9a45c', sw: 0.8, opacity: 0.6, name: 'Хүрээ' }),
+        T('РЕСТОРАН', 330, 26, { body: 1, weight: 600, color: '#c9a45c', cs: 700 }),
+        T('Fine\nDining', 380, 170, { weight: 500, italic: 1, color: '#f2ede4', lh: 0.95 }),
+        T('Амтыг мэдэрч, мөчийг тэмдэглэ', 790, 28, { body: 1, color: '#d8cfc0' })
+      ]; } },
+      { name: 'Тогооч', items: function () { return [
+        BG('#0b0b0b', { fx: GRAIN }), PHOTO(960, 0, 960, HH, 'chef'),
+        L('МАНАЙ ТОГООЧ', 240, 24, 140, 700, { body: 1, weight: 600, color: '#c9a45c', cs: 600 }),
+        L('“Хоол бүр —\nнэгэн түүх.”', 290, 104, 136, 780, { weight: 500, italic: 1, color: '#f2ede4', lh: 1.02 }),
+        L('Парист бэлтгэгдсэн, 15 жилийн туршлагатай ерөнхий тогооч маань улирлын шинэ орцоор цэсээ бүтээдэг.', 580, 28, 140, 700, { body: 1, color: '#b9b1a3', lh: 1.65 }),
+        L('Нэр Овог', 820, 48, 140, 600, { weight: 500, italic: 1, color: '#c9a45c' })
+      ]; } },
+      { name: 'Цэс', items: function () {
+        var o = [BG('#0b0b0b', { fx: GRAIN }), PHOTO(1260, 240, 560, 560, 'steak2', { mask: 'circle' }), C(1540, 520, 300, 'transparent', { stroke: '#c9a45c', sw: 1.5, name: 'Хүрээ' }),
+          L('ЦЭС', 150, 24, 140, 600, { body: 1, weight: 600, color: '#c9a45c', cs: 600 }), L('Оройн зоог', 190, 96, 136, 900, { weight: 500, italic: 1, color: '#f2ede4' })];
+        [['Үхрийн стейк', 'Трюфелийн соус, шарсан ногоо', '89,000₮'], ['Хулдмай загас', 'Лимон, цөцгийн тос', '72,000₮'], ['Хурганы хавирга', 'Розмарин, төмсний нухаш', '78,000₮'], ['Шоколадан фондан', 'Ваниль зайрмаг', '28,000₮']].forEach(function (d, i) {
+          var y = 400 + i * 145;
+          o.push(L(d[0], y, 40, 140, 700, { weight: 600, color: '#f2ede4' }), L(d[2], y + 4, 34, 140, 960, { body: 1, weight: 600, color: '#c9a45c', align: 'right' }));
+          o.push(L(d[1], y + 56, 24, 140, 700, { body: 1, color: '#9d968a' }), R(140, y + 110, 960, 1, '#c9a45c', { opacity: 0.3, name: 'Шугам' }));
+        });
+        return o;
+      } },
+      { name: 'Дарс', items: function () { return [
+        BG('#0b0b0b'), PHOTO(0, 0, 1060, HH, 'wine'),
+        L('ДАРСНЫ ЖАГСААЛТ', 300, 24, 1180, 700, { body: 1, weight: 600, color: '#c9a45c', cs: 600 }),
+        L('200 гаруй\nсонголт', 350, 110, 1176, 700, { weight: 500, italic: 1, color: '#f2ede4', lh: 1 }),
+        L('Франц, Итали, Чилийн шилдэг дарсыг манай сомелье таны хоолтой тааруулж санал болгоно.', 640, 28, 1180, 620, { body: 1, color: '#b9b1a3', lh: 1.65 })
+      ]; } },
+      { name: 'Амттан', items: function () { return [
+        BG('#0b0b0b', { fx: GRAIN }), T('Амттан', 110, 100, { weight: 500, italic: 1, color: '#f2ede4' }),
+        PHOTO(160, 300, 780, 620, 'tart', { mask: 'rounded', r: 6 }), PHOTO(980, 300, 780, 620, 'dessert', { mask: 'rounded', r: 6 }),
+        L('Жимсний тарт  ·  22,000₮', 945, 26, 160, 780, { body: 1, color: '#c9a45c' }), L('Шоколадан бялуу  ·  26,000₮', 945, 26, 980, 780, { body: 1, color: '#c9a45c' })
+      ]; } },
+      { name: 'Ширээ захиалах', items: function () { return [
+        BG('#0b0b0b'), PHOTO(0, 0, W, HH, 'restin'), R(0, 0, W, HH, '#0b0b0b', { opacity: 0.65, name: 'Бараан' }),
+        T('Ширээ захиалах', 330, 140, { weight: 500, italic: 1, color: '#f2ede4' }),
+        T('7700 1122  ·  @finedining.mn', 560, 36, { body: 1, weight: 600, color: '#c9a45c' }),
+        T('Мягмар – Ням  ·  18:00 – 23:00', 630, 26, { body: 1, color: '#d8cfc0' })
+      ]; } }
+    ] },
+
+    // ======================= COFFEE =======================
+    { id: 'coffee', tag: 'Ресторан', name: 'Кофе шоп', fonts: ['Yeseva One', 'Montserrat'], sw: ['#1b120c', '#c8a27a', '#f3e7d7'], slides: [
+      { name: 'Нүүр', items: function () { return [
+        BG('#1b120c'), PHOTO(0, 0, W, HH, 'beans'), SCRIM(0, 0, W, HH, 0, [[0, '#1b120c', 0.92], [0.6, '#1b120c', 0.4], [1, '#1b120c', 0.1]]),
+        L('ТАНЫ ЛОГО', 150, 24, 140, 600, { body: 1, weight: 600, color: '#c8a27a', cs: 600 }),
+        L('Coffee', 300, 250, 128, 1200, { color: '#f3e7d7', lh: 1 }),
+        L('Дэлхийн хамгийн дуртай ундаа — таны өглөө эндээс эхэлнэ', 600, 32, 140, 900, { body: 1, color: '#e2d3c0' }),
+        C(1700, 880, 110, '#c8a27a', { name: 'Тэмдэг' }), T('2026', 860, 36, { color: '#1b120c', x: 1590, w: 220 })
+      ]; } },
+      { name: 'Бидний түүх', items: function () { return [
+        BG('#f3e7d7', { fx: GRAIN }), PHOTO(0, 0, 900, HH, 'cafe'),
+        L('БИДНИЙ ТҮҮХ', 230, 24, 1020, 700, { body: 1, weight: 700, color: '#8a5a3c', cs: 500 }),
+        L('Нэг аяга кофеноос\nэхэлсэн мөрөөдөл', 280, 76, 1016, 800, { color: '#1b120c', lh: 1.1 }),
+        L('2018 онд жижигхэн цонхноос эхэлсэн бид өнөөдөр 5 салбартай болж, өдөр бүр 2000 гаруй аяга кофе бэлтгэдэг.', 520, 28, 1020, 760, { body: 1, color: '#5a4636', lh: 1.65 })
+      ]; } },
+      { name: 'Цэс', items: function () {
+        var o = [BG('#f3e7d7', { fx: GRAIN }), T('Цэс', 100, 110, { color: '#1b120c' })];
+        [['latte', 'Латте', '7,500₮'], ['beans2', 'Эспрессо', '5,500₮'], ['cafe2', 'Капучино', '7,000₮']].forEach(function (d, i) {
+          var cx = 420 + i * 540;
+          o.push(PHOTO(cx - 200, 290, 400, 400, d[0], { mask: 'circle' }));
+          o.push(T(d[1], 740, 56, { color: '#1b120c', x: cx - 250, w: 500 }));
+          o.push(T(d[2], 830, 32, { body: 1, weight: 700, color: '#8a5a3c', x: cx - 250, w: 500 }));
+        });
+        return o;
+      } },
+      { name: 'Бариста', items: function () { return [
+        BG('#1b120c'), PHOTO(0, 0, W, HH, 'barista'), SCRIM(0, 560, W, 520, 90, [[0, '#1b120c', 0], [1, '#1b120c', 0.92]]),
+        L('“Сайн кофе бол хайрын илэрхийлэл.”', 820, 72, 140, 1640, { color: '#f3e7d7' }),
+        L('— Манай ахлах бариста', 930, 28, 140, 800, { body: 1, color: '#c8a27a' })
+      ]; } },
+      { name: 'Кофены үр', items: function () {
+        var o = [BG('#1b120c', { fx: GRAIN }), PHOTO(1000, 0, 920, HH, 'beans2'), L('Шилдэг\nүр тариа', 160, 110, 136, 820, { color: '#f3e7d7', lh: 1.02 })];
+        [['Этиоп', 'Цэцэгсийн, жимсний амт'], ['Колумб', 'Шоколад, самрын амт'], ['Бразил', 'Зөөлөн, карамелийн амт']].forEach(function (d, i) {
+          var y = 480 + i * 150;
+          o.push(R(140, y, 6, 100, '#c8a27a', { name: 'Шугам' }), L(d[0], y, 44, 180, 700, { color: '#f3e7d7' }), L(d[1], y + 60, 26, 180, 700, { body: 1, color: '#bfae99' }));
+        });
+        return o;
+      } },
+      { name: 'Хаяг', items: function () { return [
+        BG('#f3e7d7', { fx: GRAIN }), PHOTO(960, 60, 900, 960, 'cafe2', { mask: 'rounded', r: 24 }),
+        L('Бидэн дээр\nирээрэй', 250, 110, 136, 800, { color: '#1b120c', lh: 1.02 }),
+        L('Сүхбаатар дүүрэг, Их тойруу 12\nӨдөр бүр 07:30 – 22:00\n☎ 9911 2233  ·  @coffee.mn', 560, 32, 140, 760, { body: 1, color: '#5a4636', lh: 1.7 })
+      ]; } }
+    ] },
+
+    // ======================= INTERIOR DESIGN =======================
+    { id: 'interior', tag: 'Үл хөдлөх', name: 'Интерьер дизайн', fonts: ['Prata', 'Manrope'], sw: ['#efebe4', '#2b2a27', '#8c7a64'], slides: [
+      { name: 'Нүүр', items: function () { return [
+        BG('#efebe4', { fx: GRAIN }), PHOTO(960, 0, 960, HH, 'living'),
+        PHOTO(760, 640, 380, 300, 'kitchen', { mask: 'rounded', r: 4 }),
+        L('ПОРТФОЛИО · 2026', 200, 24, 140, 700, { body: 1, weight: 700, color: '#8c7a64', cs: 500 }),
+        L('Interior\nDesign', 250, 150, 132, 800, { color: '#2b2a27', lh: 1 }),
+        L('Бэлтгэсэн: Нэр Овог', 900, 26, 140, 560, { body: 1, weight: 600, color: '#2b2a27' })
+      ]; } },
+      { name: 'Бидний тухай', items: function () { return [
+        BG('#efebe4', { fx: GRAIN }), PHOTO(1060, 80, 720, 440, 'living2', { mask: 'rounded', r: 4 }), PHOTO(1060, 560, 720, 440, 'kitchen2', { mask: 'rounded', r: 4 }),
+        L('БИДНИЙ ТУХАЙ', 220, 24, 140, 700, { body: 1, weight: 700, color: '#8c7a64', cs: 500 }),
+        L('Орон зайг\nамьдралд\nтааруулна', 270, 96, 136, 800, { color: '#2b2a27', lh: 1.05 }),
+        L('Бид 2016 оноос хойш 300 гаруй орон сууц, оффис, кафены интерьерийг зураг төслөөс эхлээд гүйцэтгэл хүртэл хийж байна.', 700, 28, 140, 760, { body: 1, color: '#5d5850', lh: 1.65 })
+      ]; } },
+      { name: 'Төсөл', items: function () { return [
+        BG('#efebe4'), PHOTO(0, 0, W, HH, 'kitchen'),
+        R(120, 620, 760, 340, '#efebe4', { name: 'Карт' }),
+        L('ТӨСӨЛ 01', 670, 22, 170, 600, { body: 1, weight: 700, color: '#8c7a64', cs: 500 }),
+        L('Минимал гал тогоо', 710, 60, 166, 680, { color: '#2b2a27' }),
+        L('Зайсан · 140 м² · 2025', 810, 26, 170, 600, { body: 1, color: '#5d5850' }),
+        L('Цагаан царс, микроцемент, далд гэрэлтүүлэг', 860, 24, 170, 660, { body: 1, color: '#5d5850' })
+      ]; } },
+      { name: 'Үйлчилгээ', items: function () {
+        var o = [BG('#2b2a27'), L('Үйлчилгээ', 120, 96, 140, 1600, { color: '#efebe4' })];
+        [['Зураг төсөл', 'Орон зайн төлөвлөлт, материал'], ['3D зураглал', 'Бодит мэт дүрслэл'], ['Засвар', 'Түлхүүр гардуулах хүртэл'], ['Тавилга', 'Захиалгат тавилга, чимэглэл']].forEach(function (d, i) {
+          var x = 140 + i * 420;
+          o.push(L('0' + (i + 1), 380, 80, x, 360, { color: '#8c7a64' }), R(x, 500, 360, 1.5, '#8c7a64', { name: 'Шугам' }));
+          o.push(L(d[0], 540, 40, x, 380, { color: '#efebe4' }), L(d[1], 610, 24, x, 360, { body: 1, color: '#b9b2a6', lh: 1.5 }));
+        });
+        return o;
+      } },
+      { name: 'Галерей', items: function () { return [
+        BG('#efebe4', { fx: GRAIN }), L('Галерей', 90, 80, 140, 800, { color: '#2b2a27' }),
+        PHOTO(140, 240, 800, 760, 'living', { mask: 'rounded', r: 4 }), PHOTO(980, 240, 390, 370, 'living2', { mask: 'rounded', r: 4 }),
+        PHOTO(1390, 240, 390, 370, 'hroom', { mask: 'rounded', r: 4 }), PHOTO(980, 630, 800, 370, 'kitchen2', { mask: 'rounded', r: 4 })
+      ]; } },
+      { name: 'Холбоо барих', items: function () { return [
+        BG('#efebe4', { fx: GRAIN }), PHOTO(1000, 0, 920, HH, 'living2'),
+        L('Хамтран\nажиллая', 250, 130, 136, 800, { color: '#2b2a27', lh: 1 }),
+        L('studio@interior.mn\n+976 9911 2233\n@interior.studio', 620, 32, 140, 700, { body: 1, color: '#5d5850', lh: 1.7 })
+      ]; } }
+    ] },
+
+    // ======================= REAL ESTATE =======================
+    { id: 'realty', tag: 'Үл хөдлөх', name: 'Үл хөдлөх хөрөнгө', fonts: ['Montserrat', 'Inter'], sw: ['#ffffff', '#111111', '#b08d57'], slides: [
+      { name: 'Нүүр', items: function () { return [
+        BG('#ffffff'), PHOTO(800, 0, 1120, HH, 'house'),
+        R(140, 250, 80, 6, '#b08d57', { name: 'Шугам' }),
+        L('REAL ESTATE', 290, 24, 140, 600, { body: 1, weight: 700, color: '#b08d57', cs: 500 }),
+        L('ҮЛ ХӨДЛӨХ\nХӨРӨНГӨ', 340, 80, 136, 640, { weight: 800, color: '#111111', lh: 1 }),
+        L('Таны мөрөөдлийн гэр — зөв байршил, зөв үнээр', 600, 28, 140, 600, { body: 1, color: '#666666', lh: 1.5 }),
+        L('Бэлтгэсэн: Нэр Овог  ·  2026', 900, 24, 140, 600, { body: 1, weight: 600, color: '#111111' })
+      ]; } },
+      { name: 'Онцлох объект', items: function () {
+        var o = [BG('#ffffff'), PHOTO(0, 0, W, 660, 'house2'), L('Онцлох объект', 720, 60, 140, 900, { weight: 800, color: '#111111' })];
+        [['3', 'өрөө'], ['120 м²', 'талбай'], ['2024', 'ашиглалт'], ['850 сая₮', 'үнэ']].forEach(function (d, i) {
+          var x = 140 + i * 420;
+          o.push(L(d[0], 850, 56, x, 380, { weight: 800, color: i === 3 ? '#b08d57' : '#111111' }), L(d[1], 930, 24, x, 380, { body: 1, color: '#666666' }));
+        });
+        return o;
+      } },
+      { name: 'Байршил', items: function () {
+        var o = [BG('#f5f4f1'), PHOTO(1060, 80, 720, 920, 'tower', { mask: 'rounded', r: 12 }), L('Байршил', 150, 90, 136, 800, { weight: 800, color: '#111111' })];
+        [['Сургууль', '300 м'], ['Цэцэрлэг', '150 м'], ['Супермаркет', '200 м'], ['Төв зам', '5 мин']].forEach(function (d, i) {
+          var y = 360 + i * 130;
+          o.push(L(d[0], y, 38, 140, 600, { body: 1, weight: 600, color: '#111111' }), L(d[1], y, 38, 140, 800, { weight: 800, color: '#b08d57', align: 'right' }), R(140, y + 80, 800, 1, '#d8d4cc', { name: 'Шугам' }));
+        });
+        return o;
+      } },
+      { name: 'Интерьер', items: function () { return [
+        BG('#ffffff'), L('Интерьер', 100, 80, 140, 900, { weight: 800, color: '#111111' }),
+        PHOTO(140, 260, 540, 680, 'living', { mask: 'rounded', r: 12 }), PHOTO(700, 260, 540, 680, 'kitchen2', { mask: 'rounded', r: 12 }), PHOTO(1260, 260, 520, 680, 'hroom', { mask: 'rounded', r: 12 })
+      ]; } },
+      { name: 'Үнийн санал', items: function () {
+        var o = [BG('#111111'), T('Үнийн санал', 110, 80, { weight: 800, color: '#ffffff' })];
+        [['1 өрөө', '320 сая₮', '48 м²'], ['2 өрөө', '520 сая₮', '72 м²'], ['3 өрөө', '850 сая₮', '120 м²']].forEach(function (d, i) {
+          var x = 160 + i * 540, hi = i === 2;
+          o.push(R(x, 290, 500, 620, hi ? '#b08d57' : '#1e1e1e', { rx: 16, name: 'Карт' }));
+          o.push(T(d[0], 360, 44, { weight: 700, color: '#ffffff', x: x, w: 500 }), T(d[1], 470, 76, { weight: 800, color: hi ? '#111111' : '#b08d57', x: x, w: 500 }), T(d[2] + '\n\n✓ Зогсоол\n✓ Агуулах', 620, 28, { body: 1, color: hi ? '#1e1e1e' : '#bbbbbb', x: x, w: 500, lh: 1.5 }));
+        });
+        return o;
+      } },
+      { name: 'Холбоо барих', items: function () { return [
+        BG('#111111'), PHOTO(0, 0, W, HH, 'city'), R(0, 0, W, HH, '#111111', { opacity: 0.6, name: 'Бараан' }),
+        T('ҮЗЛЭГТ БҮРТГҮҮЛЭХ', 330, 90, { weight: 800, color: '#ffffff' }),
+        T('Агент: Нэр Овог  ·  9911 2233  ·  realty.mn', 520, 34, { body: 1, weight: 600, color: '#b08d57', w: 1600 })
+      ]; } }
+    ] }
   ];
 
+  var ORDER = ['hotel', 'fine', 'resto', 'coffee', 'interior', 'realty', 'biz', 'creative', 'mongolia', 'edu'];
+  DECKS.sort(function (a, b) { return ORDER.indexOf(a.id) - ORDER.indexOf(b.id); });
   DECKS.forEach(function (d) {
     d.slides = d.slides.map(function (s, i) {
       return { id: d.id + '-' + (i + 1), name: s.name, deck: d.id, w: W, h: HH, fonts: d.fonts, sw: d.sw, bg: d.sw[0], items: s.items };

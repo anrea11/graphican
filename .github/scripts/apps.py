@@ -10,7 +10,7 @@ import json, os, re
 import landings as L
 
 ROOT, SITE, e, ld = L.ROOT, L.SITE, L.e, L.ld
-V = "6"
+V = "7"
 
 
 def mn_fonts():

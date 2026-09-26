@@ -27,7 +27,13 @@
     cake: [851204, 'Mohammad Danish'], party: [6148507, 'Antoni Shkraba'], sparkler: [1591293, 'Sonam Yadav'], rings: [916344, 'Irina Iriser'],
     car: [5880077, 'Erik Mclean'], dentist: [3845748, 'Anna Shvets'], doctor: [8376309, 'Tima Miroshnichenko'], kids: [30709005, 'Isaac Naph'],
     student: [4861373, 'cottonbro studio'], study: [6929268, 'Polina Tankilevitch'], knit: [3614132, 'Castorly Stock'], city: [68902, 'burak kostak'],
-    barista: [29120540, 'DARKMODE CINEMA'], salon: [3993312, 'cottonbro studio'], plane: [3770090, 'Sterry Larson'], suitcase: [9186152, 'Timur Weber']
+    barista: [29120540, 'DARKMODE CINEMA'], salon: [3993312, 'cottonbro studio'], plane: [3770090, 'Sterry Larson'], suitcase: [9186152, 'Timur Weber'],
+    lobby: [6758532, 'Max Vakhtbovych'], hroom: [5883728, 'thiha soe'], pool: [919, 'ClickerHappy', 'night-dark-hotel-luxury.jpg'], pool2: [7974837, 'Denys Gromov'],
+    restin: [776538, 'Lisa Fotios'], bar: [5863513, 'Rachel Claire'], wine: [66636, 'Timur Saglambilek'], wine2: [225228, 'picjumbo.com'],
+    steak: [769289, 'Malidate Van'], steak2: [323682, 'Chevanon Photography'], cocktail: [4762719, 'Denys Gromov'], coupe: [6065197, 'Eva Bronzini'],
+    beans: [894695, 'Juan Pablo Serrano'], beans2: [1029649, 'AS Photography'], cafe: [8847017, 'Sveta K'], cafe2: [4874896, 'Pexels'],
+    tower: [1619660, 'Geraldine Tay'], kitchen: [6283972, 'Max Vakhtbovych'], kitchen2: [7533765, 'Max Vakhtbovych'],
+    chef: [2544829, 'Rene Terp'], chef2: [8477422, 'Los Muertos Crew'], tart: [2693448, 'Anna Tukhfatullina'], dessert: [115837, 'Markus Spiske']
   };
   function pxUrl(k, w) {
     var p = PX[k]; if (!p) return '';
@@ -474,6 +480,60 @@
         T('Өглөө 8–10 цагт бүх кофе', 1220, 30, { body: 1, weight: 600, color: '#3b2618' }),
         T('КОФЕ ШОПЫН НЭР', 1275, 20, { body: 1, weight: 700, color: '#8a6a55', cs: 500 })
       ]; } },
+    { id: 'finedine', name: 'Fine dining', cat: 'biz', w: 1080, h: 1350, fonts: ['Playfair', 'Montserrat'], sw: ['#0b0b0b', '#c9a45c', '#f2ede4'],
+      items: function () { return [
+        BG('#0b0b0b'), PHOTO(0, 0, 1080, 1350, 'steak'), R(0, 0, 1080, 1350, '#0b0b0b', { opacity: 0.5, name: 'Бараан' }),
+        SCRIM(0, 700, 1080, 650, 90, [[0, '#0b0b0b', 0], [1, '#0b0b0b', 0.9]]),
+        R(60, 60, 960, 1230, 'transparent', { stroke: '#c9a45c', sw: 1.5, name: 'Хүрээ' }),
+        T('РЕСТОРАН', 300, 26, { body: 1, weight: 600, color: '#c9a45c', cs: 700 }),
+        T('Fine\nDining', 360, 190, { weight: 500, italic: 1, color: '#f2ede4', lh: 0.95 }),
+        R(500, 800, 80, 1.5, '#c9a45c', { name: 'Шугам' }),
+        T('Оройн зоог · 18:00 – 23:00', 850, 32, { body: 1, color: '#f2ede4' }),
+        T('Ширээ захиалга: 7700 1122', 1150, 28, { body: 1, weight: 600, color: '#c9a45c', cs: 100 })
+      ]; } },
+    { id: 'cocktail', name: 'Коктейль үдэш', cat: 'biz', w: 1080, h: 1350, fonts: ['Cormorant Garamond', 'Montserrat'], sw: ['#0a0a0a', '#e3b874', '#f5efe6'],
+      items: function () { return [
+        BG('#0a0a0a'), PHOTO(0, 0, 1080, 1350, 'coupe'),
+        SCRIM(0, 0, 1080, 520, 90, [[0, '#0a0a0a', 0.9], [1, '#0a0a0a', 0]]), SCRIM(0, 900, 1080, 450, 90, [[0, '#0a0a0a', 0], [1, '#0a0a0a', 0.92]]),
+        T('БААСАН ГАРАГ БҮР', 90, 26, { body: 1, weight: 600, color: '#e3b874', cs: 600 }),
+        T('Коктейль үдэш', 140, 130, { weight: 500, italic: 1, color: '#f5efe6', w: 1000 }),
+        T('2 + 1', 1080, 110, { weight: 600, color: '#e3b874' }),
+        T('20:00 – 00:00 · Амьд хөгжим', 1230, 28, { body: 1, color: '#f5efe6' })
+      ]; } },
+    { id: 'hotelpost', name: 'Зочид буудал', cat: 'biz', w: 1080, h: 1350, fonts: ['Cormorant Garamond', 'Montserrat'], sw: ['#0f0f0e', '#d6b67a', '#f4efe6'],
+      items: function () { return [
+        BG('#0f0f0e'), PHOTO(0, 0, 1080, 1350, 'pool'), R(0, 0, 1080, 1350, '#0f0f0e', { opacity: 0.3, name: 'Бараан' }),
+        SCRIM(0, 650, 1080, 700, 90, [[0, '#0f0f0e', 0], [0.5, '#0f0f0e', 0.8], [1, '#0f0f0e', 0.95]]),
+        T('ТАНЫ ЛОГО', 90, 24, { body: 1, weight: 600, color: '#d6b67a', cs: 600 }),
+        T('Тансаг амралт', 860, 120, { weight: 500, italic: 1, color: '#f4efe6', w: 1000 }),
+        T('Амралтын өдрийн багц · өглөөний цай, спа', 1030, 28, { body: 1, color: '#d9d2c5' })
+      ].concat(pill(340, 1120, 400, 80, '#d6b67a', '380,000₮ / шөнө', '#0f0f0e', 28)); } },
+    { id: 'coffee3', name: 'Coffee — бараан', cat: 'biz', w: 1080, h: 1350, fonts: ['Yeseva One', 'Montserrat'], sw: ['#1b120c', '#c8a27a', '#f3e7d7'],
+      items: function () { return [
+        BG('#1b120c'), PHOTO(0, 0, 1080, 1350, 'beans'), SCRIM(0, 0, 1080, 1350, 90, [[0, '#1b120c', 0.2], [0.55, '#1b120c', 0.7], [1, '#1b120c', 0.95]]),
+        T('ТАНЫ ЛОГО', 90, 24, { body: 1, weight: 600, color: '#c8a27a', cs: 600 }),
+        T('Coffee', 760, 230, { color: '#f3e7d7', lh: 1 }),
+        T('Өглөөний кофе 5,500₮-өөс', 1040, 34, { body: 1, weight: 600, color: '#c8a27a' }),
+        T('Өдөр бүр 07:30 – 22:00 · @coffee.mn', 1110, 26, { body: 1, color: '#e2d3c0' })
+      ]; } },
+    { id: 'dessert', name: 'Шинэ амттан', cat: 'biz', w: 1080, h: 1080, fonts: ['Yeseva One', 'Montserrat'], sw: ['#f6ece2', '#8a4b3c', '#2b1a14'],
+      items: function () { return [
+        BG('#f6ece2', { fx: GRAIN }), C(760, 600, 360, '#ecd9c6', { name: 'Тойрог' }),
+        PHOTO(460, 300, 600, 600, 'tart', { mask: 'circle' }),
+        T('Шинэ\nамттан', 110, 100, { color: '#2b1a14', align: 'left', x: 70, w: 520, lh: 1.02 }),
+        T('Жимсний тарт', 450, 34, { body: 1, weight: 700, color: '#8a4b3c', align: 'left', x: 72, w: 400 }),
+        T('22,000₮', 500, 60, { color: '#2b1a14', align: 'left', x: 70, w: 400 }),
+        T('@bakery.mn', 960, 24, { body: 1, weight: 600, color: '#8a4b3c', align: 'left', x: 72, w: 400 })
+      ]; } },
+    { id: 'welcome', name: 'Тавтай морил — ресторан', cat: 'biz', w: 1080, h: 1350, fonts: ['Cormorant Garamond', 'Montserrat'], sw: ['#120d0a', '#c9a45c', '#f3ead8'],
+      items: function () { return [
+        BG('#120d0a'), PHOTO(0, 0, 1080, 1350, 'restin'), R(0, 0, 1080, 1350, '#120d0a', { opacity: 0.5, name: 'Бараан' }),
+        T('Тавтай морил', 420, 140, { weight: 500, italic: 1, color: '#f3ead8', w: 1040 }),
+        T('Р Е С Т О Р А Н   &   Б А Р', 620, 30, { body: 1, weight: 400, color: '#c9a45c', cs: 200 }),
+        R(480, 720, 120, 1.5, '#c9a45c', { name: 'Шугам' }),
+        T('Нээлтийн долоо хоногт бүх хоолонд −20%', 1130, 30, { body: 1, weight: 600, color: '#f3ead8', w: 960 }),
+        T('Их тойруу 12 · 7700 1122', 1195, 24, { body: 1, color: '#c9a45c' })
+      ]; } },
     // ===================== АРГА ХЭМЖЭЭ =====================
     { id: 'event', name: 'Концерт — swiss', cat: 'event', w: 1080, h: 1350, fonts: ['Inter Tight', 'Inter'], sw: ['#ececec', '#111111', '#ff3b1f'],
       items: function () { return [
@@ -874,7 +934,8 @@
     return Promise.all(keys.map(function (k) { return loadImg(pxUrl(k, w)).then(function (im) { imgs[k] = im; }); }))
       .then(function () { return objects(tp, X, Y, font, imgs); });
   }
-  LIST.forEach(function (t) { if (!t.bg) t.bg = t.sw[0]; t.photos = photosOf(t); t.credits = t.photos.map(function (k) { return PX[k][1]; }); });
+  var KW = { latte: 'кофе кафе', beans: 'кофе кафе', beans2: 'кофе', cafe: 'кофе кафе', barista: 'кофе кафе', steak: 'ресторан хоол', steak2: 'ресторан хоол', restin: 'ресторан', wine: 'ресторан дарс', burger: 'хоол ресторан', burger2: 'хоол', pizza: 'хоол', coupe: 'бар коктейль', cocktail: 'бар', pool: 'зочид буудал аялал', lobby: 'зочид буудал', tart: 'амттан бялуу', dessert: 'амттан', cake: 'бялуу төрсөн өдөр', rider: 'морь', gobi: 'аялал говь', house: 'байр орон сууц', living: 'интерьер' };
+  LIST.forEach(function (t) { if (!t.bg) t.bg = t.sw[0]; t.photos = photosOf(t); t.credits = t.photos.map(function (k) { return PX[k][1]; }); t.tags = t.photos.map(function (k) { return KW[k] || ''; }).join(' '); });
   window.GTPL = { list: LIST, cats: CATS, get: function (id) { return LIST.filter(function (t) { return t.id === id; })[0]; }, objects: objects, build: build, photoUrl: pxUrl, cssUrl: cssUrl,
     H: { T: T, R: R, C: C, BLOB: BLOB, BG: BG, PH: PH, STAR: STAR, SPARK: SPARK, PHOTO: PHOTO, SCRIM: SCRIM, lin: lin, rad: rad, pill: pill, GRAIN: GRAIN, GRAIN2: GRAIN2 },
     photosOf: photosOf, decks: [] };

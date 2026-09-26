@@ -1172,12 +1172,12 @@
     return (tplThumbs[t.id] = thumbQueue = thumbQueue.then(function () {
       return Promise.all(t.fonts.map(function (f) { return ensureFont(f).catch(function () {}); }));
     }).then(function () {
-      return (window.GTPL.build ? window.GTPL.build(t, 0, 0, stack, 400) : Promise.resolve(window.GTPL.objects(t, 0, 0, stack)));
+      return (window.GTPL.build ? window.GTPL.build(t, 0, 0, stack, 600) : Promise.resolve(window.GTPL.objects(t, 0, 0, stack)));
     }).then(function (objs) {
       var faces = {};
       objs.forEach(function (o) { if (o.fontFamily) faces[(o.fontStyle === 'italic' ? 'italic ' : '') + (o.fontWeight || 400) + ' 40px ' + o.fontFamily] = 1; });
       return Promise.all(Object.keys(faces).map(function (k) { return document.fonts ? document.fonts.load(k, 'АаӨөҮү').catch(function () {}) : 0; })).then(function () {
-        var k = 200 / Math.max(t.w, t.h), el = document.createElement('canvas');
+        var k = 360 / Math.max(t.w, t.h), el = document.createElement('canvas');
         var c = new fabric.StaticCanvas(el, { width: Math.round(t.w * k), height: Math.round(t.h * k), backgroundColor: t.bg, renderOnAddRemove: false, enableRetinaScaling: false });
         c.setZoom(k);
         objs.forEach(function (o) { if (o.initDimensions) o.initDimensions(); c.add(o); });
@@ -1188,6 +1188,7 @@
   }
   function useTemplate(id) {
     var tp = window.GTPL && window.GTPL.get(id); if (!tp) return false;
+    recentAdd('gc-recent-tpl', id);
     applyTpl(tp, frameFor(tp.w, tp.h));
     return true;
   }
@@ -1308,8 +1309,95 @@
     return o.name || NAMES[o.type] || 'Зүйл';
   }
   function swRow(list) { return '<div class="sw-row">' + list.map(function (c) { return '<button type="button" class="sw" data-color="' + esc(c) + '" style="background:' + esc(c) + '" title="' + esc(c) + '"></button>'; }).join('') + '</div>'; }
+  // ---------- templates panel (Canva-style: search, categories, recent, big previews) ----------
+  var tplUI = { q: '', cat: 'all', deck: null };
+  function recentGet(k) { try { return JSON.parse(localStorage.getItem(k) || '[]') || []; } catch (e) { return []; } }
+  function recentAdd(k, id) { var r = recentGet(k).filter(function (x) { return x !== id; }); r.unshift(id); try { localStorage.setItem(k, JSON.stringify(r.slice(0, 8))); } catch (e) {} }
+  var RK = PPT ? 'gc-recent-deck' : 'gc-recent-tpl';
+  function norm(s) { return String(s || '').toLowerCase(); }
+  function tplMatch(t, q, extra) { if (!q) return true; var h = norm(t.name + ' ' + (extra || '') + ' ' + (t.tags || '')); return q.split(/\s+/).every(function (w) { return h.indexOf(w) >= 0; }); }
+  function tcard(t, attr, cls) {
+    return '<button type="button" class="tc ' + (cls || '') + '" ' + attr + ' title="' + esc(t.name) + '"><span class="tc-img" style="aspect-ratio:' + t.w + '/' + t.h + ';background-color:' + t.bg + '"></span><span class="tc-n">' + esc(t.name) + '</span></button>';
+  }
+  function deckCard(d) {
+    var c = d.slides[0];
+    return '<button type="button" class="tc deckc" data-deckv="' + d.id + '" title="' + esc(d.name) + '"><span class="tc-img" data-cover="' + c.id + '" style="aspect-ratio:16/9;background-color:' + c.bg + '"></span><b class="tc-t">' + esc(d.name) + '</b><span class="tc-m">' + d.slides.length + ' слайд</span></button>';
+  }
+  function tplShell() {
+    var cats = PPT ? [['all', 'Бүгд']].concat(uniqTags()) : [['all', 'Бүгд'], ['photo', 'Фототой']].concat(Object.keys(window.GTPL.cats).map(function (c) { return [c, window.GTPL.cats[c]]; }));
+    return '<div class="tp-top"><label class="tp-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="tp-q" type="search" autocomplete="off" spellcheck="false" placeholder="' + (PPT ? 'Илтгэл хайх: ресторан, бизнес, аялал…' : 'Загвар хайх: кофе, наадам, хямдрал…') + '" value="' + esc(tplUI.q) + '"></label>' +
+      '<div class="tp-chips">' + cats.map(function (c) { return '<button type="button" class="' + (tplUI.cat === c[0] ? 'on' : '') + '" data-tcat="' + c[0] + '">' + esc(c[1]) + '</button>'; }).join('') + '</div></div>' +
+      '<div id="tp-res"></div>';
+  }
+  function uniqTags() { var seen = {}, out = []; (window.GTPL.decks || []).forEach(function (d) { if (d.tag && !seen[d.tag]) { seen[d.tag] = 1; out.push([d.tag, d.tag]); } }); return out; }
+  function tplResults() {
+    var q = norm(tplUI.q).trim(), h = '';
+    if (PPT) {
+      var decks = window.GTPL.decks || [];
+      if (tplUI.deck) {
+        var d = decks.filter(function (x) { return x.id === tplUI.deck; })[0];
+        if (d) return '<button type="button" class="tp-back" data-deckv="">‹ Бүх загвар</button><div class="tp-dh"><b>' + esc(d.name) + '</b><span>' + d.slides.length + ' слайд · 16:9 · 1920×1080</span></div>' +
+          '<button type="button" class="tp-apply" data-deck="' + d.id + '">Бүх ' + d.slides.length + ' слайдыг ашиглах</button>' +
+          '<div class="tc-grid g2">' + d.slides.map(function (t) { return tcard(t, 'data-slide="' + t.id + '"'); }).join('') + '</div>';
+        tplUI.deck = null;
+      }
+      var list = decks.filter(function (d) { return (tplUI.cat === 'all' || d.tag === tplUI.cat) && (tplMatch(d, q, d.tag) || d.slides.some(function (s) { return tplMatch(s, q); })); });
+      if (!q && tplUI.cat === 'all') {
+        var rec = recentGet(RK).map(function (id) { return decks.filter(function (x) { return x.id === id; })[0]; }).filter(Boolean).slice(0, 4);
+        if (rec.length) h += '<div class="tp-h">Сүүлд ашигласан</div><div class="tc-grid g2">' + rec.map(deckCard).join('') + '</div>';
+        h += '<div class="tp-h">Танд зориулсан загварууд</div>';
+      } else h += '<div class="tp-h">' + list.length + ' илтгэл</div>';
+      h += list.length ? '<div class="tc-grid g2">' + list.map(deckCard).join('') + '</div>' : '<p class="tp-empty">Олдсонгүй — өөр үгээр хайгаад үзээрэй</p>';
+      if (q) {
+        var sl = []; decks.forEach(function (d) { d.slides.forEach(function (s) { if (tplMatch(s, q, d.name)) sl.push(s); }); });
+        if (sl.length) h += '<div class="tp-h">Слайдууд</div><div class="tc-grid g2">' + sl.slice(0, 24).map(function (t) { return tcard(t, 'data-slide="' + t.id + '"'); }).join('') + '</div>';
+      }
+      return h + '<p class="note">Зургууд — Pexels (үнэгүй, арилжааны зорилгоор ашиглаж болно).</p>';
+    }
+    var all = TEMPLATES.slice().sort(function (a, b) { return (b.photos && b.photos.length ? 1 : 0) - (a.photos && a.photos.length ? 1 : 0); });
+    var hits = all.filter(function (t) { return (tplUI.cat === 'all' || t.cat === tplUI.cat || (tplUI.cat === 'photo' && t.photos && t.photos.length)) && tplMatch(t, q, window.GTPL.cats[t.cat]); });
+    if (!q && tplUI.cat === 'all') {
+      var r = recentGet(RK).map(function (id) { return window.GTPL.get(id); }).filter(Boolean).slice(0, 6);
+      if (r.length) h += '<div class="tp-h">Сүүлд ашигласан</div><div class="tc-row">' + r.map(function (t) { return tcard(t, 'data-tpl="' + t.id + '"'); }).join('') + '</div>';
+      h += '<div class="tp-h">Танд зориулсан загварууд <span>' + all.length + '</span></div>';
+    } else h += '<div class="tp-h">' + hits.length + ' загвар</div>';
+    h += hits.length ? '<div class="tc-grid">' + hits.map(function (t) { return tcard(t, 'data-tpl="' + t.id + '"'); }).join('') + '</div>' : '<p class="tp-empty">Олдсонгүй — өөр үгээр хайгаад үзээрэй</p>';
+    h += '<details class="tp-sizes"><summary>Хоосон хуудас — хэмжээ сонгох</summary>' + SIZES.map(function (s) {
+      var k = 22 / Math.max(s[1], s[2]);
+      return '<button type="button" class="size-row" data-size="' + s[1] + 'x' + s[2] + '"><span class="sz-shape" style="width:' + Math.round(s[1] * k) + 'px;height:' + Math.round(s[2] * k) + 'px"></span><b>' + s[0] + '</b><span>' + s[1] + '×' + s[2] + '</span></button>';
+    }).join('') + '</details>';
+    return h + '<p class="note"><a href="/tools/templates/" target="_blank" rel="noopener">Бүх загварыг томоор харах ↗</a> · Фото — Pexels (үнэгүй)</p>';
+  }
+  var tpIO = null;
+  function tplHydrate(root) {
+    if (!tpIO && 'IntersectionObserver' in window) tpIO = new IntersectionObserver(function (es) {
+      es.forEach(function (e) { if (e.isIntersecting) { tpIO.unobserve(e.target); loadCard(e.target); } });
+    }, { root: $('#lp-body'), rootMargin: '400px 0px' });
+    root.querySelectorAll('.tc-img').forEach(function (sp) { if (tpIO) tpIO.observe(sp); else loadCard(sp); });
+  }
+  function loadCard(sp) {
+    var b = sp.closest('.tc'), id = sp.dataset.cover || (b && (b.dataset.slide || b.dataset.tpl));
+    var t = sp.dataset.cover || (b && b.dataset.slide) ? window.GTPL.slide(id) : window.GTPL.get(id); if (!t) return;
+    tplThumb(t).then(function (url) { if (url) { sp.style.backgroundImage = 'url(' + url + ')'; sp.classList.add('on'); } });
+  }
+  function tplRenderResults() { var r = document.getElementById('tp-res'); if (!r) return; r.innerHTML = tplResults(); tplHydrate(r); }
+  $('#lp-body').addEventListener('input', function (e) { if (e.target.id === 'tp-q') { tplUI.q = e.target.value; tplUI.deck = null; tplRenderResults(); } });
+  $('#lp-body').addEventListener('click', function (e) {
+    var c = e.target.closest('[data-tcat]');
+    if (c) { tplUI.cat = c.dataset.tcat; tplUI.deck = null; $$('.tp-chips button').forEach(function (x) { x.classList.toggle('on', x === c); }); tplRenderResults(); $('#lp-body').scrollTop = 0; return; }
+    var dv = e.target.closest('[data-deckv]');
+    if (dv) { tplUI.deck = dv.dataset.deckv || null; tplRenderResults(); $('#lp-body').scrollTop = 0; }
+  }, true);
+
   function renderLeft() {
     var el = $('#lp-body'), h = '';
+    var wide = lpTab === 'templates' || lpTab === 'stock';
+    if ($('#lp').classList.contains('lp-wide') !== wide) {
+      var w0 = canvas.getWidth(); $('#lp').classList.toggle('lp-wide', wide); resizeCanvas();
+      var v = canvas.viewportTransform.slice(); v[4] += (canvas.getWidth() - w0) / 2; canvas.setViewportTransform(v); canvas.renderAll();
+    }
+    if (lpTab === 'templates' && el.dataset.view === 'tpl') return;   // keep search text, scroll and loaded previews
+    el.dataset.view = lpTab === 'templates' ? 'tpl' : '';
     if (lpTab === 'layers') {
       var sel = []; eachSel(function (o) { sel.push(o); });
       var all = canvas.getObjects(), row = function (o, d) {
@@ -1347,28 +1435,10 @@
         DG.palettes.map(function (p) { return '<div class="pal"><div class="pal-n">' + esc(p.name) + '</div>' + swRow(p.colors) + '</div>'; }).join('');
       DG.pairs.forEach(function (p) { ensureFont(p.heading); ensureFont(p.body); });
     }
-    if (lpTab === 'templates' && PPT) h = pptTemplatesPanel();
-    else if (lpTab === 'templates') {
-      h = '<div class="sec-t">Шинэ frame</div>' + SIZES.map(function (s) {
-          var k = 22 / Math.max(s[1], s[2]);
-          return '<button type="button" class="size-row" data-size="' + s[1] + 'x' + s[2] + '"><span class="sz-shape" style="width:' + Math.round(s[1] * k) + 'px;height:' + Math.round(s[2] * k) + 'px"></span><b>' + s[0] + '</b><span>' + s[1] + '×' + s[2] + '</span></button>';
-        }).join('') +
-        Object.keys(window.GTPL ? window.GTPL.cats : {}).map(function (c) {
-          return '<div class="sec-t">' + esc(window.GTPL.cats[c]) + '</div><div class="grid2">' + TEMPLATES.filter(function (t) { return t.cat === c; }).map(function (t) {
-            var k = 96 / Math.max(t.w, t.h);
-            return '<button type="button" class="tpl" data-tpl="' + t.id + '"><span class="tpl-prev" style="width:' + Math.round(t.w * k) + 'px;height:' + Math.round(t.h * k) + 'px;background:' + t.sw[0] + '"><i style="background:' + t.sw[1] + '"></i><i style="background:' + t.sw[2] + '"></i></span><b>' + esc(t.name) + '</b><span>' + t.w + '×' + t.h + '</span></button>';
-          }).join('') + '</div>';
-        }).join('') + '<p class="note"><a href="/tools/templates/" target="_blank" rel="noopener">Бүх загварыг томоор харах ↗</a></p><p class="note">Загвар бүр шинэ frame болж нэмэгдэнэ (одоогийн frame хоосон бол түүнийг ашиглана).</p>';
-    }
+    if (lpTab === 'templates') h = tplShell();
     if (lpTab === 'stock') h = stockPanel();
     el.innerHTML = h;
-    if (lpTab === 'templates') el.querySelectorAll('.tpl[data-tpl],.tpl[data-slide]').forEach(function (b) {
-      var t = b.dataset.slide ? window.GTPL.slide(b.dataset.slide) : window.GTPL.get(b.dataset.tpl); if (!t) return;
-      tplThumb(t).then(function (url) {
-        var sp = b.querySelector('.tpl-prev'); if (!url || !sp) return;
-        sp.style.backgroundImage = 'url(' + url + ')'; sp.classList.add('img');
-      });
-    });
+    if (lpTab === 'templates') tplRenderResults();
     if (lpTab === 'stock') { renderStock(); if (!stock.items.length && !stock.loading && !stock.err) loadStock(); }
   }
 
@@ -3331,12 +3401,14 @@
   }
   function pptUseSlide(id) {
     var tp = window.GTPL.slide(id); if (!tp) return;
+    recentAdd('gc-recent-deck', tp.deck);
     var f = isEmptyFrame(page) ? page : pptInsertAfter(page);
     pptGo(f);
     applyTpl(tp, f, true).then(function () { pptThumbSoon(); });
   }
   function pptUseDeck(id) {
     var d = (window.GTPL.decks || []).filter(function (x) { return x.id === id; })[0]; if (!d) return;
+    recentAdd('gc-recent-deck', id);
     var start = isEmptyFrame(page) ? page : pptInsertAfter(page), prev = start, list = [start];
     for (var i = 1; i < d.slides.length; i++) { prev = pptInsertAfter(prev); list.push(prev); }
     pptGo(start);
@@ -3346,19 +3418,6 @@
       toast('«' + d.name + '» бэлэн — текстийг давхар дарж засна, зургийг «Солих»-оор өөрчилнө');
     });
   }
-  function pptTemplatesPanel() {
-    var decks = (window.GTPL && window.GTPL.decks) || [];
-    return '<div class="sec-t">Илтгэлийн загвар <span>' + decks.length + ' загвар · ' + decks.reduce(function (a, d) { return a + d.slides.length; }, 0) + ' слайд</span></div>' +
-      decks.map(function (d) {
-        return '<div class="deck"><div class="deck-h"><span class="deck-sw">' + d.sw.map(function (c) { return '<i style="background:' + c + '"></i>'; }).join('') + '</span><b>' + esc(d.name) + '</b></div>' +
-          '<button type="button" class="deck-all" data-deck="' + d.id + '">Бүх ' + d.slides.length + ' слайдыг нэмэх</button>' +
-          '<div class="grid2">' + d.slides.map(function (t) {
-            return '<button type="button" class="tpl" data-slide="' + t.id + '"><span class="tpl-prev wide" style="background:' + t.bg + '"><i style="background:' + d.sw[1] + '"></i><i style="background:' + d.sw[2] + '"></i></span><b>' + esc(t.name) + '</b></button>';
-          }).join('') + '</div></div>';
-      }).join('') +
-      '<p class="note">Слайд дээр дарахад одоогийн хоосон слайдыг бөглөнө, хоосон биш бол дараа нь шинэ слайд болж нэмэгдэнэ. Зургууд — Pexels (үнэгүй).</p>';
-  }
-
   // slide strip (bottom)
   function pptStrip() {
     var bar = document.getElementById('ppt-bar'); if (!bar) return;
@@ -3421,7 +3480,7 @@
     st.appendChild(pb);
     pb.addEventListener('click', function () { pptPresent(Math.max(0, frames().indexOf(page))); });
     var hint = $('#ed-hint'); if (hint) hint.innerHTML = 'Зүүн талын <b>Загвар</b>-аас илтгэлийн загвар сонгох эсвэл доороос <b>Текст</b>, <b>Зураг</b> нэмж эхлээрэй';
-    lpTab = 'templates';
+    lpTab = 'templates'; $('#lp').classList.add('lp-wide');
     $$('.lp-tabs button').forEach(function (x) { var on = x.dataset.tab === 'templates'; x.classList.toggle('on', on); x.setAttribute('aria-selected', on ? 'true' : 'false'); });
   }
   function pptKey(e, mod) {
