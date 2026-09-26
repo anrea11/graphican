@@ -27,9 +27,9 @@
 <link rel="stylesheet" href="/assets/fonts/web/fonts.css">
 <link rel="stylesheet" href="/assets/style.css?v=34">
 <link rel="stylesheet" href="/assets/design.css?v=34">
-<link rel="stylesheet" href="/assets/home.css?v=1">
+<link rel="stylesheet" href="/assets/home.css?v=2">
 </head>
-<body class="design-page home-page">
+<body class="home-page">
 
 <header class="header" id="header">
   <a class="logo" href="/" aria-label="Graphican — нүүр">Graphican</a>
@@ -57,109 +57,80 @@
   <button class="menu-toggle" id="menu-toggle" type="button" aria-label="Цэс" aria-expanded="false"><span></span><span></span></button>
 </header>
 
-<main class="hm" id="main">
-  <section class="hm-hero">
-    <div class="hm-glow" aria-hidden="true"></div>
-    <p class="hm-kicker">ҮНЭГҮЙ · БҮРТГЭЛГҮЙ · МОНГОЛ ХЭЛЭЭР</p>
-    <h1>Дизайн, PDF, зургийн <em>хэрэгслүүд</em> — нэг дор.</h1>
-    <p class="hm-lead">PDF засах, Word болгох, зураг томруулах, дэвсгэр арилгах, пост бүтээх. Програм суулгахгүй, хөтөч дээрээ — файл тань компьютерээс гарахгүй.</p>
+<div id="hero-slot"><section class="hero hero-v2 hm-hero-ph" aria-hidden="true"></section></div>
 
+<main class="hm" id="main">
+  <section class="hm-tools" id="tools">
+    <p class="hm-kicker">ҮНЭГҮЙ · БҮРТГЭЛГҮЙ · МОНГОЛ ХЭЛЭЭР</p>
+    <h1>Дизайн хэрэгслүүд</h1>
+    <p class="hm-lead">Файлаа оруул — юу хийхийг санал болгоно.</p>
     <div class="hm-drop" id="hm-drop">
       <label class="hm-pick" id="hm-pick">
         <input type="file" id="hm-file" multiple hidden>
         <span class="hm-pick-ic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 16V4m0 0L7 9m5-5 5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
-        <span class="hm-pick-t"><b>Файлаа оруулаад эхэл</b><small>PDF, Word, Excel, зураг… — юу хийж болохыг санал болгоно</small></span>
-        <span class="hm-pick-btn">Файл сонгох</span>
+        <span class="hm-pick-t"><b>Файл сонгох</b><small>PDF · Word · Excel · зураг</small></span>
       </label>
       <div class="hm-acts" id="hm-acts" hidden></div>
     </div>
-    <div class="hm-pop"><span>Түгээмэл:</span><a href="/tools/pdf-to-word/">PDF → Word</a><a href="/tools/pdfedit/">PDF засах</a><a href="/tools/merge-pdf/">PDF нэгтгэх</a><a href="/tools/upscale/">Зураг томруулах</a><a href="/tools/bgremove/">Дэвсгэр арилгах</a><a href="/tools/templates/">Цагаан сарын загвар</a><a href="/tools/mongol-font/">Монгол фонт</a></div>
+    <ul class="hm-trust"><li>Үнэгүй</li><li>Бүртгэлгүй</li><li>Файл аюулгүй</li><li>Утсан дээр</li></ul>
   </section>
 
   <section class="hm-sec" id="pdf">
-    <header class="hm-head"><span class="hm-num">01</span><div><h2>PDF</h2><p>Засах, хөрвүүлэх, нэгтгэх, гарын үсэг зурах, орчуулах — бүх PDF ажил нэг засварлагч дээр.</p></div></header>
-    <div class="hm-pdf">
-      <a class="hm-feat" href="/tools/pdfedit/">
-        <span class="hm-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5"/><path d="m9 17 1-3 5-5 2 2-5 5z" fill="currentColor"/></svg></span>
-        <b>PDF засварлагч</b>
-        <span class="hm-t">PDF доторх бичгийг шууд засах, текст, зураг, гарын үсэг нэмэх, хуудас эргүүлэх, Word болгох, монгол руу орчуулах.</span>
-        <span class="hm-doc" aria-hidden="true"><i></i><i></i><i class="s"></i><i></i><i class="hl"></i><i class="s"></i><em>Гарын үсэг</em></span>
-        <span class="hm-go">Засварлагч нээх <i>→</i></span>
-      </a>
-      <div class="hm-grps"><div class="hm-grp"><h3>Хөрвүүлэх</h3><a href="/tools/pdf-to-word/">PDF → Word<i aria-hidden="true">→</i></a><a href="/tools/pdf-to-excel/">PDF → Excel<i aria-hidden="true">→</i></a><a href="/tools/pdf-to-ppt/">PDF → PowerPoint<i aria-hidden="true">→</i></a><a href="/tools/pdf-to-jpg/">PDF → зураг<i aria-hidden="true">→</i></a><a href="/tools/jpg-to-pdf/">Зураг → PDF<i aria-hidden="true">→</i></a><a href="/tools/word-to-pdf/">Word → PDF<i aria-hidden="true">→</i></a></div><div class="hm-grp"><h3>Засах, гарын үсэг</h3><a href="/tools/edit-pdf/">PDF дээр бичих, засах<i aria-hidden="true">→</i></a><a href="/tools/sign-pdf/">Гарын үсэг зурах<i aria-hidden="true">→</i></a><a href="/tools/fill-pdf/">Маягт бөглөх<i aria-hidden="true">→</i></a><a href="/tools/watermark-pdf/">Усан тэмдэг<i aria-hidden="true">→</i></a><a href="/tools/pdf-page-numbers/">Хуудасны дугаар<i aria-hidden="true">→</i></a></div><div class="hm-grp"><h3>Хуудас, хэмжээ</h3><a href="/tools/merge-pdf/">PDF нэгтгэх<i aria-hidden="true">→</i></a><a href="/tools/split-pdf/">PDF задлах<i aria-hidden="true">→</i></a><a href="/tools/compress-pdf/">Хэмжээ багасгах<i aria-hidden="true">→</i></a></div><div class="hm-grp"><h3>AI ба хамгаалалт</h3><a href="/tools/translate-pdf/">PDF орчуулах<i aria-hidden="true">→</i></a><a href="/tools/summarize-pdf/">AI хураангуй<i aria-hidden="true">→</i></a><a href="/tools/pdf-ocr/">Скан → текст (OCR)<i aria-hidden="true">→</i></a><a href="/tools/protect-pdf/">Нууц үг тавих<i aria-hidden="true">→</i></a><a href="/tools/unlock-pdf/">Нууц үг арилгах<i aria-hidden="true">→</i></a></div></div>
-    </div>
+    <header class="hm-head"><h2>PDF</h2><a class="hm-link" href="/tools/pdfedit/">Засварлагч нээх →</a></header>
+    <a class="hm-feat" href="/tools/pdfedit/">
+      <span class="hm-feat-t"><span class="hm-ic"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5"/><path d="m9 17 1-3 5-5 2 2-5 5z" fill="currentColor"/></svg></span><b>PDF засварлагч</b><span>Засах · хөрвүүлэх · гарын үсэг · орчуулах</span><em class="hm-cta">Нээх</em></span>
+      <span class="hm-doc" aria-hidden="true"><i></i><i></i><i class="s"></i><i></i><i class="hl"></i><i class="s"></i><em>Гарын үсэг</em></span>
+    </a>
+    <div class="hm-tiles"><a class="hm-tile ga" href="/tools/pdf-to-word/"><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5"/><path d="M9 12l1.2 5 1.8-4 1.8 4 1.2-5"/></svg></span><b>PDF → Word</b></a><a class="hm-tile ga" href="/tools/pdf-to-excel/"><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5"/><path d="m9.5 12 5 6m0-6-5 6"/></svg></span><b>PDF → Excel</b></a><a class="hm-tile ga" href="/tools/pdf-to-ppt/"><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5"/><path d="M10 18v-6h2.5a1.8 1.8 0 0 1 0 3.6H10"/></svg></span><b>PDF → PPT</b></a><a class="hm-tile ga" href="/tools/pdf-to-jpg/"><span><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 17-5-5-9 8"/></svg></span><b>PDF → Зураг</b></a><a class="hm-tile ga" href="/tools/jpg-to-pdf/"><span><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="11" height="11" rx="2"/><path d="m3 11 3-3 5 5"/><path d="M14 10h4l3 3v8H10v-4"/></svg></span><b>Зураг → PDF</b></a><a class="hm-tile ga" href="/tools/word-to-pdf/"><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h9v9H4z"/><path d="m6 6 1 5 1.5-3L10 11l1-5"/><path d="M15 10h3l3 3v8H10v-5"/></svg></span><b>Word → PDF</b></a><a class="hm-tile gb" href="/tools/edit-pdf/"><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20l4.5-1 10-10-3.5-3.5-10 10z"/><path d="M13.5 7l3.5 3.5"/></svg></span><b>Засах</b></a><a class="hm-tile gb" href="/tools/sign-pdf/"><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17c3-4 5-9 7-9s-1 9 2 9 3-3 5-3 2 2 4 2"/><path d="M3 21h18"/></svg></span><b>Гарын үсэг</b></a><a class="hm-tile gb" href="/tools/fill-pdf/"><span><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h5"/><path d="m8 16 1.5 1.5L12 15"/></svg></span><b>Маягт бөглөх</b></a><a class="hm-tile gb" href="/tools/watermark-pdf/"><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/></svg></span><b>Усан тэмдэг</b></a><a class="hm-tile gb" href="/tools/pdf-page-numbers/"><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6z"/><path d="M10 17h1.5v-5L10 13"/></svg></span><b>Дугаарлах</b></a><a class="hm-tile gc" href="/tools/merge-pdf/"><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4v6a5 5 0 0 0 5 5 5 5 0 0 1 5 5M17 4v6a5 5 0 0 1-5 5"/></svg></span><b>Нэгтгэх</b></a><a class="hm-tile gc" href="/tools/split-pdf/"><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v18"/><path d="M8 7 4 12l4 5M16 7l4 5-4 5"/></svg></span><b>Задлах</b></a><a class="hm-tile gc" href="/tools/compress-pdf/"><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7"/></svg></span><b>Шахах</b></a><a class="hm-tile gd" href="/tools/translate-pdf/"><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h9M8.5 3v2c0 4-2 7-5 9M6 9c1.5 3 4 5 7 6"/><path d="m13 21 4-10 4 10M14.5 17.5h5"/></svg></span><b>Орчуулах</b></a><a class="hm-tile gd" href="/tools/summarize-pdf/"><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.8 4.6L18.5 9l-4.7 1.4L12 15l-1.8-4.6L5.5 9l4.7-1.4z"/><path d="M18 15l.8 1.9 1.9.8-1.9.8L18 20.4l-.8-1.9-1.9-.8 1.9-.8z"/></svg></span><b>AI хураангуй</b></a><a class="hm-tile gd" href="/tools/pdf-ocr/"><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7V4h3M17 4h3v3M20 17v3h-3M7 20H4v-3"/><path d="M8 9h8M8 12h8M8 15h5"/></svg></span><b>Текст таних</b></a><a class="hm-tile ge" href="/tools/protect-pdf/"><span><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span><b>Нууц үг</b></a><a class="hm-tile ge" href="/tools/unlock-pdf/"><span><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 7.5-2"/></svg></span><b>Түгжээ тайлах</b></a><a class="hm-tile ga" href="/tools/pdf/"><span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h13l-3-3M20 17H7l3 3"/></svg></span><b>Хөрвүүлэгч</b></a></div>
   </section>
 
   <section class="hm-sec" id="image">
-    <header class="hm-head"><span class="hm-num">02</span><div><h2>Зураг</h2><p>Хиймэл оюун таны төхөөрөмж дээр ажиллана — зураг хаашаа ч илгээгдэхгүй.</p></div></header>
+    <header class="hm-head"><h2>Зураг</h2><span class="hm-note">AI · таны төхөөрөмж дээр</span></header>
     <div class="hm-imgs">
       <a class="hm-card img" href="/tools/upscale/">
         <span class="hm-shot up"><img src="/assets/uploads/_t/edusmart-logo-mockup.webp.webp" alt="" loading="lazy"><span class="blur"></span><em>2× · 4×</em></span>
-        <span class="hm-row"><span class="hm-ic sm"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.8 4.6L18.5 9l-4.7 1.4L12 15l-1.8-4.6L5.5 9l4.7-1.4z" fill="currentColor"/><path d="M18 14l.9 2.1L21 17l-2.1.9L18 20l-.9-2.1L15 17l2.1-.9z" fill="currentColor"/></svg></span><b>AI зураг томруулах</b></span>
-        <span class="hm-t">Бүдэг, жижиг зургийг 2–4 дахин тод, том болгоно.</span></a>
+        <span class="hm-row"><b>AI томруулах</b><i>→</i></span></a>
       <a class="hm-card img" href="/tools/bgremove/">
         <span class="hm-shot bg"><img src="/assets/uploads/_t/butafter-shampoo.webp.webp" alt="" loading="lazy"></span>
-        <span class="hm-row"><span class="hm-ic sm"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" stroke-dasharray="3 2"/><circle cx="12" cy="10" r="3"/><path d="M6.5 20c1-3 3-4.5 5.5-4.5s4.5 1.5 5.5 4.5"/></svg></span><b>Дэвсгэр арилгах</b></span>
-        <span class="hm-t">Арын дэвсгэрийг нэг товшилтоор арилгаж тунгалаг PNG болгоно.</span></a>
+        <span class="hm-row"><b>Дэвсгэр арилгах</b><i>→</i></span></a>
       <a class="hm-card img" href="/tools/socialcrop/">
         <span class="hm-shot crop"><img src="/assets/uploads/_t/novanest-dining-table.webp.webp" alt="" loading="lazy"><i class="f1"></i><i class="f2"></i><i class="f3"></i></span>
-        <span class="hm-row"><span class="hm-ic sm"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2v14a2 2 0 0 0 2 2h14"/><path d="M18 22V8a2 2 0 0 0-2-2H2"/></svg></span><b>Сошиал хэмжээ рүү тайрах</b></span>
-        <span class="hm-t">Нэг зургийг Instagram, Story, Facebook, YouTube хэмжээнд зэрэг тайрна.</span></a>
+        <span class="hm-row"><b>Сошиал хэмжээ</b><i>→</i></span></a>
     </div>
-    <a class="hm-more" href="/tools/pdf/"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h13l-3-3M20 17H7l3 3"/></svg> PDF ⇄ зураг хөрвүүлэгч — PDF-ийг PNG/JPG болгох, олон зургийг нэг PDF болгох <i>→</i></a>
   </section>
 
   <section class="hm-sec" id="design">
-    <header class="hm-head"><span class="hm-num">03</span><div><h2>Дизайн</h2><p>Пост, постер бүтээх засварлагч, бэлэн монгол загвар, монгол фонт, брэндийн өнгө.</p></div></header>
+    <header class="hm-head"><h2>Дизайн</h2><a class="hm-link" href="/editor/">Засварлагч нээх →</a></header>
     <div class="hm-des">
       <a class="hm-card big" href="/editor/">
         <span class="hm-ed" aria-hidden="true"><span class="bar"><i></i><i></i><i></i></span><span class="cv"><span class="pst"><b>ХЯМДРАЛ</b><strong>−30%</strong><em></em></span></span><span class="dock"><i></i><i></i><i></i><i></i><i></i></span></span>
-        <span class="hm-row"><span class="hm-ic sm"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20l4.5-1 10-10-3.5-3.5-10 10z"/><path d="M13.5 7l3.5 3.5"/></svg></span><b>Дизайн засварлагч</b></span>
-        <span class="hm-t">Текст, зураг, хэлбэр, эффект, маск, pen tool — сошиал пост, постер, баннерыг хөтөч дээрээ бүтээж PNG, JPG, PDF-ээр татна.</span></a>
+        <span class="hm-row"><b>Дизайн засварлагч</b><i>→</i></span></a>
       <a class="hm-card" href="/tools/templates/">
         <span class="hm-tpls" aria-hidden="true"><i style="background:#13306b"><b style="color:#e0a526">САР ШИНЭ</b></i><i style="background:#f6f0e4"><b style="color:#1f4e9c">НААДАМ</b></i><i style="background:#0b0b14"><b style="color:#816dfb">−30%</b></i><i style="background:#facc15"><b style="color:#111">МЭДЭГДЭЛ</b></i></span>
-        <span class="hm-row"><span class="hm-ic sm"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="9" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="5" rx="1.5"/><rect x="13.5" y="11.5" width="7" height="9" rx="1.5"/><rect x="3.5" y="15.5" width="7" height="5" rx="1.5"/></svg></span><b>Монгол загварууд</b></span>
-        <span class="hm-t">Цагаан сар, Наадам, ажлын зар, хямдрал — 20 бэлэн загвар.</span></a>
+        <span class="hm-row"><b>Монгол загвар</b><i>→</i></span></a>
       <a class="hm-card" href="/tools/mongol-font/">
         <span class="hm-font" aria-hidden="true">Аа Өө Үү</span>
-        <span class="hm-row"><span class="hm-ic sm"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20 9 5h2l5 15M6 15h8"/><circle cx="19" cy="7" r="2.5"/></svg></span><b>Монгол фонт хайгч</b></span>
-        <span class="hm-t">Ө, Ү-г бүрэн дэмждэг 178 фонтыг өөрийн текстээр харьцуулна.</span></a>
+        <span class="hm-row"><b>Монгол фонт</b><i>→</i></span></a>
       <a class="hm-card" href="/tools/brand-color/">
         <span class="hm-sw" aria-hidden="true"><i style="background:#1F4E9C"></i><i style="background:#C8102E"></i><i style="background:#E0A526"></i><i style="background:#2B1B12"></i><i style="background:#F6F0E4"></i></span>
-        <span class="hm-row"><span class="hm-ic sm"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5v17a8.5 8.5 0 0 0 0-17z" fill="currentColor"/></svg></span><b>Брэндийн өнгө</b></span>
-        <span class="hm-t">Салбартаа тохирсон 5 өнгийн палитр — лого, пост дээр шууд харна.</span></a>
+        <span class="hm-row"><b>Брэндийн өнгө</b><i>→</i></span></a>
       <a class="hm-card" href="/design/">
         <span class="hm-guide" aria-hidden="true"><b>Aa</b><span><i></i><i></i><i></i></span></span>
-        <span class="hm-row"><span class="hm-ic sm"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5h7v14H4zM13 5h7v6h-7zM13 13h7v6h-7z"/></svg></span><b>Design guide</b></span>
-        <span class="hm-t">Фонтын хослол, өнгөний палитр, starter kit татах.</span></a>
+        <span class="hm-row"><b>Design guide</b><i>→</i></span></a>
     </div>
-  </section>
-
-  <section class="hm-why">
-    <div><b>Бүрэн үнэгүй</b><span>Бүртгэл, усан тэмдэг, хязгаар байхгүй.</span></div>
-    <div><b>Файл тань аюулгүй</b><span>Ихэнх ажил таны хөтөч дотор хийгдэж, сервер рүү илгээгдэхгүй.</span></div>
-    <div><b>Монгол хэлэнд зориулсан</b><span>Ө, Ү, кирилл үсэг эвдрэхгүй, бүх зүйл монголоор.</span></div>
-    <div><b>Утсан дээр ч ажиллана</b><span>Програм суулгахгүй — iPhone, Android, компьютер.</span></div>
   </section>
 
   <section class="hm-collab" id="collab">
-    <img class="hm-me" src="/assets/uploads/_t/file_00000000291082069e01d3ee962c554a.webp.webp" alt="Анхбаяр — Graphican" loading="lazy">
-    <div class="hm-collab-t">
-      <p class="hm-kicker">GRAPHICAN · ДИЗАЙН СТУДИ</p>
-      <h2>Мэргэжлийн дизайн хэрэгтэй юу?</h2>
-      <p>Эдгээр хэрэгслийг бүтээсэн дизайнер Анхбаяр — лого, брэнд айдентити, сошиал медиа дизайн, видео. Таны брэндийг хамтдаа бүтээе.</p>
-      <div class="hm-stats"><div><b>6+</b><span>Жилийн туршлага</span></div><div><b>25+</b><span>Байгууллага</span></div><div><b>3</b><span>Үндсэн чиглэл</span></div></div>
-      <div class="hm-btns"><a class="hm-btn" href="/about/">Хамтран ажиллах <i>→</i></a><a class="hm-btn ghost" href="/about/#work">Ажлуудыг үзэх</a></div>
-    </div>
-    <div class="hm-logos" aria-label="Хамтран ажилласан байгууллагууд"><img src="/assets/uploads/_t/munkh-energy-logo.png.webp" alt="Munkh Energy" loading="lazy" decoding="async"><img src="/assets/uploads/_t/way-academy-logo.png.webp" alt="Way Academy" loading="lazy" decoding="async"><img src="/assets/uploads/_t/protech-logo.png.webp" alt="Protech" loading="lazy" decoding="async"><img src="/assets/uploads/_t/nomadabe-logo-white.png.webp" alt="Nomadabe" loading="lazy" decoding="async"><img src="/assets/uploads/_t/novanest-logo.png.webp" alt="Novanest" loading="lazy" decoding="async"><img src="/assets/uploads/_t/edusmart-logo.png.webp" alt="EduSmart" loading="lazy" decoding="async"><img src="/assets/uploads/_t/prelov-logo.png.webp" alt="Prelov" loading="lazy" decoding="async"><img src="/assets/uploads/_t/butafter-logo.png.webp" alt="ButAfter" loading="lazy" decoding="async"><img src="/assets/uploads/_t/tru-logo.png.webp" alt="Tru" loading="lazy" decoding="async"></div>
+    <div><p class="hm-kicker">GRAPHICAN</p><h2>Мэргэжлийн дизайн хэрэгтэй юу?</h2><p>Лого · брэнд айдентити · сошиал дизайн · видео</p></div>
+    <div class="hm-btns"><a class="hm-btn" href="/about/">Хамтран ажиллах <i>→</i></a><a class="hm-btn ghost" href="/about/#work">Ажлууд</a></div>
   </section>
 </main>
 
 <footer class="hm-foot">
   <div class="hm-fcols">
-    <div><b>PDF</b><a href="/tools/pdfedit/">PDF засварлагч</a><a href="/tools/pdf-to-word/">PDF → Word</a><a href="/tools/merge-pdf/">PDF нэгтгэх</a><a href="/tools/compress-pdf/">Хэмжээ багасгах</a><a href="/tools/translate-pdf/">PDF орчуулах</a><a href="/tools/sign-pdf/">Гарын үсэг</a></div>
-    <div><b>Зураг</b><a href="/tools/upscale/">AI томруулах</a><a href="/tools/bgremove/">Дэвсгэр арилгах</a><a href="/tools/socialcrop/">Сошиал тайрах</a><a href="/tools/pdf/">PDF ⇄ зураг</a></div>
-    <div><b>Дизайн</b><a href="/editor/">Засварлагч</a><a href="/tools/templates/">Монгол загварууд</a><a href="/tools/mongol-font/">Монгол фонт</a><a href="/tools/brand-color/">Брэндийн өнгө</a><a href="/design/">Design guide</a></div>
+    <div><b>PDF</b><a href="/tools/pdfedit/">PDF засварлагч</a><a href="/tools/pdf-to-word/">PDF → Word</a><a href="/tools/merge-pdf/">PDF нэгтгэх</a><a href="/tools/compress-pdf/">Шахах</a><a href="/tools/translate-pdf/">Орчуулах</a></div>
+    <div><b>Зураг</b><a href="/tools/upscale/">AI томруулах</a><a href="/tools/bgremove/">Дэвсгэр арилгах</a><a href="/tools/socialcrop/">Сошиал хэмжээ</a><a href="/tools/pdf/">PDF ⇄ зураг</a></div>
+    <div><b>Дизайн</b><a href="/editor/">Засварлагч</a><a href="/tools/templates/">Монгол загвар</a><a href="/tools/mongol-font/">Монгол фонт</a><a href="/tools/brand-color/">Брэндийн өнгө</a></div>
     <div><b>Graphican</b><a href="/about/">Хамтран ажиллах</a><a href="/about/#work">Ажлууд</a><a href="mailto:ankhbayar0100@gmail.com">ankhbayar0100@gmail.com</a><a href="tel:+97680750675">80750675</a></div>
   </div>
   <p class="hm-copy">© GRAPHICAN · <a href="https://www.instagram.com/bayraara?stkn=MXB1eXNoNWF3aTlpaA==" target="_blank" rel="noopener me">Instagram</a> · <a href="https://www.facebook.com/anrea11" target="_blank" rel="noopener me">Facebook</a> · <a href="https://www.behance.net/anrea01" target="_blank" rel="noopener me">Behance</a></p>
@@ -167,6 +138,7 @@
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <script src="/assets/handoff.js?v=29"></script>
-<script src="/assets/home.js?v=1"></script>
+<script src="/assets/app.js?v=35"></script>
+<script src="/assets/home.js?v=2"></script>
 </body>
 </html>

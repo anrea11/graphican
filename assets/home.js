@@ -1,18 +1,7 @@
 /* Graphican — home: header behaviour + "drop any file" box that suggests what to do with it */
 (function () {
   'use strict';
-  var header = document.getElementById('header'), toggle = document.getElementById('menu-toggle');
-  if (toggle && header) {
-    toggle.addEventListener('click', function () {
-      var open = header.classList.toggle('menu-open'); toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-    });
-    header.querySelectorAll('.nav a').forEach(function (a) { a.addEventListener('click', function () { header.classList.remove('menu-open'); toggle.setAttribute('aria-expanded', 'false'); }); });
-  }
-  var dm = document.querySelector('.dmenu');
-  if (dm) document.addEventListener('click', function (e) { if (dm.open && !dm.contains(e.target)) dm.open = false; });
-  function onScroll() { if (header) header.classList.toggle('scrolled', window.scrollY > 10); }
-  window.addEventListener('scroll', onScroll, { passive: true }); onScroll();
-
+  // header, menu, hero ring and reveal animations come from app.js (enhance)
   var drop = document.getElementById('hm-drop'), input = document.getElementById('hm-file'), acts = document.getElementById('hm-acts');
   if (!drop || !input) return;
 

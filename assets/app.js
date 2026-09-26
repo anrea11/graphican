@@ -111,11 +111,13 @@
     return out;
   }
 
-  function hero(h, projects) {
+  function hero(h, projects, home) {
     var stats = list(h.stats).map(function (s) {
       return '<div class="stat"><b>' + esc(s.value) + '</b><span>' + esc(s.label) + '</span></div>';
     }).join('');
     var items = ringItems(projects || [], h, 12);
+    if (home) items.forEach(function (it) { if (it.href === '#work') it.href = '/about/#work'; });
+    var T = home ? 'div' : 'h1';
     var n = items.length;
     var cards = items.map(function (it, i) {
       return '<a class="rc" href="' + esc(it.href) + '" style="--i:' + i + '" aria-label="' + esc(it.name) + '" tabindex="-1">' +
@@ -130,17 +132,20 @@
           '<div class="corner tl">' + esc(h.artist_name || 'Graphican') + (h.artist_role ? ' — ' + esc(h.artist_role) : '') + '</div>' +
           '<div class="corner tr">DESIGN <span class="plus">+</span></div>' +
           '<div class="h2-copy">' +
-            '<a class="h2-new" href="/"><b>ҮНЭГҮЙ</b><span class="t-long">Дизайн хэрэгслүүд — PDF, AI, Editor, загвар</span><span class="t-short">Үнэгүй хэрэгслүүд</span><i aria-hidden="true">→</i></a>' +
+            '<a class="h2-new" href="' + (home ? '#tools' : '/') + '"><b>ҮНЭГҮЙ</b><span class="t-long">Дизайн хэрэгслүүд — PDF, AI, Editor, загвар</span><span class="t-short">Үнэгүй хэрэгслүүд</span><i aria-hidden="true">→</i></a>' +
             '<p class="h2-eyebrow">' + esc(h.tagline_line1) + ' ' +
               (h.tagline_highlight ? '<em>' + esc(h.tagline_highlight) + '</em> ' : '') + esc(h.tagline_rest) + '</p>' +
-            '<h1 class="mega h2-title" aria-label="' + esc((h.title_line1 || '') + ' ' + (h.title_line2 || '')) + '">' +
+            '<' + T + ' class="mega h2-title" aria-label="' + esc((h.title_line1 || '') + ' ' + (h.title_line2 || '')) + '">' +
               '<span class="line">' + blurText(h.title_line1, 0.6) + '</span> ' +
               '<span class="line l2">' + blurText(h.title_line2, 0.35) + '<span class="dot"></span></span>' +
-            '</h1>' +
+            '</' + T + '>' +
             '<p class="lead">' + esc(h.description) + '</p>' +
             '<div class="actions">' +
-              '<a class="btn solid" href="#contact"><span class="btn-orb" aria-hidden="true">→</span>Төсөл ярилцах</a>' +
-              '<a class="btn" href="#work">Ажлууд үзэх <span aria-hidden="true">↓</span></a>' +
+              (home
+                ? '<a class="btn solid" href="#tools"><span class="btn-orb" aria-hidden="true">↓</span>Үнэгүй хэрэгслүүд</a>' +
+                  '<a class="btn" href="/about/">Хамтран ажиллах <span aria-hidden="true">→</span></a>'
+                : '<a class="btn solid" href="#contact"><span class="btn-orb" aria-hidden="true">→</span>Төсөл ярилцах</a>' +
+                  '<a class="btn" href="#work">Ажлууд үзэх <span aria-hidden="true">↓</span></a>') +
             '</div>' +
           '</div>' +
           '<div class="h2-stage">' +
@@ -688,6 +693,16 @@
   // ---------- boot ----------
 
   var app = document.getElementById('app');
+  var slot = document.getElementById('hero-slot');
+  if (slot) {
+    // tools-first home: the portfolio hero + client strip on top, the tools below are static HTML
+    fetch('/content/site.json', { cache: 'no-cache' })
+      .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(function (d) { slot.innerHTML = hero(d.hero || {}, list((d.work || {}).projects), true) + marquee(d.marquee, (d.clients || {}).items); })
+      .catch(function (err) { console.error(err); })
+      .then(function () { enhance(); });
+    return;
+  }
 
   fetch('/content/site.json', { cache: 'no-cache' })
     .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
