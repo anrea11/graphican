@@ -230,7 +230,30 @@ def build():
         os.makedirs(d, exist_ok=True)
         open(os.path.join(d, "index.html"), "w", encoding="utf-8").write(render(p, header))
         out.append((f"/tools/{p['slug']}/", p["name"]))
+    slides_page()
     return out
+
+
+def slides_page():
+    """/slides/ — the editor in presentation mode (same app, own document). Built from editor/index.html."""
+    src = open(os.path.join(ROOT, "editor", "index.html"), encoding="utf-8").read()
+    t = "Илтгэл бэлдэх (PPT) — онлайн, үнэгүй, монгол загвартай | Graphican"
+    d = "Canva шиг илтгэл, презентацыг хөтөч дээрээ бэлд: 35 бэлэн слайд загвар, монгол фонт, үнэгүй зураг, бүтэн дэлгэцээр үзүүлэх, PowerPoint (.pptx) ба PDF татах. Бүртгэлгүй."
+    s = src
+    s = re.sub(r"<title>.*?</title>", f"<title>{t}</title>", s, 1)
+    s = re.sub(r'<meta name="description" content="[^"]*">', f'<meta name="description" content="{d}">', s, 1)
+    s = s.replace('href="https://graphican.online/editor/"', 'href="https://graphican.online/slides/"')
+    s = s.replace('content="https://graphican.online/editor/"', 'content="https://graphican.online/slides/"')
+    s = re.sub(r'<meta property="og:title" content="[^"]*">', f'<meta property="og:title" content="{t}">', s, 1)
+    s = re.sub(r'<meta property="og:description" content="[^"]*">', f'<meta property="og:description" content="{d}">', s, 1)
+    s = s.replace('<body class="ed-booting">', '<body class="ed-booting" data-mode="ppt">', 1)
+    s = s.replace('<a href="/editor/" class="on">Дизайн</a><a href="/slides/">Илтгэл (PPT)</a>', '<a href="/editor/">Дизайн</a><a href="/slides/" class="on">Илтгэл (PPT)</a>')
+    s = s.replace('value="Нэргүй дизайн"', 'value="Нэргүй илтгэл"')
+    s = s.replace('<h1 class="sr-only">Graphican Editor — үнэгүй онлайн дизайн засварлагч</h1>', '<h1 class="sr-only">Илтгэл бэлдэх (PPT) — онлайн, үнэгүй</h1>')
+    s = s.replace('<button type="button" data-file="new">Шинэ дизайн</button>', '<button type="button" data-file="new">Шинэ илтгэл</button>')
+    assert 'data-mode="ppt"' in s
+    d_ = os.path.join(ROOT, "slides"); os.makedirs(d_, exist_ok=True)
+    open(os.path.join(d_, "index.html"), "w", encoding="utf-8").write(s)
 
 
 if __name__ == "__main__":

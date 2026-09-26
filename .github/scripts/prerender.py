@@ -295,6 +295,7 @@ def sitemap(projects, dd):
                          for x in landings.PAGES)
     tool_urls += "".join(f"\n  <url>\n    <loc>{SITE}/tools/{sl}/</loc>\n    <lastmod>{TODAY}</lastmod>\n    <priority>0.9</priority>\n  </url>"
                          for sl in ("mongol-font", "brand-color", "templates"))
+    tool_urls += f"\n  <url>\n    <loc>{SITE}/slides/</loc>\n    <lastmod>{TODAY}</lastmod>\n    <priority>0.9</priority>\n  </url>"
     xml = f"""<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
   <url>

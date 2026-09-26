@@ -383,3 +383,59 @@ input[type="range"] { width:100%; accent-color:var(--acc); }
   .dock .tool .caret { width:10px; margin-left:-2px; }
   .dock .sep { margin:0 2px; }
 }
+
+/* ---------- presentation mode (/slides/) ---------- */
+.mode-sw { display:flex; gap:2px; padding:3px; margin:0 12px 8px; border-radius:9px; background:var(--panel2, rgba(127,127,127,.12)); }
+.mode-sw a { flex:1; text-align:center; padding:6px 0; border-radius:7px; font-size:12px; font-weight:600; color:var(--muted); text-decoration:none; }
+.mode-sw a.on { background:var(--bg); color:var(--text); box-shadow:0 1px 3px rgba(0,0,0,.12); }
+.btn-present { position:absolute; top:14px; right:14px; z-index:19; display:inline-flex; align-items:center; gap:7px; height:38px; padding:0 16px; border-radius:10px; background:var(--acc); color:#fff; font-weight:600; font-size:13px; box-shadow:0 6px 18px -6px rgba(109,86,250,.6); }
+.btn-present svg { width:14px; height:14px; fill:currentColor; }
+.btn-present:hover { filter:brightness(1.08); }
+.tpl-prev.wide { width:100% !important; height:auto !important; aspect-ratio:16 / 9; }
+body[data-mode="ppt"] .dock { bottom:134px; }
+body[data-mode="ppt"] .ctxbar { bottom:192px; }
+.ppt-bar { position:absolute; left:0; right:0; bottom:0; z-index:18; background:var(--bg); border-top:1px solid var(--line); }
+.ppt-row { display:flex; align-items:center; gap:10px; height:118px; padding:0 12px; }
+.ppt-acts { display:flex; flex-direction:column; gap:4px; flex:none; width:118px; }
+.ppt-acts { display:grid; grid-template-columns:repeat(4, 1fr); gap:3px; }
+.ppt-acts button { height:28px; border-radius:6px; border:1px solid var(--line); font-size:13px; color:var(--text); display:grid; place-items:center; }
+.ppt-acts button:hover, .ppt-acts button.on { border-color:var(--acc); color:var(--acc); }
+.ppt-acts button[data-pa="notes"] { grid-column:1 / -1; display:flex; justify-content:center; gap:5px; font-size:11.5px; font-weight:600; }
+.ppt-count { grid-column:1 / -1; text-align:center; font-size:11px; color:var(--muted); font-variant-numeric:tabular-nums; }
+.ppt-list { flex:1; display:flex; align-items:center; gap:10px; overflow-x:auto; height:100%; padding:0 4px; scrollbar-width:thin; }
+.ppt-sl { position:relative; flex:none; height:84px; padding:0; border-radius:8px; border:2px solid transparent; background:none; cursor:pointer; }
+.ppt-sl img { display:block; height:80px; width:auto; border-radius:6px; box-shadow:0 1px 4px rgba(0,0,0,.18); background:#fff; pointer-events:none; }
+.ppt-sl i { position:absolute; left:5px; bottom:4px; font-style:normal; font-size:10.5px; font-weight:700; color:#fff; background:rgba(0,0,0,.55); border-radius:4px; padding:0 5px; line-height:16px; }
+.ppt-sl.on { border-color:var(--acc); }
+.ppt-sl:hover:not(.on) { border-color:var(--line2); }
+.ppt-add { flex:none; width:84px; height:80px; border-radius:8px; border:1.5px dashed var(--line2); font-size:26px; color:var(--muted); }
+.ppt-add:hover { border-color:var(--acc); color:var(--acc); }
+.ppt-notes-wrap { padding:8px 12px 0; }
+.ppt-notes-wrap[hidden] { display:none; }
+.ppt-notes-wrap textarea { width:100%; height:64px; resize:vertical; border-radius:8px; border:1px solid var(--line); background:var(--bg); color:var(--text); padding:8px 10px; font:13px/1.45 var(--font, inherit); outline:none; }
+.ppt-notes-wrap textarea:focus { border-color:var(--acc); }
+.deck { margin:4px 0 16px; }
+.deck-h { display:flex; align-items:center; gap:8px; margin:6px 0; }
+.deck-h b { font-size:12.5px; }
+.deck-sw { display:flex; } .deck-sw i { width:12px; height:12px; border-radius:50%; margin-right:-3px; border:1.5px solid var(--bg); }
+.deck-all { width:100%; height:30px; border-radius:7px; border:1px solid var(--line2); font-size:12px; font-weight:600; color:var(--acc); margin-bottom:8px; }
+.deck-all:hover { background:var(--acc); color:#fff; border-color:var(--acc); }
+.ppt-show { position:fixed; inset:0; z-index:1000; background:#000; cursor:pointer; outline:none; }
+.ppt-show img { position:absolute; inset:0; width:100%; height:100%; object-fit:contain; opacity:0; transition:opacity .35s ease; }
+.ppt-show img.on { opacity:1; }
+.ppt-show-ui { position:absolute; right:18px; bottom:18px; display:flex; align-items:center; gap:6px; padding:5px; border-radius:10px; background:rgba(20,20,24,.72); color:#fff; font-size:13px; opacity:0; transition:opacity .25s; font-variant-numeric:tabular-nums; }
+.ppt-show:hover .ppt-show-ui { opacity:1; }
+.ppt-show-ui span { padding:0 6px; }
+.ppt-show-ui button { width:32px; height:30px; border-radius:7px; color:#fff; font-size:18px; }
+.ppt-show-ui button:hover { background:rgba(255,255,255,.14); }
+.ppt-prog { position:absolute; left:0; right:0; bottom:0; height:3px; background:rgba(255,255,255,.08); }
+.ppt-prog i { display:block; height:100%; width:0; background:#a497ff; transition:width .3s; }
+@media (max-width:900px) {
+  body[data-mode="ppt"] .dock { bottom:calc(100px + env(safe-area-inset-bottom, 0px)); }
+  body[data-mode="ppt"] .ctxbar { bottom:calc(156px + env(safe-area-inset-bottom, 0px)); }
+  .ppt-row { height:90px; padding:0 8px; gap:6px; padding-bottom:env(safe-area-inset-bottom, 0px); }
+  .ppt-acts { width:86px; } .ppt-acts button { height:24px; font-size:12px; } .ppt-acts button[data-pa="notes"] span { display:none; }
+  .ppt-sl { height:62px; } .ppt-sl img { height:58px; } .ppt-add { width:58px; height:58px; }
+  .btn-present { top:calc(56px + env(safe-area-inset-top, 0px)); right:12px; height:34px; padding:0 11px; }
+  .btn-present span { display:none; }
+}

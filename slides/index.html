@@ -4,14 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <script>if(location.hostname==='www.graphican.online')location.replace('https://graphican.online'+location.pathname+location.search+location.hash);try{var t=localStorage.getItem('gc-editor-theme');if(t)document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
-<title>Graphican Editor — үнэгүй онлайн дизайн засварлагч</title>
-<meta name="description" content="Figma шиг цэвэрхэн, үнэгүй онлайн дизайн засварлагч: frame, текст, зураг, хэлбэр, AI дэвсгэр арилгах, кирилл фонт, PNG / JPG / PDF татах. Бүртгэлгүй. Graphican.">
-<link rel="canonical" href="https://graphican.online/editor/">
+<title>Илтгэл бэлдэх (PPT) — онлайн, үнэгүй, монгол загвартай | Graphican</title>
+<meta name="description" content="Canva шиг илтгэл, презентацыг хөтөч дээрээ бэлд: 35 бэлэн слайд загвар, монгол фонт, үнэгүй зураг, бүтэн дэлгэцээр үзүүлэх, PowerPoint (.pptx) ба PDF татах. Бүртгэлгүй.">
+<link rel="canonical" href="https://graphican.online/slides/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Graphican">
-<meta property="og:url" content="https://graphican.online/editor/">
-<meta property="og:title" content="Graphican Editor — үнэгүй онлайн дизайн засварлагч">
-<meta property="og:description" content="Сошиал пост, постер, баннерыг хөтөч дээрээ бүтээ. Бүртгэлгүй, үнэгүй.">
+<meta property="og:url" content="https://graphican.online/slides/">
+<meta property="og:title" content="Илтгэл бэлдэх (PPT) — онлайн, үнэгүй, монгол загвартай | Graphican">
+<meta property="og:description" content="Canva шиг илтгэл, презентацыг хөтөч дээрээ бэлд: 35 бэлэн слайд загвар, монгол фонт, үнэгүй зураг, бүтэн дэлгэцээр үзүүлэх, PowerPoint (.pptx) ба PDF татах. Бүртгэлгүй.">
 <meta property="og:image" content="https://graphican.online/assets/uploads/og-cover.jpg">
 <meta name="theme-color" content="#ffffff">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2308080a'/%3E%3Ccircle cx='16' cy='16' r='7' fill='%23a497ff'/%3E%3C/svg%3E">
@@ -20,7 +20,7 @@
 <link rel="stylesheet" href="/assets/fonts/web/fonts.css">
 <link rel="stylesheet" href="/assets/editor.css?v=12">
 </head>
-<body class="ed-booting">
+<body class="ed-booting" data-mode="ppt">
 
 <div class="app" id="app">
   <!-- left: file, layers, add, templates -->
@@ -29,14 +29,14 @@
       <a class="logo" href="/tools/" title="Design tools руу буцах"><span class="orb" aria-hidden="true"></span><span>Graphican</span></a>
       <button class="ib mob-only" data-close="lp" type="button" aria-label="Хаах">✕</button>
     </div>
-    <nav class="mode-sw" aria-label="Горим"><a href="/editor/" class="on">Дизайн</a><a href="/slides/">Илтгэл (PPT)</a></nav>
+    <nav class="mode-sw" aria-label="Горим"><a href="/editor/">Дизайн</a><a href="/slides/" class="on">Илтгэл (PPT)</a></nav>
     <div class="lp-file">
-      <input class="file-name" id="ed-name" value="Нэргүй дизайн" aria-label="Дизайны нэр" spellcheck="false">
+      <input class="file-name" id="ed-name" value="Нэргүй илтгэл" aria-label="Дизайны нэр" spellcheck="false">
       <span class="saved" id="ed-saved">Хадгалагдсан</span>
       <div class="pw">
         <button class="ib" id="ed-filemenu" type="button" title="Файл" aria-label="Файлын цэс"><svg class="i" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></button>
         <div class="menu r" id="ed-file-menu" hidden>
-          <button type="button" data-file="new">Шинэ дизайн</button>
+          <button type="button" data-file="new">Шинэ илтгэл</button>
           <button type="button" data-file="save">Файлаар хадгалах <i>.graphican</i></button>
           <button type="button" data-file="open">Файл нээх</button>
         </div>
@@ -53,7 +53,7 @@
 
   <!-- canvas -->
   <main class="stage" id="stage">
-    <h1 class="sr-only">Graphican Editor — үнэгүй онлайн дизайн засварлагч</h1>
+    <h1 class="sr-only">Илтгэл бэлдэх (PPT) — онлайн, үнэгүй</h1>
     <canvas id="ed-canvas"></canvas>
     <div class="hint" id="ed-hint">Доод самбараас <b>Текст</b>, <b>Хэлбэр</b>, <b>Зураг</b> нэмэх эсвэл зүүн талын <b>Загвар</b>-аас эхлээрэй</div>
     <div class="ctxbar" id="ctxbar" hidden></div>

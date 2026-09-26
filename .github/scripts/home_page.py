@@ -116,14 +116,14 @@ def build():
     <div class="he-copy">
       <p class="hm-kicker">ОНЛАЙН ЗАСВАРЛАГЧ · ҮНЭГҮЙ</p>
       <h2>Пост, постероо<br><em>өөрөө хий.</em></h2>
-      <p class="he-lead">Instagram пост, story, зар, мэндчилгээ, нэрийн хуудсыг програм суулгалгүй хөтөч дээрээ бүтээгээд PNG, PDF-ээр татаарай.</p>
+      <p class="he-lead">Instagram пост, story, зар, мэндчилгээ, нэрийн хуудас, илтгэлийн слайдыг програм суулгалгүй хөтөч дээрээ бүтээгээд PNG, PDF-ээр татаарай.</p>
       <ul class="he-feats">
         <li><span>{svg("tpl")}</span><b>60+ бэлэн загвар</b><small>Цагаан сар, Наадам, зар</small></li>
         <li><span>{svg("font")}</span><b>178 монгол фонт</b><small>Ө, Ү эвдрэхгүй</small></li>
         <li><span>{svg("bg")}</span><b>AI хэрэгсэл</b><small>Дэвсгэр арилгах, тодруулах</small></li>
         <li><span>{svg("img")}</span><b>Үнэгүй зураг</b><small>Сая сая фото, видео</small></li>
       </ul>
-      <div class="he-btns"><a class="hm-btn" href="/editor/">Засварлагч нээх <i>→</i></a><a class="hm-btn ghost" href="/tools/templates/">Загвараас эхлэх</a></div>
+      <div class="he-btns"><a class="hm-btn" href="/editor/">Засварлагч нээх <i>→</i></a><a class="hm-btn ghost" href="/tools/templates/">Загвараас эхлэх</a><a class="hm-btn ghost" href="/slides/">▶ Илтгэл (PPT) бэлдэх</a></div>
     </div>
     <a class="he-mock" href="/editor/?tpl=tsagaansar" aria-label="Цагаан сарын загварыг засварлагчид нээх">
       <span class="em">
@@ -209,7 +209,7 @@ def build():
   <div class="hm-fcols">
     <div><b>PDF</b><a href="/tools/pdfedit/">PDF засварлагч</a><a href="/tools/pdf-to-word/">PDF → Word</a><a href="/tools/merge-pdf/">PDF нэгтгэх</a><a href="/tools/compress-pdf/">Шахах</a><a href="/tools/translate-pdf/">Орчуулах</a></div>
     <div><b>Зураг</b><a href="/tools/upscale/">AI томруулах</a><a href="/tools/bgremove/">Дэвсгэр арилгах</a><a href="/tools/socialcrop/">Сошиал хэмжээ</a><a href="/tools/pdf/">PDF ⇄ зураг</a></div>
-    <div><b>Дизайн</b><a href="/editor/">Засварлагч</a><a href="/tools/templates/">Монгол загвар</a><a href="/tools/mongol-font/">Монгол фонт</a><a href="/tools/brand-color/">Брэндийн өнгө</a></div>
+    <div><b>Дизайн</b><a href="/editor/">Засварлагч</a><a href="/slides/">Илтгэл (PPT)</a><a href="/tools/templates/">Монгол загвар</a><a href="/tools/mongol-font/">Монгол фонт</a><a href="/tools/brand-color/">Брэндийн өнгө</a></div>
     <div><b>Graphican</b><a href="/about/">Хамтран ажиллах</a><a href="/about/#work">Ажлууд</a>{f'<a href="mailto:{e(email)}">{e(email)}</a>' if email else ''}{f'<a href="tel:+976{e(phone)}">{e(phone)}</a>' if phone else ''}</div>
   </div>
   <p class="hm-copy">© GRAPHICAN · {soc_h}</p>

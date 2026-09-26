@@ -183,6 +183,8 @@
       DG.brand = ((d.guide || {}).colors || []).map(function (c) { return c.hex; }).filter(Boolean);
     }).catch(function () {});
   }
+  // presentation mode (/slides/): its own document, 16:9 slides, slide strip, present + PowerPoint export
+  var PPT = document.body.getAttribute('data-mode') === 'ppt', DOCKEY = PPT ? 'deck' : 'doc', DEF_W = PPT ? 1920 : 1080, DEF_H = PPT ? 1080 : 1350;
   var prefs = {};
   try { prefs = JSON.parse(localStorage.getItem('gc-editor-prefs') || '{}') || {}; } catch (e) { prefs = {}; }
   function currentPair() { return prefs.pair && prefs.pair.heading ? prefs.pair : (DG.pairs[0] || { heading: 'Manrope', body: 'Inter' }); }
@@ -209,7 +211,7 @@
 
   var ACC = '#6d56fa';
   var PROPS = ['id', 'name', 'isFrame', 'gTransparent', 'gMask', 'gMaskR', 'gStroke', 'locked', 'selectable', 'evented', 'hasControls',
-    'lockMovementX', 'lockMovementY', 'lockScalingX', 'lockScalingY', 'lockRotation', 'hoverCursor', 'perPixelTargetFind'].concat(window.GFX ? window.GFX.EXTRA : []);
+    'lockMovementX', 'lockMovementY', 'lockScalingX', 'lockScalingY', 'lockRotation', 'hoverCursor', 'perPixelTargetFind', 'gNotes'].concat(window.GFX ? window.GFX.EXTRA : []);
   var stage = $('#stage');
   var page = null, W = 1080, H = 1350;            // page = current frame
   var exporting = false, restoring = false, guides = [], labelRects = [];
@@ -238,7 +240,7 @@
     frameN++;
     var f = new fabric.Rect({
       left: o.left || 0, top: o.top || 0, width: o.width, height: o.height, fill: o.fill || '#ffffff',
-      isFrame: true, id: 'frame-' + Date.now().toString(36) + frameN, name: o.name || ('Frame ' + (frames().length + 1)),
+      isFrame: true, id: 'frame-' + Date.now().toString(36) + frameN, name: o.name || ((PPT ? 'Слайд ' : 'Frame ') + (frames().length + 1)),
       selectable: false, evented: false, hoverCursor: 'default', objectCaching: false, lockRotation: true, strokeWidth: 0
     });
     f.setControlsVisibility({ mtr: false });
@@ -315,7 +317,7 @@
     canvas.setWidth(r.width); canvas.setHeight(r.height); canvas.calcOffset();
   }
   function fitRect(l, t, w, h) {
-    var cw = canvas.getWidth(), ch = canvas.getHeight(), pad = cw < 700 ? 24 : 64, dock = 70;
+    var cw = canvas.getWidth(), ch = canvas.getHeight(), pad = cw < 700 ? 24 : 64, dock = PPT ? (cw < 700 ? 190 : 230) : 70;
     var z = clamp(Math.min((cw - pad * 2) / w, (ch - pad * 2 - dock) / h), 0.02, 2);
     canvas.setViewportTransform([z, 0, 0, z, (cw - w * z) / 2 - l * z, (ch - dock - h * z) / 2 - t * z + 10]);
     zoomLabel();
@@ -621,6 +623,7 @@
     while (hist.length > 2 && (hist.length > 40 || tot > 8e7)) tot -= hist.shift().length;
     hi = hist.length - 1;
     histButtons();
+    if (PPT) pptThumbSoon();
     clearTimeout(saveT);
     pendingSave = s;
     saveT = setTimeout(flushSave, 400);
@@ -629,7 +632,7 @@
   function flushSave() {
     clearTimeout(saveT);
     var s = pendingSave; if (!s) return; pendingSave = null;
-    dbSet('doc', s).then(function (ok) {
+    dbSet(DOCKEY, s).then(function (ok) {
       $('#ed-saved').textContent = ok ? 'Хадгалагдсан' : 'Хадгалж чадсангүй';
       if (!ok) toast('Дизайныг хадгалж чадсангүй — хөтчийн сан дүүрсэн байж магадгүй. PNG/PDF-ээр татаж аваарай.', 6000);
     });
@@ -659,14 +662,14 @@
           if (f.gTransparent || (f.fill && typeof f.fill !== 'string')) { f.gTransparent = true; f.set('fill', checker()); }
           canvas.moveTo(f, i);
         });
-        if (!fs.length) addFrame(1080, 1350);
+        if (!fs.length) addFrame(DEF_W, DEF_H);
         setCurrent(frames().filter(function (f) { return f.id === d.current; })[0] || frames()[0]);
         if (d.name) $('#ed-name').value = d.name;
         userObjects().forEach(function (o) {
           if (o.locked) lockObj(o, true);
           else if (o.lockMovementX || o.lockMovementY) o.set({ lockMovementX: false, lockMovementY: false });   // left over from point editing
         });
-        if (keepView) canvas.setViewportTransform(vpt); else fitAll();
+        if (keepView) canvas.setViewportTransform(vpt); else if (PPT) fitFrame(page); else fitAll();
         canvas.renderAll();
         restoring = false;
         (function walk(list) {
@@ -675,6 +678,7 @@
             if (o.getObjects) { walk(o.getObjects()); if (o.fontFamily === undefined) ensureAllIn(o); }
           });
         })(userObjects());
+        if (PPT) pptThumbs = {};
         refreshUI();
         res();
       });
@@ -689,8 +693,8 @@
       g.set('dirty', true); canvas.requestRenderAll();
     });
   }
-  function undo() { if (crop) endCrop(false); if (hi > 0) { hi--; restore(hist[hi], true).then(function () { histButtons(); dbSet('doc', hist[hi]); }); } }
-  function redo() { if (crop) endCrop(false); if (hi < hist.length - 1) { hi++; restore(hist[hi], true).then(function () { histButtons(); dbSet('doc', hist[hi]); }); } }
+  function undo() { if (crop) endCrop(false); if (hi > 0) { hi--; restore(hist[hi], true).then(function () { histButtons(); dbSet(DOCKEY, hist[hi]); }); } }
+  function redo() { if (crop) endCrop(false); if (hi < hist.length - 1) { hi++; restore(hist[hi], true).then(function () { histButtons(); dbSet(DOCKEY, hist[hi]); }); } }
 
   canvas.on('object:added', function (o) { if (!restoring && !o.target.isFrame) { commit(); scheduleUI(); } });
   canvas.on('object:removed', function () { if (!restoring) { commit(); scheduleUI(); } });
@@ -715,7 +719,7 @@
   var NAMES = { textbox: 'Текст', image: 'Зураг', rect: 'Тэгш өнцөгт', ellipse: 'Эллипс', circle: 'Тойрог', triangle: 'Гурвалжин', line: 'Шугам', polygon: 'Од', path: 'Зураас', group: 'Бүлэг' };
   // put an object at a point (default: centre of the current frame)
   function place(obj, at) {
-    if (!page) addFrame(1080, 1350);
+    if (!page) addFrame(DEF_W, DEF_H);
     obj.set({ name: obj.name || NAMES[obj.type] || 'Зүйл' });
     restoring = true; canvas.add(obj); restoring = false;
     var c = at || { x: page.left + W / 2, y: page.top + H / 2 };
@@ -736,7 +740,7 @@
     return (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) < 128;
   }
   function addText(kind, fontName, text, at) {
-    if (!page) addFrame(1080, 1350);
+    if (!page) addFrame(DEF_W, DEF_H);
     var st = TEXT_STYLES[kind], pair = currentPair();
     var f = fontName || (st.role === 'heading' ? pair.heading : pair.body);
     var base = Math.min(W, H * 0.9);
@@ -844,7 +848,7 @@
   }
   function duplicate() {
     var o = active(); if (!o) return;
-    if (o.isFrame) { duplicateFrame(o); return; }
+    if (o.isFrame) { if (PPT) pptDuplicate(o); else duplicateFrame(o); return; }
     o.clone(function (c) {
       canvas.discardActiveObject();
       c.set({ left: c.left + 20, top: c.top + 20, evented: true });
@@ -853,16 +857,16 @@
       canvas.setActiveObject(c); canvas.requestRenderAll(); commit();
     }, PROPS);
   }
-  function duplicateFrame(f) {
+  function duplicateFrame(f, done) {
     var kids = childrenOf(f), nf = addFrame(fw(f), fh(f), { fill: f.gTransparent ? '#ffffff' : frameFill(f), name: (f.name || 'Frame') + ' хуулбар' });
     if (f.gTransparent) { nf.gTransparent = true; nf.set('fill', checker()); }
     var dx = nf.left - f.left, dy = nf.top - f.top, n = kids.length;
-    if (!n) { selectFrame(nf); commit(); refreshUI(); return; }
+    if (!n) { selectFrame(nf); if (done) done(nf); commit(); refreshUI(); return; }
     restoring = true;
     kids.forEach(function (k) {
       k.clone(function (c) {
         c.set({ left: c.left + dx, top: c.top + dy }); canvas.add(c);
-        if (--n === 0) { restoring = false; selectFrame(nf); canvas.requestRenderAll(); commit(); refreshUI(); }
+        if (--n === 0) { restoring = false; selectFrame(nf); if (done) done(nf); canvas.requestRenderAll(); commit(); refreshUI(); }
       }, PROPS);
     });
   }
@@ -870,9 +874,11 @@
     var o = active(); if (!o || o.isEditing) return;
     if (o.isFrame) {
       if (o.locked) { toast('Түгжээтэй frame — эхлээд түгжээг нь тайлна уу'); return; }
-      if (frames().length === 1) { toast('Сүүлийн frame-ийг устгах боломжгүй'); return; }
+      if (frames().length === 1) { toast(PPT ? 'Сүүлийн слайдыг устгах боломжгүй' : 'Сүүлийн frame-ийг устгах боломжгүй'); return; }
+      var oi = frames().indexOf(o);
       childrenOf(o).forEach(function (k) { canvas.remove(k); });
-      canvas.remove(o); canvas.discardActiveObject(); setCurrent(frames()[0]); canvas.requestRenderAll(); commit(); refreshUI(); return;
+      canvas.remove(o); canvas.discardActiveObject(); setCurrent(frames()[Math.max(0, oi - 1)]);
+      if (PPT) { pptRelayout(); fitFrame(page); } canvas.requestRenderAll(); commit(); refreshUI(); return;
     }
     var list = o.type === 'activeSelection' ? o.getObjects() : [o], skipped = 0;
     canvas.discardActiveObject();
@@ -1182,21 +1188,24 @@
   }
   function useTemplate(id) {
     var tp = window.GTPL && window.GTPL.get(id); if (!tp) return false;
-    var f = frameFor(tp.w, tp.h);
-    f.set({ width: tp.w, height: tp.h, fill: tp.bg, name: tp.name }); f.gTransparent = false; f.setCoords(); setCurrent(f);
-    fitFrame(f); selectFrame(f); refreshUI();
-    if (tp.photos && tp.photos.length) toast('«' + tp.name + '» — зураг ачаалж байна…');
+    applyTpl(tp, frameFor(tp.w, tp.h));
+    return true;
+  }
+  // fill frame f with a template (poster or slide layout); resolves once the layers are on the canvas
+  function applyTpl(tp, f, quiet) {
+    f.set({ width: tp.w, height: tp.h, fill: tp.bg, name: PPT ? f.name : tp.name }); f.gTransparent = false; f.setCoords(); setCurrent(f);
+    if (!quiet) { fitFrame(f); selectFrame(f); refreshUI(); }
+    if (!quiet && tp.photos && tp.photos.length) toast('«' + tp.name + '» — зураг ачаалж байна…');
     var X = f.left, Y = f.top;
-    (window.GTPL.build ? window.GTPL.build(tp, X, Y, stack, 1600) : Promise.resolve(window.GTPL.objects(tp, X, Y, stack))).then(function (made) {
+    return (window.GTPL.build ? window.GTPL.build(tp, X, Y, stack, 1600) : Promise.resolve(window.GTPL.objects(tp, X, Y, stack))).then(function (made) {
       if (frames().indexOf(f) < 0) return;   // frame deleted while photos loaded
       var dx = f.left - X, dy = f.top - Y;
       if (dx || dy) made.forEach(function (o) { o.set({ left: o.left + dx, top: o.top + dy }); });
       tp.fonts.forEach(function (fn) { ensureFont(fn).then(function () { made.forEach(refreshText); }); });
-      restoring = true; made.forEach(function (o) { canvas.add(o); }); restoring = false;
+      restoring = true; made.forEach(function (o) { canvas.add(o); o.setCoords(); }); restoring = false;
       canvas.requestRenderAll(); commit(); refreshUI();
-      toast('«' + tp.name + '» — текстийг давхар дарж, зургийг сонгоод «Солих»-оор өөрчилнө' + (tp.credits && tp.credits.length ? ' · Зураг: Pexels' : ''));
+      if (!quiet) toast('«' + tp.name + '» — текстийг давхар дарж, зургийг сонгоод «Солих»-оор өөрчилнө' + (tp.credits && tp.credits.length ? ' · Зураг: Pexels' : ''));
     });
-    return true;
   }
 
   // ---------- free stock media (Pexels / Pixabay via /api/stock on our Worker) ----------
@@ -1338,7 +1347,8 @@
         DG.palettes.map(function (p) { return '<div class="pal"><div class="pal-n">' + esc(p.name) + '</div>' + swRow(p.colors) + '</div>'; }).join('');
       DG.pairs.forEach(function (p) { ensureFont(p.heading); ensureFont(p.body); });
     }
-    if (lpTab === 'templates') {
+    if (lpTab === 'templates' && PPT) h = pptTemplatesPanel();
+    else if (lpTab === 'templates') {
       h = '<div class="sec-t">Шинэ frame</div>' + SIZES.map(function (s) {
           var k = 22 / Math.max(s[1], s[2]);
           return '<button type="button" class="size-row" data-size="' + s[1] + 'x' + s[2] + '"><span class="sz-shape" style="width:' + Math.round(s[1] * k) + 'px;height:' + Math.round(s[2] * k) + 'px"></span><b>' + s[0] + '</b><span>' + s[1] + '×' + s[2] + '</span></button>';
@@ -1352,8 +1362,8 @@
     }
     if (lpTab === 'stock') h = stockPanel();
     el.innerHTML = h;
-    if (lpTab === 'templates') el.querySelectorAll('.tpl[data-tpl]').forEach(function (b) {
-      var t = window.GTPL.get(b.dataset.tpl); if (!t) return;
+    if (lpTab === 'templates') el.querySelectorAll('.tpl[data-tpl],.tpl[data-slide]').forEach(function (b) {
+      var t = b.dataset.slide ? window.GTPL.slide(b.dataset.slide) : window.GTPL.get(b.dataset.tpl); if (!t) return;
       tplThumb(t).then(function (url) {
         var sp = b.querySelector('.tpl-prev'); if (!url || !sp) return;
         sp.style.backgroundImage = 'url(' + url + ')'; sp.classList.add('img');
@@ -1386,7 +1396,7 @@
       if (o.isFrame) selectFrame(o); else { canvas.setActiveObject(o); canvas.requestRenderAll(); }
       refreshUI(); return;
     }
-    if (d.a === 'add-frame') { var f = addFrame(1080, 1350); fitAll(); selectFrame(f); commit(); refreshUI(); }
+    if (d.a === 'add-frame') { if (PPT) { pptAdd(); return; } var f = addFrame(DEF_W, DEF_H); fitAll(); selectFrame(f); commit(); refreshUI(); }
     if (d.a === 'upload') $('#ed-file').click();
     if (d.text) addText(d.text);
     if (d.addShape) addShape(d.addShape);
@@ -1395,6 +1405,8 @@
     if (d.color) applyColor(d.color);
     if (d.size) { var wh = d.size.split('x'), nf2 = frameFor(+wh[0], +wh[1]); nf2.set({ width: +wh[0], height: +wh[1] }); nf2.setCoords(); setCurrent(nf2); fitFrame(nf2); selectFrame(nf2); commit(); refreshUI(); }
     if (d.tpl) useTemplate(d.tpl);
+    if (d.slide) pptUseSlide(d.slide);
+    if (d.deck) pptUseDeck(d.deck);
     $('#lp').classList.remove('open');
   });
   // double-click a layer to rename it
@@ -1936,7 +1948,10 @@
   // export menu (top right)
   function renderExportMenu() {
     var n = frames().length;
-    $('#ed-export-menu').innerHTML =
+    $('#ed-export-menu').innerHTML = (PPT ? '<div class="mt">Илтгэл · ' + n + ' слайд</div>' +
+      '<button type="button" data-ex="pptx">PowerPoint (.pptx) <i>текст засагдана</i></button>' +
+      '<button type="button" data-ex="pptximg">PowerPoint — зургаар <i>яг адилхан</i></button>' +
+      '<button type="button" data-ex="pdfall">PDF — бүх слайд</button><div class="sep"></div><div class="mt">Зөвхөн энэ слайд</div>' : '') +
       '<div class="mt">Формат</div><div class="row2"><select data-em="fmt"><option value="png"' + (expFmt === 'png' ? ' selected' : '') + '>PNG</option><option value="jpg"' + (expFmt === 'jpg' ? ' selected' : '') + '>JPG</option><option value="pdf"' + (expFmt === 'pdf' ? ' selected' : '') + '>PDF</option></select>' +
       '<select data-em="scale"><option value="1"' + (expScale === 1 ? ' selected' : '') + '>1×</option><option value="2"' + (expScale === 2 ? ' selected' : '') + '>2×</option><option value="3"' + (expScale === 3 ? ' selected' : '') + '>3×</option></select></div>' +
       '<button type="button" data-ex="cur">«' + esc((page.name || 'Frame').slice(0, 22)) + '» татах</button>' +
@@ -1953,7 +1968,12 @@
   $('#ed-export-menu').addEventListener('change', function (e) { var k = e.target.dataset.em; if (k === 'fmt') expFmt = e.target.value; if (k === 'scale') expScale = +e.target.value; renderExportMenu(); renderRight(); });
   $('#ed-export-menu').addEventListener('click', function (e) {
     var b = e.target.closest('button'); if (!b) return;
-    if (b.dataset.ex) { $('#ed-export-menu').hidden = true; exportFrames(b.dataset.ex === 'all' ? frames() : [page]); }
+    if (b.dataset.ex) {
+      $('#ed-export-menu').hidden = true; var ex = b.dataset.ex;
+      if (ex === 'pptx' || ex === 'pptximg') exportPptx(ex === 'pptx');
+      else if (ex === 'pdfall') exportFrames(frames(), 'pdf', 2);
+      else exportFrames(ex === 'all' ? frames() : [page]);
+    }
     if (b.dataset.send) { $('#ed-export-menu').hidden = true; toBlob(renderFrame(page, 1), 'image/png').then(function (bl) { handoff(bl, b.dataset.send); }); }
     e.stopPropagation();
   });
@@ -1963,7 +1983,7 @@
   function handoff(blob, target) {
     if (!window.GHandoff) { toast('Илгээж чадсангүй'); return; }
     pushHistory();
-    dbSet('doc', snapshot()).then(function () { return window.GHandoff.put(blob, { name: fileBase() + '.png', target: target }); })
+    dbSet(DOCKEY, snapshot()).then(function () { return window.GHandoff.put(blob, { name: fileBase() + '.png', target: target }); })
       .then(function () { location.href = '/tools/' + target + '/'; })
       .catch(function () { toast('Илгээж чадсангүй'); });
   }
@@ -2041,8 +2061,8 @@
     if (a === 'new') {
       if (userObjects().length && !confirm('Одоогийн дизайныг арилгаад шинээр эхлэх үү? (Хадгалах бол эхлээд «Файлаар хадгалах» дарна уу)')) return;
       restoring = true; canvas.clear(); canvas.backgroundColor = canvasBg(); restoring = false;
-      $('#ed-name').value = 'Нэргүй дизайн';
-      addFrame(1080, 1350); fitAll(); hist = []; hi = -1; pushHistory(); refreshUI(); toast('Шинэ дизайн');
+      $('#ed-name').value = PPT ? 'Нэргүй илтгэл' : 'Нэргүй дизайн';
+      addFrame(DEF_W, DEF_H); fitAll(); hist = []; hi = -1; pushHistory(); refreshUI(); toast(PPT ? 'Шинэ илтгэл' : 'Шинэ дизайн');
     }
     if (a === 'save') {
       clearTimeout(commitT); var snap = snapshot();
@@ -2153,6 +2173,7 @@
     if (e.code === 'Space' && !isTyping(e)) { if (!spaceDown) { spaceDown = true; canvas.setCursor('grab'); } e.preventDefault(); return; }
     if (isTyping(e)) { if (e.key === 'Escape') { var t = active(); if (t && t.isEditing) { t.exitEditing(); canvas.requestRenderAll(); } } return; }
     var mod = e.ctrlKey || e.metaKey, k = keyName(e), o = active();
+    if (PPT && !crop && pptKey(e, mod)) return;
     if (crop) { if (e.key === 'Enter') { e.preventDefault(); endCrop(true); } if (e.key === 'Escape') { e.preventDefault(); endCrop(false); } return; }
     if (tool === 'vector' && e.key === 'Enter') { e.preventDefault(); setTool('move'); return; }
     if (vedit && (e.key === 'Escape' || e.key === 'Enter')) { e.preventDefault(); endVEdit(); return; }
@@ -3248,32 +3269,293 @@
 
   // ---------- UI refresh ----------
 
+  // ---------- presentation mode (PPT) ----------
+
+  var pptThumbs = {}, pptThumbT = null, pptSig = '', pptNotesOpen = false;
+  function isEmptyFrame(f) { return !!f && !childrenOf(f).length; }
+  // render a frame without touching the selection (thumbnails, slideshow)
+  function quietRender(f, mult) {
+    var vpt = canvas.viewportTransform, bg = canvas.backgroundColor, out;
+    mult = safeMult(fw(f), fh(f), mult);
+    exporting = true; canvas.backgroundColor = null;
+    var tf = f.gTransparent ? f.fill : null; if (tf) f.fill = '#ffffff';
+    try {
+      canvas.viewportTransform = [1, 0, 0, 1, 0, 0];
+      out = canvas.toCanvasElement(mult, { left: f.left, top: f.top, width: fw(f), height: fh(f) });
+    } finally {
+      canvas.viewportTransform = vpt; canvas.calcViewportBoundaries();
+      if (tf) f.fill = tf;
+      canvas.backgroundColor = bg; exporting = false;
+    }
+    return out;
+  }
+  function pptThumb(f) {
+    try { pptThumbs[f.id] = quietRender(f, 240 / fw(f)).toDataURL('image/jpeg', 0.8); } catch (e) { pptThumbs[f.id] = ''; }
+    return pptThumbs[f.id];
+  }
+  function pptThumbSoon(all) {
+    if (all) pptThumbs = {};
+    clearTimeout(pptThumbT);
+    pptThumbT = setTimeout(function () {
+      if (page) pptThumb(page);
+      var list = document.getElementById('ppt-list'); if (!list) return;
+      frames().forEach(function (f) {
+        var img = list.querySelector('[data-fid="' + f.id + '"] img');
+        if (img) img.src = pptThumbs[f.id] || pptThumb(f);
+      });
+    }, 450);
+  }
+  if (PPT && document.fonts) document.fonts.addEventListener('loadingdone', function () { pptThumbSoon(true); });
+  function pptRelayout() {
+    var fs = frames(), kids = fs.map(childrenOf), x = 0;
+    fs.forEach(function (f, i) {
+      moveFrame(f, x - f.left, -f.top, kids[i]);
+      x += fw(f) + 160;
+      if (/^Слайд \d+$/.test(f.name || '')) f.name = 'Слайд ' + (i + 1);
+    });
+    canvas.requestRenderAll();
+  }
+  function pptMove(f, to) {
+    var n = frames().length; to = clamp(to, 0, n - 1);
+    canvas.moveTo(f, to); pptRelayout();
+  }
+  function pptInsertAfter(ref) {
+    var f = addFrame(ref ? fw(ref) : DEF_W, ref ? fh(ref) : DEF_H);
+    if (ref) pptMove(f, frames().indexOf(ref) + 1);
+    return f;
+  }
+  function pptGo(f) { if (!f) return; selectFrame(f); fitFrame(f); refreshUI(); }
+  function pptAdd() { var f = pptInsertAfter(page); pptGo(f); commit(); }
+  function pptDuplicate(f) {
+    duplicateFrame(f, function (nf) { pptMove(nf, frames().indexOf(f) + 1); fitFrame(nf); pptThumbSoon(); });
+  }
+  function pptUseSlide(id) {
+    var tp = window.GTPL.slide(id); if (!tp) return;
+    var f = isEmptyFrame(page) ? page : pptInsertAfter(page);
+    pptGo(f);
+    applyTpl(tp, f, true).then(function () { pptThumbSoon(); });
+  }
+  function pptUseDeck(id) {
+    var d = (window.GTPL.decks || []).filter(function (x) { return x.id === id; })[0]; if (!d) return;
+    var start = isEmptyFrame(page) ? page : pptInsertAfter(page), prev = start, list = [start];
+    for (var i = 1; i < d.slides.length; i++) { prev = pptInsertAfter(prev); list.push(prev); }
+    pptGo(start);
+    toast('«' + d.name + '» — ' + d.slides.length + ' слайд нэмэгдэж байна…');
+    Promise.all(d.slides.map(function (tp, k) { return applyTpl(tp, list[k], true); })).then(function () {
+      pptGo(start); pptThumbSoon(true);
+      toast('«' + d.name + '» бэлэн — текстийг давхар дарж засна, зургийг «Солих»-оор өөрчилнө');
+    });
+  }
+  function pptTemplatesPanel() {
+    var decks = (window.GTPL && window.GTPL.decks) || [];
+    return '<div class="sec-t">Илтгэлийн загвар <span>' + decks.length + ' загвар · ' + decks.reduce(function (a, d) { return a + d.slides.length; }, 0) + ' слайд</span></div>' +
+      decks.map(function (d) {
+        return '<div class="deck"><div class="deck-h"><span class="deck-sw">' + d.sw.map(function (c) { return '<i style="background:' + c + '"></i>'; }).join('') + '</span><b>' + esc(d.name) + '</b></div>' +
+          '<button type="button" class="deck-all" data-deck="' + d.id + '">Бүх ' + d.slides.length + ' слайдыг нэмэх</button>' +
+          '<div class="grid2">' + d.slides.map(function (t) {
+            return '<button type="button" class="tpl" data-slide="' + t.id + '"><span class="tpl-prev wide" style="background:' + t.bg + '"><i style="background:' + d.sw[1] + '"></i><i style="background:' + d.sw[2] + '"></i></span><b>' + esc(t.name) + '</b></button>';
+          }).join('') + '</div></div>';
+      }).join('') +
+      '<p class="note">Слайд дээр дарахад одоогийн хоосон слайдыг бөглөнө, хоосон биш бол дараа нь шинэ слайд болж нэмэгдэнэ. Зургууд — Pexels (үнэгүй).</p>';
+  }
+
+  // slide strip (bottom)
+  function pptStrip() {
+    var bar = document.getElementById('ppt-bar'); if (!bar) return;
+    var fs = frames(), sig = fs.map(function (f) { return f.id; }).join(',');
+    var list = bar.querySelector('#ppt-list');
+    if (sig !== pptSig) {
+      pptSig = sig;
+      list.innerHTML = fs.map(function (f, i) {
+        var ar = fh(f) / fw(f);
+        return '<button type="button" class="ppt-sl" draggable="true" data-fid="' + f.id + '" title="' + esc(f.name || '') + '"><img alt="" style="aspect-ratio:' + (1 / ar) + '" src="' + (pptThumbs[f.id] || pptThumb(f)) + '"><i>' + (i + 1) + '</i></button>';
+      }).join('') + '<button type="button" class="ppt-add" data-pa="add" title="Шинэ слайд" aria-label="Шинэ слайд">+</button>';
+    }
+    list.querySelectorAll('.ppt-sl').forEach(function (b) { b.classList.toggle('on', page && b.dataset.fid === page.id); });
+    var cur = list.querySelector('.ppt-sl.on'); if (cur && cur.scrollIntoView && !bar._noscroll) cur.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    var idx = fs.indexOf(page);
+    bar.querySelector('#ppt-count').textContent = (idx + 1) + ' / ' + fs.length;
+    var ta = bar.querySelector('#ppt-notes'); if (ta && document.activeElement !== ta) ta.value = (page && page.gNotes) || '';
+  }
+  function pptBuildUI() {
+    var st = $('#stage'), bar = document.createElement('div');
+    bar.className = 'ppt-bar'; bar.id = 'ppt-bar';
+    bar.innerHTML =
+      '<div class="ppt-notes-wrap" hidden><textarea id="ppt-notes" placeholder="Илтгэгчийн тэмдэглэл — зөвхөн танд харагдана, PowerPoint руу хамт гарна" spellcheck="false"></textarea></div>' +
+      '<div class="ppt-row">' +
+        '<div class="ppt-acts">' +
+          '<button type="button" data-pa="notes" title="Тэмдэглэл">✎ <span>Тэмдэглэл</span></button>' +
+          '<button type="button" data-pa="left" title="Зүүн тийш">‹</button><button type="button" data-pa="right" title="Баруун тийш">›</button>' +
+          '<button type="button" data-pa="dup" title="Слайд хуулах">⧉</button><button type="button" data-pa="del" title="Слайд устгах">🗑</button>' +
+          '<span class="ppt-count" id="ppt-count"></span>' +
+        '</div>' +
+        '<div class="ppt-list" id="ppt-list"></div>' +
+      '</div>';
+    st.appendChild(bar);
+    bar.addEventListener('click', function (e) {
+      var b = e.target.closest('button'); if (!b) return;
+      if (b.dataset.fid) { var f = frames().filter(function (x) { return x.id === b.dataset.fid; })[0]; bar._noscroll = true; pptGo(f); bar._noscroll = false; return; }
+      var a = b.dataset.pa, i = frames().indexOf(page);
+      if (a === 'add') pptAdd();
+      if (a === 'dup' && page) pptDuplicate(page);
+      if (a === 'del' && page) { selectFrame(page); removeSel(); }
+      if ((a === 'left' || a === 'right') && page) { pptMove(page, i + (a === 'left' ? -1 : 1)); fitFrame(page); commit(); refreshUI(); }
+      if (a === 'notes') { pptNotesOpen = !pptNotesOpen; bar.querySelector('.ppt-notes-wrap').hidden = !pptNotesOpen; b.classList.toggle('on', pptNotesOpen); if (pptNotesOpen) bar.querySelector('#ppt-notes').focus(); }
+    });
+    bar.querySelector('#ppt-notes').addEventListener('input', function (e) { if (page) { page.gNotes = e.target.value; commit(); } });
+    bar.querySelector('#ppt-notes').addEventListener('keydown', function (e) { e.stopPropagation(); });
+    var dragId = null;
+    bar.addEventListener('dragstart', function (e) { var b = e.target.closest('.ppt-sl'); if (!b) return; dragId = b.dataset.fid; e.dataTransfer.effectAllowed = 'move'; try { e.dataTransfer.setData('text/plain', dragId); } catch (x) {} });
+    bar.addEventListener('dragover', function (e) { if (dragId && e.target.closest('.ppt-sl')) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; } });
+    bar.addEventListener('drop', function (e) {
+      var b = e.target.closest('.ppt-sl'); if (!b || !dragId) return; e.preventDefault();
+      var fs = frames(), from = fs.filter(function (x) { return x.id === dragId; })[0], to = fs.findIndex(function (x) { return x.id === b.dataset.fid; });
+      dragId = null; if (!from || to < 0) return;
+      pptMove(from, to); selectFrame(from); fitFrame(from); commit(); refreshUI();
+    });
+    bar.addEventListener('dragend', function () { dragId = null; });
+    // top-right: Present button
+    var pb = document.createElement('button');
+    pb.type = 'button'; pb.className = 'btn-present'; pb.id = 'ppt-present'; pb.title = 'Бүтэн дэлгэцээр үзүүлэх (F5)';
+    pb.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg><span>Үзүүлэх</span>';
+    st.appendChild(pb);
+    pb.addEventListener('click', function () { pptPresent(Math.max(0, frames().indexOf(page))); });
+    var hint = $('#ed-hint'); if (hint) hint.innerHTML = 'Зүүн талын <b>Загвар</b>-аас илтгэлийн загвар сонгох эсвэл доороос <b>Текст</b>, <b>Зураг</b> нэмж эхлээрэй';
+    lpTab = 'templates';
+    $$('.lp-tabs button').forEach(function (x) { var on = x.dataset.tab === 'templates'; x.classList.toggle('on', on); x.setAttribute('aria-selected', on ? 'true' : 'false'); });
+  }
+  function pptKey(e, mod) {
+    if (e.key === 'F5' || (mod && e.key === 'Enter')) { e.preventDefault(); pptPresent(e.shiftKey || e.key === 'Enter' ? Math.max(0, frames().indexOf(page)) : 0); return true; }
+    if (!mod && (e.key === 'PageDown' || e.key === 'PageUp')) {
+      e.preventDefault(); var fs = frames(), i = fs.indexOf(page) + (e.key === 'PageDown' ? 1 : -1);
+      if (fs[i]) pptGo(fs[i]); return true;
+    }
+    return false;
+  }
+
+  // slideshow
+  function pptPresent(start) {
+    if (crop) endCrop(true);
+    var t = active(); if (t && t.isEditing) t.exitEditing();
+    var fs = frames(), i = clamp(start || 0, 0, fs.length - 1), cache = {}, cur = 0;
+    var ov = document.createElement('div'); ov.className = 'ppt-show'; ov.tabIndex = -1;
+    ov.innerHTML = '<img class="s0" alt=""><img class="s1" alt=""><div class="ppt-show-ui"><button type="button" data-sx="prev" aria-label="Өмнөх">‹</button><span></span><button type="button" data-sx="next" aria-label="Дараах">›</button><button type="button" data-sx="x" aria-label="Хаах">✕</button></div><div class="ppt-prog"><i></i></div>';
+    document.body.appendChild(ov);
+    var imgs = ov.querySelectorAll('img'), lab = ov.querySelector('.ppt-show-ui span'), prog = ov.querySelector('.ppt-prog i');
+    function src(k) {
+      if (cache[k]) return cache[k];
+      var f = fs[k], sw = Math.min(3840, Math.max(1280, (window.screen.width || 1920) * (window.devicePixelRatio || 1)));
+      try { cache[k] = quietRender(f, sw / fw(f)).toDataURL('image/jpeg', 0.92); } catch (e) { cache[k] = ''; }
+      return cache[k];
+    }
+    function show(k) {
+      if (k < 0 || k >= fs.length) { if (k >= fs.length) end(); return; }
+      i = k; var next = imgs[1 - cur];
+      next.src = src(i); next.classList.add('on'); imgs[cur].classList.remove('on'); cur = 1 - cur;
+      lab.textContent = (i + 1) + ' / ' + fs.length; prog.style.width = ((i + 1) / fs.length * 100) + '%';
+      setTimeout(function () { if (fs[i + 1]) src(i + 1); }, 80);
+    }
+    var ended = false;
+    function end() { if (ended) return; ended = true; document.removeEventListener('keydown', onKey, true); document.removeEventListener('fullscreenchange', onFs); if (document.fullscreenElement) document.exitFullscreen().catch(function () {}); ov.remove(); pptGo(fs[i]); }
+    function onKey(e) {
+      e.stopPropagation();
+      var k = e.key;
+      if (k === 'Escape') { e.preventDefault(); end(); }
+      else if (k === 'ArrowRight' || k === 'ArrowDown' || k === 'PageDown' || k === ' ' || k === 'Enter' || k === 'n') { e.preventDefault(); show(i + 1); }
+      else if (k === 'ArrowLeft' || k === 'ArrowUp' || k === 'PageUp' || k === 'Backspace' || k === 'p') { e.preventDefault(); show(i - 1); }
+      else if (k === 'Home') { e.preventDefault(); show(0); }
+      else if (k === 'End') { e.preventDefault(); show(fs.length - 1); }
+    }
+    function onFs() { if (!document.fullscreenElement) end(); }
+    document.addEventListener('keydown', onKey, true);
+    ov.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-sx]');
+      if (b) { if (b.dataset.sx === 'x') end(); else show(i + (b.dataset.sx === 'next' ? 1 : -1)); return; }
+      show(e.clientX < window.innerWidth / 3 ? i - 1 : i + 1);
+    });
+    var tx = null;
+    ov.addEventListener('touchstart', function (e) { tx = e.touches[0].clientX; }, { passive: true });
+    ov.addEventListener('touchend', function (e) { if (tx == null) return; var dx = e.changedTouches[0].clientX - tx; tx = null; if (Math.abs(dx) > 40) { e.preventDefault(); show(i + (dx < 0 ? 1 : -1)); } });
+    if (ov.requestFullscreen) ov.requestFullscreen().then(function () { document.addEventListener('fullscreenchange', onFs); }).catch(function () {});
+    ov.focus();
+    show(i);
+  }
+
+  // PowerPoint export: every slide as a picture; with editable=true plain texts stay real (editable) text boxes
+  function exportPptx(editable) {
+    toast('PowerPoint бэлтгэж байна…');
+    var fs = frames();
+    return (window.PptxGenJS ? Promise.resolve() : loadScript('/assets/vendor/pptxgen.bundle.js')).then(function () {
+      var pptx = new window.PptxGenJS(), f0 = fs[0], SW = 13.333, SH = +(SW * fh(f0) / fw(f0)).toFixed(3);
+      pptx.defineLayout({ name: 'GC', width: SW, height: SH }); pptx.layout = 'GC';
+      pptx.title = $('#ed-name').value || 'Graphican'; pptx.company = 'graphican.online';
+      var chain = Promise.resolve();
+      fs.forEach(function (f) {
+        chain = chain.then(function () {
+          var k = SW / fw(f), sh = fh(f) * k, texts = [];
+          if (editable) childrenOf(f).forEach(function (o) {
+            if (kindOf(o) !== 'text' || o.visible === false || !o.text || !o.text.trim()) return;
+            if (typeof o.fill !== 'string' || o.fill === 'transparent' || o.gPaint || (o.stroke && o.strokeWidth > 0) || (o.gFx && o.gFx.length)) return;
+            texts.push(o);
+          });
+          texts.forEach(function (o) { o.visible = false; });
+          var data;
+          try { data = quietRender(f, Math.min(2, 3840 / fw(f))).toDataURL('image/jpeg', 0.9); }
+          finally { texts.forEach(function (o) { o.visible = true; }); }
+          var s = pptx.addSlide();
+          s.addImage({ data: data, x: 0, y: 0, w: SW, h: Math.min(SH, sh) });
+          texts.forEach(function (o) {
+            var c = o.getCenterPoint(), w = o.width * o.scaleX, h = o.height * o.scaleY, col = new fabric.Color(o.fill), pt = o.fontSize * o.scaleY * k * 72;
+            // keep the exact line breaks from the canvas (no re-wrapping if PowerPoint substitutes a wider font)
+            var lines = (o._textLines || []).map(function (l) { return l.join(''); }), txt = lines.length ? lines.join('\n') : o.text;
+            var al = o.textAlign === 'justify' ? 'left' : (o.textAlign || 'left'), bw = w * 1.3, bx = al === 'center' ? c.x - bw / 2 : al === 'right' ? c.x + w / 2 - bw : c.x - w / 2;
+            if (o.angle) { bw = w; bx = c.x - w / 2; }
+            s.addText(txt, {
+              x: (bx - f.left) * k, y: (c.y - h / 2 - f.top) * k, w: bw * k, h: h * k * 1.08,
+              fontFace: primary(o.fontFamily), fontSize: +pt.toFixed(1), color: col.toHex(), transparency: Math.round((1 - col.getAlpha() * (o.opacity == null ? 1 : o.opacity)) * 100),
+              bold: (parseInt(o.fontWeight, 10) || (o.fontWeight === 'bold' ? 700 : 400)) >= 600, italic: o.fontStyle === 'italic', underline: o.underline ? { style: 'sng' } : undefined,
+              align: al, valign: 'top', margin: 0, fit: 'none', wrap: false,
+              lineSpacingMultiple: +Math.max(0.7, (o.lineHeight || 1.16) * 0.94).toFixed(2), charSpacing: o.charSpacing ? +(o.charSpacing / 1000 * pt).toFixed(1) : undefined,
+              rotate: o.angle ? Math.round(o.angle) : undefined
+            });
+          });
+          if (f.gNotes) s.addNotes(f.gNotes);
+        });
+      });
+      return chain.then(function () { return pptx.write({ outputType: 'blob' }); });
+    }).then(function (blob) {
+      saveBlob(fileBase() + '.pptx', blob);
+      toast('PowerPoint татагдлаа (' + fs.length + ' слайд)' + (editable ? ' — фонт суулгаагүй компьютер дээр өөр фонтоор харагдаж болно' : ''), 6000);
+    }).catch(function (e) { console.error(e); toast('PowerPoint үүсгэж чадсангүй'); });
+  }
+
   function updateHint() { $('#ed-hint').hidden = userObjects().length > 0 || tool === 'draw' || tool === 'vector'; }
-  function refreshUI() { renderLeft(); renderRight(); renderCtxbar(); updateHint(); histButtons(); }
+  function refreshUI() { renderLeft(); renderRight(); renderCtxbar(); updateHint(); histButtons(); if (PPT) pptStrip(); }
 
   // ---------- boot ----------
 
   window.GEditor = { canvas: canvas, frames: frames, renderFrame: renderFrame, addFrame: addFrame, useTemplate: useTemplate, setTool: setTool };
   window.addEventListener('resize', function () { resizeCanvas(); canvas.requestRenderAll(); });
   renderDock();
+  if (PPT) pptBuildUI();
   resizeCanvas();
 
   loadDesignGuide().then(function () {
     var p = currentPair(); ensureFont('Manrope'); ensureFont(p.heading); ensureFont(p.body);
-    return dbGet('doc');
+    return dbGet(DOCKEY);
   }).then(function (saved) {
     function fresh() {
-      if (!frames().length) addFrame(1080, 1350);
+      if (!frames().length) addFrame(DEF_W, DEF_H);
       fitAll(); hist = [snapshot()]; hi = 0; histButtons(); refreshUI();
     }
     if (!saved) return fresh();
     // a saved design that can't be loaded must not break the editor forever: keep a copy aside, start clean
     return restore(saved).then(function () { hist = [saved]; hi = 0; histButtons(); }).catch(function (e) {
       console.error(e); restoring = false;
-      dbSet('doc-broken', saved); canvas.clear(); canvas.backgroundColor = canvasBg(); fresh();
+      dbSet(DOCKEY + '-broken', saved); canvas.clear(); canvas.backgroundColor = canvasBg(); fresh();
       toast('Өмнөх дизайныг нээж чадсангүй — шинээр эхэллээ', 6000);
     });
-  }).catch(function (e) { console.error(e); if (!frames().length) { addFrame(1080, 1350); fitAll(); } hist = [snapshot()]; hi = 0; }).then(function () {
+  }).catch(function (e) { console.error(e); if (!frames().length) { addFrame(DEF_W, DEF_H); fitAll(); } hist = [snapshot()]; hi = 0; }).then(function () {
     return window.GHandoff ? window.GHandoff.take() : null;
   }).then(function (h) {
     if (h && h.blob) {
@@ -3289,6 +3571,7 @@
     var q; try { q = new URLSearchParams(location.search); } catch (e) { return; }
     var did = false;
     if (q.get('tpl')) did = useTemplate(q.get('tpl')) || did;
+    if (PPT && q.get('deck')) { pptUseDeck(q.get('deck')); did = true; }
     // ?size=1080x1350 — quick start from the home page (fills the empty frame or adds a new one)
     var sz = /^(\d{2,4})x(\d{2,4})$/.exec(q.get('size') || '');
     if (sz && !q.get('tpl')) {
@@ -3309,7 +3592,7 @@
     var fn = q.get('font');
     if (fn && /^[\w \-]{2,60}$/.test(fn)) {
       if (!FONTS[fn]) FONTS[fn] = {};
-      if (!page) addFrame(1080, 1350);
+      if (!page) addFrame(DEF_W, DEF_H);
       var t = addText('h', fn, (q.get('text') || fn).slice(0, 200));
       ensureFont(fn).then(function () { t.set('fontFamily', stack(fn)); refreshText(t); commit(); });
       toast('«' + fn + '» фонттой текст нэмэгдлээ'); did = true;

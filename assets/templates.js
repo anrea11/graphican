@@ -875,5 +875,7 @@
       .then(function () { return objects(tp, X, Y, font, imgs); });
   }
   LIST.forEach(function (t) { if (!t.bg) t.bg = t.sw[0]; t.photos = photosOf(t); t.credits = t.photos.map(function (k) { return PX[k][1]; }); });
-  window.GTPL = { list: LIST, cats: CATS, get: function (id) { return LIST.filter(function (t) { return t.id === id; })[0]; }, objects: objects, build: build, photoUrl: pxUrl, cssUrl: cssUrl };
+  window.GTPL = { list: LIST, cats: CATS, get: function (id) { return LIST.filter(function (t) { return t.id === id; })[0]; }, objects: objects, build: build, photoUrl: pxUrl, cssUrl: cssUrl,
+    H: { T: T, R: R, C: C, BLOB: BLOB, BG: BG, PH: PH, STAR: STAR, SPARK: SPARK, PHOTO: PHOTO, SCRIM: SCRIM, lin: lin, rad: rad, pill: pill, GRAIN: GRAIN, GRAIN2: GRAIN2 },
+    photosOf: photosOf, decks: [] };
 })();

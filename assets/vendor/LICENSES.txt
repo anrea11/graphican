@@ -24,3 +24,5 @@ Loaded from jsDelivr at runtime:
   smartcrop.js — Jonas Wagner — MIT — https://github.com/jwagner/smartcrop.js
 
 Fabric.js 5.3.0 — MIT License — http://fabricjs.com
+
+PptxGenJS 4.0.1 (pptxgen.bundle.js, includes JSZip) — MIT License — https://github.com/gitbrent/PptxGenJS
