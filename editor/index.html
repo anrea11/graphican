@@ -18,9 +18,9 @@
 <link rel="preload" href="/assets/fonts/web/InterTight-Bold.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/assets/fonts/web/Inter-Regular.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/assets/fonts/web/fonts.css">
-<link rel="stylesheet" href="/assets/editor.css?v=9">
+<link rel="stylesheet" href="/assets/editor.css?v=10">
 </head>
-<body>
+<body class="ed-booting">
 
 <div class="app" id="app">
   <!-- left: file, layers, add, templates -->
@@ -32,6 +32,14 @@
     <div class="lp-file">
       <input class="file-name" id="ed-name" value="Нэргүй дизайн" aria-label="Дизайны нэр" spellcheck="false">
       <span class="saved" id="ed-saved">Хадгалагдсан</span>
+      <div class="pw">
+        <button class="ib" id="ed-filemenu" type="button" title="Файл" aria-label="Файлын цэс"><svg class="i" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg></button>
+        <div class="menu r" id="ed-file-menu" hidden>
+          <button type="button" data-file="new">Шинэ дизайн</button>
+          <button type="button" data-file="save">Файлаар хадгалах <i>.graphican</i></button>
+          <button type="button" data-file="open">Файл нээх</button>
+        </div>
+      </div>
     </div>
     <div class="lp-tabs" role="tablist">
       <button type="button" role="tab" aria-selected="true" data-tab="layers" class="on">Давхарга</button>
@@ -51,6 +59,11 @@
     <div class="dock" id="dock" role="toolbar" aria-label="Хэрэгслүүд"></div>
     <button class="mob-btn l mob-only" type="button" data-open="lp">☰ Давхарга</button>
     <button class="mob-btn r mob-only" type="button" data-open="rp">Дизайн</button>
+    <div class="mob-top mob-only" role="toolbar" aria-label="Түргэн үйлдэл">
+      <button type="button" data-mob="undo" aria-label="Буцаах"><svg viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/></svg></button>
+      <button type="button" data-mob="redo" aria-label="Дахин хийх"><svg viewBox="0 0 24 24"><path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/></svg></button>
+      <button type="button" data-mob="export" class="dl" aria-label="Татах"><svg viewBox="0 0 24 24"><path d="M12 4v11m0 0-4-4m4 4 4-4M5 20h14"/></svg></button>
+    </div>
     <div class="dropzone" id="ed-dropzone" hidden><span>Зургаа энд тавина уу</span></div>
   </main>
 
@@ -83,6 +96,8 @@
 </div>
 
 <input type="file" id="ed-file" accept="image/png,image/jpeg,image/webp,image/svg+xml" multiple hidden>
+<input type="file" id="ed-open" accept=".graphican,.json,application/json" hidden>
+<input type="file" id="ed-replace" accept="image/png,image/jpeg,image/webp,image/svg+xml" hidden>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <noscript><p style="padding:40px">Засварлагчийг ашиглахын тулд JavaScript идэвхжүүлнэ үү.</p></noscript>
 
@@ -92,6 +107,6 @@
 <script src="/assets/editor-fx.js?v=1"></script>
 <script src="/assets/mnfonts-data.js?v=1"></script>
 <script src="/assets/templates.js?v=1"></script>
-<script src="/assets/editor.js?v=14"></script>
+<script src="/assets/editor.js?v=15"></script>
 </body>
 </html>

@@ -37,7 +37,9 @@
       s.onload = res; s.onerror = rej; document.head.appendChild(s);
     });
   }
-  function toBlob(c, type, q) { return new Promise(function (r) { c.toBlob(r, type, q); }); }
+  function toBlob(c, type, q) {
+    return new Promise(function (res, rej) { c.toBlob(function (b) { if (b) res(b); else rej(new Error('toBlob')); }, type, q); });
+  }
 
   // line icons (24×24)
   var P = {
@@ -120,10 +122,12 @@
   function primary(ff) { return String(ff || '').split(',')[0].replace(/["']/g, '').trim(); }
   var fontLinks = {}, fontReady = {};
   // only ask Google for weights the family has (an unavailable weight makes the whole CSS request fail)
+  var OTHERW = {"Playfair Display":[[400,500,600,700,800,900],1],"Sora":[[100,200,300,400,500,600,700,800],0],"Syne":[[400,500,600,700,800],0],"Plus Jakarta Sans":[[200,300,400,500,600,700,800],1],"Space Grotesk":[[300,400,500,600,700],0],"Outfit":[[100,200,300,400,500,600,700,800,900],0],"Poppins":[[100,200,300,400,500,600,700,800,900],1],"Lato":[[100,300,400,700,900],1],"Archivo Black":[[400],0],"Archivo":[[100,200,300,400,500,600,700,800,900],1],"Baloo 2":[[400,500,600,700,800],0],"Quicksand":[[300,400,500,600,700],0],"Fredoka":[[300,400,500,600,700],0],"DM Serif Display":[[400],1],"DM Sans":[[100,200,300,400,500,600,700,800,900],1],"Cinzel":[[400,500,600,700,800,900],0],"Fauna One":[[400],0],"Bebas Neue":[[400],0]};
+  Object.keys(OTHERW).forEach(function (k) { if (!MNW[k]) MNW[k] = { w: OTHERW[k][0], it: OTHERW[k][1] }; });
   function gAxes(family) {
     var m = MNW[family];
-    if (!m) return ':ital,wght@0,400;0,500;0,600;0,700;0,800;1,400';
-    var ws = m.w.filter(function (w) { return w >= 400 && w <= 800; }); if (!ws.length) ws = m.w.slice(0, 2);
+    if (!m) return '';   // unknown family: plain request never fails
+    var ws = m.w.filter(function (w) { return w >= 300 && w <= 900; }); if (!ws.length) ws = m.w.slice(0, 2);
     if (ws.length === 1 && ws[0] === 400 && !m.it) return '';
     return m.it ? ':ital,wght@' + ws.map(function (w) { return '0,' + w; }).concat(['1,' + (ws.indexOf(400) >= 0 ? 400 : ws[0])]).join(';') : ':wght@' + ws.join(';');
   }
@@ -147,6 +151,14 @@
       ]);
     }).catch(function () {}).then(function () { return family; });
     return fontReady[family];
+  }
+  // a weight / italic that isn't loaded yet renders with the fallback — load that exact face, then re-measure
+  function loadFace(o) {
+    if (!o || !o.fontFamily || !document.fonts) return;
+    var fam = primary(o.fontFamily);
+    ensureFont(fam).then(function () {
+      return document.fonts.load((o.fontStyle === 'italic' ? 'italic ' : '') + (o.fontWeight || 400) + ' 40px "' + fam + '"', 'АаӨөҮүBb');
+    }).catch(function () {}).then(function () { refreshText(o); });
   }
   function refreshText(obj) {
     if (!obj || !obj.isType || !obj.isType('textbox')) return;
@@ -191,12 +203,12 @@
     });
   }
   function dbGet(k) { return idb('readonly', function (s) { return s.get(k); }).catch(function () { return null; }); }
-  function dbSet(k, v) { return idb('readwrite', function (s) { return s.put(v, k); }).catch(function () {}); }
+  function dbSet(k, v) { return idb('readwrite', function (s) { return s.put(v, k); }).then(function () { return true; }, function (e) { console.error(e); return false; }); }
 
   // ---------- canvas ----------
 
   var ACC = '#6d56fa';
-  var PROPS = ['id', 'name', 'isFrame', 'gTransparent', 'gMask', 'gMaskR', 'locked', 'selectable', 'evented', 'hasControls',
+  var PROPS = ['id', 'name', 'isFrame', 'gTransparent', 'gMask', 'gMaskR', 'gStroke', 'locked', 'selectable', 'evented', 'hasControls',
     'lockMovementX', 'lockMovementY', 'lockScalingX', 'lockScalingY', 'lockRotation', 'hoverCursor', 'perPixelTargetFind'].concat(window.GFX ? window.GFX.EXTRA : []);
   var stage = $('#stage');
   var page = null, W = 1080, H = 1350;            // page = current frame
@@ -209,8 +221,9 @@
   });
   fabric.Textbox.prototype.set({ cursorColor: ACC, editingBorderColor: ACC, selectionColor: 'rgba(109,86,250,.25)' });
 
+  fabric.textureSize = 4096;   // WebGL filters on photos up to 4096px (default 2048 blanks larger images)
   var canvas = new fabric.Canvas('ed-canvas', {
-    preserveObjectStacking: true, stopContextMenu: true, fireMiddleClick: true,
+    preserveObjectStacking: true, stopContextMenu: true, fireMiddleClick: true, enablePointerEvents: !!window.PointerEvent,
     selectionColor: 'rgba(109,86,250,.08)', selectionBorderColor: ACC, selectionLineWidth: 1, targetFindTolerance: 5
   });
   function canvasBg() { return getComputedStyle(document.documentElement).getPropertyValue('--canvas').trim() || '#f5f5f5'; }
@@ -335,8 +348,8 @@
   // ---------- overlays: frame labels, snap guides, crop shade ----------
 
   canvas.on('after:render', function (o) {
-    if (exporting) return;
-    var ctx = o.ctx || canvas.getContext(), v = canvas.viewportTransform, z = v[0];
+    if (exporting || !o.ctx) return;
+    var ctx = o.ctx, v = canvas.viewportTransform, z = v[0];
     var dpr = canvas.getRetinaScaling ? canvas.getRetinaScaling() : 1;
     var dark = document.documentElement.getAttribute('data-theme') === 'dark';
     ctx.save(); ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -383,14 +396,34 @@
     var L = f.left, T = f.top, R = f.left + fw(f), B = f.top + fh(f);
     var xs = [[b.left, L], [b.left, (L + R) / 2], [b.left + b.width / 2, (L + R) / 2], [b.left + b.width, (L + R) / 2], [b.left + b.width, R]];
     var ys = [[b.top, T], [b.top, (T + B) / 2], [b.top + b.height / 2, (T + B) / 2], [b.top + b.height, (T + B) / 2], [b.top + b.height, B]];
+    var moving = obj.type === 'activeSelection' ? obj.getObjects() : [obj];
+    if (!snapCache || snapCache.f !== f || snapCache.o !== obj) {
+      snapCache = { f: f, o: obj, list: childrenOf(f).filter(function (x) { return moving.indexOf(x) < 0 && x.visible !== false; }).slice(-60).map(function (x) { return x.getBoundingRect(true, true); }) };
+    }
+    var bx = [b.left, b.left + b.width / 2, b.left + b.width], by = [b.top, b.top + b.height / 2, b.top + b.height];
+    snapCache.list.forEach(function (r) {
+      [r.left, r.left + r.width / 2, r.left + r.width].forEach(function (x) { bx.forEach(function (v) { xs.push([v, x, r]); }); });
+      [r.top, r.top + r.height / 2, r.top + r.height].forEach(function (y) { by.forEach(function (v) { ys.push([v, y, r]); }); });
+    });
     var dx = null, dy = null;
-    xs.forEach(function (p) { if (dx === null && Math.abs(p[0] - p[1]) < thr) { dx = p[1] - p[0]; guides.push({ x: p[1], a: T, b: B }); } });
-    ys.forEach(function (p) { if (dy === null && Math.abs(p[0] - p[1]) < thr) { dy = p[1] - p[0]; guides.push({ y: p[1], a: L, b: R }); } });
+    xs.forEach(function (p) {
+      if (dx === null && Math.abs(p[0] - p[1]) < thr) {
+        dx = p[1] - p[0];
+        guides.push(p[2] ? { x: p[1], a: Math.min(b.top, p[2].top), b: Math.max(b.top + b.height, p[2].top + p[2].height) } : { x: p[1], a: T, b: B });
+      }
+    });
+    ys.forEach(function (p) {
+      if (dy === null && Math.abs(p[0] - p[1]) < thr) {
+        dy = p[1] - p[0];
+        guides.push(p[2] ? { y: p[1], a: Math.min(b.left, p[2].left), b: Math.max(b.left + b.width, p[2].left + p[2].width) } : { y: p[1], a: L, b: R });
+      }
+    });
     if (dx) obj.left += dx;
     if (dy) obj.top += dy;
     obj.setCoords();
   });
-  canvas.on('mouse:up', function () { if (guides.length) { guides = []; canvas.requestRenderAll(); } });
+  var snapCache = null;
+  canvas.on('mouse:up', function () { snapCache = null; if (guides.length) { guides = []; canvas.requestRenderAll(); } });
 
   // frames: drag by their name label, or by their body once selected (children follow)
   var frameDrag = null, frameKids = null, frameLast = null;
@@ -401,6 +434,7 @@
     for (var i = labelRects.length - 1; i >= 0; i--) {
       var r = labelRects[i];
       if (p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h) {
+        if (r.f.locked) return;
         frameDrag = { f: r.f, x: p.x, y: p.y, kids: childrenOf(r.f), moved: false };
         canvas.selection = false;
         return;
@@ -480,7 +514,18 @@
     renderDock(); renderCtxbar(); updateHint();
   }
   $('#dock').addEventListener('click', function (e) {
-    if (e.target.closest('[data-shape-menu]')) { var m = $('#shape-menu'); m.hidden = !m.hidden; e.stopPropagation(); return; }
+    if (e.target.closest('[data-shape-menu]')) {
+      // the dock is transformed and may scroll, so the menu lives on <body> (a fixed child of the dock gets clipped / covered)
+      e.stopPropagation();
+      var pop = document.getElementById('shape-pop');
+      if (pop && !pop.hidden) { pop.hidden = true; return; }
+      if (!pop) { pop = document.createElement('div'); pop.id = 'shape-pop'; pop.className = 'menu up fixed'; document.body.appendChild(pop); }
+      pop.innerHTML = $('#shape-menu').innerHTML; pop.hidden = false;
+      var br = e.target.closest('.tool').getBoundingClientRect();
+      pop.style.left = Math.max(8, Math.min(window.innerWidth - 228, br.left)) + 'px';
+      pop.style.bottom = Math.round(window.innerHeight - br.top + 8) + 'px'; pop.style.top = 'auto'; pop.style.zIndex = 300;
+      return;
+    }
     var s = e.target.closest('[data-shape]');
     if (s) { shapeKind = s.dataset.shape; setTool('shape'); return; }
     var b = e.target.closest('[data-tool],[data-act]'); if (!b) return;
@@ -571,15 +616,34 @@
     var s = snapshot();
     if (s === hist[hi]) { $('#ed-saved').textContent = 'Хадгалагдсан'; return; }
     hist = hist.slice(0, hi + 1); hist.push(s);
-    if (hist.length > 40) hist.shift();
+    // snapshots carry image data — keep total history under ~80 MB (and at most 40 steps)
+    var tot = hist.reduce(function (a, x) { return a + x.length; }, 0);
+    while (hist.length > 2 && (hist.length > 40 || tot > 8e7)) tot -= hist.shift().length;
     hi = hist.length - 1;
     histButtons();
     clearTimeout(saveT);
-    saveT = setTimeout(function () { dbSet('doc', s).then(function () { $('#ed-saved').textContent = 'Хадгалагдсан'; }); }, 400);
+    pendingSave = s;
+    saveT = setTimeout(flushSave, 400);
   }
-  function histButtons() { $('#ed-undo').disabled = hi <= 0; $('#ed-redo').disabled = hi >= hist.length - 1; }
+  var pendingSave = null;
+  function flushSave() {
+    clearTimeout(saveT);
+    var s = pendingSave; if (!s) return; pendingSave = null;
+    dbSet('doc', s).then(function (ok) {
+      $('#ed-saved').textContent = ok ? 'Хадгалагдсан' : 'Хадгалж чадсангүй';
+      if (!ok) toast('Дизайныг хадгалж чадсангүй — хөтчийн сан дүүрсэн байж магадгүй. PNG/PDF-ээр татаж аваарай.', 6000);
+    });
+  }
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden') { if (commitT) { clearTimeout(commitT); pushHistory(); } flushSave(); } });
+  window.addEventListener('pagehide', function () { flushSave(); });
+  function histButtons() {
+    $('#ed-undo').disabled = hi <= 0; $('#ed-redo').disabled = hi >= hist.length - 1;
+    var mu = document.querySelector('[data-mob="undo"]'), mr = document.querySelector('[data-mob="redo"]');
+    if (mu) mu.disabled = hi <= 0; if (mr) mr.disabled = hi >= hist.length - 1;
+  }
   function restore(s, keepView) {
-    var d = JSON.parse(s), vpt = canvas.viewportTransform.slice();
+    var d, vpt = canvas.viewportTransform.slice();
+    try { d = JSON.parse(s); } catch (e) { return Promise.reject(e); }
     restoring = true;
     return new Promise(function (res) {
       canvas.loadFromJSON(d.canvas, function () {
@@ -598,18 +662,35 @@
         if (!fs.length) addFrame(1080, 1350);
         setCurrent(frames().filter(function (f) { return f.id === d.current; })[0] || frames()[0]);
         if (d.name) $('#ed-name').value = d.name;
-        userObjects().forEach(function (o) { if (o.locked) lockObj(o, true); });
+        userObjects().forEach(function (o) {
+          if (o.locked) lockObj(o, true);
+          else if (o.lockMovementX || o.lockMovementY) o.set({ lockMovementX: false, lockMovementY: false });   // left over from point editing
+        });
         if (keepView) canvas.setViewportTransform(vpt); else fitAll();
         canvas.renderAll();
         restoring = false;
-        userObjects().forEach(function (o) { if (o.fontFamily) ensureFont(primary(o.fontFamily)).then(function () { refreshText(o); }); });
+        (function walk(list) {
+          list.forEach(function (o) {
+            if (o.fontFamily) loadFace(o);
+            if (o.getObjects) { walk(o.getObjects()); if (o.fontFamily === undefined) ensureAllIn(o); }
+          });
+        })(userObjects());
         refreshUI();
         res();
       });
     });
   }
-  function undo() { if (hi > 0) { hi--; restore(hist[hi], true).then(function () { histButtons(); dbSet('doc', hist[hi]); }); } }
-  function redo() { if (hi < hist.length - 1) { hi++; restore(hist[hi], true).then(function () { histButtons(); dbSet('doc', hist[hi]); }); } }
+  // text inside a group re-measures only when the group redraws
+  function ensureAllIn(g) {
+    var fams = {};
+    (function w(l) { l.forEach(function (x) { if (x.fontFamily) fams[primary(x.fontFamily)] = 1; if (x.getObjects) w(x.getObjects()); }); })(g.getObjects());
+    Promise.all(Object.keys(fams).map(ensureFont)).then(function () {
+      (function w(l) { l.forEach(function (x) { if (x.initDimensions && x.fontFamily) { if (fabric.util.clearFabricFontCache) fabric.util.clearFabricFontCache(x.fontFamily); x.initDimensions(); } if (x.getObjects) w(x.getObjects()); }); })(g.getObjects());
+      g.set('dirty', true); canvas.requestRenderAll();
+    });
+  }
+  function undo() { if (crop) endCrop(false); if (hi > 0) { hi--; restore(hist[hi], true).then(function () { histButtons(); dbSet('doc', hist[hi]); }); } }
+  function redo() { if (crop) endCrop(false); if (hi < hist.length - 1) { hi++; restore(hist[hi], true).then(function () { histButtons(); dbSet('doc', hist[hi]); }); } }
 
   canvas.on('object:added', function (o) { if (!restoring && !o.target.isFrame) { commit(); scheduleUI(); } });
   canvas.on('object:removed', function () { if (!restoring) { commit(); scheduleUI(); } });
@@ -634,6 +715,7 @@
   var NAMES = { textbox: 'Текст', image: 'Зураг', rect: 'Тэгш өнцөгт', ellipse: 'Эллипс', circle: 'Тойрог', triangle: 'Гурвалжин', line: 'Шугам', polygon: 'Од', path: 'Зураас', group: 'Бүлэг' };
   // put an object at a point (default: centre of the current frame)
   function place(obj, at) {
+    if (!page) addFrame(1080, 1350);
     obj.set({ name: obj.name || NAMES[obj.type] || 'Зүйл' });
     restoring = true; canvas.add(obj); restoring = false;
     var c = at || { x: page.left + W / 2, y: page.top + H / 2 };
@@ -654,6 +736,7 @@
     return (0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255)) < 128;
   }
   function addText(kind, fontName, text, at) {
+    if (!page) addFrame(1080, 1350);
     var st = TEXT_STYLES[kind], pair = currentPair();
     var f = fontName || (st.role === 'heading' ? pair.heading : pair.body);
     var base = Math.min(W, H * 0.9);
@@ -685,8 +768,9 @@
     return new Promise(function (res, rej) {
       var url = URL.createObjectURL(blob), img = new Image();
       img.onload = function () {
-        var k = Math.min(1, 2400 / Math.max(img.naturalWidth, img.naturalHeight));
-        var c = document.createElement('canvas'); c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
+        var svg = /svg/i.test(blob.type), nw = img.naturalWidth || 1000, nh = img.naturalHeight || 1000;
+        var k = svg ? 2400 / Math.max(nw, nh) : Math.min(1, 2400 / Math.max(nw, nh));
+        var c = document.createElement('canvas'); c.width = Math.round(nw * k); c.height = Math.round(nh * k);
         c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
         URL.revokeObjectURL(url);
         res({ url: c.toDataURL(/png|webp|svg/i.test(blob.type) ? 'image/png' : 'image/jpeg', 0.92), w: c.width, h: c.height });
@@ -721,6 +805,24 @@
       });
     });
   }
+
+  // replace a photo but keep its place, size (cover-fit), mask, filters and effects
+  var replaceTarget = null;
+  $('#ed-replace').addEventListener('change', function () {
+    var f = this.files[0], img = replaceTarget; replaceTarget = null;
+    if (!f || !img || !img.canvas) return;
+    readImage(f).then(function (r) {
+      var bw = img.getScaledWidth(), bh = img.getScaledHeight(), sc = Math.max(bw / r.w, bh / r.h);
+      var cw = bw / sc, ch = bh / sc, ang = img.angle || 0, c = img.getCenterPoint();
+      img.setSrc(r.url, function () {
+        img.set({ cropX: (r.w - cw) / 2, cropY: (r.h - ch) / 2, width: cw, height: ch, scaleX: sc, scaleY: sc, angle: ang, flipX: img.flipX, flipY: img.flipY });
+        img.setPositionByOrigin(c, 'center', 'center');
+        refitMask(img); img.set('dirty', true); img.applyFilters(); img.setCoords();
+        delete cutOrig[img.getSrc()];
+        canvas.setActiveObject(img); canvas.requestRenderAll(); commit(); refreshUI(); toast('Зураг солигдлоо');
+      });
+    }).catch(function () { toast('Зургийг уншиж чадсангүй'); });
+  });
 
   // ---------- selection actions ----------
 
@@ -767,22 +869,31 @@
   function removeSel() {
     var o = active(); if (!o || o.isEditing) return;
     if (o.isFrame) {
+      if (o.locked) { toast('Түгжээтэй frame — эхлээд түгжээг нь тайлна уу'); return; }
       if (frames().length === 1) { toast('Сүүлийн frame-ийг устгах боломжгүй'); return; }
       childrenOf(o).forEach(function (k) { canvas.remove(k); });
       canvas.remove(o); canvas.discardActiveObject(); setCurrent(frames()[0]); canvas.requestRenderAll(); commit(); refreshUI(); return;
     }
-    if (o.type === 'activeSelection') o.getObjects().forEach(function (x) { canvas.remove(x); }); else canvas.remove(o);
-    canvas.discardActiveObject(); canvas.requestRenderAll();
+    var list = o.type === 'activeSelection' ? o.getObjects() : [o], skipped = 0;
+    canvas.discardActiveObject();
+    list.forEach(function (x) { if (x.locked) skipped++; else canvas.remove(x); });
+    if (skipped) toast(skipped + ' түгжээтэй зүйлийг устгасангүй — эхлээд түгжээг нь тайлна уу');
+    canvas.requestRenderAll();
   }
   function arrange(dir) {
-    var min = frames().length, n = canvas.getObjects().length;
-    eachSel(function (o) {
-      if (o.isFrame) return;
-      var i = canvas.getObjects().indexOf(o);
-      if (dir === 'up' && i < n - 1) canvas.moveTo(o, i + 1);
-      if (dir === 'down' && i > min) canvas.moveTo(o, i - 1);
+    var min = frames().length, n = canvas.getObjects().length, sel = [];
+    eachSel(function (o) { if (!o.isFrame) sel.push(o); });
+    var idx = function (o) { return canvas.getObjects().indexOf(o); };
+    sel.sort(function (a, b) { return idx(a) - idx(b); });                 // bottom → top
+    if (dir === 'up' || dir === 'bottom') sel.reverse();                   // top-most first
+    var k = 0;
+    sel.forEach(function (o) {
+      var i = idx(o);
+      if (dir === 'up' && i < n - 1 - k) canvas.moveTo(o, i + 1);
+      if (dir === 'down' && i > min + k) canvas.moveTo(o, i - 1);
       if (dir === 'top') canvas.moveTo(o, n - 1);
       if (dir === 'bottom') canvas.moveTo(o, min);
+      k++;
     });
     canvas.requestRenderAll(); commit(); refreshUI();
   }
@@ -830,7 +941,15 @@
     canvas.requestRenderAll(); commit(); refreshUI();
   }
   function groupSel() { var o = active(); if (!o || o.type !== 'activeSelection') return; o.toGroup().set({ name: 'Бүлэг' }); canvas.requestRenderAll(); commit(); refreshUI(); }
-  function ungroupSel() { var o = active(); if (!o || o.type !== 'group') return; o.toActiveSelection(); canvas.requestRenderAll(); commit(); refreshUI(); }
+  function ungroupSel() {
+    var o = active(); if (!o || o.type !== 'group') return;
+    if (o.gMaskGroup) { releaseMask(o); return; }
+    var at = canvas.getObjects().indexOf(o), kids = o.getObjects().slice();
+    var sel = o.toActiveSelection();
+    kids.forEach(function (k, i) { canvas.moveTo(k, at + i); });
+    if (sel) sel.setCoords();
+    canvas.requestRenderAll(); commit(); refreshUI();
+  }
   function setAsBackground() {
     var o = active(); if (!o || !o.isType('image')) return;
     var f = frameOf(o) || page, s = Math.max(fw(f) / o.width, fh(f) / o.height);
@@ -845,9 +964,10 @@
   var crop = null;
   function startCrop() {
     var img = active(); if (!img || !img.isType('image') || crop) return;
-    if (img.angle) { img.rotate(0); img.setCoords(); }
+    var ang = img.angle || 0;
+    if (ang) { img.rotate(0); img.setCoords(); }
     var el = img.getElement(), ew = el.naturalWidth || el.width, eh = el.naturalHeight || el.height, s = img.scaleX, t = img.scaleY;
-    var saved = { cropX: img.cropX || 0, cropY: img.cropY || 0, width: img.width, height: img.height, left: img.left, top: img.top, clipPath: img.clipPath };
+    var saved = { cropX: img.cropX || 0, cropY: img.cropY || 0, width: img.width, height: img.height, left: img.left, top: img.top, clipPath: img.clipPath, angle: ang };
     var dxL = img.flipX ? (ew - saved.cropX - saved.width) * s : saved.cropX * s;
     var dyT = img.flipY ? (eh - saved.cropY - saved.height) * t : saved.cropY * t;
     img.set({ cropX: 0, cropY: 0, width: ew, height: eh, left: saved.left - dxL, top: saved.top - dyT, clipPath: null, selectable: false, evented: false });
@@ -881,15 +1001,18 @@
       var dl = f.left - img.left, dt = f.top - img.top, w = f.width * f.scaleX, h = f.height * f.scaleY;
       var sx = img.flipX ? c.ew - (dl + w) / s : dl / s, sy = img.flipY ? c.eh - (dt + h) / t : dt / t;
       img.set({ cropX: Math.max(0, sx), cropY: Math.max(0, sy), width: w / s, height: h / t, left: f.left, top: f.top });
+      refitMask(img);
+      if (c.saved.angle) img.rotate(c.saved.angle);   // rotates about the centre of the new crop
     } else img.set(c.saved);
     img.set({ selectable: true, evented: true, dirty: true });
-    if (img.gMask) fitMask(img, img.gMask, img.gMaskR);
     img.setCoords();
     canvas.setActiveObject(img); canvas.requestRenderAll();
     if (apply) commit();
     refreshUI();
   }
 
+  // rebuild a shape mask after the image's size changed (crop, AI upscale, cutout)
+  function refitMask(img) { if (img.gMask && !extraMask(img, img.gMask)) fitMask(img, img.gMask, img.gMaskR); }
   // shape masks (clipPath in the image's own coordinates)
   function fitMask(img, kind, radius) {
     var w = img.width, h = img.height, m = Math.min(w, h), cp = null;
@@ -1005,7 +1128,7 @@
   function startDraw() { canvas.discardActiveObject(); applyBrush(); canvas.selection = false; updateHint(); }
   function stopDraw() { canvas.isDrawingMode = false; canvas.selection = true; canvas.skipTargetFind = false; canvas.defaultCursor = 'default'; updateHint(); }
   canvas.on('path:created', function (e) {
-    e.path.set({ name: draw.tool === 'marker' ? 'Маркер' : 'Зураас', perPixelTargetFind: true });
+    e.path.set({ name: draw.tool === 'marker' ? 'Маркер' : 'Зураас', perPixelTargetFind: true, gStroke: true });
     commit(); scheduleUI();
   });
   var erasing = false;
@@ -1016,7 +1139,7 @@
     canvas.skipTargetFind = false;
     var t = canvas.findTarget(e, true);
     canvas.skipTargetFind = true;
-    if (t && !t.isFrame && (t.isType('path') || (t.type === 'group' && !t.name))) { canvas.remove(t); canvas.requestRenderAll(); }
+    if (t && !t.isFrame && !t.locked && (t.gStroke || (t.isType('path') && (t.name === 'Зураас' || t.name === 'Маркер')))) { canvas.remove(t); canvas.requestRenderAll(); }
   }
 
   // ---------- templates (each one fills an empty frame or becomes a new one) ----------
@@ -1026,9 +1149,19 @@
     ['Instagram пост', 1080, 1350], ['Квадрат пост', 1080, 1080], ['Story / Reels', 1080, 1920], ['Facebook пост', 1200, 630],
     ['YouTube thumbnail', 1280, 720], ['Танилцуулга 16:9', 1920, 1080], ['A4 постер', 1240, 1754], ['Нэрийн хуудас', 1050, 600]
   ];
+  // reuse the current frame when it's empty and the new size doesn't overlap another frame; otherwise add one
+  function frameFor(w, h) {
+    if (page && !childrenOf(page).length && !page.locked) {
+      var hit = frames().some(function (o) {
+        return o !== page && page.left < o.left + fw(o) && page.left + w > o.left && page.top < o.top + fh(o) && page.top + h > o.top;
+      });
+      if (!hit) return page;
+    }
+    return addFrame(w, h);
+  }
   function useTemplate(id) {
     var tp = window.GTPL && window.GTPL.get(id); if (!tp) return false;
-    var f = page && !childrenOf(page).length ? page : addFrame(tp.w, tp.h);
+    var f = frameFor(tp.w, tp.h);
     f.set({ width: tp.w, height: tp.h, fill: tp.bg, name: tp.name }); f.gTransparent = false; f.setCoords(); setCurrent(f);
     var made = window.GTPL.objects(tp, f.left, f.top, stack);
     tp.fonts.forEach(function (fn) { ensureFont(fn).then(function () { made.forEach(refreshText); }); });
@@ -1066,18 +1199,21 @@
       (stock.items.length < stock.total ? '<button type="button" class="btn full" data-stk-more="1" style="margin-top:8px">' + (stock.loading ? 'Ачаалж байна…' : 'Цааш үзэх') + '</button>' : '') +
       '<p class="note stk-credit">Зураг, видео: <a href="' + (stock.src === 'pexels' ? 'https://www.pexels.com' : 'https://pixabay.com') + '" target="_blank" rel="noopener">' + (stock.src === 'pexels' ? 'Pexels' : 'Pixabay') + '</a> — арилжааны ажилд ч үнэгүй, заавал нэр дурдах шаардлагагүй. Зураг дээр дарахад canvas-д орно.</p>';
   }
+  var stockTok = 0;
   function loadStock(more) {
-    if (stock.loading) return;
+    if (more && stock.loading) return;
     if (!more) { stock.page = 1; stock.items = []; stock.total = 0; }
+    var tok = ++stockTok;
     stock.loading = true; stock.err = ''; renderStock();
     fetch('/api/stock?src=' + stock.src + '&type=' + stock.type + '&q=' + encodeURIComponent(stock.q) + '&page=' + stock.page)
       .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
       .then(function (x) {
+        if (tok !== stockTok) return;
         if (!x.ok) { stock.err = x.d.error || 'err'; return; }
         stock.items = stock.items.concat(x.d.items || []); stock.total = x.d.total || 0; stock.page++;
       })
-      .catch(function () { stock.err = 'net'; })
-      .then(function () { stock.loading = false; renderStock(); });
+      .catch(function () { if (tok === stockTok) stock.err = 'net'; })
+      .then(function () { if (tok !== stockTok) return; stock.loading = false; renderStock(); });
   }
   function proxied(u, dl) { return '/api/stock/file?u=' + encodeURIComponent(u) + (dl ? '&dl=' + encodeURIComponent(dl) : ''); }
   function useStock(it) {
@@ -1099,7 +1235,7 @@
       '<p class="note">Editor нь зурган дизайн хийдэг тул видеог бүтнээр нь байршуулахгүй — хүссэн кадраа зураг болгож оруулах эсвэл видеог татаж Reels/монтаждаа ашиглаарай.</p></div>';
     document.body.appendChild(m);
     var v = m.querySelector('video');
-    function close() { v.pause(); m.remove(); }
+    function close() { v.pause(); m.remove(); document.removeEventListener('keydown', vk, true); }
     m.addEventListener('click', function (e) {
       if (e.target === m || e.target.closest('[data-v="close"]')) return close();
       if (e.target.closest('[data-v="frame"]')) {
@@ -1109,7 +1245,8 @@
         c.toBlob(function (b) { if (b) { addImageBlob(b); close(); } }, 'image/jpeg', .92);
       }
     });
-    document.addEventListener('keydown', function k(e) { if (e.key === 'Escape') { close(); document.removeEventListener('keydown', k); } });
+    function vk(e) { if (e.key === 'Escape') { e.stopPropagation(); close(); } }
+    document.addEventListener('keydown', vk, true);
   }
 
   // ---------- left panel ----------
@@ -1164,7 +1301,7 @@
         (recent.length ? '<div class="grid3">' + recent.map(function (u, i) { return '<button type="button" class="thumb" data-recent="' + i + '" style="background-image:url(\'' + u + '\')" aria-label="Зураг нэмэх"></button>'; }).join('') + '</div>' : '') +
         '<div class="sec-t">Фонтын хослол <span>Design guide</span></div>' +
         (DG.pairs.length ? DG.pairs.map(function (p, i) {
-          return '<button type="button" class="pair" data-pair="' + i + '"><b style="font-family:\'' + esc(fam(p.heading)) + '\'">' + esc(p.heading) + '</b><span style="font-family:\'' + esc(fam(p.body)) + '\'">' + esc(p.body) + (FONTS[p.heading] && FONTS[p.heading].mn ? ' · Ө Ү ✓' : '') + '</span></button>';
+          return '<button type="button" class="pair" data-pair="' + i + '"><b style="font-family:\'' + esc(fam(p.heading)) + '\'">' + esc(p.heading) + '</b><span style="font-family:\'' + esc(fam(p.body)) + '\'">' + esc(p.body) + (FONTS[p.heading] && FONTS[p.heading].mn ? ' · Ө Ү ✓' : ' · латин, монгол үсэггүй') + '</span></button>';
         }).join('') : '<p class="note">Ачаалж байна…</p>') +
         '<div class="sec-t">Өнгө <span>сонгосон зүйл / frame</span></div>' +
         swRow(BASE_PALETTE) +
@@ -1210,6 +1347,7 @@
     if (d.lyVis) { var vo = all[+d.lyVis]; vo.visible = vo.visible === false; if (vo.visible === false && active() === vo) canvas.discardActiveObject(); canvas.requestRenderAll(); commit(); refreshUI(); return; }
     if (d.ly) {
       var o = all[+d.ly]; if (!o || o.visible === false) return;
+      if (e.detail === 2 && kindOf(o) !== 'text') { renameLayer(t, o); return; }
       if (o.isFrame) selectFrame(o); else { canvas.setActiveObject(o); canvas.requestRenderAll(); }
       refreshUI(); return;
     }
@@ -1220,19 +1358,17 @@
     if (d.recent) addImageUrl(recent[+d.recent]);
     if (d.pair) addPair(DG.pairs[+d.pair]);
     if (d.color) applyColor(d.color);
-    if (d.size) { var wh = d.size.split('x'), nf2 = addFrame(+wh[0], +wh[1]); fitFrame(nf2); selectFrame(nf2); commit(); refreshUI(); }
+    if (d.size) { var wh = d.size.split('x'), nf2 = frameFor(+wh[0], +wh[1]); nf2.set({ width: +wh[0], height: +wh[1] }); nf2.setCoords(); setCurrent(nf2); fitFrame(nf2); selectFrame(nf2); commit(); refreshUI(); }
     if (d.tpl) useTemplate(d.tpl);
     $('#lp').classList.remove('open');
   });
   // double-click a layer to rename it
-  $('#lp-body').addEventListener('dblclick', function (e) {
-    var r = e.target.closest('[data-ly]'); if (!r) return;
-    var o = canvas.getObjects()[+r.dataset.ly]; if (!o || kindOf(o) === 'text') return;
-    var ln = r.querySelector('.ln'); ln.innerHTML = '<input value="' + esc(o.name || '') + '">';
+  function renameLayer(r, o) {
+    var ln = r.querySelector('.ln'); if (!ln || ln.querySelector('input')) return; ln.innerHTML = '<input value="' + esc(o.name || '') + '">';
     var inp = ln.querySelector('input'); inp.focus(); inp.select();
     inp.addEventListener('keydown', function (ev) { ev.stopPropagation(); if (ev.key === 'Enter') inp.blur(); if (ev.key === 'Escape') { inp.value = o.name || ''; inp.blur(); } });
     inp.addEventListener('blur', function () { o.name = inp.value.trim() || o.name; commit(); refreshUI(); canvas.requestRenderAll(); });
-  });
+  }
   $('#lp-body').addEventListener('dragstart', function (e) { var r = e.target.closest('[data-ly]'); if (!r) return; dragLy = +r.dataset.ly; r.classList.add('drag'); e.dataTransfer.effectAllowed = 'move'; });
   $('#lp-body').addEventListener('dragover', function (e) { var r = e.target.closest('[data-ly]'); if (!r || dragLy === null) return; e.preventDefault(); $$('.ly.over').forEach(function (x) { x.classList.remove('over'); }); r.classList.add('over'); });
   $('#lp-body').addEventListener('dragend', function () { dragLy = null; $$('.ly').forEach(function (x) { x.classList.remove('drag', 'over'); }); });
@@ -1248,7 +1384,13 @@
   function applyColor(c) {
     var o = active();
     if (!o || o.isFrame || kindOf(o) === 'image') { setFrameFill(o && o.isFrame ? o : page, c); refreshUI(); return; }
-    eachSel(function (x) { if (x.isType('line') || x.isType('path')) x.set('stroke', c); else if (!x.isType('image')) x.set('fill', c); });
+    var paint = function (x) {
+      if (x.type === 'group') { x.getObjects().forEach(paint); x.set('dirty', true); return; }
+      if (x.isType('line') || (x.isType('path') && (!x.fill || x.fill === 'transparent' || x.gStroke))) { x.gPaintS = null; x.set('stroke', c); }
+      else if (!x.isType('image')) { x.gPaint = null; x.set('fill', c); }
+      x.set('dirty', true);
+    };
+    eachSel(paint);
     canvas.requestRenderAll(); commit(); refreshUI();
   }
 
@@ -1258,7 +1400,9 @@
     ['color-dodge', 'Color dodge'], ['color-burn', 'Color burn'], ['hard-light', 'Hard light'], ['soft-light', 'Soft light'], ['difference', 'Difference'],
     ['exclusion', 'Exclusion'], ['hue', 'Hue'], ['saturation', 'Saturation'], ['color', 'Color'], ['luminosity', 'Luminosity']];
   var WEIGHTS = [[300, 'Light'], [400, 'Regular'], [500, 'Medium'], [600, 'Semibold'], [700, 'Bold'], [800, 'Extrabold']];
-  var ratioLock = true, expFmt = 'png', expScale = 2;
+  // W/H lock: per kind — photos keep their proportions by default, shapes and text don't
+  var ratioLocks = { image: true, group: true }, expFmt = 'png', expScale = 2;
+  function lockOn(o) { var k = kindOf(o); return ratioLocks[k] != null ? ratioLocks[k] : false; }
 
   function nf(label, p, val, opts) {
     opts = opts || {};
@@ -1336,7 +1480,7 @@
         '<button type="button" class="ib" data-a="rot90" title="90° эргүүлэх">' + icon('rotate') + '</button>' +
         '<span class="rowf"><button type="button" class="ib" data-a="flipX" title="Хэвтээ толин тусгал">' + icon('flipH') + '</button><button type="button" class="ib" data-a="flipY" title="Босоо толин тусгал">' + icon('flipV') + '</button></span></div>' +
       '<div class="ps-l">Хэмжээ</div><div class="r3">' + nf('W', 'w', g.w) + nf('H', 'h', g.h) +
-        '<button type="button" class="ib' + (ratioLock ? ' on' : '') + '" data-a="ratio" title="Харьцаа хадгалах">' + icon('ratio') + '</button></div></div>';
+        '<button type="button" class="ib' + (lockOn(o) ? ' on' : '') + '" data-a="ratio" title="Харьцаа хадгалах">' + icon('ratio') + '</button></div></div>';
     // appearance
     var radius = null;
     if (o.isType('rect')) radius = Math.round((o.rx || 0) * (o.scaleX || 1));
@@ -1363,6 +1507,7 @@
       var cur = presetOf(o), gv = function (T, key) { var ff = getFilter(o, T); return ff ? ff[key] : 0; };
       h += '<div class="ps"><div class="ps-h">Зураг</div>' +
         '<div class="r2"><button type="button" class="btn" data-a="crop">' + icon('crop') + 'Тайрах</button><button type="button" class="btn acc" data-a="rmbg">' + icon('wand') + 'Дэвсгэр арилгах</button></div>' +
+        '<button type="button" class="btn full" data-a="replace" style="margin-top:6px">' + icon('image') + 'Зураг солих</button>' +
         '<button type="button" class="btn full" style="margin-top:6px" data-b="cut">' + icon('eraser') + 'Гараар засах (баллуур, саваа, лассо)</button>' +
         '<div class="ps-l">Маск хэлбэр</div>' + sel('mask', MASK_SHAPES, o.gMask || 'none') +
         '<div class="r2" style="margin-top:6px"><button type="button" class="btn" data-a="asbg">' + icon('bg') + 'Frame дүүргэх</button><button type="button" class="btn acc" data-b="upx">✦ AI сайжруулах</button></div>' +
@@ -1435,7 +1580,7 @@
       if (kindOf(o) === 'text' && p === 'w') { o.set({ width: n / (o.scaleX || 1) }); o.initDimensions(); }
       else {
         var sx = p === 'w' ? n / o.width : o.scaleX, sy = p === 'h' ? n / (o.height || 1) : o.scaleY;
-        if (ratioLock) { if (p === 'w') sy = o.scaleY * (sx / o.scaleX); else sx = o.scaleX * (sy / o.scaleY); }
+        if (lockOn(o)) { if (p === 'w') sy = o.scaleY * (sx / o.scaleX); else sx = o.scaleX * (sy / o.scaleY); }
         o.set({ scaleX: sx, scaleY: sy });
       }
     }
@@ -1446,9 +1591,9 @@
       if (kindOf(o) === 'image') fitMask(o, n > 0 ? 'rounded' : null, n);
     }
     if (p === 'blend') eachSel(function (x) { x.set('globalCompositeOperation', v); });
-    if (p === 'font') { ensureFont(v).then(function () { eachSel(function (x) { if (x.isType('textbox')) { x.set('fontFamily', stack(v)); refreshText(x); } }); commit(); }); return; }
+    if (p === 'font') { ensureFont(v).then(function () { eachSel(function (x) { if (x.isType('textbox')) { x.set('fontFamily', stack(v)); refreshText(x); loadFace(x); } }); commit(); }); return; }
     var tx = function (fn) { eachSel(function (x) { if (x.isType('textbox')) { fn(x); x.initDimensions(); } }); };
-    if (p === 'weight') tx(function (x) { x.set('fontWeight', +v); });
+    if (p === 'weight') tx(function (x) { x.set('fontWeight', +v); loadFace(x); });
     if (p === 'size' && n > 0) tx(function (x) { x.set('fontSize', n / (x.scaleY || 1)); });
     if (p === 'lh' && n > 0) tx(function (x) { x.set('lineHeight', n / 100); });
     if (p === 'ls' && n !== null) tx(function (x) { x.set('charSpacing', n); });
@@ -1502,7 +1647,9 @@
     if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && t.getAttribute('inputmode') === 'decimal') {
       e.preventDefault();
       var n2 = (num(t.value) || 0) + (e.key === 'ArrowUp' ? 1 : -1) * (e.shiftKey ? 10 : 1);
-      t.value = n2; propInput(t.dataset.p, n2); commit();
+      t.value = n2;
+      if (t.dataset.p) { propInput(t.dataset.p, n2); commit(); }
+      else { t.dispatchEvent(new Event('input', { bubbles: true })); t.dispatchEvent(new Event('change', { bubbles: true })); }
     }
   });
   // drag a field's label left/right to change the number (Figma "scrubbing")
@@ -1535,12 +1682,12 @@
     else if (a === 'rot90' && o) rotate90(o);
     else if (a === 'flipX' && o) { eachSel(function (x) { x.set('flipX', !x.flipX); }); commit(); }
     else if (a === 'flipY' && o) { eachSel(function (x) { x.set('flipY', !x.flipY); }); commit(); }
-    else if (a === 'ratio') ratioLock = !ratioLock;
+    else if (a === 'ratio' && o) ratioLocks[kindOf(o)] = !lockOn(o);
     else if (a === 'talign') { textEach(function (x) { x.set('textAlign', v); }); commit(); }
     else if (a === 'tstyle') {
       textEach(function (x) {
-        if (v === 'b') x.set('fontWeight', +x.fontWeight >= 600 || x.fontWeight === 'bold' ? 400 : 700);
-        if (v === 'i') x.set('fontStyle', x.fontStyle === 'italic' ? 'normal' : 'italic');
+        if (v === 'b') { x.set('fontWeight', +x.fontWeight >= 600 || x.fontWeight === 'bold' ? 400 : 700); loadFace(x); }
+        if (v === 'i') { x.set('fontStyle', x.fontStyle === 'italic' ? 'normal' : 'italic'); loadFace(x); }
         if (v === 'u') x.set('underline', !x.underline);
         if (v === 's') x.set('linethrough', !x.linethrough);
       });
@@ -1553,7 +1700,8 @@
       commit();
     }
     else if (a === 'crop') startCrop();
-    else if (a === 'rmbg' && o) { b.disabled = true; removeBackground(o); return; }
+    else if (a === 'replace' && o) { replaceTarget = o; $('#ed-replace').value = ''; $('#ed-replace').click(); return; }
+    else if (a === 'rmbg' && o) { b.disabled = true; removeBackground(o).then(function () { b.disabled = false; }); return; }
     else if (a === 'asbg') setAsBackground();
     else if (a === 'upscale' && o) { sendObject(o, 'upscale'); return; }
     else if (a === 'preset' && o) setPreset(o, v);
@@ -1644,23 +1792,37 @@
 
   // ---------- export ----------
 
-  function renderRegion(l, t, w, h, mult, opaque, hideFrames, only) {
+  // browsers refuse canvases above ~16.7 MP (iOS) — lower the multiplier instead of failing
+  var MAX_PX = 16e6;
+  function safeMult(w, h, mult) { mult = mult || 1; var k = Math.sqrt(MAX_PX / Math.max(1, w * h * mult * mult)); return k < 1 ? mult * k : mult; }
+  function renderRegion(l, t, w, h, mult, opaque, hideFrames, only, keep) {
+    if (crop) endCrop(true);
     canvas.discardActiveObject();
-    var vpt = canvas.viewportTransform.slice(), bg = canvas.backgroundColor, saved = [], hidden = [];
-    // like Figma: a frame exports only its own layers, not ones spilling over from a neighbour
-    if (only) userObjects().forEach(function (o) { if (o.visible !== false && frameOf(o) !== only) { o.visible = false; hidden.push(o); } });
-    exporting = true; canvas.backgroundColor = null;
-    frames().forEach(function (f) {
-      saved.push([f, f.fill, f.visible]);
-      if (hideFrames) f.visible = false;
-      else if (f.gTransparent) f.set('fill', 'rgba(0,0,0,0)');
-    });
-    canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
-    var out = canvas.toCanvasElement(mult || 1, { left: l, top: t, width: w, height: h });
-    canvas.setViewportTransform(vpt);
-    saved.forEach(function (s) { s[0].set({ fill: s[1] }); s[0].visible = s[2]; });
-    hidden.forEach(function (o) { o.visible = true; });
-    canvas.backgroundColor = bg; exporting = false; canvas.requestRenderAll();
+    var vpt = canvas.viewportTransform.slice(), bg = canvas.backgroundColor, saved = [], hidden = [], out;
+    mult = safeMult(w, h, mult);
+    try {
+      userObjects().forEach(function (o) {
+        if (o.visible === false) return;
+        var hide = false;
+        // a frame exports its own layers plus loose layers overlapping it — never a neighbour frame's layers
+        if (only) { var of = frameOf(o); hide = of ? of !== only : !o.intersectsWithObject(only, true, true); }
+        if (keep) hide = keep.indexOf(o) < 0;       // selection export: only the selected objects
+        if (hide) { o.visible = false; hidden.push(o); }
+      });
+      exporting = true; canvas.backgroundColor = null;
+      frames().forEach(function (f) {
+        saved.push([f, f.fill, f.visible]);
+        if (hideFrames) f.visible = false;
+        else if (f.gTransparent) f.set('fill', 'rgba(0,0,0,0)');
+      });
+      canvas.setViewportTransform([1, 0, 0, 1, 0, 0]);
+      out = canvas.toCanvasElement(mult, { left: l, top: t, width: w, height: h });
+    } finally {
+      canvas.setViewportTransform(vpt);
+      saved.forEach(function (s) { s[0].set({ fill: s[1] }); s[0].visible = s[2]; });
+      hidden.forEach(function (o) { o.visible = true; });
+      canvas.backgroundColor = bg; exporting = false; canvas.requestRenderAll();
+    }
     if (opaque) { var c = document.createElement('canvas'); c.width = out.width; c.height = out.height; var x = c.getContext('2d'); x.fillStyle = '#ffffff'; x.fillRect(0, 0, c.width, c.height); x.drawImage(out, 0, 0); return c; }
     return out;
   }
@@ -1675,14 +1837,16 @@
       var f = list[0];
       return toBlob(renderFrame(f, scale, fmt === 'jpg'), mime, 0.92).then(function (b) {
         var n = fileBase(frames().length > 1 ? f.name : '') + '.' + fmt; saveBlob(n, b); toast(n + ' татагдлаа');
-      });
+      }).catch(function (e) { console.error(e); toast('Татаж чадсангүй — 1× эсвэл 2× сонгоод дахин оролдоно уу'); });
     }
     toast('ZIP бэлтгэж байна…');
-    return Promise.all(list.map(function (f, i) {
-      return toBlob(renderFrame(f, scale, fmt === 'jpg'), mime, 0.92)
+    var files = [], chain = Promise.resolve();          // one frame at a time keeps memory low
+    list.forEach(function (f, i) {
+      chain = chain.then(function () { return toBlob(renderFrame(f, scale, fmt === 'jpg'), mime, 0.92); })
         .then(function (b) { return b.arrayBuffer(); })
-        .then(function (ab) { return { name: String(i + 1).padStart(2, '0') + '-' + safe(f.name || 'frame') + '.' + fmt, data: new Uint8Array(ab) }; });
-    })).then(function (files) { saveBlob(fileBase() + '.zip', makeZip(files)); toast(files.length + ' frame ZIP-ээр татагдлаа'); });
+        .then(function (ab) { files.push({ name: String(i + 1).padStart(2, '0') + '-' + safe(f.name || 'frame') + '.' + fmt, data: new Uint8Array(ab) }); });
+    });
+    return chain.then(function () { saveBlob(fileBase() + '.zip', makeZip(files)); toast(files.length + ' frame ZIP-ээр татагдлаа'); });
   }
   function exportPdf(list, scale) {
     toast('PDF бэлтгэж байна…');
@@ -1694,7 +1858,7 @@
           chain = chain.then(function () { return toBlob(renderFrame(f, Math.max(2, scale), true), 'image/jpeg', 0.95); })
             .then(function (b) { return b.arrayBuffer(); })
             .then(function (ab) { return doc.embedJpg(ab); })
-            .then(function (img) { var pw = fw(f) * 0.75, ph = fh(f) * 0.75; doc.addPage([pw, ph]).drawImage(img, { x: 0, y: 0, width: pw, height: ph }); });
+            .then(function (img) { var pw = fw(f) * 72 / 150, ph = fh(f) * 72 / 150; doc.addPage([pw, ph]).drawImage(img, { x: 0, y: 0, width: pw, height: ph }); });
         });
         return chain.then(function () { return doc.save(); });
       });
@@ -1702,10 +1866,15 @@
       .catch(function (e) { console.error(e); toast('PDF үүсгэж чадсангүй'); });
   }
   function exportSelection(o) {
-    var b = o.getBoundingRect(true, true), fmt = expFmt === 'pdf' ? 'png' : expFmt;
-    var c = renderRegion(b.left, b.top, b.width, b.height, expScale, fmt === 'jpg', true);
-    canvas.setActiveObject(o);
-    toBlob(c, fmt === 'jpg' ? 'image/jpeg' : 'image/png', 0.92).then(function (bl) { var n = fileBase('selection') + '.' + fmt; saveBlob(n, bl); toast(n + ' татагдлаа'); });
+    var items = o.type === 'activeSelection' ? o.getObjects().slice() : [o];
+    var fmt = expFmt === 'pdf' ? 'png' : expFmt;
+    canvas.discardActiveObject();
+    // include shadows / blur in the box
+    var b = bounds(items), pad = items.reduce(function (m, x) { var sh = x.shadow; return Math.max(m, sh ? Math.abs(sh.offsetX || 0) + Math.abs(sh.offsetY || 0) + (sh.blur || 0) : 0, (x.gFx && x.gFx.length) ? 40 : 0); }, 0);
+    var c = renderRegion(b.left - pad, b.top - pad, b.width + pad * 2, b.height + pad * 2, expScale, fmt === 'jpg', true, null, items);
+    canvas.setActiveObject(items.length > 1 ? new fabric.ActiveSelection(items, { canvas: canvas }) : items[0]); canvas.requestRenderAll();
+    toBlob(c, fmt === 'jpg' ? 'image/jpeg' : 'image/png', 0.92).then(function (bl) { var n = fileBase('selection') + '.' + fmt; saveBlob(n, bl); toast(n + ' татагдлаа'); })
+      .catch(function () { toast('Татаж чадсангүй'); });
   }
   // tiny ZIP writer (stored, no compression) for multi-frame PNG/JPG export
   var CRC = (function () { var t = [], c, n, k; for (n = 0; n < 256; n++) { c = n; for (k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
@@ -1801,16 +1970,89 @@
     var m = document.createElement('div'); m.className = 'menu r help'; m.id = 'ed-help-menu';
     m.innerHTML = '<div class="mt">Товчлолууд</div>' + [
       ['V · H', 'Сонгох · гар'], ['F · R · O · L', 'Frame · тэгш өнцөгт · эллипс · шугам'], ['T · P · B', 'Текст · pen (вектор) · бийр'], ['Давхар дарах (зураас)', 'Цэгүүдийг засах'], ['Ctrl Alt M', 'Маск болгох'], ['Shift + дарах', 'Олноор сонгох'],
-      ['Ctrl Z · Ctrl Shift Z', 'Буцаах · дахин хийх'], ['Ctrl C · V · D', 'Хуулах · буулгах · хувилах'], ['Delete', 'Устгах'],
+      ['Ctrl Z · Ctrl Shift Z', 'Буцаах · дахин хийх'], ['Ctrl C · X · V · D', 'Хуулах · тайрах · буулгах · хувилах'], ['Ctrl S', 'Хадгалах'], ['Delete', 'Устгах'],
       ['Ctrl G · Ctrl Shift G', 'Бүлэглэх · задлах'], ['Ctrl ] · [', 'Урагш · хойш'], ['Сумнууд (+Shift)', '1px (10px) зөөх'],
       ['Enter · давхар дарах', 'Текст засах'], ['Space + чирэх · дугуй', 'Гүйлгэх'], ['Ctrl + дугуй', 'Томруулах'],
       ['Shift 1 · Shift 2', 'Бүгдийг · frame-ийг харах'], ['X, W… шошгыг чирэх', 'Тоог өөрчлөх'], ['Frame нэрийг чирэх', 'Frame зөөх']
     ].map(function (r) { return '<div class="kb"><kbd>' + r[0] + '</kbd><span>' + r[1] + '</span></div>'; }).join('');
-    this.parentNode.appendChild(m);
+    // fixed to the viewport so it can't end up off-screen inside the panel
+    var br = this.getBoundingClientRect();
+    m.style.cssText = 'position:fixed;z-index:300;top:' + Math.round(br.bottom + 6) + 'px;right:' + Math.max(8, Math.round(window.innerWidth - br.right)) + 'px;left:auto;max-height:' + Math.round(window.innerHeight - br.bottom - 20) + 'px;overflow:auto;max-width:calc(100vw - 16px)';
+    document.body.appendChild(m);
   });
   document.addEventListener('mousedown', function (e) {
-    if (!e.target.closest('.menu') && !e.target.closest('#ed-zoom,#ed-export,#ed-help,[data-shape-menu]')) closeMenus();
+    if (!e.target.closest('.menu') && !e.target.closest('#ed-zoom,#ed-export,#ed-help,#ed-filemenu,[data-shape-menu]')) closeMenus();
   });
+
+  document.addEventListener('click', function (e) {
+    var sb = e.target.closest('#shape-pop [data-shape]'); if (!sb) return;
+    document.getElementById('shape-pop').hidden = true;
+    shapeKind = sb.dataset.shape; setTool('shape');
+  });
+  // mobile quick bar: undo · redo · download current frame
+  document.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-mob]'); if (!b) return;
+    if (b.dataset.mob === 'undo') undo();
+    if (b.dataset.mob === 'redo') redo();
+    if (b.dataset.mob === 'export') exportFrames([page]);
+  });
+
+  // file menu: new design · save to a .graphican file · open one
+  $('#ed-filemenu').addEventListener('click', function (e) { e.stopPropagation(); var m = $('#ed-file-menu'), was = m.hidden; closeMenus(); m.hidden = !was; });
+  $('#ed-file-menu').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-file]'); if (!b) return;
+    closeMenus();
+    var a = b.dataset.file;
+    if (a === 'new') {
+      if (userObjects().length && !confirm('Одоогийн дизайныг арилгаад шинээр эхлэх үү? (Хадгалах бол эхлээд «Файлаар хадгалах» дарна уу)')) return;
+      restoring = true; canvas.clear(); canvas.backgroundColor = canvasBg(); restoring = false;
+      $('#ed-name').value = 'Нэргүй дизайн';
+      addFrame(1080, 1350); fitAll(); hist = []; hi = -1; pushHistory(); refreshUI(); toast('Шинэ дизайн');
+    }
+    if (a === 'save') {
+      clearTimeout(commitT); var snap = snapshot();
+      saveBlob(fileBase() + '.graphican', new Blob([snap], { type: 'application/json' }));
+      toast('Дизайн файлаар хадгалагдлаа — дараа «Файл нээх»-ээр үргэлжлүүлнэ');
+    }
+    if (a === 'open') { $('#ed-open').value = ''; $('#ed-open').click(); }
+  });
+  $('#ed-open').addEventListener('change', function () {
+    var f = this.files[0]; if (!f) return;
+    f.text().then(function (txt) {
+      var d = JSON.parse(txt); if (!d || !d.canvas) throw new Error('format');
+      return restore(txt).then(function () { hist = []; hi = -1; pushHistory(); toast('«' + (d.name || f.name) + '» нээгдлээ'); });
+    }).catch(function (err) { console.error(err); restoring = false; toast('Энэ файлыг нээж чадсангүй (.graphican файл сонгоно уу)'); });
+  });
+
+  // touch: two fingers pinch-zoom and pan the canvas
+  (function () {
+    var pinch = null, el = stage;
+    function mid(t) { return { x: (t[0].clientX + t[1].clientX) / 2, y: (t[0].clientY + t[1].clientY) / 2, d: Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY) }; }
+    el.addEventListener('touchstart', function (e) {
+      if (e.touches.length !== 2 || document.querySelector('.cut-modal')) return;
+      e.preventDefault();
+      var r = canvas.upperCanvasEl.getBoundingClientRect(), m = mid(e.touches);
+      pinch = { d: m.d, z: canvas.getZoom(), x: m.x, y: m.y, r: r };
+      // cancel whatever the first finger started (drag / marquee / drawing)
+      canvas._currentTransform = null; canvas._groupSelector = null; canvas.isDrawingMode && (canvas.freeDrawingBrush._reset && canvas.freeDrawingBrush._reset());
+      canvas.skipTargetFind = true; canvas.selection = false;
+    }, { passive: false, capture: true });
+    el.addEventListener('touchmove', function (e) {
+      if (!pinch || e.touches.length !== 2) return;
+      e.preventDefault(); e.stopPropagation();
+      var m = mid(e.touches), v = canvas.viewportTransform;
+      v[4] += m.x - pinch.x; v[5] += m.y - pinch.y; canvas.setViewportTransform(v);
+      zoomTo(pinch.z * m.d / Math.max(10, pinch.d), new fabric.Point(m.x - pinch.r.left, m.y - pinch.r.top));
+      pinch.x = m.x; pinch.y = m.y;
+    }, { passive: false, capture: true });
+    el.addEventListener('touchend', function (e) {
+      if (!pinch || e.touches.length) return;
+      pinch = null;
+      canvas.selection = tool === 'move';
+      canvas.skipTargetFind = ['frame', 'shape', 'text', 'vector', 'hand'].indexOf(tool) >= 0 || (tool === 'draw' && draw.tool === 'eraser');
+      canvas.requestRenderAll();
+    }, { capture: true });
+  })();
 
   // mobile: panels as sheets
   document.addEventListener('click', function (e) {
@@ -1834,7 +2076,10 @@
   });
   var clip = null;
   window.addEventListener('paste', function (e) {
-    if (isTyping(e)) return;
+    if (isTyping(e) || document.querySelector('.cut-modal,.stk-modal')) return;
+    // our own Ctrl+C leaves a marker on the system clipboard: then paste the copied layers, not an older image
+    var txt = e.clipboardData ? e.clipboardData.getData('text/plain') : '';
+    if (clip && clipMark && txt === clipMark) { e.preventDefault(); pasteClip(); return; }
     var items = (e.clipboardData || {}).items || [];
     for (var i = 0; i < items.length; i++) if (items[i].type.indexOf('image') === 0) { e.preventDefault(); addImageBlob(items[i].getAsFile()); return; }
     if (clip) pasteClip();
@@ -1851,14 +2096,28 @@
 
   // ---------- keyboard ----------
 
+  var clipMark = '';
+  function copySel(o) {
+    o.clone(function (c) { clip = c; }, PROPS);
+    clipMark = 'graphican-layers:' + Date.now();
+    try { if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(clipMark).catch(function () { clipMark = ''; }); else clipMark = ''; } catch (err) { clipMark = ''; }
+  }
+  // letter shortcuts by physical key, so they work with a Mongolian / Russian keyboard layout too
+  function keyName(e) {
+    if (/^Key[A-Z]$/.test(e.code || '')) return e.code.slice(3).toLowerCase();
+    var map = { BracketLeft: '[', BracketRight: ']', Minus: '-', Equal: '=', Digit0: '0', NumpadAdd: '+', NumpadSubtract: '-' };
+    return map[e.code] || (e.key || '').toLowerCase();
+  }
+
   function isTyping(e) {
     var t = e.target, o = active();
     return (o && o.isEditing) || (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable));
   }
   window.addEventListener('keydown', function (e) {
+    if (document.querySelector('.cut-modal,.stk-modal,.mbox-wrap')) return;   // an open window owns the keyboard
     if (e.code === 'Space' && !isTyping(e)) { if (!spaceDown) { spaceDown = true; canvas.setCursor('grab'); } e.preventDefault(); return; }
     if (isTyping(e)) { if (e.key === 'Escape') { var t = active(); if (t && t.isEditing) { t.exitEditing(); canvas.requestRenderAll(); } } return; }
-    var mod = e.ctrlKey || e.metaKey, k = e.key.toLowerCase(), o = active();
+    var mod = e.ctrlKey || e.metaKey, k = keyName(e), o = active();
     if (crop) { if (e.key === 'Enter') { e.preventDefault(); endCrop(true); } if (e.key === 'Escape') { e.preventDefault(); endCrop(false); } return; }
     if (tool === 'vector' && e.key === 'Enter') { e.preventDefault(); setTool('move'); return; }
     if (vedit && (e.key === 'Escape' || e.key === 'Enter')) { e.preventDefault(); endVEdit(); return; }
@@ -1869,7 +2128,9 @@
     if (mod && k === 'y') { e.preventDefault(); redo(); return; }
     if (mod && k === 'd') { e.preventDefault(); duplicate(); return; }
     if (mod && k === 'g') { e.preventDefault(); if (e.shiftKey) ungroupSel(); else groupSel(); return; }
-    if (mod && k === 'c' && o && !o.isFrame) { o.clone(function (c) { clip = c; }, PROPS); return; }
+    if (mod && k === 's') { e.preventDefault(); clearTimeout(commitT); pushHistory(); flushSave(); toast('Хадгалагдлаа. Зураг болгох бол «Татах» дарна уу.'); return; }
+    if (mod && k === 'c' && o && !o.isFrame) { copySel(o); return; }
+    if (mod && k === 'x' && o && !o.isFrame) { e.preventDefault(); copySel(o); removeSel(); return; }
     if (mod && k === 'a') {
       e.preventDefault();
       var all = userObjects().filter(function (x) { return x.visible !== false && !x.locked; });
@@ -2095,6 +2356,9 @@
   function startVEdit(o) {
     if (vedit) endVEdit();
     if (!o.gPen) {
+      if ((o.path || []).filter(function (c) { return c[0] === 'M' || c[0] === 'm'; }).length > 1) {
+        toast('Нүхтэй / олон хэсэгтэй дүрсийн цэгийг засах боломжгүй. Эхлээд «Задлах» эсвэл өөр хэлбэр ашиглана уу.', 5000); return;
+      }
       var g = ptsFromPath(o);
       if (g.pts.length < 2) return;
       if (g.pts.length > 400) { toast('Энэ зураас хэт олон цэгтэй (' + g.pts.length + ')'); return; }
@@ -2165,7 +2429,7 @@
     if (t === 'dots') { b = new fabric.CircleBrush(canvas); b.width = s; b.color = mkCol(draw.color, a); return b; }
     if (t === 'hatch') {
       b = new fabric.PatternBrush(canvas); var src = hatchSrc(draw.color, s * 0.8);
-      b.getPatternSrc = function () { return src; }; b.width = s * 2.5; return b;
+      b.source = src; b.width = s * 2.5; return b;   // .source survives into the saved stroke (a replaced getPatternSrc got stringified)
     }
     b = new fabric.PencilBrush(canvas);
     b.decimate = 2; b.strokeLineCap = 'round'; b.strokeLineJoin = 'round';
@@ -2383,8 +2647,10 @@
       var tl = mc.getPointByOrigin('left', 'top'); mc.set({ originX: 'left', originY: 'top', left: tl.x, top: tl.y });
       g.clipPath = null; g.gMaskGroup = null;
       restoring = true;
+      var kids = g.getObjects().slice();
       canvas.setActiveObject(g); var s = g.toActiveSelection();
-      canvas.insertAt(mc, idx); mc.setCoords();
+      kids.forEach(function (k, i) { canvas.moveTo(k, idx + i); });   // keep the content where the group was in the stack
+      canvas.insertAt(mc, idx + kids.length); mc.setCoords();
       restoring = false;
       canvas.discardActiveObject();
       canvas.setActiveObject(new fabric.ActiveSelection(s.getObjects().concat([mc]), { canvas: canvas }));
@@ -2572,7 +2838,7 @@
     toast(BOOL[op] + '…');
     // objects inside an ActiveSelection have group-relative coordinates: release them first
     canvas.discardActiveObject(); canvas.requestRenderAll();
-    paperReady().then(function () {
+    paperReady().catch(function () { toast('Хэлбэр нэгтгэх хэрэгсэл ачаалж чадсангүй — интернэтээ шалгана уу'); throw 0; }).then(function () {
       var base = toPaper(ok[0]);
       for (var i = 1; i < ok.length && base; i++) {
         var p = toPaper(ok[i]); if (!p) continue;
@@ -2595,7 +2861,7 @@
       Promise.all([GX.applyPaint(res, 'fill'), GX.applyPaint(res, 'stroke')]).then(function () {
         canvas.setActiveObject(res); canvas.requestRenderAll(); commit(); refreshUI();
       });
-    }).catch(function (e) { console.error(e); toast('Нэгтгэж чадсангүй'); });
+    }).catch(function (e) { if (e) { console.error(e); toast('Нэгтгэж чадсангүй'); } });
   }
   // a single shape → editable vector path (so its points can be dragged)
   function toVector(o) {
@@ -2610,7 +2876,7 @@
       Promise.all([GX.applyPaint(res, 'fill'), GX.applyPaint(res, 'stroke')]).then(function () {
         canvas.setActiveObject(res); commit(); startVEdit(res);
       });
-    });
+    }).catch(function (e) { console.error(e); toast('Вектор болгож чадсангүй — интернэтээ шалгаад дахин оролдоно уу'); });
   }
 
   // ---------- multi-select mode (tap to add / remove — for touch screens) ----------
@@ -2803,7 +3069,7 @@
       function close() { m.remove(); window.removeEventListener('resize', layout); document.removeEventListener('keydown', onKey, true); }
       function onKey(e) {
         if (e.key === 'Escape') { e.stopPropagation(); close(); }
-        if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); e.stopPropagation(); act(e.shiftKey ? 'redo' : 'undo'); }
+        if ((e.ctrlKey || e.metaKey) && keyName(e) === 'z') { e.preventDefault(); e.stopPropagation(); act(e.shiftKey ? 'redo' : 'undo'); }
         if (e.key === '[' || e.key === ']') { st.size = clamp(st.size + (e.key === ']' ? 1 : -1) * Math.max(2, st.size * 0.15), 2, Math.max(Wc, Hc) / 6); var si = m.querySelector('[data-cs="size"]'); si.value = st.size; si.nextElementSibling.textContent = Math.round(st.size); render(); }
       }
       document.addEventListener('keydown', onKey, true);
@@ -2827,7 +3093,7 @@
           var url = C.toDataURL('image/png');
           cutOrig[url] = origSrc;
           var kx = W0 / Wc, keep = { width: img.width / kx, height: img.height / kx, cropX: (img.cropX || 0) / kx, cropY: (img.cropY || 0) / kx, scaleX: img.scaleX * kx, scaleY: img.scaleY * kx };
-          img.setSrc(url, function () { img.set(keep); img.set('dirty', true); img.applyFilters(); canvas.requestRenderAll(); commit(); refreshUI(); toast('Зураг хадгалагдлаа'); });
+          img.setSrc(url, function () { img.set(keep); refitMask(img); img.set('dirty', true); img.applyFilters(); canvas.requestRenderAll(); commit(); refreshUI(); toast('Зураг хадгалагдлаа'); });
           return close();
         }
         render();
@@ -2935,7 +3201,7 @@
         var out = st.out, url = out.toDataURL('image/png'), f = out.width / W0;
         var keep = { width: img.width * f, height: img.height * f, cropX: (img.cropX || 0) * f, cropY: (img.cropY || 0) * f, scaleX: img.scaleX / f, scaleY: img.scaleY / f };
         img.setSrc(url, function () {
-          img.set(keep); img.set('dirty', true); img.applyFilters(); img.setCoords();
+          img.set(keep); refitMask(img); img.set('dirty', true); img.applyFilters(); img.setCoords();
           canvas.requestRenderAll(); commit(); refreshUI();
           toast('Зураг ' + out.width + '×' + out.height + 'px боллоо ✦');
         });
@@ -2961,10 +3227,18 @@
     var p = currentPair(); ensureFont('Manrope'); ensureFont(p.heading); ensureFont(p.body);
     return dbGet('doc');
   }).then(function (saved) {
-    if (saved) return restore(saved).then(function () { hist = [saved]; hi = 0; histButtons(); });
-    addFrame(1080, 1350); fitAll();
-    hist = [snapshot()]; hi = 0; histButtons(); refreshUI();
-  }).then(function () {
+    function fresh() {
+      if (!frames().length) addFrame(1080, 1350);
+      fitAll(); hist = [snapshot()]; hi = 0; histButtons(); refreshUI();
+    }
+    if (!saved) return fresh();
+    // a saved design that can't be loaded must not break the editor forever: keep a copy aside, start clean
+    return restore(saved).then(function () { hist = [saved]; hi = 0; histButtons(); }).catch(function (e) {
+      console.error(e); restoring = false;
+      dbSet('doc-broken', saved); canvas.clear(); canvas.backgroundColor = canvasBg(); fresh();
+      toast('Өмнөх дизайныг нээж чадсангүй — шинээр эхэллээ', 6000);
+    });
+  }).catch(function (e) { console.error(e); if (!frames().length) { addFrame(1080, 1350); fitAll(); } hist = [snapshot()]; hi = 0; }).then(function () {
     return window.GHandoff ? window.GHandoff.take() : null;
   }).then(function (h) {
     if (h && h.blob) {
@@ -2974,7 +3248,7 @@
     if (prefs.fresh) { prefs.fresh = false; try { localStorage.setItem('gc-editor-prefs', JSON.stringify(prefs)); } catch (e) {} }
     urlActions();
     refreshUI();
-  });
+  }).catch(function (e) { console.error(e); }).then(function () { document.body.classList.remove('ed-booting'); });
   // links from the other tools: ?tpl=<template> · ?font=<family>&text=… · ?pal=HEX-HEX-…&paln=<name>
   function urlActions() {
     var q; try { q = new URLSearchParams(location.search); } catch (e) { return; }
@@ -2985,7 +3259,7 @@
     if (sz && !q.get('tpl')) {
       var sw = Math.min(8000, Math.max(50, +sz[1])), sh = Math.min(8000, Math.max(50, +sz[2]));
       var sn = (SIZES.filter(function (x) { return x[1] === sw && x[2] === sh; })[0] || [sw + '×' + sh])[0];
-      var fr = page && !childrenOf(page).length ? page : addFrame(sw, sh);
+      var fr = frameFor(sw, sh);
       fr.set({ width: sw, height: sh, name: sn }); fr.setCoords(); setCurrent(fr); fitFrame(fr); selectFrame(fr); commit();
       toast('«' + sn + '» ' + sw + '×' + sh + ' — текст, зураг нэмээд эхлээрэй'); did = true;
     }
@@ -2993,7 +3267,7 @@
     if (pal.length) {
       prefs.palette = { name: (q.get('paln') || 'Брэндийн өнгө').slice(0, 60), colors: pal };
       try { localStorage.setItem('gc-editor-prefs', JSON.stringify(prefs)); } catch (e) {}
-      if (page && !childrenOf(page).length) { page.set('fill', pal[4] || pal[0]); canvas.requestRenderAll(); }
+      if (page && !childrenOf(page).length) { page.gTransparent = false; page.set('fill', pal[4] || pal[0]); canvas.requestRenderAll(); commit(); }
       lpTab = 'add'; $$('.lp-tabs button').forEach(function (x) { var on = x.dataset.tab === 'add'; x.classList.toggle('on', on); x.setAttribute('aria-selected', on ? 'true' : 'false'); }); did = true;
       toast('Брэндийн өнгө нэмэгдлээ — «Өнгө» хэсэгт');
     }
