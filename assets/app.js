@@ -180,16 +180,22 @@
 
   // Free tools strip under the hero: tells first-time visitors the site has tools they can use
   var FREE_TOOLS = [
-    { href: '/tools/pdfedit/', name: 'PDF засварлагч', text: 'PDF-ийн бичгийг засах, гарын үсэг зурах, орчуулах, Word болгох', tag: 'ШИНЭ',
+    { href: '/tools/pdfedit/', name: 'PDF засварлагч', text: 'PDF-ийн бичгийг засах, гарын үсэг зурах, орчуулах, Word болгох',
       ic: '<path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5"/><path d="m9 17 1-3 5-5 2 2-5 5z" fill="currentColor"/>' },
     { href: '/editor/', name: 'Дизайн засварлагч', text: 'Пост, постер, баннерыг хөтөч дээрээ хялбар бүтээнэ',
       ic: '<path d="M4 20l4.5-1 10-10-3.5-3.5-10 10z"/><path d="M13.5 7l3.5 3.5"/>' },
+    { href: '/tools/pdf-to-word/', name: 'PDF → Word', text: 'PDF-ээ засах боломжтой Word баримт болгоно, кирилл зөв гарна',
+      ic: '<path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5"/><path d="M9 12l1.2 5 1.8-4 1.8 4 1.2-5"/>' },
     { href: '/tools/upscale/', name: 'AI зураг сайжруулагч', text: 'Бүдэг, жижиг зургийг 2–4 дахин тод, том болгоно',
       ic: '<path d="M12 3l1.8 4.6L18.5 9l-4.7 1.4L12 15l-1.8-4.6L5.5 9l4.7-1.4z" fill="currentColor"/><path d="M18 14l.9 2.1L21 17l-2.1.9L18 20l-.9-2.1L15 17l2.1-.9z" fill="currentColor"/>' },
     { href: '/tools/bgremove/', name: 'Дэвсгэр арилгагч', text: 'Зургийн арын дэвсгэрийг нэг товшилтоор арилгана',
       ic: '<rect x="3" y="4" width="18" height="16" rx="2" stroke-dasharray="3 2"/><circle cx="12" cy="10" r="3"/><path d="M6.5 20c1-3 3-4.5 5.5-4.5s4.5 1.5 5.5 4.5"/>' },
-    { href: '/design/', name: 'Фонт ба өнгө', text: 'Кирилл фонт, өнгөний хослолыг татаж суулгана',
-      ic: '<path d="M4 20 9 5h2l5 15M6 15h8"/><circle cx="19" cy="7" r="2.5"/>' }
+    { href: '/tools/mongol-font/', name: 'Монгол фонт хайгч', text: 'Ө, Ү дэмждэг 178 фонтыг өөрийн текстээр шууд харна', tag: 'ШИНЭ',
+      ic: '<path d="M4 20 9 5h2l5 15M6 15h8"/><circle cx="19" cy="7" r="2.5"/>' },
+    { href: '/tools/brand-color/', name: 'Брэндийн өнгө', text: 'Салбартаа тохирсон өнгөний палитрыг нэг товшилтоор', tag: 'ШИНЭ',
+      ic: '<circle cx="12" cy="12" r="8.5"/><path d="M12 3.5v17a8.5 8.5 0 0 0 0-17z" fill="currentColor"/>' },
+    { href: '/tools/templates/', name: 'Монгол загварууд', text: 'Цагаан сар, Наадам, ажлын зар — бэлэн сошиал загвар', tag: 'ШИНЭ',
+      ic: '<rect x="3.5" y="3.5" width="7" height="9" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="5" rx="1.5"/><rect x="13.5" y="11.5" width="7" height="9" rx="1.5"/><rect x="3.5" y="15.5" width="7" height="5" rx="1.5"/>' }
   ];
   function freeTools() {
     return (

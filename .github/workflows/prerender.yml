@@ -9,6 +9,9 @@ on:
       - 'assets/uploads/**'
       - '.github/scripts/prerender.py'
       - '.github/scripts/landings.py'
+      - '.github/scripts/apps.py'
+      - 'assets/templates.js'
+      - 'assets/mnfonts-data.js'
   workflow_dispatch:
 permissions:
   contents: write

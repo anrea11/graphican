@@ -110,29 +110,49 @@
     'DM Serif Display': {}, 'DM Sans': {}, 'Cinzel': {}, 'Fauna One': {}, 'Bebas Neue': {},
     'Clash Display': { fs: 'clash-display' }, 'Satoshi': { fs: 'satoshi' }, 'iBrand': { local: 1 }
   };
+  // every Google font checked for Ө ө Ү ү (assets/mnfonts-data.js) → .mn; a font can be Cyrillic yet miss Ө/Ү (e.g. Playfair Display)
+  var MNW = {};
+  (window.MN_FONTS || []).forEach(function (f) { MNW[f[0]] = { w: f[2], it: f[3] }; if (!FONTS[f[0]]) FONTS[f[0]] = {}; });
+  Object.keys(FONTS).forEach(function (n) { var g = FONTS[n].g || n; if (MNW[g]) FONTS[n].mn = 1; });
   function fam(name) { var f = FONTS[name] || {}; return f.fs || f.local ? name : (f.g || name); }
   // canvas text falls back to a serif for missing glyphs, so always chain Manrope (has Cyrillic)
   function stack(name) { var f = fam(name); return f === 'Manrope' ? '"Manrope", sans-serif' : '"' + f + '", "Manrope", sans-serif'; }
   function primary(ff) { return String(ff || '').split(',')[0].replace(/["']/g, '').trim(); }
   var fontLinks = {}, fontReady = {};
+  // only ask Google for weights the family has (an unavailable weight makes the whole CSS request fail)
+  function gAxes(family) {
+    var m = MNW[family];
+    if (!m) return ':ital,wght@0,400;0,500;0,600;0,700;0,800;1,400';
+    var ws = m.w.filter(function (w) { return w >= 400 && w <= 800; }); if (!ws.length) ws = m.w.slice(0, 2);
+    if (ws.length === 1 && ws[0] === 400 && !m.it) return '';
+    return m.it ? ':ital,wght@' + ws.map(function (w) { return '0,' + w; }).concat(['1,' + (ws.indexOf(400) >= 0 ? 400 : ws[0])]).join(';') : ':wght@' + ws.join(';');
+  }
   function ensureFont(name) {
     var family = fam(name), f = FONTS[name] || {};
     if (fontReady[family]) return fontReady[family];
+    // the stylesheet must be parsed before document.fonts.load, otherwise load() resolves at once with nothing
+    var sheet = Promise.resolve();
     if (!f.local && !fontLinks[family]) {
       fontLinks[family] = 1;
       var l = document.createElement('link'); l.rel = 'stylesheet';
       l.href = f.fs ? 'https://api.fontshare.com/v2/css?f[]=' + f.fs + '@400,500,700&display=swap'
-        : 'https://fonts.googleapis.com/css2?family=' + family.replace(/ /g, '+') + ':ital,wght@0,400;0,500;0,600;0,700;0,800;1,400&display=swap';
+        : 'https://fonts.googleapis.com/css2?family=' + family.replace(/ /g, '+') + gAxes(family) + '&display=swap';
+      sheet = new Promise(function (res) { l.onload = l.onerror = res; setTimeout(res, 6000); });
       document.head.appendChild(l);
     }
-    fontReady[family] = Promise.all([
-      document.fonts.load('400 40px "' + family + '"', 'АаӨөҮүBb'),
-      document.fonts.load('700 40px "' + family + '"', 'АаӨөҮүBb')
-    ]).catch(function () {}).then(function () { return family; });
+    fontReady[family] = sheet.then(function () {
+      return Promise.all([
+        document.fonts.load('400 40px "' + family + '"', 'АаӨөҮүBb'),
+        document.fonts.load('700 40px "' + family + '"', 'АаӨөҮүBb')
+      ]);
+    }).catch(function () {}).then(function () { return family; });
     return fontReady[family];
   }
   function refreshText(obj) {
     if (!obj || !obj.isType || !obj.isType('textbox')) return;
+    // glyph widths measured with the fallback font are cached per family — drop them once the real font is in
+    if (fabric.util.clearFabricFontCache) fabric.util.clearFabricFontCache(obj.fontFamily);
+    obj.dirty = true;
     obj.initDimensions(); obj.setCoords(); canvas.requestRenderAll();
   }
 
@@ -1001,72 +1021,21 @@
 
   // ---------- templates (each one fills an empty frame or becomes a new one) ----------
 
-  var TEMPLATES = [
-    { id: 'sale', name: 'Хямдралын пост', w: 1080, h: 1350, bg: '#0b0b14', sw: ['#0b0b14', '#816dfb', '#e7e3fd'] },
-    { id: 'event', name: 'Арга хэмжээний постер', w: 1080, h: 1350, bg: '#e7e3fd', sw: ['#e7e3fd', '#34229e', '#16161f'] },
-    { id: 'quote', name: 'Ишлэл', w: 1080, h: 1080, bg: '#16161f', sw: ['#16161f', '#816dfb', '#ffffff'] },
-    { id: 'story', name: 'Story — шинэ бүтээгдэхүүн', w: 1080, h: 1920, bg: '#816dfb', sw: ['#816dfb', '#ffffff', '#0b0b14'] },
-    { id: 'yt', name: 'YouTube thumbnail', w: 1280, h: 720, bg: '#0b0b14', sw: ['#0b0b14', '#ffffff', '#ff4fd8'] },
-    { id: 'card', name: 'Нэрийн хуудас', w: 1050, h: 600, bg: '#16161f', sw: ['#16161f', '#e7e3fd', '#816dfb'] }
-  ];
+  var TEMPLATES = window.GTPL ? window.GTPL.list : [];
   var SIZES = [
     ['Instagram пост', 1080, 1350], ['Квадрат пост', 1080, 1080], ['Story / Reels', 1080, 1920], ['Facebook пост', 1200, 630],
     ['YouTube thumbnail', 1280, 720], ['Танилцуулга 16:9', 1920, 1080], ['A4 постер', 1240, 1754], ['Нэрийн хуудас', 1050, 600]
   ];
   function useTemplate(id) {
-    var tp = TEMPLATES.filter(function (x) { return x.id === id; })[0]; if (!tp) return;
+    var tp = window.GTPL && window.GTPL.get(id); if (!tp) return false;
     var f = page && !childrenOf(page).length ? page : addFrame(tp.w, tp.h);
     f.set({ width: tp.w, height: tp.h, fill: tp.bg, name: tp.name }); f.gTransparent = false; f.setCoords(); setCurrent(f);
-    var X = f.left, Y = f.top, pair = currentPair(), made = [];
-    function T(text, o) {
-      var fn = o.body ? pair.body : pair.heading;
-      var t = new fabric.Textbox(text, {
-        fontFamily: stack(fn), fontWeight: o.weight || (o.body ? 400 : 700), fontSize: o.size, fill: o.color || '#ffffff',
-        width: o.width || tp.w * 0.84, textAlign: o.align || 'center', lineHeight: o.lh || 1.1, charSpacing: o.cs || 0
-      });
-      t.set({ left: X + (o.left != null ? o.left : (tp.w - t.width) / 2), top: Y + o.top, name: 'Текст' });
-      if (o.stroke) t.set({ stroke: o.stroke, strokeWidth: o.strokeWidth || 4, paintFirst: 'stroke' });
-      ensureFont(fn).then(function () { refreshText(t); });
-      made.push(t);
-    }
-    function R(o, name) { var r = new fabric.Rect(o); r.set({ left: X + o.left, top: Y + o.top, name: name }); made.push(r); }
-    if (id === 'sale') {
-      T('ХЯМДРАЛ', { top: 150, size: 96, color: '#e7e3fd', cs: 300 });
-      T('−30%', { top: 330, size: 330, color: '#816dfb', lh: 1 });
-      T('Зөвхөн энэ долоо хоногт бүх бүтээгдэхүүнд', { top: 760, size: 44, color: '#a6a8b8', body: true, width: 760 });
-      R({ left: 290, top: 1010, width: 500, height: 120, rx: 60, ry: 60, fill: '#816dfb' }, 'Товч');
-      T('Одоо захиалах', { top: 1042, size: 42, color: '#ffffff', body: true, weight: 700, width: 500, left: 290 });
-    } else if (id === 'event') {
-      // centre stays inside the frame, so the circle belongs to it
-      made.push(new fabric.Circle({ left: X + 560, top: Y - 120, radius: 420, fill: '#816dfb', name: 'Чимэглэл' }));
-      T('DEMO DAY · 2026', { top: 560, size: 38, color: '#34229e', cs: 250, align: 'left', left: 90 });
-      T('Арга хэмжээний нэрээ энд бичнэ', { top: 640, size: 108, color: '#16161f', align: 'left', left: 90, width: 900 });
-      R({ left: 90, top: 1080, width: 900, height: 3, fill: '#16161f' }, 'Шугам');
-      T('10.15 · 18:00  —  Улаанбаатар, Galaxy Tower', { top: 1120, size: 38, color: '#16161f', body: true, align: 'left', left: 90, width: 900 });
-    } else if (id === 'quote') {
-      T('“', { top: 70, size: 360, color: '#816dfb', lh: 1 });
-      T('Дизайн гэдэг зүгээр л гоё харагдах биш, хэрхэн ажиллахыг хэлнэ.', { top: 380, size: 64, color: '#ffffff', width: 860, lh: 1.25 });
-      T('— Стив Жобс', { top: 800, size: 36, color: '#a497ff', body: true });
-    } else if (id === 'story') {
-      T('ШИНЭ', { top: 180, size: 64, color: '#ffffff', cs: 400 });
-      R({ left: 140, top: 360, width: 800, height: 800, rx: 40, ry: 40, fill: 'rgba(255,255,255,0.18)' }, 'Зургийн байр');
-      T('Бүтээгдэхүүний зургаа энд чирж тавина', { top: 730, size: 38, color: '#ffffff', body: true, width: 640 });
-      T('Бүтээгдэхүүний нэр', { top: 1280, size: 104, color: '#ffffff', width: 900 });
-      R({ left: 330, top: 1560, width: 420, height: 130, rx: 65, ry: 65, fill: '#ffffff' }, 'Үнийн шошго');
-      T('49,900₮', { top: 1590, size: 64, color: '#0b0b14', width: 420, left: 330 });
-    } else if (id === 'yt') {
-      R({ left: 0, top: 560, width: 1280, height: 160, fill: '#ff4fd8' }, 'Тууз');
-      T('ГАРЧИГ ЭНД', { top: 150, size: 170, color: '#ffffff', stroke: '#000000', strokeWidth: 10, width: 1180, lh: 1 });
-      T('Видеоны дэд гарчиг', { top: 600, size: 64, color: '#0b0b14', weight: 700, width: 1180 });
-    } else if (id === 'card') {
-      T('Нэр Овог', { top: 150, size: 72, color: '#e7e3fd', align: 'left', left: 90, width: 800 });
-      T('График дизайнер', { top: 250, size: 34, color: '#816dfb', body: true, align: 'left', left: 90, width: 800 });
-      R({ left: 90, top: 340, width: 120, height: 4, fill: '#816dfb' }, 'Шугам');
-      T('+976 8000 0000\nhello@graphican.online\ngraphican.online', { top: 380, size: 30, color: '#a6a8b8', body: true, align: 'left', left: 90, width: 800, lh: 1.5 });
-    }
+    var made = window.GTPL.objects(tp, f.left, f.top, stack);
+    tp.fonts.forEach(function (fn) { ensureFont(fn).then(function () { made.forEach(refreshText); }); });
     restoring = true; made.forEach(function (o) { canvas.add(o); }); restoring = false;
     fitFrame(f); selectFrame(f); commit(); refreshUI();
     toast('«' + tp.name + '» — текстүүд дээр давхар дарж засна');
+    return true;
   }
 
   // ---------- free stock media (Pexels / Pixabay via /api/stock on our Worker) ----------
@@ -1195,7 +1164,7 @@
         (recent.length ? '<div class="grid3">' + recent.map(function (u, i) { return '<button type="button" class="thumb" data-recent="' + i + '" style="background-image:url(\'' + u + '\')" aria-label="Зураг нэмэх"></button>'; }).join('') + '</div>' : '') +
         '<div class="sec-t">Фонтын хослол <span>Design guide</span></div>' +
         (DG.pairs.length ? DG.pairs.map(function (p, i) {
-          return '<button type="button" class="pair" data-pair="' + i + '"><b style="font-family:\'' + esc(fam(p.heading)) + '\'">' + esc(p.heading) + '</b><span style="font-family:\'' + esc(fam(p.body)) + '\'">' + esc(p.body) + (FONTS[p.heading] && FONTS[p.heading].cyr ? ' · Кирилл ✓' : '') + '</span></button>';
+          return '<button type="button" class="pair" data-pair="' + i + '"><b style="font-family:\'' + esc(fam(p.heading)) + '\'">' + esc(p.heading) + '</b><span style="font-family:\'' + esc(fam(p.body)) + '\'">' + esc(p.body) + (FONTS[p.heading] && FONTS[p.heading].mn ? ' · Ө Ү ✓' : '') + '</span></button>';
         }).join('') : '<p class="note">Ачаалж байна…</p>') +
         '<div class="sec-t">Өнгө <span>сонгосон зүйл / frame</span></div>' +
         swRow(BASE_PALETTE) +
@@ -1209,10 +1178,12 @@
           var k = 22 / Math.max(s[1], s[2]);
           return '<button type="button" class="size-row" data-size="' + s[1] + 'x' + s[2] + '"><span class="sz-shape" style="width:' + Math.round(s[1] * k) + 'px;height:' + Math.round(s[2] * k) + 'px"></span><b>' + s[0] + '</b><span>' + s[1] + '×' + s[2] + '</span></button>';
         }).join('') +
-        '<div class="sec-t">Загварууд</div><div class="grid2">' + TEMPLATES.map(function (t) {
-          var k = 96 / Math.max(t.w, t.h);
-          return '<button type="button" class="tpl" data-tpl="' + t.id + '"><span class="tpl-prev" style="width:' + Math.round(t.w * k) + 'px;height:' + Math.round(t.h * k) + 'px;background:' + t.sw[0] + '"><i style="background:' + t.sw[1] + '"></i><i style="background:' + t.sw[2] + '"></i></span><b>' + esc(t.name) + '</b><span>' + t.w + '×' + t.h + '</span></button>';
-        }).join('') + '</div><p class="note">Загвар бүр шинэ frame болж нэмэгдэнэ (одоогийн frame хоосон бол түүнийг ашиглана).</p>';
+        Object.keys(window.GTPL ? window.GTPL.cats : {}).map(function (c) {
+          return '<div class="sec-t">' + esc(window.GTPL.cats[c]) + '</div><div class="grid2">' + TEMPLATES.filter(function (t) { return t.cat === c; }).map(function (t) {
+            var k = 96 / Math.max(t.w, t.h);
+            return '<button type="button" class="tpl" data-tpl="' + t.id + '"><span class="tpl-prev" style="width:' + Math.round(t.w * k) + 'px;height:' + Math.round(t.h * k) + 'px;background:' + t.sw[0] + '"><i style="background:' + t.sw[1] + '"></i><i style="background:' + t.sw[2] + '"></i></span><b>' + esc(t.name) + '</b><span>' + t.w + '×' + t.h + '</span></button>';
+          }).join('') + '</div>';
+        }).join('') + '<p class="note"><a href="/tools/templates/" target="_blank" rel="noopener">Бүх загварыг томоор харах ↗</a></p><p class="note">Загвар бүр шинэ frame болж нэмэгдэнэ (одоогийн frame хоосон бол түүнийг ашиглана).</p>';
     }
     if (lpTab === 'stock') h = stockPanel();
     el.innerHTML = h;
@@ -1376,11 +1347,11 @@
       '<div style="margin-top:6px">' + sel('blend', BLENDS, o.globalCompositeOperation || 'source-over') + '</div></div>';
     // text
     if (k === 'text') {
-      var fnames = Object.keys(FONTS).sort(function (a, b) { return (FONTS[b].cyr ? 1 : 0) - (FONTS[a].cyr ? 1 : 0) || a.localeCompare(b); });
+      var fnames = Object.keys(FONTS).sort(function (a, b) { return (FONTS[b].mn ? 2 : FONTS[b].cyr ? 1 : 0) - (FONTS[a].mn ? 2 : FONTS[a].cyr ? 1 : 0) || a.localeCompare(b); });
       var curF = primary(o.fontFamily), match = fnames.filter(function (n) { return fam(n) === curF; })[0];
       var styleOn = +o.fontWeight >= 600 || o.fontWeight === 'bold' ? 'b' : o.fontStyle === 'italic' ? 'i' : o.underline ? 'u' : o.linethrough ? 's' : '';
       h += '<div class="ps"><div class="ps-h">Текст</div>' +
-        sel('font', (match ? [] : [[curF, curF]]).concat(fnames.map(function (n) { return [n, n + (FONTS[n].cyr ? '  · Кирилл' : '')]; })), match || curF) +
+        sel('font', (match ? [] : [[curF, curF]]).concat(fnames.map(function (n) { return [n, n + (FONTS[n].mn ? '  · Ө Ү ✓' : FONTS[n].cyr ? '  · кирилл, Ө Ү-гүй' : '')]; })), match || curF) +
         '<div class="r2" style="margin-top:6px">' + sel('weight', WEIGHTS, o.fontWeight === 'bold' ? 700 : o.fontWeight === 'normal' ? 400 : +o.fontWeight) + nf('px', 'size', Math.round(o.fontSize * (o.scaleY || 1)), { title: 'Үсгийн хэмжээ' }) + '</div>' +
         '<div class="r2" style="margin-top:6px">' + nf('↕', 'lh', Math.round((o.lineHeight || 1.16) * 100), { unit: '%', title: 'Мөр хоорондын зай' }) + nf('↔', 'ls', Math.round(o.charSpacing || 0), { title: 'Үсэг хоорондын зай' }) + '</div>' +
         '<div class="rowf" style="margin-top:6px">' + seg([['left', 'tL', 'Зүүн'], ['center', 'tC', 'Голлуулах'], ['right', 'tR', 'Баруун'], ['justify', 'tJ', 'Тэгшлэх']], o.textAlign, 'talign') +
@@ -3001,6 +2972,30 @@
       addImageBlob(h.blob, { fillFrame: empty }).then(function () { toast('Зураг засварлагчид орлоо'); });
     } else if (prefs.pair && prefs.fresh) toast('Design guide-ээс: ' + prefs.pair.heading + ' + ' + prefs.pair.body);
     if (prefs.fresh) { prefs.fresh = false; try { localStorage.setItem('gc-editor-prefs', JSON.stringify(prefs)); } catch (e) {} }
+    urlActions();
     refreshUI();
   });
+  // links from the other tools: ?tpl=<template> · ?font=<family>&text=… · ?pal=HEX-HEX-…&paln=<name>
+  function urlActions() {
+    var q; try { q = new URLSearchParams(location.search); } catch (e) { return; }
+    var did = false;
+    if (q.get('tpl')) did = useTemplate(q.get('tpl')) || did;
+    var pal = (q.get('pal') || '').split('-').filter(function (x) { return /^[0-9a-fA-F]{6}$/.test(x); }).map(function (x) { return '#' + x.toLowerCase(); });
+    if (pal.length) {
+      prefs.palette = { name: (q.get('paln') || 'Брэндийн өнгө').slice(0, 60), colors: pal };
+      try { localStorage.setItem('gc-editor-prefs', JSON.stringify(prefs)); } catch (e) {}
+      if (page && !childrenOf(page).length) { page.set('fill', pal[4] || pal[0]); canvas.requestRenderAll(); }
+      lpTab = 'add'; $$('.lp-tabs button').forEach(function (x) { var on = x.dataset.tab === 'add'; x.classList.toggle('on', on); x.setAttribute('aria-selected', on ? 'true' : 'false'); }); did = true;
+      toast('Брэндийн өнгө нэмэгдлээ — «Өнгө» хэсэгт');
+    }
+    var fn = q.get('font');
+    if (fn && /^[\w \-]{2,60}$/.test(fn)) {
+      if (!FONTS[fn]) FONTS[fn] = {};
+      if (!page) addFrame(1080, 1350);
+      var t = addText('h', fn, (q.get('text') || fn).slice(0, 200));
+      ensureFont(fn).then(function () { t.set('fontFamily', stack(fn)); refreshText(t); commit(); });
+      toast('«' + fn + '» фонттой текст нэмэгдлээ'); did = true;
+    }
+    if (did) try { history.replaceState(null, '', location.pathname); } catch (e) {}
+  }
 })();

@@ -259,7 +259,8 @@ PAGES = [
 ]
 
 # the older, JS-rendered tool pages that belong in the “all tools” grid too
-TOOL_LINKS = [("/tools/pdfedit/", "PDF засварлагч"), ("/tools/upscale/", "Зураг томруулах (AI)"),
+TOOL_LINKS = [("/tools/mongol-font/", "Монгол фонт хайгч"), ("/tools/brand-color/", "Брэндийн өнгө үүсгэгч"), ("/tools/templates/", "Монгол сошиал загвар"),
+              ("/tools/pdfedit/", "PDF засварлагч"), ("/tools/upscale/", "Зураг томруулах (AI)"),
               ("/tools/bgremove/", "Зургийн дэвсгэр арилгах"), ("/tools/socialcrop/", "Сошиал хэмжээ рүү тайрах"),
               ("/tools/pdf/", "PDF ⇄ зураг хөрвүүлэгч"), ("/editor/", "Онлайн дизайн засварлагч")]
 
@@ -341,8 +342,8 @@ def page(p, header):
 <link rel="preload" href="/assets/fonts/web/InterTight-Bold.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/assets/fonts/web/Inter-Regular.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/assets/fonts/web/fonts.css">
-<link rel="stylesheet" href="/assets/style.css?v=33">
-<link rel="stylesheet" href="/assets/design.css?v=33">
+<link rel="stylesheet" href="/assets/style.css?v=34">
+<link rel="stylesheet" href="/assets/design.css?v=34">
 <link rel="stylesheet" href="/assets/landing.css?v={V}">
 </head>
 <body class="design-page lp-page">

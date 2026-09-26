@@ -20,7 +20,9 @@ TODAY = datetime.date.today().isoformat()
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import landings  # noqa: E402  (search landing pages for the free tools)
-LANDING_LINKS = " · ".join(f'<a href="/tools/{x["slug"]}/">{x["h1"]}</a>' for x in landings.PAGES)
+import apps  # noqa: E402  (font finder, brand colours, templates)
+LANDING_LINKS = " · ".join(['<a href="/tools/mongol-font/">Монгол фонт хайгч</a>', '<a href="/tools/brand-color/">Брэндийн өнгө үүсгэгч</a>', '<a href="/tools/templates/">Монгол сошиал загвар</a>']
+                           + [f'<a href="/tools/{x["slug"]}/">{x["h1"]}</a>' for x in landings.PAGES])
 
 
 def load(p):
@@ -285,6 +287,8 @@ def sitemap(projects, dd):
                         for k, p in TOOL_KEYS if k != "editor")
     tool_urls += "".join(f"\n  <url>\n    <loc>{SITE}/tools/{x['slug']}/</loc>\n    <lastmod>{TODAY}</lastmod>\n    <priority>0.8</priority>\n  </url>"
                          for x in landings.PAGES)
+    tool_urls += "".join(f"\n  <url>\n    <loc>{SITE}/tools/{sl}/</loc>\n    <lastmod>{TODAY}</lastmod>\n    <priority>0.9</priority>\n  </url>"
+                         for sl in ("mongol-font", "brand-color", "templates"))
     xml = f"""<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
   <url>
@@ -318,5 +322,6 @@ if __name__ == "__main__":
     dd = design()
     tools_page(dd)
     landings.build()
+    apps.build()
     sitemap(projects, dd)
     print("prerender ok:", len(projects), "projects")
