@@ -21,6 +21,7 @@ TODAY = datetime.date.today().isoformat()
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import landings  # noqa: E402  (search landing pages for the free tools)
 import apps  # noqa: E402  (font finder, brand colours, templates)
+import home_page  # noqa: E402  (tools-first home page)
 LANDING_LINKS = " · ".join(['<a href="/tools/mongol-font/">Монгол фонт хайгч</a>', '<a href="/tools/brand-color/">Брэндийн өнгө үүсгэгч</a>', '<a href="/tools/templates/">Монгол сошиал загвар</a>']
                            + [f'<a href="/tools/{x["slug"]}/">{x["h1"]}</a>' for x in landings.PAGES])
 
@@ -73,7 +74,7 @@ def home():
         "name": person_name, "alternateName": ["Анхбаяр", "Ankhbayar"],
         "jobTitle": "Graphic Designer / Brand Designer",
         "image": absu(about.get("photo") or hero.get("portrait")),
-        "worksFor": {"@id": SITE + "/#org"}, "url": SITE, "sameAs": socials,
+        "worksFor": {"@id": SITE + "/#org"}, "url": SITE + "/about/", "sameAs": socials,
         "knowsAbout": ["Брэнд айдентити", "Лого дизайн", "Сошиал медиа постер", "Reels", "Motion graphics", "Branding"],
     }
     org = {
@@ -95,21 +96,26 @@ def home():
         "itemListElement": [{
             "@type": "ListItem", "position": i + 1,
             "item": {"@type": "CreativeWork", "name": p.get("name"), "genre": p.get("type"), "description": p.get("description"),
-                     "image": absu(p.get("image")), "url": f"{SITE}/#project/{slug(p, i)}", "creator": {"@id": SITE + "/#person"}}}
+                     "image": absu(p.get("image")), "url": f"{SITE}/about/#project/{slug(p, i)}", "creator": {"@id": SITE + "/#person"}}}
             for i, p in enumerate(projects)],
     }
-    graph = {"@context": "https://schema.org", "@graph": [website, org, person, works]}
+    aboutpage = {"@type": "AboutPage", "@id": SITE + "/about/#page", "url": SITE + "/about/", "name": title, "description": desc, "inLanguage": "mn",
+                 "isPartOf": {"@id": SITE + "/#website"}, "about": {"@id": SITE + "/#person"}, "mainEntity": {"@id": SITE + "/#org"},
+                 "breadcrumb": {"@type": "BreadcrumbList", "itemListElement": [
+                     {"@type": "ListItem", "position": 1, "name": "Graphican", "item": SITE + "/"},
+                     {"@type": "ListItem", "position": 2, "name": "Хамтран ажиллах", "item": SITE + "/about/"}]}}
+    graph = {"@context": "https://schema.org", "@graph": [aboutpage, org, person, works]}
 
     head = "\n".join([
         f"<title>{e(title)}</title>",
         f'<meta name="description" content="{e(desc)}">',
         '<meta name="robots" content="index, follow, max-image-preview:large">',
         f'<meta name="author" content="{e(person_name)}">',
-        f'<link rel="canonical" href="{SITE}/">',
+        f'<link rel="canonical" href="{SITE}/about/">',
         '<meta property="og:type" content="website">',
         '<meta property="og:site_name" content="Graphican">',
         '<meta property="og:locale" content="mn_MN">',
-        f'<meta property="og:url" content="{SITE}/">',
+        f'<meta property="og:url" content="{SITE}/about/">',
         f'<meta property="og:title" content="{e(title)}">',
         f'<meta property="og:description" content="{e(desc)}">',
         f'<meta property="og:image" content="{e(og_img)}">',
@@ -134,7 +140,7 @@ def home():
     ]
     for i, p in enumerate(projects):
         body.append(
-            f'<li><article><h3><a href="#project/{slug(p, i)}">{e(p.get("name"))}</a></h3><p>{e(p.get("type"))}</p>'
+            f'<li><article><h3><a href="/about/#project/{slug(p, i)}">{e(p.get("name"))}</a></h3><p>{e(p.get("type"))}</p>'
             f'<img src="{e(p.get("image"))}" alt="{e(p.get("name"))} — {e(p.get("type"))}" loading="lazy" width="600" height="600">'
             f'{paras(p.get("details") or p.get("description"))}</article></li>')
     body.append("</ul></section>")
@@ -156,11 +162,11 @@ def home():
     body.append(f'<section><h2>Үнэгүй PDF хэрэгслүүд</h2><p>{LANDING_LINKS}</p></section>')
     body.append("</div>")
 
-    p = os.path.join(ROOT, "index.html")
+    p = os.path.join(ROOT, "about", "index.html")
     t = open(p, encoding="utf-8").read()
     t2 = replace_block(t, "head", head)
     t2 = replace_block(t2, "body", "\n".join(body))
-    assert t2, "markers missing in index.html"
+    assert t2, "markers missing in about/index.html"
     open(p, "w", encoding="utf-8").write(t2)
     return d, projects
 
@@ -294,7 +300,12 @@ def sitemap(projects, dd):
   <url>
     <loc>{SITE}/</loc>
     <lastmod>{TODAY}</lastmod>
-    <priority>1.0</priority>{home_imgs}
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>{SITE}/about/</loc>
+    <lastmod>{TODAY}</lastmod>
+    <priority>0.9</priority>{home_imgs}
   </url>
   <url>
     <loc>{SITE}/design/</loc>
@@ -318,7 +329,8 @@ def sitemap(projects, dd):
 
 
 if __name__ == "__main__":
-    _, projects = home()
+    _, projects = home()   # the portfolio → /about/
+    home_page.build()      # tools hub → /
     dd = design()
     tools_page(dd)
     landings.build()

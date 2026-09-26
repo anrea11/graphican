@@ -394,7 +394,7 @@ def page(p, header):
 
 <footer class="lp-foot">
   <p><a href="/">Graphican</a> — брэндинг, digital design, видео. Эдгээр хэрэгслийг дизайнер Анхбаяр бүтээж, хүн бүрт үнэгүй нээлттэй болгосон.</p>
-  <p><a href="/#work">Ажлууд</a> · <a href="/design/">Design guide</a> · <a href="/tools/">Design tools</a> · <a href="/#contact">Холбоо барих</a></p>
+  <p><a href="/about/#work">Ажлууд</a> · <a href="/design/">Design guide</a> · <a href="/tools/">Design tools</a> · <a href="/about/#contact">Хамтран ажиллах</a></p>
 </footer>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>

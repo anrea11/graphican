@@ -10,6 +10,7 @@ on:
       - '.github/scripts/prerender.py'
       - '.github/scripts/landings.py'
       - '.github/scripts/apps.py'
+      - '.github/scripts/home_page.py'
       - 'assets/templates.js'
       - 'assets/mnfonts-data.js'
   workflow_dispatch:
@@ -30,7 +31,7 @@ jobs:
           PYTHONDONTWRITEBYTECODE: '1'
       - name: Commit if changed
         run: |
-          git add -A index.html design tools editor sitemap.xml assets/uploads/_t
+          git add -A index.html about design tools editor sitemap.xml assets/uploads/_t
           if git diff --cached --quiet; then echo "nothing to update"; exit 0; fi
           git config user.name "graphican-bot"
           git config user.email "actions@users.noreply.github.com"
