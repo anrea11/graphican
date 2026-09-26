@@ -32,27 +32,34 @@
   var grid = root.querySelector('#tg-grid');
 
   function cats() {
-    var all = [['all', 'Бүгд', T.list.length]].concat(Object.keys(T.cats).map(function (k) { return [k, T.cats[k], T.list.filter(function (t) { return t.cat === k; }).length]; }));
+    var all = [['all', 'Бүгд', T.list.length], ['photo', '📷 Фототой', T.list.filter(function (t) { return t.photos && t.photos.length; }).length]].concat(Object.keys(T.cats).map(function (k) { return [k, T.cats[k], T.list.filter(function (t) { return t.cat === k; }).length]; }));
     root.querySelector('#tg-cats').innerHTML = all.map(function (c) {
       return '<button type="button" data-cat="' + c[0] + '" class="' + (cat === c[0] ? 'on' : '') + '">' + esc(c[1]) + ' <i>' + c[2] + '</i></button>';
     }).join('');
   }
   function cards() {
-    grid.innerHTML = T.list.filter(function (t) { return cat === 'all' || t.cat === cat; }).map(function (t) {
+    grid.innerHTML = T.list.filter(function (t) { return cat === 'all' || t.cat === cat || (cat === 'photo' && t.photos && t.photos.length); }).map(function (t) {
       return '<a class="tg-card" href="/editor/?tpl=' + t.id + '" data-id="' + t.id + '">' +
         '<span class="tg-prev" style="aspect-ratio:' + t.w + '/' + t.h + ';background:' + t.bg + '"><canvas></canvas></span>' +
-        '<b>' + esc(t.name) + '</b><small>' + (SIZE_NAME[t.w + 'x' + t.h] || '') + ' · ' + t.w + '×' + t.h + '</small><em>Засах →</em></a>';
+        '<b>' + esc(t.name) + (t.photos && t.photos.length ? ' <i class="tg-ph" title="Фото: Pexels · ' + esc(t.credits.join(', ')) + '">фото</i>' : '') + '</b><small>' + (SIZE_NAME[t.w + 'x' + t.h] || '') + ' · ' + t.w + '×' + t.h + '</small><em>Засах →</em></a>';
     }).join('');
     draw();
   }
   var sheets = Promise.all(Array.prototype.map.call(document.querySelectorAll('link[data-tplf]'), function (l) {
     return new Promise(function (r) { if (l.sheet) r(); else { l.onload = l.onerror = r; setTimeout(r, 4000); } });
   }));
+  // build previews only when a card scrolls near the viewport (photo templates download images)
+  var io = 'IntersectionObserver' in window ? new IntersectionObserver(function (es) {
+    es.forEach(function (e) { if (e.isIntersecting && e.target._go) { io.unobserve(e.target); e.target._go(); } });
+  }, { rootMargin: '600px 0px' }) : null;
+  function whenVisible(el) { return new Promise(function (r) { if (!io) return r(); el._go = r; io.observe(el); }); }
   function draw() {
     grid.querySelectorAll('.tg-card').forEach(function (a) {
       var t = T.get(a.dataset.id), el = a.querySelector('canvas'), box = a.querySelector('.tg-prev');
-      var objs = T.objects(t, 0, 0);
-      sheets.then(function () { return facesFor(objs); }).then(function () {
+      var objs;
+      var W0 = Math.min(560, Math.round(box.clientWidth * (window.devicePixelRatio || 1) * 1.1)) || 360;
+      whenVisible(a).then(function () { return T.build ? T.build(t, 0, 0, null, W0 > 420 ? 1000 : 700) : T.objects(t, 0, 0); })
+        .then(function (o) { objs = o; return sheets; }).then(function () { return facesFor(objs); }).then(function () {
         if (!a.isConnected) return;
         var W = Math.min(560, Math.round(box.clientWidth * (window.devicePixelRatio || 1) * 1.1)) || 360, k = W / t.w;
         var c = new fabric.StaticCanvas(el, { width: Math.round(t.w * k), height: Math.round(t.h * k), backgroundColor: t.bg, renderOnAddRemove: false, enableRetinaScaling: false });

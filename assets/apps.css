@@ -243,6 +243,10 @@
 .tg-card { display:flex; flex-direction:column; gap:4px; text-decoration:none; color:var(--text); }
 .tg-prev { display:block; width:100%; border-radius:14px; overflow:hidden; box-shadow:0 14px 40px -18px rgba(0,0,0,.8), inset 0 0 0 1px rgba(255,255,255,.06); margin-bottom:8px; transition:transform .25s; }
 .tg-prev canvas { display:block; }
+.tg-card:not(.ready) .tg-prev { position:relative; }
+.tg-card:not(.ready) .tg-prev::after { content:''; position:absolute; inset:0; background:linear-gradient(100deg, transparent 30%, rgba(255,255,255,.18) 50%, transparent 70%) 0 0/200% 100%; animation:tgsh 1.2s linear infinite; }
+@keyframes tgsh { to { background-position:-200% 0; } }
+.tg-ph { font-style:normal; font-size:10.5px; font-weight:600; letter-spacing:.04em; padding:2px 7px; border-radius:999px; background:rgba(164,151,255,.18); color:var(--v1); margin-left:4px; vertical-align:2px; }
 .tg-card:hover .tg-prev { transform:translateY(-4px); }
 .tg-card b { font-size:15px; }
 .tg-card small { font-size:12.5px; color:var(--dim); }

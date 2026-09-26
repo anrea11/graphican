@@ -1166,7 +1166,9 @@
     return (tplThumbs[t.id] = thumbQueue = thumbQueue.then(function () {
       return Promise.all(t.fonts.map(function (f) { return ensureFont(f).catch(function () {}); }));
     }).then(function () {
-      var objs = window.GTPL.objects(t, 0, 0, stack), faces = {};
+      return (window.GTPL.build ? window.GTPL.build(t, 0, 0, stack, 400) : Promise.resolve(window.GTPL.objects(t, 0, 0, stack)));
+    }).then(function (objs) {
+      var faces = {};
       objs.forEach(function (o) { if (o.fontFamily) faces[(o.fontStyle === 'italic' ? 'italic ' : '') + (o.fontWeight || 400) + ' 40px ' + o.fontFamily] = 1; });
       return Promise.all(Object.keys(faces).map(function (k) { return document.fonts ? document.fonts.load(k, 'АаӨөҮү').catch(function () {}) : 0; })).then(function () {
         var k = 200 / Math.max(t.w, t.h), el = document.createElement('canvas');
@@ -1182,11 +1184,18 @@
     var tp = window.GTPL && window.GTPL.get(id); if (!tp) return false;
     var f = frameFor(tp.w, tp.h);
     f.set({ width: tp.w, height: tp.h, fill: tp.bg, name: tp.name }); f.gTransparent = false; f.setCoords(); setCurrent(f);
-    var made = window.GTPL.objects(tp, f.left, f.top, stack);
-    tp.fonts.forEach(function (fn) { ensureFont(fn).then(function () { made.forEach(refreshText); }); });
-    restoring = true; made.forEach(function (o) { canvas.add(o); }); restoring = false;
-    fitFrame(f); selectFrame(f); commit(); refreshUI();
-    toast('«' + tp.name + '» — текстүүд дээр давхар дарж засна');
+    fitFrame(f); selectFrame(f); refreshUI();
+    if (tp.photos && tp.photos.length) toast('«' + tp.name + '» — зураг ачаалж байна…');
+    var X = f.left, Y = f.top;
+    (window.GTPL.build ? window.GTPL.build(tp, X, Y, stack, 1600) : Promise.resolve(window.GTPL.objects(tp, X, Y, stack))).then(function (made) {
+      if (frames().indexOf(f) < 0) return;   // frame deleted while photos loaded
+      var dx = f.left - X, dy = f.top - Y;
+      if (dx || dy) made.forEach(function (o) { o.set({ left: o.left + dx, top: o.top + dy }); });
+      tp.fonts.forEach(function (fn) { ensureFont(fn).then(function () { made.forEach(refreshText); }); });
+      restoring = true; made.forEach(function (o) { canvas.add(o); }); restoring = false;
+      canvas.requestRenderAll(); commit(); refreshUI();
+      toast('«' + tp.name + '» — текстийг давхар дарж, зургийг сонгоод «Солих»-оор өөрчилнө' + (tp.credits && tp.credits.length ? ' · Зураг: Pexels' : ''));
+    });
     return true;
   }
 

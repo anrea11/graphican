@@ -15,6 +15,28 @@
   function PH(x, y, w, h, label, o) { o = o || {}; o.t = 'ph'; o.x = x; o.y = y; o.w = w; o.h = h; o.label = label; return o; }
   function STAR(cx, cy, r, fill, o) { o = o || {}; o.t = 'star'; o.cx = cx; o.cy = cy; o.r = r; o.fill = fill; return o; }
   function SPARK(cx, cy, r, fill) { return { t: 'spark', cx: cx, cy: cy, r: r, fill: fill }; }
+  // free photos (Pexels licence — free for commercial use); loaded through our CORS proxy so exports work
+  var PX = {
+    ger: [28598666, 'Sergio Zhukov'], gobi: [4326314, 'ArtHouse Studio'], rider: [4321510, 'ArtHouse Studio'], eagle: [5275479, 'Julia Volk'],
+    latte: [414605, 'Pixabay'], burger: [3220617, 'David Geib'], burger2: [70497, 'Robin Stickel'], pizza: [803290, 'Beqa Tefnadze'], pizza2: [315755, 'Pixabay'],
+    model: [13381636, 'Faza Zeed'], woman: [1639589, 'Pragyan Bezbaruah'], woman2: [247350, 'Pixabay'],
+    tulips: [9008503, 'solod_sha'], tulips2: [54186, 'Pixabay', 'tulips-flowers-tulip-bouquet-violet-54186.jpeg'],
+    living: [4857757, 'Rachel Claire'], living2: [6970077, 'Max Vakhtbovych'], house: [323776, 'Expect Best'], house2: [2079234, 'Emre Can Acer'],
+    sneaker: [2529148, 'Melvin Buezo'], serum: [5797999, 'Ann poan'], oil: [4465830, 'Karola G'], gym: [116078, 'Binyamin Mellish'], gym2: [13211582, 'Instituto Alpha Fitness'],
+    concert: [1105666, 'Vishnu R Nair'], concert2: [1387174, 'Wendy Wei'], team: [3182804, 'fauxels'], snow: [1366919, 'Eberhard Grossgasteiger'],
+    cake: [851204, 'Mohammad Danish'], party: [6148507, 'Antoni Shkraba'], sparkler: [1591293, 'Sonam Yadav'], rings: [916344, 'Irina Iriser'],
+    car: [5880077, 'Erik Mclean'], dentist: [3845748, 'Anna Shvets'], doctor: [8376309, 'Tima Miroshnichenko'], kids: [30709005, 'Isaac Naph'],
+    student: [4861373, 'cottonbro studio'], study: [6929268, 'Polina Tankilevitch'], knit: [3614132, 'Castorly Stock'], city: [68902, 'burak kostak'],
+    barista: [29120540, 'DARKMODE CINEMA'], salon: [3993312, 'cottonbro studio'], plane: [3770090, 'Sterry Larson'], suitcase: [9186152, 'Timur Weber']
+  };
+  function pxUrl(k, w) {
+    var p = PX[k]; if (!p) return '';
+    var u = 'https://images.pexels.com/photos/' + p[0] + '/' + (p[2] || 'pexels-photo-' + p[0] + '.jpeg') + '?auto=compress&cs=tinysrgb&w=' + (w || 1600);
+    return '/api/stock/file?u=' + encodeURIComponent(u);
+  }
+  // PHOTO(x, y, w, h, key, {fx, fy: focal point 0..1, mask: 'circle'|'rounded'|'arch'|'oval', r: corner radius, angle, opacity})
+  function PHOTO(x, y, w, h, key, o) { o = o || {}; o.t = 'photo'; o.x = x; o.y = y; o.w = w; o.h = h; o.key = key; return o; }
+  function SCRIM(x, y, w, h, angle, stops, o) { o = o || {}; o.grad = lin(angle, stops); return R(x, y, w, h, '#000000', Object.assign({ name: 'Сүүдэр' }, o)); }
   function lin(angle, stops) { return { type: 'linear', angle: angle, stops: stops.map(function (s) { return { p: s[0], c: s[1], a: s[2] == null ? 1 : s[2] }; }) }; }
   function rad(stops, r) { return { type: 'radial', r: r || 0.5, stops: stops.map(function (s) { return { p: s[0], c: s[1], a: s[2] == null ? 1 : s[2] }; }) }; }
   var GRAIN = [{ t: 'noise', a: 0.1, mono: true }];
@@ -94,7 +116,7 @@
       items: function () { return [
         BG('#f6e3e4', { fx: GRAIN }),
         T('8', 10, 1000, { weight: 600, color: 'transparent', stroke: '#b8325a', sw: 3, lh: 1, align: 'left', x: 30, w: 600, opacity: 0.85 }),
-        PH(300, 250, 480, 640, 'Зургаа энд чирж тавина', { rx: 240, fill: '#e9c3c8' }),
+        PHOTO(300, 250, 480, 640, 'tulips', { mask: 'arch' }),
         T('Олон улсын\nэмэгтэйчүүдийн баяр', 950, 72, { weight: 600, italic: 1, color: '#3a1422', lh: 1.02, w: 980 }),
         T('Та бүхэндээ аз жаргал, гэрэлт мөчүүдийг хүсье', 1135, 28, { body: 1, color: '#7a4453', w: 820 }),
         T('БАЙГУУЛЛАГЫН НЭР', 1230, 22, { body: 1, weight: 700, color: '#b8325a', cs: 500 })
@@ -115,7 +137,7 @@
       items: function () {
         var o = [BG('#1b1036', { grad: lin(90, [[0, '#2a1760'], [1, '#12092a']]), fx: GRAIN })], cols = ['#ffcf5c', '#ff7eb6', '#7ee8fa', '#ffffff'];
         for (var i = 0; i < 26; i++) { var x = (i * 173) % 1040 + 20, y = (i * 97) % 520 + 40; o.push(R(x, y, 14, 26, cols[i % 4], { angle: (i * 37) % 180, c: 1, rx: 3, name: 'Конфетти' })); }
-        o.push(PH(340, 560, 400, 400, 'Зураг', { rx: 200, fill: '#34236a' }));
+        o.push(PHOTO(340, 560, 400, 400, 'party', { mask: 'circle' }));
         o.push(C(540, 760, 216, 'transparent', { stroke: '#ffcf5c', sw: 6, name: 'Хүрээ' }));
         o.push(T('Төрсөн өдрийн', 190, 110, { color: '#ffcf5c', w: 1000, lh: 1.1 }));
         o.push(T('мэнд хүргэе!', 330, 110, { color: '#ff7eb6', w: 1000, lh: 1.1 }));
@@ -124,6 +146,60 @@
         return o;
       } },
 
+    { id: 'naadam3', name: 'Наадам — фото', cat: 'holiday', w: 1080, h: 1350, fonts: ['Oswald', 'Inter'], sw: ['#111111', '#ffd23f', '#ffffff'],
+      items: function () { return [
+        BG('#111111'), PHOTO(0, 0, 1080, 1350, 'rider'),
+        SCRIM(0, 0, 1080, 320, 90, [[0, '#000000', 0.6], [1, '#000000', 0]]),
+        SCRIM(0, 620, 1080, 730, 90, [[0, '#0b0b0b', 0], [0.45, '#0b0b0b', 0.75], [1, '#0b0b0b', 0.96]]),
+        T('ҮНДЭСНИЙ ИХ БАЯР', 70, 26, { body: 1, weight: 700, color: '#ffffff', cs: 500 }),
+        T('НААДАМ', 800, 270, { weight: 700, color: '#ffffff', lh: 0.9, w: 1040 }),
+        R(420, 1122, 240, 3, '#ffd23f', { name: 'Шугам' }),
+        T('7.11 — 7.13 · Улаанбаатар', 1150, 40, { body: 1, weight: 700, color: '#ffd23f', w: 960 }),
+        T('Эрийн гурван наадмын баярын мэнд хүргэе!', 1215, 30, { body: 1, color: '#e6e6e6', w: 960 }),
+        T('БАЙГУУЛЛАГЫН НЭР', 1280, 20, { body: 1, weight: 700, color: '#bdbdbd', cs: 500 })
+      ]; } },
+    { id: 'tsagaansar3', name: 'Цагаан сар — тал нутаг', cat: 'holiday', w: 1080, h: 1350, fonts: ['Prata', 'Montserrat'], sw: ['#0a1f55', '#e8c26a', '#f7ecd0'],
+      items: function () { return [
+        BG('#0a1f55'), PHOTO(0, 0, 1080, 1350, 'ger'),
+        R(0, 0, 1080, 1350, '#1d3f95', { blend: 'multiply', name: 'Өнгө' }),
+        SCRIM(0, 560, 1080, 790, 90, [[0, '#07143a', 0], [0.5, '#07143a', 0.85], [1, '#07143a', 1]]),
+        R(44, 44, 992, 1262, 'transparent', { stroke: '#e8c26a', sw: 2, name: 'Хүрээ' }),
+        T('ЦАГААН САР · 2027', 760, 26, { body: 1, weight: 600, color: '#e8c26a', cs: 600 }),
+        T('Сар шинэдээ\nсайхан шинэлээрэй', 820, 86, { lh: 1.08, w: 960, grad: lin(90, [[0, '#fff3d2'], [1, '#e2b458']]) }),
+        T('Эрүүл энх, сайн сайхныг хүсье', 1060, 32, { body: 1, color: '#d8c9a3', w: 900 }),
+        R(500, 1140, 80, 2, '#e8c26a', { name: 'Шугам' }),
+        T('БАЙГУУЛЛАГЫН НЭР', 1180, 24, { body: 1, weight: 700, color: '#e8c26a', cs: 500 })
+      ]; } },
+    { id: 'newyear2', name: 'Шинэ он — оч', cat: 'holiday', w: 1080, h: 1350, fonts: ['Inter Tight', 'Playfair'], sw: ['#0b0906', '#e0a94a', '#fff6d5'],
+      items: function () { return [
+        BG('#0b0906'), PHOTO(0, 0, 1080, 1350, 'sparkler'),
+        R(0, 0, 1080, 1350, '#000000', { opacity: 0.3, name: 'Бараан' }),
+        SCRIM(0, 0, 1080, 360, 90, [[0, '#0b0906', 0.75], [1, '#0b0906', 0]]),
+        SCRIM(0, 640, 1080, 710, 90, [[0, '#0b0906', 0], [0.55, '#0b0906', 0.85], [1, '#0b0906', 1]]),
+        T('ШИНЭ ОНЫ МЭНД', 110, 30, { weight: 700, color: '#ffffff', cs: 700 }),
+        T('2027', 770, 320, { weight: 900, lh: 0.9, w: 1060, grad: lin(90, [[0, '#fff6d5'], [1, '#e0a94a']]), shadow: { c: 'rgba(224,169,74,.35)', b: 60 } }),
+        T('Шинэ онд шинэ амжилт, аз жаргал хүсье', 1130, 44, { body: 1, italic: 1, weight: 500, color: '#fff6d5', w: 940 }),
+        T('БАЙГУУЛЛАГЫН НЭР', 1250, 22, { weight: 700, color: '#e0a94a', cs: 500 })
+      ]; } },
+    { id: 'wedding', name: 'Хуримын урилга', cat: 'holiday', w: 1080, h: 1350, fonts: ['Cormorant Garamond', 'Montserrat'], sw: ['#f6f1ea', '#9a7b4f', '#2b2420'],
+      items: function () { return [
+        BG('#f6f1ea', { fx: GRAIN }), PHOTO(60, 60, 960, 680, 'rings', { mask: 'rounded', r: 24 }),
+        T('ХУРИМЫН УРИЛГА', 800, 26, { body: 1, weight: 600, color: '#9a7b4f', cs: 600 }),
+        T('Тэмүүлэн & Сарнай', 850, 100, { weight: 500, italic: 1, color: '#2b2420', w: 1000 }),
+        R(480, 1000, 120, 1.5, '#9a7b4f', { name: 'Шугам' }),
+        T('2026.10.10  ·  17:00', 1035, 34, { body: 1, weight: 600, color: '#2b2420', cs: 200 }),
+        T('Шангри-Ла зочид буудал, Улаанбаатар', 1095, 26, { body: 1, color: '#7a6e64', w: 900 }),
+        T('Хүрэлцэн ирэхийг урьж байна', 1195, 42, { italic: 1, weight: 500, color: '#9a7b4f' })
+      ]; } },
+    { id: 'birthday2', name: 'Төрсөн өдөр — фото', cat: 'holiday', w: 1080, h: 1350, fonts: ['Caveat', 'Onest'], sw: ['#fde6ec', '#d6336c', '#3a1a28'],
+      items: function () { return [
+        BG('#fde6ec'), PHOTO(0, 0, 1080, 860, 'cake'),
+        SCRIM(0, 560, 1080, 302, 90, [[0, '#fde6ec', 0], [1, '#fde6ec', 1]]),
+        SPARK(140, 900, 22, '#d6336c'), SPARK(950, 960, 16, '#f59f00'), SPARK(900, 1230, 12, '#d6336c'),
+        T('Төрсөн өдрийн\nмэнд хүргэе!', 850, 110, { weight: 700, color: '#d6336c', lh: 0.95, w: 980 }),
+        T('Нэр Овог', 1125, 46, { body: 1, weight: 700, color: '#3a1a28' }),
+        T('Бүх хүсэл мөрөөдөл чинь биелэх болтугай', 1195, 28, { body: 1, color: '#8a5a6a', w: 900 })
+      ]; } },
     // ===================== БИЗНЕС =====================
     { id: 'sale', name: 'Хямдрал — acid', cat: 'biz', w: 1080, h: 1350, fonts: ['Inter Tight', 'Inter'], sw: ['#d7ff3a', '#0b0b0b', '#ffffff'],
       items: function () { return [
@@ -140,7 +216,7 @@
     { id: 'sale2', name: 'Хямдрал — editorial', cat: 'biz', w: 1080, h: 1080, fonts: ['Playfair', 'Inter'], sw: ['#efe8dd', '#1d1d1b', '#b5542f'],
       items: function () { return [
         BG('#efe8dd', { fx: GRAIN }),
-        PH(560, 80, 440, 920, 'Бүтээгдэхүүний зураг', { rx: 220, fill: '#dccfbd' }),
+        PHOTO(560, 80, 440, 920, 'model', { mask: 'arch', fy: 0.3 }),
         T('Намрын\nцуглуулга', 110, 100, { weight: 500, italic: 1, color: '#1d1d1b', align: 'left', x: 80, w: 470, lh: 0.98 }),
         T('−30%', 430, 180, { weight: 800, color: '#b5542f', align: 'left', x: 70, w: 520, lh: 1 }),
         R(80, 660, 60, 2, '#1d1d1b', { name: 'Шугам' }),
@@ -162,7 +238,7 @@
     { id: 'product', name: 'Шинэ бүтээгдэхүүн — bento', cat: 'biz', w: 1080, h: 1350, fonts: ['Geologica', 'Inter'], sw: ['#f2f1ee', '#111111', '#ff6a3d'],
       items: function () { return [
         BG('#f2f1ee'),
-        PH(50, 50, 980, 700, 'Бүтээгдэхүүний зураг', { rx: 40, fill: '#dedcd6' }),
+        PHOTO(50, 50, 980, 700, 'sneaker', { mask: 'rounded', r: 40 }),
         R(80, 80, 170, 56, '#111111', { rx: 28, name: 'Шошго' }), T('ШИНЭ', 94, 24, { body: 1, weight: 700, color: '#ffffff', x: 80, w: 170, cs: 250 }),
         R(50, 780, 590, 520, '#111111', { rx: 40, name: 'Карт' }),
         T('Бүтээгдэхүүний\nнэр энд', 835, 62, { weight: 800, color: '#ffffff', align: 'left', x: 100, w: 500, lh: 1 }),
@@ -211,7 +287,7 @@
       items: function () { return [
         BG('#e8d8c3', { fx: GRAIN }),
         C(760, 520, 360, '#ff7a2f', { name: 'Тойрог' }),
-        PH(470, 240, 580, 580, 'Кофены зураг (PNG, тунгалаг)', { rx: 290, fill: 'rgba(255,255,255,0.35)' }),
+        PHOTO(470, 240, 580, 580, 'latte', { mask: 'circle' }),
         T('1+1', 150, 400, { weight: 900, color: '#4a2c1d', align: 'left', x: 60, w: 700, lh: 0.9 }),
         T('КОФЕ', 520, 150, { weight: 900, color: 'transparent', stroke: '#4a2c1d', sw: 3, align: 'left', x: 70, w: 700, lh: 1 }),
         T('Даваа–Баасан 08:00–11:00 цагт нэгийг авбал нэг нь бэлэг', 900, 40, { body: 1, weight: 600, color: '#4a2c1d', align: 'left', x: 70, w: 700, lh: 1.25 }),
@@ -222,7 +298,7 @@
     { id: 'realestate', name: 'Үл хөдлөх зар', cat: 'biz', w: 1080, h: 1350, fonts: ['Geologica', 'Inter'], sw: ['#ffffff', '#0f3d2e', '#c9a86a'],
       items: function () { return [
         BG('#ffffff'),
-        PH(0, 0, 1080, 760, 'Байрны зургаа энд чирж тавина', { fill: '#e2e6e3' }),
+        PHOTO(0, 0, 1080, 760, 'house'),
         R(0, 690, 1080, 660, '#0f3d2e', { rx: 0, name: 'Хайрцаг' }),
         R(70, 640, 230, 100, '#c9a86a', { rx: 20, name: 'Шошго' }), T('ЗАРНА', 668, 38, { weight: 800, color: '#0f3d2e', x: 70, w: 230, cs: 200 }),
         T('Хан-Уул, 19-р хороолол', 790, 32, { body: 1, color: '#9fc2b3', align: 'left', x: 70, w: 940 }),
@@ -256,7 +332,7 @@
           T('“', 40, 420, { weight: 800, color: '#ffb800', align: 'left', x: 60, w: 300, lh: 1 }),
           T('Лого, брэндийн өнгө төрхийг маань яг төсөөлж байснаар гаргаж өгсөн. Бүх хамт олон маань сэтгэл хангалуун байна.', 330, 54, { weight: 500, italic: 1, color: '#1a1a1a', align: 'left', x: 90, w: 900, lh: 1.25 })];
         for (var i = 0; i < 5; i++) o.push(STAR(115 + i * 58, 800, 24, '#ffb800'));
-        o.push(C(126, 920, 46, '#1a1a1a', { name: 'Зураг' }), T('Б', 894, 44, { body: 1, weight: 700, color: '#ffffff', x: 80, w: 92 }));
+        o.push(PHOTO(80, 874, 92, 92, 'woman', { mask: 'circle', fy: 0.3 }));
         o.push(T('Болормаа Г.', 885, 32, { body: 1, weight: 700, color: '#1a1a1a', align: 'left', x: 196, w: 600 }));
         o.push(T('Маркетингийн менежер, Nomad LLC', 930, 24, { body: 1, color: '#6b6b6b', align: 'left', x: 196, w: 700 }));
         return o;
@@ -272,6 +348,132 @@
         return o;
       } },
 
+    { id: 'burger', name: 'Бургер — шинэ амт', cat: 'biz', w: 1080, h: 1350, fonts: ['Fira Sans Extra Condensed', 'Inter'], sw: ['#111111', '#ffc400', '#ffffff'],
+      items: function () { return [
+        BG('#111111'), PHOTO(0, 0, 1080, 1350, 'burger'),
+        SCRIM(0, 0, 1080, 720, 90, [[0, '#0d0d0d', 0.92], [0.6, '#0d0d0d', 0.5], [1, '#0d0d0d', 0]]),
+        SCRIM(0, 1060, 1080, 290, 90, [[0, '#0d0d0d', 0], [1, '#0d0d0d', 0.85]]),
+        T('ШИНЭ АМТ', 80, 40, { body: 1, weight: 800, color: '#ffc400', cs: 500, align: 'left', x: 60, w: 600 }),
+        T('СМОУК\nБУРГЕР', 140, 210, { weight: 900, color: '#ffffff', lh: 0.86, align: 'left', x: 56, w: 980 }),
+        C(890, 1030, 140, '#ffc400', { name: 'Үнэ' }),
+        T('ЗӨВХӨН', 975, 24, { body: 1, weight: 700, color: '#111111', cs: 300, x: 750, w: 280 }),
+        T('15,900₮', 1008, 62, { weight: 900, color: '#111111', x: 750, w: 280 })
+      ].concat(pill(60, 1220, 400, 76, '#ffffff', 'Хүргэлт: 7700 0000', '#111111', 26)); } },
+    { id: 'pizza', name: 'Пицца 1+1', cat: 'biz', w: 1080, h: 1080, fonts: ['Rubik', 'Inter'], sw: ['#e63922', '#ffe0b3', '#ffffff'],
+      items: function () { return [
+        BG('#e63922', { grad: lin(45, [[0, '#ff5a36'], [1, '#c81e12']]), fx: GRAIN }),
+        C(880, 640, 470, '#ffffff', { opacity: 0.12, name: 'Тойрог' }),
+        PHOTO(440, 200, 880, 880, 'pizza', { mask: 'circle' }),
+        T('1+1', 110, 250, { weight: 900, color: '#ffffff', align: 'left', x: 60, w: 620, lh: 0.95 }),
+        T('ПИЦЦА', 395, 92, { weight: 900, color: '#ffe0b3', align: 'left', x: 64, w: 520 }),
+        T('Мягмар гараг бүр\n2 дахь пицца үнэгүй', 540, 36, { body: 1, weight: 600, color: '#ffffff', align: 'left', x: 66, w: 430, lh: 1.3 })
+      ].concat(pill(60, 900, 360, 80, '#ffffff', 'Хүргэлт 7777 0000', '#e63922', 26)); } },
+    { id: 'fashion', name: 'Загвар — editorial', cat: 'biz', w: 1080, h: 1350, fonts: ['Playfair', 'Inter'], sw: ['#efe9e1', '#1d1d1b', '#b5542f'],
+      items: function () { return [
+        BG('#efe9e1', { fx: GRAIN }), PHOTO(0, 0, 600, 1350, 'model', { fy: 0.3 }),
+        T('ШИНЭ ЦУГЛУУЛГА', 110, 22, { body: 1, weight: 700, color: '#1d1d1b', cs: 500, align: 'left', x: 650, w: 380 }),
+        T('Намар\nӨвөл', 180, 128, { weight: 500, italic: 1, color: '#1d1d1b', align: 'left', x: 646, w: 420, lh: 0.95 }),
+        T('2026', 470, 120, { weight: 700, color: 'transparent', stroke: '#1d1d1b', sw: 2, align: 'left', x: 650, w: 420 }),
+        R(650, 700, 60, 2, '#1d1d1b', { name: 'Шугам' }),
+        T('−40%', 740, 150, { weight: 700, color: '#b5542f', align: 'left', x: 644, w: 430 }),
+        T('Бүх хувцсанд · 10.20 хүртэл', 940, 26, { body: 1, color: '#5a554f', align: 'left', x: 650, w: 380 })
+      ].concat(pill(650, 1180, 300, 72, '#1d1d1b', 'Дэлгүүр орох →', '#ffffff', 24)); } },
+    { id: 'beauty', name: 'Арьс арчилгаа', cat: 'biz', w: 1080, h: 1350, fonts: ['Prata', 'Manrope'], sw: ['#efe4da', '#3b2a22', '#b98a6a'],
+      items: function () { return [
+        BG('#efe4da', { fx: GRAIN }),
+        C(540, 470, 380, 'transparent', { stroke: '#b98a6a', sw: 1.5, opacity: 0.6, name: 'Тойрог' }),
+        PHOTO(250, 110, 580, 740, 'serum', { mask: 'arch' }),
+        T('Байгалийн\nгэрэлтэлт', 900, 88, { color: '#3b2a22', lh: 1.05, w: 960 }),
+        T('ШИНЭ СЕРУМ · 30 МЛ', 1130, 24, { body: 1, weight: 700, color: '#8a6a55', cs: 400 })
+      ].concat(pill(390, 1200, 300, 72, '#3b2a22', 'Захиалах', '#efe4da', 24)); } },
+    { id: 'salon', name: 'Гоо сайхны салон', cat: 'biz', w: 1080, h: 1350, fonts: ['Cormorant Garamond', 'Manrope'], sw: ['#2a1d22', '#e8a5b8', '#f6e3e8'],
+      items: function () {
+        var o = [BG('#2a1d22'), PHOTO(0, 0, 1080, 1350, 'salon', { fy: 0.3 }),
+          SCRIM(0, 0, 1080, 260, 90, [[0, '#2a1d22', 0.7], [1, '#2a1d22', 0]]),
+          SCRIM(0, 480, 1080, 870, 90, [[0, '#2a1d22', 0], [0.4, '#2a1d22', 0.88], [1, '#2a1d22', 1]]),
+          T('ГОО САЙХНЫ СТУДИ', 70, 24, { body: 1, weight: 700, color: '#f6e3e8', cs: 600 }),
+          T('Өөртөө цаг гарга', 700, 104, { weight: 600, italic: 1, color: '#f6e3e8', w: 1000 })];
+        [['Үс засалт', '35,000₮'], ['Будалт', '45,000₮'], ['Маникюр', '30,000₮']].forEach(function (r, i) {
+          var y = 890 + i * 72;
+          o.push(T(r[0], y, 32, { body: 1, weight: 500, color: '#ffffff', align: 'left', x: 180, w: 480 }));
+          o.push(T(r[1], y, 32, { body: 1, weight: 700, color: '#e8a5b8', align: 'right', x: 420, w: 480 }));
+          o.push(R(180, y + 54, 720, 1, '#ffffff', { opacity: 0.18, name: 'Шугам' }));
+        });
+        o.push(T('Цаг захиалга: 9911 2233', 1170, 30, { body: 1, weight: 700, color: '#e8a5b8' }));
+        o.push(T('@beauty.studio', 1225, 24, { body: 1, color: '#bfa7ae' }));
+        return o;
+      } },
+    { id: 'interior', name: 'Интерьер дизайн', cat: 'biz', w: 1080, h: 1350, fonts: ['Geologica', 'Inter'], sw: ['#f4f1ec', '#1f1f1f', '#b07d4f'],
+      items: function () {
+        var o = [BG('#f4f1ec'), PHOTO(0, 0, 1080, 860, 'living'), R(60, 740, 960, 550, '#ffffff', { name: 'Карт', shadow: { c: 'rgba(0,0,0,.12)', b: 40, y: 10 } }),
+          T('Таны мөрөөдлийн\nорон зай', 800, 70, { weight: 700, color: '#1f1f1f', align: 'left', x: 110, w: 860, lh: 1.05 }),
+          T('Интерьер дизайн, засвар — 3D зураглал үнэгүй', 985, 28, { body: 1, color: '#6b6b6b', align: 'left', x: 110, w: 860 })];
+        [['120+', 'төсөл'], ['8', 'жилийн туршлага'], ['3D', 'зураглал']].forEach(function (r, i) {
+          o.push(T(r[0], 1070, 56, { weight: 800, color: '#b07d4f', align: 'left', x: 110 + i * 300, w: 280 }));
+          o.push(T(r[1], 1150, 22, { body: 1, color: '#6b6b6b', align: 'left', x: 110 + i * 300, w: 280 }));
+        });
+        return o;
+      } },
+    { id: 'car', name: 'Авто худалдаа', cat: 'biz', w: 1080, h: 1350, fonts: ['Oswald', 'Inter'], sw: ['#0b0b0f', '#ff3b30', '#ffffff'],
+      items: function () { return [
+        BG('#0b0b0f'), PHOTO(0, 0, 1080, 1350, 'car'),
+        SCRIM(0, 0, 1080, 560, 90, [[0, '#0b0b0f', 0.9], [1, '#0b0b0f', 0]]),
+        SCRIM(0, 820, 1080, 530, 90, [[0, '#0b0b0f', 0], [0.5, '#0b0b0f', 0.85], [1, '#0b0b0f', 1]]),
+        T('ШИНЭ ИРЛЭЭ', 80, 26, { body: 1, weight: 700, color: '#ff3b30', cs: 600, align: 'left', x: 70, w: 600 }),
+        T('ХУРД\nБА ХҮЧ', 130, 170, { weight: 700, color: '#ffffff', lh: 0.9, align: 'left', x: 66, w: 940 }),
+        R(70, 1060, 6, 170, '#ff3b30', { name: 'Шугам' }),
+        T('2024 он · 2.0 турбо · 12,000 км', 1062, 30, { body: 1, color: '#dddddd', align: 'left', x: 100, w: 900 }),
+        T('89 сая ₮', 1105, 92, { weight: 700, color: '#ffffff', align: 'left', x: 98, w: 900 }),
+        T('Лизинг 30% урьдчилгаатай · 9911 2233', 1250, 26, { body: 1, weight: 600, color: '#ff6b61', align: 'left', x: 100, w: 900 })
+      ]; } },
+    { id: 'dental', name: 'Шүдний эмнэлэг', cat: 'biz', w: 1080, h: 1350, fonts: ['Manrope', 'Inter'], sw: ['#eef7f6', '#0f3d3a', '#12b5a6'],
+      items: function () {
+        var o = [BG('#eef7f6'), PHOTO(500, 0, 580, 1350, 'dentist'),
+          T('Эрүүл\nинээмсэглэл', 140, 62, { weight: 800, color: '#0f3d3a', align: 'left', x: 60, w: 420, lh: 1.02 }),
+          T('Шүдний иж бүрэн үйлчилгээ', 320, 28, { body: 1, color: '#4a6b68', align: 'left', x: 60, w: 400 })];
+        ['Үзлэг, зөвлөгөө үнэгүй', 'Шүд цайруулалт', 'Имплант, гажиг засал', 'Хүүхдийн шүд'].forEach(function (t, i) {
+          var y = 440 + i * 70;
+          o.push(C(80, y + 17, 17, '#12b5a6', { name: 'Тэмдэг' }), T('✓', y + 3, 20, { body: 1, weight: 800, color: '#ffffff', x: 63, w: 34 }));
+          o.push(T(t, y, 28, { body: 1, weight: 500, color: '#0f3d3a', align: 'left', x: 115, w: 370 }));
+        });
+        o.push(R(60, 800, 400, 210, '#12b5a6', { rx: 28, name: 'Карт' }));
+        o.push(T('−20%', 830, 88, { weight: 800, color: '#ffffff', x: 60, w: 400 }));
+        o.push(T('10-р сарын турш', 945, 26, { body: 1, weight: 600, color: '#e6fffb', x: 60, w: 400 }));
+        o.push(T('☎ 7011 2233', 1150, 40, { weight: 800, color: '#0f3d3a', align: 'left', x: 60, w: 420 }));
+        o.push(T('Сүхбаатар дүүрэг, 1-р хороо', 1215, 24, { body: 1, color: '#4a6b68', align: 'left', x: 60, w: 420 }));
+        return o;
+      } },
+    { id: 'cashmere', name: 'Монгол ноолуур', cat: 'biz', w: 1080, h: 1350, fonts: ['Cormorant Garamond', 'Montserrat'], sw: ['#e9dfd1', '#3a2a1f', '#8c6a4f'],
+      items: function () { return [
+        BG('#e9dfd1'), PHOTO(0, 0, 1080, 1350, 'knit'),
+        R(120, 290, 840, 770, '#f7f2ea', { opacity: 0.95, name: 'Карт' }),
+        R(140, 310, 800, 730, 'transparent', { stroke: '#8c6a4f', sw: 1.5, name: 'Хүрээ' }),
+        T('100% МОНГОЛ НООЛУУР', 380, 24, { body: 1, weight: 600, color: '#8c6a4f', cs: 500 }),
+        T('Дулаан\nбас зөөлөн', 440, 108, { weight: 500, italic: 1, color: '#3a2a1f', lh: 0.98, w: 760 }),
+        T('Намрын цуглуулга −30%', 720, 34, { body: 1, weight: 600, color: '#3a2a1f', w: 760 }),
+        T('www.brand.mn', 950, 22, { body: 1, color: '#8c6a4f', cs: 200 })
+      ].concat(pill(390, 820, 300, 72, '#3a2a1f', 'Дэлгүүр орох', '#f7f2ea', 24)); } },
+    { id: 'job2', name: 'Ажлын зар — фото', cat: 'biz', w: 1080, h: 1350, fonts: ['Inter Tight', 'Inter'], sw: ['#ffffff', '#1646ff', '#0b1033'],
+      items: function () { return [
+        BG('#ffffff'), PHOTO(50, 50, 980, 620, 'team', { mask: 'rounded', r: 36 })
+      ].concat(pill(90, 90, 240, 60, '#1646ff', 'АЖИЛД АВНА', '#ffffff', 22, { cs: 200 })).concat([
+        T('Маркетинг\nменежер', 720, 100, { weight: 800, color: '#0b1033', align: 'left', x: 60, w: 960, lh: 1 }),
+        T('Бүтэн цаг · Улаанбаатар · 3–5 сая₮', 950, 30, { body: 1, weight: 500, color: '#5a6178', align: 'left', x: 62, w: 960 }),
+        T('✓ 2+ жил туршлага     ✓ Англи хэл     ✓ Баг удирдах', 1010, 26, { body: 1, weight: 600, color: '#1646ff', align: 'left', x: 62, w: 960 }),
+        R(60, 1100, 960, 190, '#0b1033', { rx: 28, name: 'Карт' }),
+        T('CV-гээ илгээх', 1135, 24, { body: 1, color: '#9aa3ff', align: 'left', x: 100, w: 800 }),
+        T('hr@company.mn', 1178, 56, { weight: 800, color: '#ffffff', align: 'left', x: 98, w: 880 })
+      ]); } },
+    { id: 'coffee2', name: 'Кофе — өглөө', cat: 'biz', w: 1080, h: 1350, fonts: ['Playfair', 'Inter'], sw: ['#f3e7d7', '#3b2618', '#e4572e'],
+      items: function () { return [
+        BG('#f3e7d7', { fx: GRAIN }),
+        T('Өглөөг\nкофеноос', 80, 116, { weight: 500, italic: 1, color: '#3b2618', lh: 0.95, w: 980 }),
+        PHOTO(160, 420, 760, 760, 'latte', { mask: 'circle' }),
+        C(880, 470, 100, '#e4572e', { name: 'Шошго' }),
+        T('−20%', 440, 54, { weight: 800, color: '#ffffff', x: 780, w: 200 }),
+        T('Өглөө 8–10 цагт бүх кофе', 1220, 30, { body: 1, weight: 600, color: '#3b2618' }),
+        T('КОФЕ ШОПЫН НЭР', 1275, 20, { body: 1, weight: 700, color: '#8a6a55', cs: 500 })
+      ]; } },
     // ===================== АРГА ХЭМЖЭЭ =====================
     { id: 'event', name: 'Концерт — swiss', cat: 'event', w: 1080, h: 1350, fonts: ['Inter Tight', 'Inter'], sw: ['#ececec', '#111111', '#ff3b1f'],
       items: function () { return [
@@ -339,7 +541,7 @@
         BG('#f3ece2', { fx: GRAIN }),
         T('ШИНЭ САЛБАР', 180, 30, { body: 1, weight: 600, color: '#1f3a2e', cs: 700 }),
         T('Нээгдлээ', 240, 190, { weight: 500, italic: 1, color: '#1f3a2e', lh: 1 }),
-        PH(120, 520, 840, 900, 'Салбарын зураг', { rx: 420, fill: '#e2d6c4' }),
+        PHOTO(120, 520, 840, 900, 'barista', { mask: 'arch' }),
         C(860, 560, 110, '#d98c5f', { name: 'Шошго' }),
         T('20%\nхямдрал', 518, 40, { body: 1, weight: 800, color: '#ffffff', x: 760, w: 200, lh: 1.05, angle: 12, c: 1, cx: 860, cy: 560 }),
         T('10.01 · 11:00', 1490, 70, { weight: 700, color: '#1f3a2e' }),
@@ -359,6 +561,67 @@
         T('Брэнд дизайнер', 482, 22, { body: 1, color: '#9a9ab5', x: 800, w: 340 })
       ]; } },
 
+    { id: 'concert2', name: 'Концерт — фото', cat: 'event', w: 1080, h: 1350, fonts: ['Oswald', 'Inter'], sw: ['#12001f', '#ff5ce1', '#ffffff'],
+      items: function () { return [
+        BG('#12001f'), PHOTO(0, 0, 1080, 1350, 'concert'),
+        R(0, 0, 1080, 1350, '#7a2cff', { blend: 'multiply', name: 'Өнгө' }),
+        SCRIM(0, 0, 1080, 600, 90, [[0, '#12001f', 0.85], [1, '#12001f', 0]]),
+        SCRIM(0, 850, 1080, 500, 90, [[0, '#12001f', 0], [0.5, '#12001f', 0.85], [1, '#12001f', 1]]),
+        T('АМЬД\nТОГЛОЛТ', 80, 230, { weight: 700, color: '#ffffff', lh: 0.86, align: 'left', x: 56, w: 980 }),
+        T('Уран бүтээлчийн нэр', 990, 66, { weight: 600, color: '#ff5ce1', align: 'left', x: 60, w: 960 }),
+        T('11.15 · 20:00 · UB Palace', 1090, 34, { body: 1, weight: 600, color: '#ffffff', align: 'left', x: 62, w: 960 })
+      ].concat(pill(60, 1180, 340, 80, '#ff5ce1', 'Тасалбар авах →', '#12001f', 28)); } },
+    { id: 'fitness', name: 'Фитнес клуб', cat: 'event', w: 1080, h: 1350, fonts: ['Oswald', 'Inter'], sw: ['#0a0a0a', '#c6ff00', '#ffffff'],
+      items: function () { return [
+        BG('#0a0a0a'), PHOTO(0, 0, 1080, 1350, 'gym'),
+        SCRIM(0, 0, 1080, 1350, 0, [[0, '#0a0a0a', 0.95], [0.55, '#0a0a0a', 0.35], [1, '#0a0a0a', 0]]),
+        T('ХҮЧЭЭ\nСОРЬ', 130, 210, { weight: 700, color: '#ffffff', lh: 0.88, align: 'left', x: 56, w: 760 }),
+        T('Сарын эрх', 610, 30, { body: 1, color: '#bdbdbd', align: 'left', x: 60, w: 500 }),
+        T('99,000₮', 650, 120, { weight: 700, color: '#c6ff00', align: 'left', x: 56, w: 700 }),
+        T('• Хувийн дасгалжуулагч\n• 24/7 нээлттэй\n• Сауна, душ', 830, 32, { body: 1, weight: 500, color: '#ffffff', align: 'left', x: 60, w: 560, lh: 1.55 })
+      ].concat(pill(60, 1150, 360, 84, '#c6ff00', 'Бүртгүүлэх →', '#0a0a0a', 28)); } },
+    { id: 'travel', name: 'Аялал — Говь', cat: 'event', w: 1080, h: 1350, fonts: ['Oswald', 'Inter'], sw: ['#1a0f08', '#f4a261', '#ffffff'],
+      items: function () { return [
+        BG('#1a0f08'), PHOTO(0, 0, 1080, 1350, 'gobi'),
+        SCRIM(0, 0, 1080, 300, 90, [[0, '#1a0f08', 0.6], [1, '#1a0f08', 0]]),
+        SCRIM(0, 560, 1080, 790, 90, [[0, '#1a0f08', 0], [0.45, '#1a0f08', 0.8], [1, '#1a0f08', 0.98]]),
+        T('АЯЛАЛ · 2026', 70, 26, { body: 1, weight: 700, color: '#ffffff', cs: 600 }),
+        T('ГОВЬ', 740, 280, { weight: 700, color: '#ffffff', lh: 0.9 }),
+        T('5 өдөр · 4 шөнө · Хонгорын элс, Ёлын ам', 1030, 30, { body: 1, weight: 500, color: '#f3d9b8', w: 980 }),
+        R(290, 1100, 500, 110, '#f4a261', { rx: 55, name: 'Үнэ' }),
+        T('1,290,000₮', 1117, 64, { weight: 700, color: '#1a0f08', x: 290, w: 500 }),
+        T('Захиалга: 9900 1122', 1250, 26, { body: 1, weight: 600, color: '#ffffff' })
+      ]; } },
+    { id: 'travel2', name: 'Нислэгийн хямдрал', cat: 'event', w: 1080, h: 1350, fonts: ['Inter Tight', 'Inter'], sw: ['#e8f1ff', '#0b3d91', '#ff5a36'],
+      items: function () { return [
+        BG('#e8f1ff'), PHOTO(60, 60, 960, 740, 'plane', { mask: 'rounded', r: 40 })
+      ].concat(pill(100, 100, 280, 64, '#ffffff', '✈  Хямд нислэг', '#0b3d91', 24)).concat([
+        T('Токио', 850, 140, { weight: 800, color: '#0b3d91', align: 'left', x: 56, w: 560 }),
+        T('Улаанбаатар → Токио, буцах', 1025, 30, { body: 1, color: '#4a5a7a', align: 'left', x: 60, w: 600 }),
+        T('1.2 сая₮', 880, 70, { weight: 800, color: '#ff5a36', align: 'right', x: 540, w: 480 }),
+        T('-аас эхлэн', 970, 26, { body: 1, color: '#4a5a7a', align: 'right', x: 540, w: 480 }),
+        R(60, 1110, 960, 2, '#b9c9e6', { name: 'Шугам' }),
+        T('10.01 — 12.31 · Суудал хязгаартай', 1150, 30, { body: 1, weight: 600, color: '#0b3d91', align: 'left', x: 60, w: 960 }),
+        T('travel.mn · 9900 1122', 1225, 26, { body: 1, color: '#4a5a7a', align: 'left', x: 60, w: 960 })
+      ]); } },
+    { id: 'course2', name: 'Сургалт — фото', cat: 'event', w: 1080, h: 1080, fonts: ['Geologica', 'Inter'], sw: ['#fff4e0', '#1b1b1b', '#ff7a1a'],
+      items: function () { return [
+        BG('#fff4e0'), PHOTO(560, 0, 520, 1080, 'student')
+      ].concat(pill(60, 70, 280, 56, '#1b1b1b', 'БҮРТГЭЛ ЭХЭЛЛЭЭ', '#ffffff', 20, { cs: 150 })).concat([
+        T('Англи хэлний\nэрчимжүүлсэн\nсургалт', 170, 60, { weight: 800, color: '#1b1b1b', align: 'left', x: 60, w: 480, lh: 1.05 }),
+        T('Эхлэх: 10.20\nХугацаа: 3 сар\nТөлбөр: 450,000₮', 450, 30, { body: 1, weight: 500, color: '#3a3a3a', align: 'left', x: 60, w: 480, lh: 1.6 })
+      ]).concat(pill(60, 700, 300, 76, '#ff7a1a', 'Бүртгүүлэх →', '#ffffff', 26)).concat([
+        T('☎ 9911 2233 · @academy', 960, 24, { body: 1, color: '#6b5a45', align: 'left', x: 60, w: 480 })
+      ]); } },
+    { id: 'kids2', name: 'Хүүхдийн дугуйлан', cat: 'event', w: 1080, h: 1350, fonts: ['Rubik', 'Rubik'], sw: ['#fff6d6', '#ff5b5b', '#3a86ff'],
+      items: function () { return [
+        BG('#fff6d6'),
+        R(90, 90, 900, 760, '#ffbe0b', { rx: 60, angle: 3, c: 1, cx: 540, cy: 470, name: 'Хүрээ' }),
+        PHOTO(90, 90, 900, 760, 'kids', { mask: 'rounded', r: 60, angle: -2 }),
+        STAR(960, 100, 56, '#ff5b5b'), C(110, 880, 22, '#3a86ff', { name: 'Конфетти' }), C(980, 900, 16, '#06d6a0', { name: 'Конфетти' }),
+        T('Зуны дугуйлан', 900, 96, { weight: 800, color: '#1b1b3a', w: 1000 }),
+        T('Зураг · Бүжиг · Робот · 6–12 нас', 1030, 32, { body: 1, weight: 600, color: '#ff5b5b', w: 960 })
+      ].concat(pill(330, 1160, 420, 80, '#3a86ff', 'Бүртгэл: 8800 1122', '#ffffff', 26)); } },
     // ===================== СОШИАЛ КОНТЕНТ =====================
     { id: 'tips', name: 'Зөвлөгөө — carousel cover', cat: 'social', w: 1080, h: 1350, fonts: ['Inter Tight', 'Inter'], sw: ['#f5f0ff', '#5b2eff', '#16112e'],
       items: function () { return [
@@ -419,11 +682,41 @@
         BLOB(540, 820, 620, '#3d3dff', 0.35),
         T('ШИНЭ', 170, 36, { body: 1, weight: 700, color: '#3d3dff', cs: 700 }),
         T('Бүтээгдэхүүний\nнэр', 240, 104, { weight: 800, color: '#0c0c2a', lh: 1, w: 1000 }),
-        PH(190, 560, 700, 700, 'Бүтээгдэхүүний зураг (PNG)', { rx: 60, fill: 'rgba(255,255,255,0.55)' }),
+        PHOTO(190, 560, 700, 700, 'serum', { mask: 'rounded', r: 60 }),
         T('89,900₮', 1370, 110, { weight: 900, color: '#3d3dff' }),
         T('Хүргэлт үнэгүй · 24 цагт', 1510, 36, { body: 1, color: '#4b4b7a' })
       ].concat(pill(290, 1650, 500, 100, '#0c0c2a', 'Захиалах →', '#ffffff', 36)); } },
 
+    { id: 'quote2', name: 'Ишлэл — уул', cat: 'social', w: 1080, h: 1350, fonts: ['Noto Serif Display', 'Inter'], sw: ['#10161d', '#ffffff', '#9fb4c7'],
+      items: function () { return [
+        BG('#10161d'), PHOTO(0, 0, 1080, 1350, 'snow'),
+        R(0, 0, 1080, 1350, '#0b1118', { opacity: 0.5, name: 'Бараан' }),
+        T('“', 300, 220, { weight: 700, color: '#ffffff', lh: 1 }),
+        T('Уулын оройд гарахын тулд\nэхний алхмаа хий.', 560, 70, { weight: 500, italic: 1, color: '#ffffff', lh: 1.15, w: 960 }),
+        R(500, 800, 80, 2, '#ffffff', { name: 'Шугам' }),
+        T('НЭР ОВОГ', 840, 24, { body: 1, weight: 700, color: '#9fb4c7', cs: 500 }),
+        T('@brand.mn', 1250, 22, { body: 1, color: '#9fb4c7' })
+      ]; } },
+    { id: 'story2', name: 'Үдэшлэг — story', cat: 'social', w: 1080, h: 1920, fonts: ['Oswald', 'Inter'], sw: ['#050510', '#29f0ff', '#ffffff'],
+      items: function () { return [
+        BG('#050510'), PHOTO(0, 0, 1080, 1920, 'city'),
+        SCRIM(0, 0, 1080, 960, 90, [[0, '#050510', 0.92], [1, '#050510', 0]]),
+        SCRIM(0, 1200, 1080, 720, 90, [[0, '#050510', 0], [0.5, '#050510', 0.85], [1, '#050510', 1]]),
+        T('ЭНЭ БААСАН', 220, 44, { body: 1, weight: 700, color: '#29f0ff', cs: 500 }),
+        T('ДЭЭВРИЙН\nҮДЭШЛЭГ', 300, 170, { weight: 700, color: '#ffffff', lh: 0.92, w: 1040 }),
+        T('21:00 — 02:00', 1460, 60, { weight: 700, color: '#ffffff' }),
+        T('DJ · Амьд хөгжим · Коктейль', 1560, 34, { body: 1, color: '#dddddd' })
+      ].concat(pill(290, 1680, 500, 100, '#29f0ff', 'Ширээ захиалах', '#050510', 34)); } },
+    { id: 'story3', name: 'Хоол — story', cat: 'social', w: 1080, h: 1920, fonts: ['Fira Sans Extra Condensed', 'Inter'], sw: ['#1a120b', '#ffc400', '#ffffff'],
+      items: function () { return [
+        BG('#1a120b'), PHOTO(0, 380, 1080, 1180, 'burger2'),
+        SCRIM(0, 380, 1080, 300, 90, [[0, '#1a120b', 1], [1, '#1a120b', 0]]),
+        SCRIM(0, 1260, 1080, 300, 90, [[0, '#1a120b', 0], [1, '#1a120b', 1]]),
+        T('ӨНӨӨДРИЙН САНАЛ', 160, 40, { body: 1, weight: 700, color: '#ffc400', cs: 500 }),
+        T('КОМБО СЕТ', 220, 170, { weight: 900, color: '#ffffff', lh: 0.9 }),
+        T('Бургер + шарсан төмс + ундаа', 1600, 40, { body: 1, weight: 600, color: '#ffffff' }),
+        T('19,900₮', 1660, 110, { weight: 900, color: '#ffc400' })
+      ].concat(pill(310, 1800, 460, 90, '#ffffff', 'Захиалах →', '#1a120b', 32)); } },
     // ===================== БУСАД ХЭМЖЭЭ =====================
     { id: 'fbcover', name: 'Facebook cover', cat: 'other', w: 1640, h: 624, fonts: ['Inter Tight', 'Inter'], sw: ['#0d0d14', '#8c7bff', '#ffffff'],
       items: function () { return [
@@ -450,6 +743,22 @@
         R(90, 330, 90, 2, '#ffffff', { opacity: 0.3, name: 'Шугам' }),
         T('+976 8000 0000\nhello@brand.mn\nbrand.mn', 370, 28, { body: 1, color: '#b5b5bd', align: 'left', x: 90, w: 700, lh: 1.55 }),
         C(890, 460, 70, '#d9ff3f', { name: 'Лого' }), T('B', 425, 64, { weight: 900, color: '#111114', x: 820, w: 140 })
+      ]; } },
+    { id: 'fbcover2', name: 'Facebook cover — фото', cat: 'other', w: 1640, h: 624, fonts: ['Oswald', 'Inter'], sw: ['#0b0b0b', '#f4a261', '#ffffff'],
+      items: function () { return [
+        BG('#0b0b0b'), PHOTO(0, 0, 1640, 624, 'eagle'),
+        SCRIM(0, 0, 1640, 624, 0, [[0, '#0b0b0b', 0.9], [0.55, '#0b0b0b', 0.25], [1, '#0b0b0b', 0]]),
+        T('МОНГОЛ АЯЛАЛ', 180, 120, { weight: 700, color: '#ffffff', align: 'left', x: 420, w: 1100 }),
+        T('Тал нутгийн адал явдал — 2026 оны аяллын хөтөлбөр', 330, 34, { body: 1, color: '#e6e6e6', align: 'left', x: 424, w: 900 }),
+        T('mongoltravel.mn · 9900 1122', 420, 28, { body: 1, weight: 600, color: '#f4a261', align: 'left', x: 424, w: 900 })
+      ]; } },
+    { id: 'yt2', name: 'YouTube — фото', cat: 'other', w: 1280, h: 720, fonts: ['Oswald', 'Inter'], sw: ['#000000', '#ffe600', '#ffffff'],
+      items: function () { return [
+        BG('#000000'), PHOTO(0, 0, 1280, 720, 'study'),
+        SCRIM(0, 0, 1280, 720, 0, [[0, '#000000', 0.92], [0.55, '#000000', 0.35], [1, '#000000', 0]]),
+        T('IELTS 8.0\nАВСАН АРГА', 90, 150, { weight: 700, color: '#ffffff', lh: 0.9, align: 'left', x: 60, w: 800 }),
+        R(60, 470, 360, 96, '#ffe600', { angle: -2, c: 1, cx: 240, cy: 518, rx: 8, name: 'Шошго' }),
+        T('3 САРД', 482, 64, { weight: 700, color: '#111111', x: 60, w: 360, angle: -2, c: 1, cx: 240, cy: 518 })
       ]; } }
   ];
 
@@ -473,11 +782,12 @@
     if (s.fx) o.gFx = JSON.parse(JSON.stringify(s.fx));
     if (s.shadow) o.set('shadow', new window.fabric.Shadow({ color: s.shadow.c || 'rgba(0,0,0,.35)', blur: s.shadow.b || 0, offsetX: s.shadow.x || 0, offsetY: s.shadow.y || 0 }));
     if (s.opacity != null) o.set('opacity', s.opacity);
+    if (s.blend) o.set('globalCompositeOperation', s.blend);
     if (s.grad) paint(o, s.grad);
     if (window.GFX && window.GFX.sync) window.GFX.sync(o);
   }
   // font(name) returns a CSS font stack
-  function objects(tp, X, Y, font) {
+  function objects(tp, X, Y, font, imgs) {
     var F = window.fabric, out = [];
     font = font || function (n) { return '"' + n + '", sans-serif'; };
     tp.items().forEach(function (s) {
@@ -507,6 +817,27 @@
         paint(o, { type: 'radial', r: 0.5, stops: [{ p: 0, c: s.c, a: s.a }, { p: 1, c: s.c, a: 0 }] });
       } else if (s.t === 'star' || s.t === 'spark') {
         o = new F.Polygon(s.t === 'star' ? starPts(s.r) : sparkPts(s.r), { fill: s.fill, originX: 'center', originY: 'center', left: X + s.cx, top: Y + s.cy, name: s.t === 'star' ? 'Од' : 'Гялбаа' });
+      } else if (s.t === 'photo') {
+        var el = imgs && imgs[s.key];
+        if (el && el.naturalWidth) {
+          var iw = el.naturalWidth, ih = el.naturalHeight, sc = Math.max(s.w / iw, s.h / ih), cw = s.w / sc, ch = s.h / sc;
+          var fx = s.fx == null ? 0.5 : s.fx, fy = s.fy == null ? 0.5 : s.fy;
+          o = new F.Image(el, { left: X + s.x, top: Y + s.y, cropX: (iw - cw) * fx, cropY: (ih - ch) * fy, width: cw, height: ch, scaleX: sc, scaleY: sc, name: 'Зураг', strokeWidth: 0 });
+          o.gCredit = 'Pexels · ' + PX[s.key][1];
+          if (s.mask) {
+            var m = Math.min(cw, ch), cp = null, oc = { originX: 'center', originY: 'center' };
+            if (s.mask === 'circle') cp = new F.Circle(Object.assign({ radius: m / 2 }, oc));
+            if (s.mask === 'oval') cp = new F.Ellipse(Object.assign({ rx: cw / 2, ry: ch / 2 }, oc));
+            if (s.mask === 'rounded') cp = new F.Rect(Object.assign({ width: cw, height: ch, rx: (s.r || 40) / sc, ry: (s.r || 40) / sc }, oc));
+            if (s.mask === 'arch') cp = new F.Path('M ' + (-cw / 2) + ' ' + (ch / 2) + ' L ' + (-cw / 2) + ' ' + (-ch / 2 + cw / 2) + ' A ' + (cw / 2) + ' ' + (cw / 2) + ' 0 0 1 ' + (cw / 2) + ' ' + (-ch / 2 + cw / 2) + ' L ' + (cw / 2) + ' ' + (ch / 2) + ' Z', oc);
+            o.set('clipPath', cp); o.gMask = s.mask; o.gMaskR = s.mask === 'rounded' ? (s.r || 40) : null;
+          }
+        } else {
+          // photo could not load: a soft placeholder the user can replace
+          o = new F.Rect({ left: X + s.x, top: Y + s.y, width: s.w, height: s.h, rx: s.mask === 'rounded' ? (s.r || 40) : s.mask === 'circle' ? Math.min(s.w, s.h) / 2 : 0, ry: s.mask === 'rounded' ? (s.r || 40) : s.mask === 'circle' ? Math.min(s.w, s.h) / 2 : 0, fill: '#cfd3dc', name: 'Зургийн байр' });
+          paint(o, lin(90, [[0, '#d9dde6'], [1, '#aab1c0']]));
+        }
+        if (s.angle) { o.rotate(s.angle); o.setPositionByOrigin(new F.Point(X + s.x + s.w / 2, Y + s.y + s.h / 2), 'center', 'center'); }
       } else if (s.t === 'ph') {
         o = new F.Rect({ left: X + s.x, top: Y + s.y, width: s.w, height: s.h, rx: s.rx || 0, ry: s.rx || 0, fill: s.fill || '#e5e7eb', name: 'Зургийн байр' });
         out.push(o);
@@ -518,12 +849,31 @@
     });
     return out;
   }
-  var AX = {"Inter Tight": "ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,700", "Playfair": "ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,500;1,700", "Fira Sans Extra Condensed": "ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,700", "Noto Serif Display": "ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,500;1,700", "Geologica": "wght@300;400;500;600;700;800;900", "Onest": "wght@300;400;500;600;700;800;900", "Pacifico": "", "Caveat": "wght@400;500;600;700", "Rubik": "ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,700", "JetBrains Mono": "ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,700", "Montserrat": "ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,700", "Inter": "ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,700", "Cormorant Garamond": "ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,500;1,600;1,700", "Oswald": "wght@300;400;500;600;700", "Lora": "ital,wght@0,400;0,500;0,600;0,700;1,400;1,700"};
+  var AX = {"Raleway": "ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,700", "Prata": "", "Forum": "", "Yeseva One": "", "Manrope": "wght@300;400;500;600;700;800", "Comfortaa": "wght@300;400;500;600;700", "Inter Tight": "ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,700", "Playfair": "ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,500;1,700", "Fira Sans Extra Condensed": "ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,700", "Noto Serif Display": "ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,500;1,700", "Geologica": "wght@300;400;500;600;700;800;900", "Onest": "wght@300;400;500;600;700;800;900", "Pacifico": "", "Caveat": "wght@400;500;600;700", "Rubik": "ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,700", "JetBrains Mono": "ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400;1,700", "Montserrat": "ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,700", "Inter": "ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;0,900;1,400;1,700", "Cormorant Garamond": "ital,wght@0,300;0,400;0,500;0,600;0,700;1,400;1,500;1,600;1,700", "Oswald": "wght@300;400;500;600;700", "Lora": "ital,wght@0,400;0,500;0,600;0,700;1,400;1,700"};
   function cssUrl(tp) {
     return 'https://fonts.googleapis.com/css2?' + tp.fonts.filter(function (f, i, a) { return a.indexOf(f) === i; }).map(function (f) {
       var ax = AX[f]; return 'family=' + f.replace(/ /g, '+') + (ax ? ':' + ax : '');
     }).join('&') + '&display=swap';
   }
-  LIST.forEach(function (t) { if (!t.bg) t.bg = t.sw[0]; });
-  window.GTPL = { list: LIST, cats: CATS, get: function (id) { return LIST.filter(function (t) { return t.id === id; })[0]; }, objects: objects, cssUrl: cssUrl };
+  var imgCache = {};
+  function loadImg(url) {
+    if (imgCache[url]) return imgCache[url];
+    imgCache[url] = new Promise(function (res) {
+      var im = new Image(), done = false, fin = function (ok) { if (done) return; done = true; if (!ok) delete imgCache[url]; res(ok ? im : null); };
+      im.crossOrigin = 'anonymous';
+      im.onload = function () { fin(true); }; im.onerror = function () { fin(false); };
+      setTimeout(function () { fin(false); }, 15000);
+      im.src = url;
+    });
+    return imgCache[url];
+  }
+  function photosOf(tp) { var k = []; tp.items().forEach(function (s) { if (s.t === 'photo' && k.indexOf(s.key) < 0) k.push(s.key); }); return k; }
+  // async: loads the template's photos first (w = requested pixel width), then builds the objects
+  function build(tp, X, Y, font, w) {
+    var keys = photosOf(tp), imgs = {};
+    return Promise.all(keys.map(function (k) { return loadImg(pxUrl(k, w)).then(function (im) { imgs[k] = im; }); }))
+      .then(function () { return objects(tp, X, Y, font, imgs); });
+  }
+  LIST.forEach(function (t) { if (!t.bg) t.bg = t.sw[0]; t.photos = photosOf(t); t.credits = t.photos.map(function (k) { return PX[k][1]; }); });
+  window.GTPL = { list: LIST, cats: CATS, get: function (id) { return LIST.filter(function (t) { return t.id === id; })[0]; }, objects: objects, build: build, photoUrl: pxUrl, cssUrl: cssUrl };
 })();
