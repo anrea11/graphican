@@ -8,7 +8,7 @@ import json, os
 import landings as L
 
 ROOT, SITE, e, ld = L.ROOT, L.SITE, L.e, L.ld
-V = "2"
+V = "3"
 
 ICON = {
     "pdf": '<path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5"/><path d="m9 17 1-3 5-5 2 2-5 5z" fill="currentColor"/>',
@@ -107,16 +107,8 @@ def build():
   <section class="hm-tools" id="tools">
     <p class="hm-kicker">ҮНЭГҮЙ · БҮРТГЭЛГҮЙ · МОНГОЛ ХЭЛЭЭР</p>
     <h1>Дизайн хэрэгслүүд</h1>
-    <p class="hm-lead">Файлаа оруул — юу хийхийг санал болгоно.</p>
-    <div class="hm-drop" id="hm-drop">
-      <label class="hm-pick" id="hm-pick">
-        <input type="file" id="hm-file" multiple hidden>
-        <span class="hm-pick-ic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 16V4m0 0L7 9m5-5 5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
-        <span class="hm-pick-t"><b>Файл сонгох</b><small>PDF · Word · Excel · зураг</small></span>
-      </label>
-      <div class="hm-acts" id="hm-acts" hidden></div>
-    </div>
-    <ul class="hm-trust"><li>Үнэгүй</li><li>Бүртгэлгүй</li><li>Файл аюулгүй</li><li>Утсан дээр</li></ul>
+    <p class="hm-lead">PDF · зураг · дизайн — бүгд үнэгүй, бүртгэлгүй.</p>
+    <nav class="hm-jump"><a href="#pdf">PDF</a><a href="#image">Зураг</a><a href="#design">Дизайн</a></nav>
   </section>
 
   <section class="hm-sec" id="pdf">
@@ -207,7 +199,7 @@ def build():
 <link rel="preload" href="/assets/fonts/web/InterTight-Bold.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/assets/fonts/web/Inter-Regular.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/assets/fonts/web/fonts.css">
-<link rel="stylesheet" href="/assets/style.css?v=34">
+<link rel="stylesheet" href="/assets/style.css?v=35">
 <link rel="stylesheet" href="/assets/design.css?v=34">
 <link rel="stylesheet" href="/assets/home.css?v={V}">
 </head>
@@ -216,9 +208,7 @@ def build():
 {L.header_html()}
 {body}
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
-<script src="/assets/handoff.js?v=29"></script>
-<script src="/assets/app.js?v=35"></script>
-<script src="/assets/home.js?v={V}"></script>
+<script src="/assets/app.js?v=36"></script>
 </body>
 </html>
 """

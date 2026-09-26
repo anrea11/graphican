@@ -1319,3 +1319,10 @@ body::after { animation:none; inset:0; }                  /* static grain instea
   .ft-grid::-webkit-scrollbar { display:none; }
   .ft-card { flex:0 0 72%; scroll-snap-align:start; min-height:180px; }
 }
+
+/* /about/ opens with the intro (no hero): photo + text over the main hero background */
+.about-first { position:relative; background:#000; padding-top:clamp(120px, 14vw, 170px); min-height:100vh; display:flex; align-items:center; }
+.about-first > .h2-bg { position:absolute; inset:0; z-index:0; }
+.about-first > .fx { z-index:1; opacity:.85; }
+.about-first .about-inner { position:relative; z-index:2; width:100%; }
+.about-first .about-photo { box-shadow:0 40px 90px -30px rgba(109,86,250,.55); }

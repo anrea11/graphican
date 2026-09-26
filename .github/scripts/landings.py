@@ -342,7 +342,7 @@ def page(p, header):
 <link rel="preload" href="/assets/fonts/web/InterTight-Bold.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/assets/fonts/web/Inter-Regular.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/assets/fonts/web/fonts.css">
-<link rel="stylesheet" href="/assets/style.css?v=34">
+<link rel="stylesheet" href="/assets/style.css?v=35">
 <link rel="stylesheet" href="/assets/design.css?v=34">
 <link rel="stylesheet" href="/assets/landing.css?v={V}">
 </head>

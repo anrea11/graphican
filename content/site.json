@@ -55,7 +55,7 @@
     "CAMPAIGN"
   ],
   "work": {
-    "kicker": "04 / WORK",
+    "kicker": "03 / WORK",
     "title_en": "WORK ARCHIVE",
     "title": "Ажлын сан.",
     "description": "Брэнд, бүтээгдэхүүн, контент болон кампанит ажил дээр хийсэн төслүүд.",
@@ -290,7 +290,7 @@
     ]
   },
   "reels": {
-    "kicker": "05 / VIDEO",
+    "kicker": "04 / VIDEO",
     "title_en": "VIDEO WORKS",
     "title": "Видео ажлууд.",
     "description": "Лого анимаци, reels болон богино видео. Дарж дуутай үзнэ үү.",
@@ -365,7 +365,7 @@
     "title": "Хамтран ажилласан байгууллагууд"
   },
   "services": {
-    "kicker": "03 / FOCUS",
+    "kicker": "02 / FOCUS",
     "title_en": "DESIGN FOCUS",
     "title": "Чиглэл.",
     "description": "Миний ажилладаг үндсэн дизайн чиглэлүүд.",
@@ -403,7 +403,7 @@
     ]
   },
   "about": {
-    "kicker": "02 / ABOUT",
+    "kicker": "01 / ABOUT",
     "photo": "/assets/uploads/file_00000000291082069e01d3ee962c554a.webp",
     "photo_label": "GRAPHICAN / LEAD DESIGNER",
     "role": "Брэнд ба график дизайнер",
@@ -429,7 +429,7 @@
     ]
   },
   "contact": {
-    "kicker": "06 / CONTACT",
+    "kicker": "05 / CONTACT",
     "title_line1": "LET'S TALK",
     "title_line2": "DESIGN.",
     "text": "Төслийнхөө талаар холбогдоорой.",

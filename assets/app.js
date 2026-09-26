@@ -295,7 +295,7 @@
     return '<section class="sec services has-fx" id="services">' + fx('alt-b') + sectionTop(s) + '<div class="service-list">' + rows + '</div></section>';
   }
 
-  function about(a) {
+  function about(a, first) {
     var stats = list(a.stats).map(function (s) {
       var word = /[A-Za-zА-Яа-яӨөҮү]{3,}/.test(String(s.value || ''));
       return '<div' + (word ? ' class="is-word"' : '') + '><b>' + esc(s.value) + '</b><span>' + esc(s.label) + '</span></div>';
@@ -308,7 +308,9 @@
       ? '<p class="quote">' + esc(a.title_line1) + ' <em>' + esc(a.title_highlight) + '</em> ' + esc(a.title_line2) + '</p>'
       : '';
     return (
-      '<section class="sec about is-black" id="about"><div class="about-inner' + (photo ? ' has-photo' : '') + '">' +
+      '<section class="sec about is-black' + (first ? ' about-first has-fx' : '') + '" id="about">' +
+        (first ? '<div class="h2-bg" aria-hidden="true"></div>' + fx('alt-a') : '') +
+        '<div class="about-inner' + (photo ? ' has-photo' : '') + '">' +
         photo +
         '<div class="about-copy reveal">' +
           '<div class="sec-meta"><span>' + esc(a.kicker) + '</span>' + (a.name_en ? '<span>' + esc(a.name_en) + '</span>' : '') + '</div>' +
@@ -714,9 +716,8 @@
       }
       var reelItems = list((d.reels || {}).items).filter(function (it) { return it && it.video; });
       app.innerHTML =
-        hero(d.hero || {}, list((d.work || {}).projects)) +
+        about(d.about || {}, true) +
         marquee(d.marquee, (d.clients || {}).items) +
-        about(d.about || {}) +
         services(d.services || {}) +
         work(d.work || {}) +
         reels(d.reels || {}) +

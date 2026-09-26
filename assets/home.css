@@ -174,3 +174,7 @@
   .hm-fcols { grid-template-columns:1fr 1fr; }
 }
 @media (max-width:380px) { .hm-tiles { grid-template-columns:repeat(3, 1fr); } }
+.hm-lead { margin-bottom:26px; }
+.hm-jump { display:inline-flex; gap:4px; padding:5px; border-radius:999px; background:#12111b; border:1px solid var(--line-soft); }
+.hm-jump a { padding:10px 22px; border-radius:999px; font-size:14.5px; font-weight:600; color:var(--muted) !important; transition:background .2s, color .2s; }
+.hm-jump a:hover { background:rgba(164,151,255,.14); color:#fff !important; }
