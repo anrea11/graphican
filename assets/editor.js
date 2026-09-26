@@ -2980,6 +2980,15 @@
     var q; try { q = new URLSearchParams(location.search); } catch (e) { return; }
     var did = false;
     if (q.get('tpl')) did = useTemplate(q.get('tpl')) || did;
+    // ?size=1080x1350 — quick start from the home page (fills the empty frame or adds a new one)
+    var sz = /^(\d{2,4})x(\d{2,4})$/.exec(q.get('size') || '');
+    if (sz && !q.get('tpl')) {
+      var sw = Math.min(8000, Math.max(50, +sz[1])), sh = Math.min(8000, Math.max(50, +sz[2]));
+      var sn = (SIZES.filter(function (x) { return x[1] === sw && x[2] === sh; })[0] || [sw + '×' + sh])[0];
+      var fr = page && !childrenOf(page).length ? page : addFrame(sw, sh);
+      fr.set({ width: sw, height: sh, name: sn }); fr.setCoords(); setCurrent(fr); fitFrame(fr); selectFrame(fr); commit();
+      toast('«' + sn + '» ' + sw + '×' + sh + ' — текст, зураг нэмээд эхлээрэй'); did = true;
+    }
     var pal = (q.get('pal') || '').split('-').filter(function (x) { return /^[0-9a-fA-F]{6}$/.test(x); }).map(function (x) { return '#' + x.toLowerCase(); });
     if (pal.length) {
       prefs.palette = { name: (q.get('paln') || 'Брэндийн өнгө').slice(0, 60), colors: pal };

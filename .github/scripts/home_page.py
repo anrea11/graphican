@@ -8,7 +8,7 @@ import json, os
 import landings as L
 
 ROOT, SITE, e, ld = L.ROOT, L.SITE, L.e, L.ld
-V = "3"
+V = "4"
 
 ICON = {
     "pdf": '<path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5"/><path d="m9 17 1-3 5-5 2 2-5 5z" fill="currentColor"/>',
@@ -21,6 +21,7 @@ ICON = {
     "tpl": '<rect x="3.5" y="3.5" width="7" height="9" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="5" rx="1.5"/><rect x="13.5" y="11.5" width="7" height="9" rx="1.5"/><rect x="3.5" y="15.5" width="7" height="5" rx="1.5"/>',
     "font": '<path d="M4 20 9 5h2l5 15M6 15h8"/><circle cx="19" cy="7" r="2.5"/>',
     "color": '<circle cx="12" cy="12" r="8.5"/><path d="M12 3.5v17a8.5 8.5 0 0 0 0-17z" fill="currentColor"/>',
+    "img": '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 17-5-5-9 8"/>',
     "guide": '<path d="M4 5h7v14H4zM13 5h7v6h-7zM13 13h7v6h-7z"/>',
 }
 
@@ -108,7 +109,52 @@ def build():
     <p class="hm-kicker">ҮНЭГҮЙ · БҮРТГЭЛГҮЙ · МОНГОЛ ХЭЛЭЭР</p>
     <h1>Дизайн хэрэгслүүд</h1>
     <p class="hm-lead">PDF · зураг · дизайн — бүгд үнэгүй, бүртгэлгүй.</p>
-    <nav class="hm-jump"><a href="#pdf">PDF</a><a href="#image">Зураг</a><a href="#design">Дизайн</a></nav>
+    <nav class="hm-jump"><a href="#editor">Засварлагч</a><a href="#pdf">PDF</a><a href="#image">Зураг</a><a href="#design">Дизайн</a></nav>
+  </section>
+
+  <section class="hm-sec hm-editor" id="editor">
+    <div class="he-copy">
+      <p class="hm-kicker">ОНЛАЙН ЗАСВАРЛАГЧ · ҮНЭГҮЙ</p>
+      <h2>Пост, постерээ<br><em>өөрөө хий.</em></h2>
+      <p class="he-lead">Instagram пост, story, зар, мэндчилгээ, нэрийн хуудсыг програм суулгалгүй хөтөч дээрээ бүтээгээд PNG, PDF-ээр татаарай.</p>
+      <ul class="he-feats">
+        <li><span>{svg("tpl")}</span><b>20 бэлэн загвар</b><small>Цагаан сар, Наадам, зар</small></li>
+        <li><span>{svg("font")}</span><b>178 монгол фонт</b><small>Ө, Ү эвдрэхгүй</small></li>
+        <li><span>{svg("bg")}</span><b>AI хэрэгсэл</b><small>Дэвсгэр арилгах, тодруулах</small></li>
+        <li><span>{svg("img")}</span><b>Үнэгүй зураг</b><small>Сая сая фото, видео</small></li>
+      </ul>
+      <div class="he-btns"><a class="hm-btn" href="/editor/">Засварлагч нээх <i>→</i></a><a class="hm-btn ghost" href="/tools/templates/">Загвараас эхлэх</a></div>
+    </div>
+    <a class="he-mock" href="/editor/?tpl=tsagaansar" aria-label="Цагаан сарын загварыг засварлагчид нээх">
+      <span class="em">
+        <span class="em-top"><i class="em-logo"></i><b>Цагаан сарын мэнд</b><span class="grow"></span><em>65%</em><strong>Татах</strong></span>
+        <span class="em-body">
+          <span class="em-left"><span class="em-tabs"><i class="on">Давхарга</i><i>Нэмэх</i><i>Загвар</i></span>
+            <span class="em-ly on"><u>T</u>САР ШИНЭДЭЭ…</span><span class="em-ly"><u>T</u>Баярын мэнд</span><span class="em-ly"><u>◇</u>Чимэглэл</span><span class="em-ly"><u>▢</u>Хүрээ</span><span class="em-ly"><u>▢</u>Хүрээ</span></span>
+          <span class="em-canvas">
+            <span class="em-poster"><i class="b1"></i><i class="b2"></i><i class="dia"></i>
+              <span class="em-title">САР ШИНЭДЭЭ<br>САЙХАН ШИНЭЛЖ<br>БАЙНА УУ<span class="em-selbox"><i></i><i></i><i></i><i></i></span></span>
+              <i class="ln"></i><span class="em-sub">Цагаан сарын баярын мэнд хүргэе!</span><span class="em-org">БАЙГУУЛЛАГЫН НЭР</span></span>
+            <i class="em-cursor"></i>
+          </span>
+          <span class="em-right"><b>Текст</b><span class="em-field">Montserrat <small>Ө Ү ✓</small></span><span class="em-row2"><span class="em-field">Bold</span><span class="em-field">88</span></span>
+            <b>Өнгө</b><span class="em-sws"><i style="background:#f6e7c1"></i><i style="background:#e0a526"></i><i style="background:#13306b"></i><i style="background:#c8102e"></i><i style="background:#fff"></i></span>
+            <b>Эффект</b><span class="em-field">Сүүдэр</span><span class="em-field">Градиент</span></span>
+        </span>
+        <span class="em-dock"><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+      </span>
+      <span class="he-chip c1">✦ AI дэвсгэр арилгах</span>
+      <span class="he-chip c2">Аа Өө Үү · монгол фонт</span>
+      <span class="he-chip c3">PNG · JPG · PDF</span>
+    </a>
+    <div class="he-sizes"><span>Хэмжээгээ сонгоод эхэл:</span>
+      <a href="/editor/?size=1080x1350"><i style="aspect-ratio:4/5"></i>Instagram пост</a>
+      <a href="/editor/?size=1080x1920"><i style="aspect-ratio:9/16"></i>Story</a>
+      <a href="/editor/?size=1200x630"><i style="aspect-ratio:1.9"></i>Facebook пост</a>
+      <a href="/editor/?size=1280x720"><i style="aspect-ratio:16/9"></i>YouTube</a>
+      <a href="/editor/?size=1240x1754"><i style="aspect-ratio:1/1.41"></i>A4 постер</a>
+      <a href="/editor/?size=1050x600"><i style="aspect-ratio:1.75"></i>Нэрийн хуудас</a>
+    </div>
   </section>
 
   <section class="hm-sec" id="pdf">
@@ -136,11 +182,8 @@ def build():
   </section>
 
   <section class="hm-sec" id="design">
-    <header class="hm-head"><h2>Дизайн</h2><a class="hm-link" href="/editor/">Засварлагч нээх →</a></header>
+    <header class="hm-head"><h2>Дизайн</h2><a class="hm-link" href="/design/">Design guide →</a></header>
     <div class="hm-des">
-      <a class="hm-card big" href="/editor/">
-        <span class="hm-ed" aria-hidden="true"><span class="bar"><i></i><i></i><i></i></span><span class="cv"><span class="pst"><b>ХЯМДРАЛ</b><strong>−30%</strong><em></em></span></span><span class="dock"><i></i><i></i><i></i><i></i><i></i></span></span>
-        <span class="hm-row"><b>Дизайн засварлагч</b><i>→</i></span></a>
       <a class="hm-card" href="/tools/templates/">
         <span class="hm-tpls" aria-hidden="true"><i style="background:#13306b"><b style="color:#e0a526">САР ШИНЭ</b></i><i style="background:#f6f0e4"><b style="color:#1f4e9c">НААДАМ</b></i><i style="background:#0b0b14"><b style="color:#816dfb">−30%</b></i><i style="background:#facc15"><b style="color:#111">МЭДЭГДЭЛ</b></i></span>
         <span class="hm-row"><b>Монгол загвар</b><i>→</i></span></a>
