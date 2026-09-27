@@ -120,7 +120,7 @@ def build():
       <ul class="he-feats">
         <li><span>{svg("tpl")}</span><b>60+ бэлэн загвар</b><small>Цагаан сар, Наадам, зар</small></li>
         <li><span>{svg("font")}</span><b>178 монгол фонт</b><small>Ө, Ү эвдрэхгүй</small></li>
-        <li><span>{svg("bg")}</span><b>AI хэрэгсэл</b><small>Дэвсгэр арилгах, тодруулах</small></li>
+        <li><span>{svg("bg")}</span><b>AI хэрэгсэл</b><small>Нүүр засах, дэвсгэр арилгах</small></li>
         <li><span>{svg("img")}</span><b>Үнэгүй зураг</b><small>Сая сая фото, видео</small></li>
       </ul>
       <div class="he-btns"><a class="hm-btn" href="/editor/">Засварлагч нээх <i>→</i></a><a class="hm-btn ghost" href="/tools/templates/">Загвараас эхлэх</a><a class="hm-btn ghost" href="/slides/">▶ Илтгэл (PPT) бэлдэх</a></div>

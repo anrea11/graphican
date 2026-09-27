@@ -26,3 +26,6 @@ Loaded from jsDelivr at runtime:
 Fabric.js 5.3.0 — MIT License — http://fabricjs.com
 
 PptxGenJS 4.0.1 (pptxgen.bundle.js, includes JSZip) — MIT License — https://github.com/gitbrent/PptxGenJS
+
+MediaPipe Face Landmarker model (face/face_landmarker.task, float16 v1, sha256 64184e229b263107bc2b804c6625db1341ff2bb731874b0bcc2fe6544e0bc9ff) — Google — Apache License 2.0 — https://ai.google.dev/edge/mediapipe/solutions/vision/face_landmarker
+  Runtime: @mediapipe/tasks-vision 1.0.1 (loaded from jsDelivr) — Apache License 2.0

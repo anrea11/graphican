@@ -43,6 +43,7 @@
 
   // line icons (24×24)
   var P = {
+    face: '<circle cx="12" cy="12" r="9"/><path d="M8.5 14.5a4.5 4.5 0 0 0 7 0M9 9.5h.01M15 9.5h.01"/><path d="m18 3 .6 1.4L20 5l-1.4.6L18 7l-.6-1.4L16 5l1.4-.6z"/>',
     undo: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
     redo: '<path d="m15 14 5-5-5-5"/><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13"/>',
     move: '<path d="m5 3 14 7-6 2-2 6L5 3Z"/>',
@@ -1896,6 +1897,7 @@
       h += '<div class="ps"><div class="ps-h" data-col="img">Зураг</div>' +
         '<div class="r2"><button type="button" class="btn" data-a="crop">' + icon('crop') + 'Тайрах</button><button type="button" class="btn" data-a="replace">' + icon('image') + 'Солих</button></div>' +
         '<button type="button" class="btn acc full" style="margin-top:6px" data-a="rmbg">' + icon('wand') + 'Дэвсгэр арилгах (AI)</button>' +
+        '<button type="button" class="btn full" style="margin-top:6px" data-b="retouch">' + icon('face') + 'Нүүр засах — арьс, толбо, нүд, шүд</button>' +
         '<button type="button" class="btn full" style="margin-top:6px" data-b="cut">' + icon('eraser') + 'Гараар засах — баллуур, саваа, лассо</button>' +
         '<div class="r2" style="margin-top:6px"><button type="button" class="btn" data-a="asbg">' + icon('bg') + 'Frame дүүргэх</button><button type="button" class="btn" data-b="upx">✦ AI сайжруулах</button></div>' +
         '<div class="ps-l">Маск хэлбэр</div>' + sel('mask', MASK_SHAPES, o.gMask || 'none') +
@@ -2146,7 +2148,7 @@
         '<button type="button" class="tool" data-bset title="Нарийвчилсан тохиргоо">' + icon('sliders') + '</button>' +
         '<span class="sep"></span>' + btn('draw-done', 'check', 'Дуусгах', 'Esc', ' ok');
     } else if (k === 'image') {
-      h = btn('crop', 'crop', 'Тайрах') + btn('tab-adjust', 'sliders', 'Засвар', 'Гэрэл, өнгө, шүүлтүүр') + btn('tab-fx', 'wand', 'Эффект', 'Сүүдэр, гэрэлтэлт, уусгалт') + '<span class="sep"></span>' + btn('rmbg', 'wand', 'Дэвсгэр арилгах') + btn('cut', 'eraser', 'Гараар засах', 'Баллуур, сэргээх, шидэт саваа, лассо') + btn('upx', 'wand', '✦ Сайжруулах', 'AI томруулж чанарыг сайжруулах') + '<span class="sep"></span>' + btn('asbg', 'bg', '', 'Frame-ийг дүүргэх') +
+      h = btn('crop', 'crop', 'Тайрах') + btn('tab-adjust', 'sliders', 'Засвар', 'Гэрэл, өнгө, шүүлтүүр') + btn('tab-fx', 'wand', 'Эффект', 'Сүүдэр, гэрэлтэлт, уусгалт') + '<span class="sep"></span>' + btn('rmbg', 'wand', 'Дэвсгэр арилгах') + btn('retouch', 'face', 'Нүүр засах', 'Арьс зөөлрүүлэх, толбо арилгах, нүд, шүд, нүүрний хэлбэр') + btn('cut', 'eraser', 'Гараар засах', 'Баллуур, сэргээх, шидэт саваа, лассо') + btn('upx', 'wand', '✦ Сайжруулах', 'AI томруулж чанарыг сайжруулах') + '<span class="sep"></span>' + btn('asbg', 'bg', '', 'Frame-ийг дүүргэх') +
         btn('rot90', 'rotate', '', '90° эргүүлэх') + btn('flipX', 'flipH', '', 'Хэвтээ толин тусгал') + btn('flipY', 'flipV', '', 'Босоо толин тусгал');
     } else if (k === 'video') {
       h = btn('vplay', o.gPaused ? 'play' : 'pause', o.gPaused ? 'Тоглуулах' : 'Зогсоох', 'Canvas дээр тоглуулах / зогсоох') + btn('vreplace', 'video', 'Солих', 'Өөр видео сонгох') + '<span class="sep"></span>' +
@@ -2178,6 +2180,7 @@
     if (c === 'mask') { makeMask(); return; }
     if (/^b-/.test(c)) { booleanOp(c.slice(2)); return; }
     if (c === 'cut' && o) { openCutout(o); return; }
+    if (c === 'retouch' && o) { openRetouch(o); return; }
     if (c === 'upx' && o) { openUpscale(o); return; }
     if (c === 'vplay' && o) { vidToggle(o); return; }
     if (c === 'vreplace' && o) { vidReplace(o); return; }
@@ -3686,6 +3689,7 @@
     if (a === 'bool') { booleanOp(parts[1]); return; }
     if (a === 'tovec' && o) { toVector(o); return; }
     if (a === 'cut' && o) { openCutout(o); return; }
+    if (a === 'retouch' && o) { openRetouch(o); return; }
     if (a === 'upx' && o) { openUpscale(o); return; }
     if (a === 'unmask') { releaseMask(o); return; }
     if (a === 'textmask' && o) { textMask(o); return; }
@@ -4087,6 +4091,29 @@
     }
   }
 
+
+  // ---------- face retouch (assets/retouch.js, loaded on first use) ----------
+  var retOrig = {}; // result dataURL → { src: pre-retouch original, p: slider values, spots: healing brush spots } — re-opening keeps them adjustable
+  function openRetouch(img) {
+    if (!img || !img.isType || !img.isType('image')) return;
+    var srcNow = img.getSrc(), info = retOrig[srcNow];
+    (window.GRetouch ? Promise.resolve() : loadScript('/assets/retouch.js?v=1')).then(function () {
+      var el = new Image(); el.crossOrigin = 'anonymous';
+      el.onload = function () {
+        window.GRetouch.open(img, {
+          el: el, params: info && info.p, spots: info && info.spots, toast: toast,
+          onApply: function (url, p, spots) {
+            retOrig[url] = { src: info ? info.src : srcNow, p: p, spots: spots };
+            if (cutOrig[srcNow]) cutOrig[url] = cutOrig[srcNow];
+            var keep = { width: img.width, height: img.height, cropX: img.cropX, cropY: img.cropY };
+            img.setSrc(url, function () { img.set(keep); img.set('dirty', true); img.applyFilters(); canvas.requestRenderAll(); commit(); refreshUI(); toast('Нүүр засвар хадгалагдлаа'); });
+          }
+        });
+      };
+      el.onerror = function () { toast('Зургийг нээж чадсангүй'); };
+      el.src = info ? info.src : srcNow;
+    }).catch(function () { toast('Нүүр засах хэрэгслийг ачаалж чадсангүй. Интернэтээ шалгана уу.'); });
+  }
 
   // ================= AI upscale inside the editor (Real-ESRGAN, in the browser) =================
   var upP = null;
