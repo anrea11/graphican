@@ -241,6 +241,37 @@
   function canvasBg() { return getComputedStyle(document.documentElement).getPropertyValue('--canvas').trim() || '#f5f5f5'; }
   canvas.backgroundColor = canvasBg();
 
+  // ---- picking like Photoshop / Figma ----
+  // • dragging inside the selected layer moves THAT layer, even where another layer covers it
+  // • a plain click (no drag) there still selects the top layer
+  // • Ctrl/⌘ + click selects the next layer underneath (click again to go deeper)
+  var baseFind = canvas.findTarget, pick = null;
+  function isDown(e) { return e && /down|start/.test(e.type || ''); }
+  function hitsObj(c, o, pt) { return o && o.visible !== false && o.evented !== false && !o.isFrame && c._searchPossibleTargets([o], pt) === o; }
+  canvas.findTarget = function (e, skipGroup) {
+    var t = baseFind.call(this, e, skipGroup), a = this._activeObject;
+    if (!e || skipGroup || this.isDrawingMode || this.skipTargetFind || typeof tool === 'undefined' || tool !== 'move') return t;
+    if (isDown(e)) pick = null;
+    var pt = this.getPointer(e, true);
+    if ((e.ctrlKey || e.metaKey) && isDown(e) && !e.shiftKey) {
+      // everything under the pointer, top → bottom; take the one below the current selection
+      var stack = this._objects.slice().reverse().filter(function (o) { return !o.locked && hitsObj(canvas, o, pt); });
+      if (stack.length) { var i = stack.indexOf(a); return stack[(i + 1) % stack.length]; }
+      return t;
+    }
+    if (!a || a.isFrame || a.isEditing || a.type === 'activeSelection' || !t || t === a || e.shiftKey) return t;
+    if (!hitsObj(this, a, pt)) return t;
+    if (isDown(e)) pick = { top: t, a: a, x: e.clientX, y: e.clientY };
+    return a;
+  };
+  canvas.on('mouse:up', function (o) {
+    var p = pick; pick = null;
+    if (!p || !o.e || canvas.getActiveObject() !== p.a) return;
+    if (Math.hypot((o.e.clientX || 0) - p.x, (o.e.clientY || 0) - p.y) > 4 || !p.top.canvas) return;
+    canvas.setActiveObject(p.top); canvas.requestRenderAll();
+    if (typeof refreshUI === 'function') refreshUI();
+  });
+
   // ---------- frames ----------
 
   function frames() { return canvas.getObjects().filter(function (o) { return o.isFrame; }); }
@@ -2382,7 +2413,7 @@
     closeMenus();
     var m = document.createElement('div'); m.className = 'menu r help'; m.id = 'ed-help-menu';
     m.innerHTML = '<div class="mt">Товчлолууд</div>' + [
-      ['V · H', 'Сонгох · гар'], ['F · R · O · L', 'Frame · тэгш өнцөгт · эллипс · шугам'], ['T · P · B', 'Текст · pen (вектор) · бийр'], ['Давхар дарах (зураас)', 'Цэгүүдийг засах'], ['Ctrl Alt M', 'Маск болгох'], ['Shift + дарах', 'Олноор сонгох'],
+      ['V · H', 'Сонгох · гар'], ['F · R · O · L', 'Frame · тэгш өнцөгт · эллипс · шугам'], ['T · P · B', 'Текст · pen (вектор) · бийр'], ['Давхар дарах (зураас)', 'Цэгүүдийг засах'], ['Ctrl Alt M', 'Маск болгох'], ['Shift + дарах', 'Олноор сонгох'], ['Ctrl / ⌘ + дарах', 'Доорх давхаргыг сонгох (дахин дарвал гүнзгийрнэ)'], ['Сонгосноо чирэх', 'Дээр нь өөр зүйл байсан ч сонгосон давхарга зөөгдөнө'],
       ['Ctrl Z · Ctrl Shift Z', 'Буцаах · дахин хийх'], ['Ctrl C · X · V · D', 'Хуулах · тайрах · буулгах · хувилах'], ['Ctrl S', 'Хадгалах'], ['Delete', 'Устгах'],
       ['Ctrl G · Ctrl Shift G', 'Бүлэглэх · задлах'], ['Ctrl ] · [', 'Урагш · хойш'], ['Сумнууд (+Shift)', '1px (10px) зөөх'],
       ['Enter · давхар дарах', 'Текст засах'], ['Space + чирэх · дугуй', 'Гүйлгэх'], ['Ctrl + дугуй', 'Томруулах'],
