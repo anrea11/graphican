@@ -65,14 +65,14 @@
     var ctx = c.getContext('2d');
     if (HAS_FILTER) {
       var t = mkCanvas(c.width, c.height); t.getContext('2d').drawImage(c, 0, 0);
-      ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, c.width, c.height);
+      ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1; ctx.clearRect(0, 0, c.width, c.height);
       ctx.filter = 'blur(' + r + 'px)'; ctx.drawImage(t, 0, 0); ctx.restore();
     } else {
       // big radii: blur a downscaled copy (fast), then scale back up
       var k = r > 24 ? Math.min(8, r / 12) : 1, sw = Math.max(1, Math.round(c.width / k)), sh = Math.max(1, Math.round(c.height / k));
       var s = mkCanvas(sw, sh), sx = s.getContext('2d'); sx.drawImage(c, 0, 0, sw, sh);
       var id = sx.getImageData(0, 0, sw, sh); boxBlur(id, sw, sh, r / k); sx.putImageData(id, 0, 0);
-      ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, c.width, c.height);
+      ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalCompositeOperation = 'source-over'; ctx.globalAlpha = 1; ctx.clearRect(0, 0, c.width, c.height);
       ctx.imageSmoothingQuality = 'high'; ctx.drawImage(s, 0, 0, c.width, c.height); ctx.restore();
     }
   }
@@ -81,8 +81,10 @@
   function hash(str) { var h = 2166136261; for (var i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); } return h >>> 0; }
 
   // ---------- pixel effects on the cache canvas ----------
+  // effect sizes are in design pixels, so a scaled-down photo gets the same shadow as a shape
+  function objScale(o) { try { var s = o.getObjectScaling(); return Math.max(1e-4, Math.sqrt(Math.abs(s.scaleX * s.scaleY))); } catch (e) { return 1; } }
   function applyPixelFx(o, c) {
-    var z = o.zoomX || 1, ctx = c.getContext('2d'), list = fxOn(o);
+    var z = (o.zoomX || 1) / objScale(o), ctx = c.getContext('2d'), list = fxOn(o);
     list.forEach(function (e) {
       if (e.t === 'inner') innerShadow(c, (e.x || 0) * z, (e.y || 0) * z, (e.b || 0) * z, rgba(e.c || 'rgba(0,0,0,0.35)'));
       if (e.t === 'glass') {
@@ -109,7 +111,7 @@
   }
   function tinted(src, color) {
     var m = mkCanvas(src.width, src.height), mx = m.getContext('2d');
-    mx.drawImage(src, 0, 0); mx.globalCompositeOperation = 'source-in'; mx.fillStyle = color; mx.fillRect(0, 0, m.width, m.height);
+    mx.drawImage(src, 0, 0); mx.globalCompositeOperation = 'source-in'; mx.fillStyle = color; mx.fillRect(0, 0, m.width, m.height); mx.globalCompositeOperation = 'source-over';
     return m;
   }
   function drawBehind(ctx, snap, e, z) {
@@ -200,7 +202,7 @@
     var orig = proto._getCacheCanvasDimensions;
     proto._getCacheCanvasDimensions = function () {
       var d = orig.call(this), p = fxPad(this);
-      if (p) { d.width += p * 2 * d.zoomX; d.height += p * 2 * d.zoomY; }
+      if (p) { p /= objScale(this); d.width += p * 2 * d.zoomX; d.height += p * 2 * d.zoomY; }
       return d;
     };
   }
@@ -462,7 +464,7 @@
     // sync the drop shadow entry → Fabric's native shadow and mark caches dirty
     sync: function (o) {
       var ds = fxOf(o, 'drop');
-      o.shadow = ds ? new F.Shadow({ color: ds.c || 'rgba(0,0,0,0.25)', blur: ds.b || 0, offsetX: ds.x || 0, offsetY: ds.y || 0 }) : null;
+      o.shadow = ds ? new F.Shadow({ color: ds.c || 'rgba(0,0,0,0.25)', blur: ds.b || 0, offsetX: ds.x || 0, offsetY: ds.y || 0, nonScaling: true }) : null;
       o.set('dirty', true);
       if (o.group) o.group.set('dirty', true);
     }
