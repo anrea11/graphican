@@ -56,6 +56,11 @@
     star: '<path d="m12 3 2.6 5.8 6.4.6-4.8 4.3 1.4 6.3L12 16.8 6.4 20l1.4-6.3L3 9.4l6.4-.6Z"/>',
     text: '<path d="M5 6V4h14v2M12 4v16M9 20h6"/>',
     pen: '<path d="M4 20l4-1L19 8a2.1 2.1 0 0 0-3-3L5 16l-1 4Z"/><path d="m14 7 3 3"/>',
+    sliders: '<path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/>',
+    pencilI: '<path d="M4 20l1.2-4.2L16.5 4.5a1.8 1.8 0 0 1 2.6 0l.4.4a1.8 1.8 0 0 1 0 2.6L8.2 18.8Z"/><path d="M5.2 15.8l3 3M14.5 6.5l3 3"/>',
+    calli: '<path d="M14 3l7 7-9 9-5 1 1-5z"/><path d="M8 15l-5 6M12 7l5 5"/>',
+    crayon: '<path d="M7 21l-3-3L15 7l3 3z"/><path d="m15 7 2.5-4.5L21 6l-3 4"/><path d="M6 16l2 2"/>',
+    eraseAll: '<path d="m7 21-4-4 11-11 7 7-8 8H7Z"/><path d="m15 17 5 5M20 17l-5 5"/>',
     marker: '<path d="m9 15-4 4h5l2-2M9 15l7-7 3 3-7 7M9 15l3 3"/>',
     spray: '<rect x="7" y="9" width="8" height="12" rx="2"/><path d="M9 9V6h4v3M16 4h.01M19 3h.01M19 6h.01M17 7h.01"/>',
     eraser: '<path d="m7 21-4-4 11-11 7 7-8 8H7Z"/><path d="M21 21H11M9 11l7 7"/>',
@@ -165,6 +170,7 @@
     // glyph widths measured with the fallback font are cached per family — drop them once the real font is in
     if (fabric.util.clearFabricFontCache) fabric.util.clearFabricFontCache(obj.fontFamily);
     obj.dirty = true;
+    if (obj.gCurve) { setCurve(obj, obj.gCurve); canvas.requestRenderAll(); return; }
     obj.initDimensions(); obj.setCoords(); canvas.requestRenderAll();
   }
 
@@ -316,8 +322,27 @@
     var r = stage.getBoundingClientRect();
     canvas.setWidth(r.width); canvas.setHeight(r.height); canvas.calcOffset();
   }
+  // drag the inner edge of the left / right panel to resize it (remembered)
+  (function panelResizers() {
+    var ps = {}, root = document.documentElement;
+    try { ps = JSON.parse(localStorage.getItem('gc-ed-panels') || '{}') || {}; } catch (e) { ps = {}; }
+    if (ps.lw) root.style.setProperty('--lw', ps.lw + 'px'); if (ps.rw) root.style.setProperty('--rw', ps.rw + 'px');
+    [['lp', 'lw', 1], ['rp', 'rw', -1]].forEach(function (c) {
+      var el = document.getElementById(c[0]); if (!el) return;
+      var hd = document.createElement('div'); hd.className = 'rsz'; hd.title = 'Чирж өргөнийг өөрчилнө · давхар дарж анхны хэмжээ'; el.appendChild(hd);
+      var keep = function (fn) { var w0 = canvas.getWidth(); fn(); resizeCanvas(); var v = canvas.viewportTransform.slice(); v[4] += (canvas.getWidth() - w0) / 2; canvas.setViewportTransform(v); canvas.requestRenderAll(); };
+      hd.addEventListener('pointerdown', function (e) {
+        e.preventDefault(); hd.setPointerCapture(e.pointerId); hd.classList.add('on'); document.body.classList.add('rsz-drag');
+        var x0 = e.clientX, w0 = el.getBoundingClientRect().width;
+        function mv(ev) { var w = clamp(Math.round(w0 + (ev.clientX - x0) * c[2]), 200, Math.min(560, Math.round(window.innerWidth * 0.4))); keep(function () { root.style.setProperty('--' + c[1], w + 'px'); }); ps[c[1]] = w; }
+        function up() { hd.removeEventListener('pointermove', mv); hd.removeEventListener('pointerup', up); hd.classList.remove('on'); document.body.classList.remove('rsz-drag'); try { localStorage.setItem('gc-ed-panels', JSON.stringify(ps)); } catch (x) {} }
+        hd.addEventListener('pointermove', mv); hd.addEventListener('pointerup', up);
+      });
+      hd.addEventListener('dblclick', function () { keep(function () { root.style.removeProperty('--' + c[1]); }); delete ps[c[1]]; try { localStorage.setItem('gc-ed-panels', JSON.stringify(ps)); } catch (x) {} });
+    });
+  })();
   function fitRect(l, t, w, h) {
-    var cw = canvas.getWidth(), ch = canvas.getHeight(), pad = cw < 700 ? 24 : 64, dock = PPT ? (cw < 700 ? 190 : 230) : 70;
+    var cw = canvas.getWidth(), ch = canvas.getHeight(), pad = cw < 700 ? 24 : 64, dock = PPT ? (cw < 700 ? 190 : 236) : (cw < 700 ? 70 : 84);
     var z = clamp(Math.min((cw - pad * 2) / w, (ch - pad * 2 - dock) / h), 0.02, 2);
     canvas.setViewportTransform([z, 0, 0, z, (cw - w * z) / 2 - l * z, (ch - dock - h * z) / 2 - t * z + 10]);
     zoomLabel();
@@ -486,9 +511,10 @@
   var SHAPE_KEYS = { rect: 'R', ellipse: 'O', line: 'L' };
 
   function renderDock() {
-    var t = function (id, ic, title, extra) { return '<button type="button" class="tool' + (tool === id ? ' on' : '') + '" data-tool="' + id + '" title="' + title + '">' + icon(ic) + (extra || '') + '</button>'; };
+    var TL = { move: 'Сонгох', hand: 'Гар', frame: 'Frame', shape: 'Хэлбэр', text: 'Текст', vector: 'Pen', draw: 'Бийр' };
+    var t = function (id, ic, title, extra) { return '<button type="button" class="tool' + (tool === id ? ' on' : '') + '" data-tool="' + id + '" title="' + title + '">' + icon(ic) + '<span class="tl">' + (TL[id] || '') + '</span>' + (extra || '') + '</button>'; };
     $('#dock').innerHTML =
-      t('move', 'move', 'Сонгох, зөөх (V)') + '<button type="button" class="tool' + (multiSel ? ' on' : '') + '" data-act="multi" title="Олноор сонгох — дарсан зүйл бүрийг сонголтод нэмнэ (Shift + дарахтай адил)">' + icon('multiI') + '</button>' +
+      t('move', 'move', 'Сонгох, зөөх (V)') + '<button type="button" class="tool' + (multiSel ? ' on' : '') + '" data-act="multi" title="Олноор сонгох — дарсан зүйл бүрийг сонголтод нэмнэ (Shift + дарахтай адил)">' + icon('multiI') + '<span class="tl">Олноор</span></button>' +
       t('hand', 'hand', 'Гар — гүйлгэх (H, эсвэл Space + чирэх)') +
       '<span class="sep"></span>' +
       t('frame', 'frame', 'Frame — шинэ хуудас (F)') +
@@ -497,7 +523,7 @@
           return '<button type="button" data-shape="' + k + '">' + icon(k) + '<span style="flex:1">' + SHAPE_NAMES[k] + '</span><i>' + (SHAPE_KEYS[k] || '') + '</i></button>';
         }).join('') + '</div></div>' +
       t('text', 'text', 'Текст (T)') + t('vector', 'penTool', 'Pen — вектор (P): дарах = цэг, чирэх = муруй, эхний цэгийг дарж хаана') + t('draw', 'pen', 'Бийр, харандаа (B)') +
-      '<span class="sep"></span><button type="button" class="tool" data-act="upload" title="Зураг оруулах">' + icon('image') + '</button>';
+      '<span class="sep"></span><button type="button" class="tool" data-act="upload" title="Зураг оруулах">' + icon('image') + '<span class="tl">Зураг</span></button>';
   }
   function setTool(id) {
     if (crop) endCrop(false);
@@ -666,6 +692,7 @@
         setCurrent(frames().filter(function (f) { return f.id === d.current; })[0] || frames()[0]);
         if (d.name) $('#ed-name').value = d.name;
         userObjects().forEach(function (o) {
+          if (o.gCurve && o.isType('textbox')) setCurve(o, o.gCurve);
           if (o.locked) lockObj(o, true);
           else if (o.lockMovementX || o.lockMovementY) o.set({ lockMovementX: false, lockMovementY: false });   // left over from point editing
         });
@@ -813,8 +840,8 @@
   // replace a photo but keep its place, size (cover-fit), mask, filters and effects
   var replaceTarget = null;
   $('#ed-replace').addEventListener('change', function () {
-    var f = this.files[0], img = replaceTarget; replaceTarget = null;
-    if (!f || !img || !img.canvas) return;
+    var f = this.files[0], img = replaceTarget, grp = img && img.gInGroup; replaceTarget = null; if (img) delete img.gInGroup;
+    if (!f || !img || (!img.canvas && !grp)) return;
     readImage(f).then(function (r) {
       var bw = img.getScaledWidth(), bh = img.getScaledHeight(), sc = Math.max(bw / r.w, bh / r.h);
       var cw = bw / sc, ch = bh / sc, ang = img.angle || 0, c = img.getCenterPoint();
@@ -823,7 +850,8 @@
         img.setPositionByOrigin(c, 'center', 'center');
         refitMask(img); img.set('dirty', true); img.applyFilters(); img.setCoords();
         delete cutOrig[img.getSrc()];
-        canvas.setActiveObject(img); canvas.requestRenderAll(); commit(); refreshUI(); toast('Зураг солигдлоо');
+        if (grp) { grp.set('dirty', true); canvas.setActiveObject(grp); } else canvas.setActiveObject(img);
+        canvas.requestRenderAll(); commit(); refreshUI(); toast('Зураг солигдлоо');
       });
     }).catch(function () { toast('Зургийг уншиж чадсангүй'); });
   });
@@ -1289,7 +1317,22 @@
 
   // ---------- left panel ----------
 
-  var lpTab = 'layers', dragLy = null;
+  var lpTab = 'layers', dragLy = null, lyAnchor = null;
+  // Shift + click = range, Ctrl/⌘ + click = add / remove (like Figma / Photoshop)
+  function layerMulti(o, range) {
+    var cur = []; eachSel(function (x) { if (!x.isFrame) cur.push(x); });
+    var all = canvas.getObjects(), list;
+    if (range && lyAnchor && !lyAnchor.isFrame && lyAnchor.canvas) {
+      var rows = Array.prototype.map.call(document.querySelectorAll('#lp-body [data-ly]'), function (r) { return all[+r.dataset.ly]; });
+      var i0 = rows.indexOf(lyAnchor), i1 = rows.indexOf(o);
+      list = i0 < 0 || i1 < 0 ? [o] : rows.slice(Math.min(i0, i1), Math.max(i0, i1) + 1).filter(function (x) { return x && !x.isFrame; });
+    } else { list = cur.indexOf(o) >= 0 ? cur.filter(function (x) { return x !== o; }) : cur.concat([o]); lyAnchor = o; }
+    list = list.filter(function (x) { return x.visible !== false && !x.locked; });
+    canvas.discardActiveObject();
+    if (list.length === 1) canvas.setActiveObject(list[0]);
+    else if (list.length > 1) canvas.setActiveObject(new fabric.ActiveSelection(list, { canvas: canvas }));
+    canvas.requestRenderAll(); refreshUI();
+  }
   $('.lp-tabs').addEventListener('click', function (e) {
     var b = e.target.closest('[data-tab]'); if (!b) return;
     lpTab = b.dataset.tab;
@@ -1407,6 +1450,9 @@
           '<span class="la"><button type="button" class="ib' + (o.locked ? ' on' : '') + '" data-ly-lock="' + idx + '" title="Түгжих">' + icon(o.locked ? 'lock' : 'unlock') + '</button>' +
           '<button type="button" class="ib' + (o.visible === false ? ' on' : '') + '" data-ly-vis="' + idx + '" title="Нуух / харуулах">' + icon(o.visible === false ? 'eyeOff' : 'eye') + '</button></span></div>';
       };
+      var nsel = sel.filter(function (x) { return !x.isFrame; }).length;
+      h += nsel > 1 ? '<div class="ly-multi"><button type="button" class="btn acc" data-a="ly-group">' + icon('group') + 'Бүлэглэх</button><button type="button" class="btn" data-a="ly-mask">' + icon('maskI') + 'Маск</button><button type="button" class="btn" data-a="ly-del">' + icon('trash') + '</button></div>'
+        : '<p class="ly-hint">Shift + дарах — олноор, Ctrl + дарах — нэмэх / хасах</p>';
       frames().slice().reverse().forEach(function (f) {
         h += row(f, 0);
         childrenOf(f).reverse().forEach(function (o) { h += row(o, 1); });
@@ -1463,11 +1509,16 @@
     if (d.ly) {
       var o = all[+d.ly]; if (!o || o.visible === false) return;
       if (e.detail === 2 && kindOf(o) !== 'text') { renameLayer(t, o); return; }
+      if ((e.shiftKey || e.ctrlKey || e.metaKey) && !o.isFrame) { layerMulti(o, e.shiftKey); return; }
+      lyAnchor = o;
       if (o.isFrame) selectFrame(o); else { canvas.setActiveObject(o); canvas.requestRenderAll(); }
       refreshUI(); return;
     }
     if (d.a === 'add-frame') { if (PPT) { pptAdd(); return; } var f = addFrame(DEF_W, DEF_H); fitAll(); selectFrame(f); commit(); refreshUI(); }
     if (d.a === 'upload') $('#ed-file').click();
+    if (d.a === 'ly-group') { groupSel(); return; }
+    if (d.a === 'ly-mask') { makeMask(); return; }
+    if (d.a === 'ly-del') { removeSel(); refreshUI(); return; }
     if (d.text) addText(d.text);
     if (d.addShape) addShape(d.addShape);
     if (d.recent) addImageUrl(recent[+d.recent]);
@@ -1543,7 +1594,7 @@
   }
   function sl(label, p, min, max, v) { return '<div class="sl"><span>' + label + '</span><input type="range" data-p="' + p + '" min="' + min + '" max="' + max + '" value="' + v + '"><b>' + v + '</b></div>'; }
   function exportSec(kind, o) {
-    return '<div class="ps"><div class="ps-h">Export</div><div class="r2">' +
+    return '<div class="ps"><div class="ps-h" data-col="export">Export</div><div class="r2">' +
       sel('expScale', [[1, '1×'], [2, '2×'], [3, '3×']], expScale) + sel('expFmt', [['png', 'PNG'], ['jpg', 'JPG'], ['pdf', 'PDF']], expFmt) + '</div>' +
       '<button type="button" class="btn full" style="margin-top:6px" data-a="export-' + kind + '">' + (kind === 'frame' ? 'Export «' + esc((o.name || 'Frame').slice(0, 20)) + '»' : 'Сонгосныг export хийх') + '</button></div>';
   }
@@ -1572,38 +1623,47 @@
         '<div class="ps-l">Байрлал</div><div class="r2">' + nf('X', 'fx', Math.round(f.left)) + nf('Y', 'fy', Math.round(f.top)) + '</div></div>' +
         '<div class="ps"><div class="ps-h">Fill</div>' + (f.gTransparent ? '' : colorRow('ffill', frameFill(f))) +
         '<label class="chk" style="margin-top:8px"><input type="checkbox" data-p="ftr"' + (f.gTransparent ? ' checked' : '') + '> Тунгалаг дэвсгэр (PNG)</label></div>' +
-        exportSec('frame', f);
-      el.innerHTML = h; return;
+        (PPT ? slideUI(f) : '') + exportSec('frame', f);
+      el.innerHTML = h; collapseApply(el); return;
     }
     var g = geom(o), title = k === 'multi' ? o.getObjects().length + ' зүйл' : objName(o);
-    h += '<div class="ps"><div class="ps-h">' + esc(title.slice(0, 26)) + '<span class="acts">' +
+    // header: name + quick actions, then tabs (Дизайн · Засвар · Эффект · Анимэйшн)
+    h += '<div class="ps ps-top"><div class="ps-h">' + esc(title.slice(0, 26)) + '<span class="acts">' +
       '<button type="button" class="ib' + (o.locked ? ' on' : '') + '" data-a="lock" title="Түгжих">' + icon(o.locked ? 'lock' : 'unlock') + '</button>' +
       '<button type="button" class="ib" data-a="dup" title="Хувилах (Ctrl+D)">' + icon('copy') + '</button>' +
-      '<button type="button" class="ib" data-a="del" title="Устгах (Delete)">' + icon('trash') + '</button></span></div>' +
-      '<div class="ps-l" style="margin-top:0">' + (k === 'multi' ? 'Хооронд нь зэрэгцүүлэх' : 'Frame дотор зэрэгцүүлэх') + '</div>' + alignBtns() +
+      '<button type="button" class="ib" data-a="del" title="Устгах (Delete)">' + icon('trash') + '</button></span></div></div>';
+    var tabs = [['design', 'Дизайн']];
+    if (k === 'image') tabs.push(['adjust', 'Засвар']);
+    if (k !== 'multi') tabs.push(['fx', 'Эффект']);
+    if (PPT) tabs.push(['anim', 'Анимэйшн']);
+    var tab = tabs.some(function (t) { return t[0] === rpTab; }) ? rpTab : 'design';
+    if (tabs.length > 1) h += '<div class="rp-tabs" role="tablist">' + tabs.map(function (t) { return '<button type="button" role="tab" data-rtab="' + t[0] + '" class="' + (t[0] === tab ? 'on' : '') + '">' + t[1] + '</button>'; }).join('') + '</div>';
+    if (tab === 'adjust') { el.innerHTML = h + adjustUI(o); collapseApply(el); return; }
+    if (tab === 'fx') { el.innerHTML = h + (k === 'text' ? textFxUI(o) : '') + fxUI(o) + softUI(o); collapseApply(el); return; }
+    if (tab === 'anim') { el.innerHTML = h + animUI(o); collapseApply(el); return; }
+    h += '<div class="ps"><div class="ps-h" data-col="align">' + (k === 'multi' ? 'Зэрэгцүүлэх' : 'Frame дотор зэрэгцүүлэх') + '</div>' + alignBtns() +
       (k === 'multi' ? '<div class="rowf" style="margin-top:6px"><button type="button" class="btn" style="flex:1" data-a="dist" data-v="H">' + icon('dH') + 'Хэвтээ тараах</button><button type="button" class="btn" style="flex:1" data-a="dist" data-v="V">' + icon('dV') + 'Босоо</button></div>' +
-        '<div class="r2" style="margin-top:6px"><button type="button" class="btn acc" data-a="group">' + icon('group') + 'Бүлэглэх</button><button type="button" class="btn" data-b="mask" title="Хамгийн доод давхарга нь маск болно (Ctrl+Alt+M)">' + icon('maskI') + 'Маск болгох</button></div>' +
+        '<div class="r2" style="margin-top:6px"><button type="button" class="btn acc" data-a="group">' + icon('group') + 'Бүлэглэх</button><button type="button" class="btn" data-b="mask" title="Текст / хэлбэр нь маск болж, зураг дотор нь харагдана (Ctrl+Alt+M)">' + icon('maskI') + 'Маск болгох</button></div>' +
         '<div class="ps-l">Хэлбэрүүдийг нэгтгэх</div><div class="seg bool-seg">' + [['union', 'bUnion', 'Нэгтгэх'], ['subtract', 'bSub', 'Хасах'], ['intersect', 'bInt', 'Огтлол'], ['exclude', 'bExc', 'Давхцал']].map(function (b) {
           return '<button type="button" data-b="bool:' + b[0] + '" title="' + b[2] + '">' + icon(b[1]) + '<span>' + b[2] + '</span></button>'; }).join('') + '</div>' : '') +
       (k === 'group' && !o.gMaskGroup ? '<button type="button" class="btn full" style="margin-top:6px" data-a="ungroup">' + icon('group') + 'Задлах (Ctrl+Shift+G)</button>' : '') +
-      (k === 'group' && o.gMaskGroup ? '<div class="ps-l">Маск · «' + esc(o.gMaskGroup.name || '') + '»</div><label class="chk"><input type="checkbox" data-p="maskinv"' + (o.clipPath && o.clipPath.inverted ? ' checked' : '') + '> Урвуу маск (хэлбэрийн гадна талыг харуулах)</label>' +
-        '<button type="button" class="btn full" style="margin-top:6px" data-b="unmask">' + icon('maskI') + 'Маскыг задлах</button>' : '') +
       (k === 'shape' && boolable(o) && !o.isType('path') ? '<button type="button" class="btn full" style="margin-top:6px" data-b="tovec">' + icon('penTool') + 'Вектор болгох (цэгийг засах)</button>' : '') +
       (o.isType && o.isType('path') && k !== 'multi' ? '<button type="button" class="btn full' + (vedit ? ' acc' : '') + '" style="margin-top:6px" data-b="vedit">' + icon('penTool') + (vedit ? 'Цэг засахаа дуусгах' : 'Цэгүүдийг засах (давхар дарах)') + '</button>' : '') +
       '</div>';
+    if (k === 'group' && o.gMaskGroup) h += maskGroupUI(o);
     // position + layout
-    h += '<div class="ps"><div class="ps-l" style="margin-top:0">Байрлал</div><div class="r2">' + nf('X', 'x', g.x) + nf('Y', 'y', g.y) + '</div>' +
+    h += '<div class="ps"><div class="ps-h" data-col="pos">Байрлал, хэмжээ</div><div class="r2">' + nf('X', 'x', g.x) + nf('Y', 'y', g.y) + '</div>' +
       '<div class="r3" style="margin-top:6px">' + nf(icon('angle'), 'rot', g.r, { unit: '°', title: 'Эргэлт' }) +
         '<button type="button" class="ib" data-a="rot90" title="90° эргүүлэх">' + icon('rotate') + '</button>' +
         '<span class="rowf"><button type="button" class="ib" data-a="flipX" title="Хэвтээ толин тусгал">' + icon('flipH') + '</button><button type="button" class="ib" data-a="flipY" title="Босоо толин тусгал">' + icon('flipV') + '</button></span></div>' +
-      '<div class="ps-l">Хэмжээ</div><div class="r3">' + nf('W', 'w', g.w) + nf('H', 'h', g.h) +
+      '<div class="r3" style="margin-top:6px">' + nf('W', 'w', g.w) + nf('H', 'h', g.h) +
         '<button type="button" class="ib' + (lockOn(o) ? ' on' : '') + '" data-a="ratio" title="Харьцаа хадгалах">' + icon('ratio') + '</button></div></div>';
     // appearance
     var radius = null;
     if (o.isType('rect')) radius = Math.round((o.rx || 0) * (o.scaleX || 1));
     if (o.isType('triangle') || o.type === 'polygon') radius = Math.round((o.gRound || 0) * (o.scaleX || 1));
     if (k === 'image') radius = o.gMask === 'rounded' ? Math.round(o.gMaskR != null ? o.gMaskR : Math.min(o.width, o.height) * 0.12 * o.scaleX) : 0;
-    h += '<div class="ps"><div class="ps-h">Харагдац</div><div class="r2">' + nf(icon('opacity'), 'op', Math.round((o.opacity == null ? 1 : o.opacity) * 100), { unit: '%', title: 'Тунгалаг байдал' }) +
+    h += '<div class="ps"><div class="ps-h" data-col="look">Харагдац</div><div class="r2">' + nf(icon('opacity'), 'op', Math.round((o.opacity == null ? 1 : o.opacity) * 100), { unit: '%', title: 'Тунгалаг байдал' }) +
       (radius !== null ? nf(icon('radius'), 'rad', radius, { title: 'Булангийн радиус' }) : '<span></span>') + '</div>' +
       '<div style="margin-top:6px">' + sel('blend', BLENDS, o.globalCompositeOperation || 'source-over') + '</div></div>';
     // text
@@ -1611,51 +1671,48 @@
       var fnames = Object.keys(FONTS).sort(function (a, b) { return (FONTS[b].mn ? 2 : FONTS[b].cyr ? 1 : 0) - (FONTS[a].mn ? 2 : FONTS[a].cyr ? 1 : 0) || a.localeCompare(b); });
       var curF = primary(o.fontFamily), match = fnames.filter(function (n) { return fam(n) === curF; })[0];
       var styleOn = +o.fontWeight >= 600 || o.fontWeight === 'bold' ? 'b' : o.fontStyle === 'italic' ? 'i' : o.underline ? 'u' : o.linethrough ? 's' : '';
-      h += '<div class="ps"><div class="ps-h">Текст</div>' +
+      h += '<div class="ps"><div class="ps-h" data-col="text">Текст</div>' +
         sel('font', (match ? [] : [[curF, curF]]).concat(fnames.map(function (n) { return [n, n + (FONTS[n].mn ? '  · Ө Ү ✓' : FONTS[n].cyr ? '  · кирилл, Ө Ү-гүй' : '')]; })), match || curF) +
         '<div class="r2" style="margin-top:6px">' + sel('weight', WEIGHTS, o.fontWeight === 'bold' ? 700 : o.fontWeight === 'normal' ? 400 : +o.fontWeight) + nf('px', 'size', Math.round(o.fontSize * (o.scaleY || 1)), { title: 'Үсгийн хэмжээ' }) + '</div>' +
         '<div class="r2" style="margin-top:6px">' + nf('↕', 'lh', Math.round((o.lineHeight || 1.16) * 100), { unit: '%', title: 'Мөр хоорондын зай' }) + nf('↔', 'ls', Math.round(o.charSpacing || 0), { title: 'Үсэг хоорондын зай' }) + '</div>' +
         '<div class="rowf" style="margin-top:6px">' + seg([['left', 'tL', 'Зүүн'], ['center', 'tC', 'Голлуулах'], ['right', 'tR', 'Баруун'], ['justify', 'tJ', 'Тэгшлэх']], o.textAlign, 'talign') +
           seg([['b', 'bold', 'Тод'], ['i', 'italic', 'Налуу'], ['u', 'underline', 'Доогуур зураас'], ['s', 'strike', 'Дундуур зураас']], styleOn, 'tstyle') + '</div>' +
-        '<div class="rowf" style="margin-top:6px"><button type="button" class="btn" style="flex:1" data-a="case" data-v="up">AA</button><button type="button" class="btn" style="flex:1" data-a="case" data-v="low">aa</button><button type="button" class="btn" style="flex:1" data-a="case" data-v="title">Aa</button></div></div>';
+        '<div class="rowf" style="margin-top:6px"><button type="button" class="btn" style="flex:1" data-a="case" data-v="up">AA</button><button type="button" class="btn" style="flex:1" data-a="case" data-v="low">aa</button><button type="button" class="btn" style="flex:1" data-a="case" data-v="title">Aa</button></div>' +
+        sl('Муруйлт', 'curve', -100, 100, Math.round(o.gCurve || 0)) +
+        '<label class="chk" style="margin-top:8px"><input type="checkbox" data-p="tbg"' + (o.textBackgroundColor ? ' checked' : '') + '> Текстийн ард дэвсгэр өнгө</label>' + (o.textBackgroundColor ? '<div style="margin-top:6px">' + colorRow('tbgc', o.textBackgroundColor) + '</div>' : '') + '</div>';
     }
-    // image
+    // image basics (adjustments live in the «Засвар» tab)
     if (k === 'image') {
-      var cur = presetOf(o), gv = function (T, key) { var ff = getFilter(o, T); return ff ? ff[key] : 0; };
-      h += '<div class="ps"><div class="ps-h">Зураг</div>' +
-        '<div class="r2"><button type="button" class="btn" data-a="crop">' + icon('crop') + 'Тайрах</button><button type="button" class="btn acc" data-a="rmbg">' + icon('wand') + 'Дэвсгэр арилгах</button></div>' +
-        '<button type="button" class="btn full" data-a="replace" style="margin-top:6px">' + icon('image') + 'Зураг солих</button>' +
-        '<button type="button" class="btn full" style="margin-top:6px" data-b="cut">' + icon('eraser') + 'Гараар засах (баллуур, саваа, лассо)</button>' +
+      h += '<div class="ps"><div class="ps-h" data-col="img">Зураг</div>' +
+        '<div class="r2"><button type="button" class="btn" data-a="crop">' + icon('crop') + 'Тайрах</button><button type="button" class="btn" data-a="replace">' + icon('image') + 'Солих</button></div>' +
+        '<button type="button" class="btn acc full" style="margin-top:6px" data-a="rmbg">' + icon('wand') + 'Дэвсгэр арилгах (AI)</button>' +
+        '<button type="button" class="btn full" style="margin-top:6px" data-b="cut">' + icon('eraser') + 'Гараар засах — баллуур, саваа, лассо</button>' +
+        '<div class="r2" style="margin-top:6px"><button type="button" class="btn" data-a="asbg">' + icon('bg') + 'Frame дүүргэх</button><button type="button" class="btn" data-b="upx">✦ AI сайжруулах</button></div>' +
         '<div class="ps-l">Маск хэлбэр</div>' + sel('mask', MASK_SHAPES, o.gMask || 'none') +
-        '<div class="r2" style="margin-top:6px"><button type="button" class="btn" data-a="asbg">' + icon('bg') + 'Frame дүүргэх</button><button type="button" class="btn acc" data-b="upx">✦ AI сайжруулах</button></div>' +
-        '<div class="ps-l">Шүүлтүүр</div><div class="pre-grid">' + PRESETS.map(function (p) {
-          return '<button type="button" class="pre' + (p[0] === cur ? ' on' : '') + '" data-a="preset" data-v="' + p[0] + '"><i class="pre-' + p[0] + '" style="background-image:url(\'' + o.getSrc() + '\')"></i>' + p[1] + '</button>';
-        }).join('') + '</div>' +
-        sl('Гэрэлтэлт', 'f-bri', -100, 100, Math.round(gv(F.Brightness, 'brightness') * 100)) + sl('Контраст', 'f-con', -100, 100, Math.round(gv(F.Contrast, 'contrast') * 100)) +
-        sl('Ханалт', 'f-sat', -100, 100, Math.round(gv(F.Saturation, 'saturation') * 100)) + sl('Өнгөний тон', 'f-hue', -100, 100, Math.round(gv(F.HueRotation, 'rotation') * 100)) +
-        sl('Бүдгэрүүлэх', 'f-blur', 0, 100, Math.round(gv(F.Blur, 'blur') * 100)) +
-        '<button type="button" class="btn full" style="margin-top:8px" data-a="resetf">Анхны байдалд нь</button></div>';
+        '<button type="button" class="btn full" style="margin-top:6px" data-b="textmask" title="Зургийг том текстэн дотор харуулна">' + icon('text') + 'Текстэн маск үүсгэх</button></div>';
     }
     // fill
     var closedPath = o.isType && o.isType('path') && (o.gPen ? o.gPen.closed : (o.path || []).some(function (c) { return c[0] === 'Z' || c[0] === 'z'; }));
-    if (k === 'shape' || k === 'text' || closedPath) h += '<div class="ps"><div class="ps-h">Fill' + (o.fill ? '' : '<span class="acts"><button type="button" class="ib" data-a="addfill" title="Нэмэх">' + icon('plus') + '</button></span>') + '</div>' + (o.fill ? paintUI('fill', o) : '') + '</div>';
+    if (k === 'shape' || k === 'text' || closedPath) h += '<div class="ps"><div class="ps-h" data-col="fill">Fill' + (o.fill ? '' : '<span class="acts"><button type="button" class="ib" data-a="addfill" title="Нэмэх">' + icon('plus') + '</button></span>') + '</div>' + (o.fill ? paintUI('fill', o) : '') + '</div>';
     // stroke
     if (k !== 'multi' && k !== 'group') {
       var hasStroke = !!o.stroke && (o.strokeWidth > 0 || k === 'line');
-      h += '<div class="ps"><div class="ps-h">' + (k === 'text' ? 'Хүрээ (outline)' : 'Stroke') + '<span class="acts">' + (hasStroke ? (k === 'line' ? '' : '<button type="button" class="ib" data-a="rmstroke" title="Stroke хасах">' + icon('minus') + '</button>') : '<button type="button" class="ib" data-a="addstroke" title="Нэмэх">' + icon('plus') + '</button>') + '</span></div>' +
+      h += '<div class="ps"><div class="ps-h" data-col="stroke">' + (k === 'text' ? 'Хүрээ (outline)' : 'Stroke') + '<span class="acts">' + (hasStroke ? (k === 'line' ? '' : '<button type="button" class="ib" data-a="rmstroke" title="Stroke хасах">' + icon('minus') + '</button>') : '<button type="button" class="ib" data-a="addstroke" title="Нэмэх">' + icon('plus') + '</button>') + '</span></div>' +
         (hasStroke ? paintUI('stroke', o) + strokeUI(o, k) : '') + '</div>';
     }
-    // effects
-    if (k !== 'multi') h += fxUI(o);
-    if (k === 'text') h += '<div class="ps"><label class="chk"><input type="checkbox" data-p="tbg"' + (o.textBackgroundColor ? ' checked' : '') + '> Текстийн ард дэвсгэр өнгө</label>' + (o.textBackgroundColor ? '<div style="margin-top:6px">' + colorRow('tbgc', o.textBackgroundColor) + '</div>' : '') + '</div>';
     // layer order
-    h += '<div class="ps"><div class="ps-h">Давхаргын дараалал</div><div class="seg">' +
+    h += '<div class="ps"><div class="ps-h" data-col="order">Давхаргын дараалал</div><div class="seg">' +
       [['top', 'up2', 'Хамгийн урд (Ctrl+Shift+])'], ['up', 'up1', 'Урагш (Ctrl+])'], ['down', 'dn1', 'Хойш (Ctrl+[)'], ['bottom', 'dn2', 'Хамгийн ард (Ctrl+Shift+[)']].map(function (a) {
         return '<button type="button" data-a="arr" data-v="' + a[0] + '" title="' + a[2] + '">' + icon(a[1]) + '</button>';
       }).join('') + '</div></div>';
     h += exportSec('sel', o);
     el.innerHTML = h;
+    collapseApply(el);
   }
+  // remembered collapsed sections (click a section title to fold it)
+  var rpTab = 'design', collapsed = {};
+  try { collapsed = JSON.parse(localStorage.getItem('gc-ed-col') || '{}') || {}; } catch (e) { collapsed = {}; }
+  function collapseApply(el) { el.querySelectorAll('.ps-h[data-col]').forEach(function (hh) { if (collapsed[hh.dataset.col]) hh.parentNode.classList.add('col'); }); }
 
   // live geometry while dragging on the canvas
   function syncGeom() {
@@ -1720,6 +1777,7 @@
     if ((p === 'shx' || p === 'shy' || p === 'shb') && n !== null) eachSel(function (x) { if (x.shadow) { x.shadow[{ shx: 'offsetX', shy: 'offsetY', shb: 'blur' }[p]] = n; x.set('dirty', true); } });
     if (/^shc/.test(p)) eachSel(function (x) { if (x.shadow) { x.shadow.color = colorFrom(p, 'shc', v, x.shadow.color); x.set('dirty', true); } });
     if (p === 'maskinv' && o.clipPath) { o.clipPath.inverted = !!v; o.set('dirty', true); }
+    if (p === 'curve' && n !== null) eachSel(function (x) { if (x.isType('textbox')) setCurve(x, n); });
     if (p === 'tbg') eachSel(function (x) { x.set('textBackgroundColor', v ? '#e7e3fd' : ''); });
     if (/^tbgc/.test(p)) eachSel(function (x) { x.set('textBackgroundColor', colorFrom(p, 'tbgc', v, x.textBackgroundColor)); });
     if (p === 'mask') { if (!extraMask(o, v)) fitMask(o, v === 'none' ? null : v); }
@@ -1856,18 +1914,23 @@
       h = '<span class="ctx-lbl">Цэг засах: чирэх · Alt+дарах муруй⇄булан · давхар дарах цэг нэмэх · Delete устгах</span><span class="sep"></span>' + btn('vedit-done', 'check', 'Дуусгах', 'Esc', ' ok');
     }
     else if (tool === 'draw') {
-      var cols = [draw.color].concat(DG.brand.slice(0, 3), ['#1e1e1e', '#ffffff', '#ff4fd8']).filter(function (c, i, a) { return c && a.indexOf(c) === i; }).slice(0, 7);
-      h = BRUSHES.map(function (t) {
-          return '<button type="button" class="tool' + (draw.tool === t[0] ? ' on' : '') + '" data-draw="' + t[0] + '" title="' + t[2] + '">' + icon(t[1]) + '</button>';
-        }).join('') + '<span class="sep"></span>' +
-        cols.map(function (c) { return '<button type="button" class="tool" data-dcol="' + esc(c) + '" title="' + esc(c) + '"><span class="sw" style="background:' + esc(c) + ';' + (c === draw.color ? 'box-shadow:0 0 0 2px var(--acc)' : '') + '"></span></button>'; }).join('') +
-        '<label class="tool" title="Өөр өнгө"><span class="csw" style="margin:0"><i style="background:conic-gradient(red,yellow,lime,cyan,blue,magenta,red)"></i><input type="color" data-dpick value="' + draw.color + '"></span></label>' +
-        '<span class="sep"></span><span class="ctx-lbl">Зузаан</span><input type="range" data-dsize min="1" max="' + Math.max(20, Math.round(Math.min(W, H) * 0.08)) + '" value="' + brushSize() + '" style="width:80px">' +
-        '<span class="ctx-lbl">Тунгалаг</span><input type="range" data-dop min="10" max="100" value="' + Math.round((draw.op == null ? 1 : draw.op) * 100) + '" style="width:60px">' +
+      var cols = [draw.color].concat(DG.brand.slice(0, 3), ['#1e1e1e', '#ffffff', '#ff4fd8']).filter(function (c, i, a) { return c && a.indexOf(c) === i; }).slice(0, 6);
+      var cb = BRUSHES.filter(function (x) { return x[0] === draw.tool; })[0] || BRUSHES[0], er = draw.tool === 'erase' || draw.tool === 'eraser';
+      h = '<button type="button" class="tool bsel" data-bpop title="Бийр солих">' + icon(cb[1]) + '<span>' + cb[2] + '</span><svg class="i caret" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg></button><span class="sep"></span>' +
+        (er ? '' : cols.map(function (c) { return '<button type="button" class="tool" data-dcol="' + esc(c) + '" title="' + esc(c) + '"><span class="sw" style="background:' + esc(c) + ';' + (c === draw.color ? 'box-shadow:0 0 0 2px var(--acc)' : '') + '"></span></button>'; }).join('') +
+        '<label class="tool" title="Өөр өнгө"><span class="csw" style="margin:0"><i style="background:conic-gradient(red,yellow,lime,cyan,blue,magenta,red)"></i><input type="color" data-dpick value="' + draw.color + '"></span></label><span class="sep"></span>') +
+        (draw.tool === 'eraser' ? '<span class="ctx-lbl">Зураас дээр дарж / чирж устгана</span>' :
+          '<span class="ctx-lbl">Зузаан</span><input type="range" data-dsize min="1" max="' + Math.max(20, Math.round(Math.min(W, H) * 0.08)) + '" value="' + brushSize() + '" style="width:80px"><b class="ctx-v" data-dsv>' + brushSize() + '</b>' +
+          (er ? '' : '<span class="ctx-lbl">Тунгалаг</span><input type="range" data-dop min="10" max="100" value="' + Math.round((draw.op == null ? 1 : draw.op) * 100) + '" style="width:60px">')) +
+        '<button type="button" class="tool" data-bset title="Нарийвчилсан тохиргоо">' + icon('sliders') + '</button>' +
         '<span class="sep"></span>' + btn('draw-done', 'check', 'Дуусгах', 'Esc', ' ok');
     } else if (k === 'image') {
-      h = btn('crop', 'crop', 'Тайрах') + btn('rmbg', 'wand', 'Дэвсгэр арилгах') + btn('cut', 'eraser', 'Гараар засах', 'Баллуур, сэргээх, шидэт саваа, лассо') + btn('upx', 'wand', '✦ Сайжруулах', 'AI томруулж чанарыг сайжруулах') + '<span class="sep"></span>' + btn('asbg', 'bg', '', 'Frame-ийг дүүргэх') +
+      h = btn('crop', 'crop', 'Тайрах') + btn('tab-adjust', 'sliders', 'Засвар', 'Гэрэл, өнгө, шүүлтүүр') + btn('tab-fx', 'wand', 'Эффект', 'Сүүдэр, гэрэлтэлт, уусгалт') + '<span class="sep"></span>' + btn('rmbg', 'wand', 'Дэвсгэр арилгах') + btn('cut', 'eraser', 'Гараар засах', 'Баллуур, сэргээх, шидэт саваа, лассо') + btn('upx', 'wand', '✦ Сайжруулах', 'AI томруулж чанарыг сайжруулах') + '<span class="sep"></span>' + btn('asbg', 'bg', '', 'Frame-ийг дүүргэх') +
         btn('rot90', 'rotate', '', '90° эргүүлэх') + btn('flipX', 'flipH', '', 'Хэвтээ толин тусгал') + btn('flipY', 'flipV', '', 'Босоо толин тусгал');
+    } else if (k === 'text' && !(o && o.isEditing)) {
+      h = btn('t-b', 'bold', '', 'Тод') + btn('t-i', 'italic', '', 'Налуу') + btn('t-u', 'underline', '', 'Доогуур зураас') + '<span class="sep"></span>' +
+        btn('t-al', { left: 'tL', center: 'tC', right: 'tR', justify: 'tJ' }[o.textAlign] || 'tL', '', 'Зэрэгцүүлэх') + btn('t-up', 'plus', '', 'Томруулах') + btn('t-dn', 'minus', '', 'Жижигрүүлэх') + '<span class="sep"></span>' +
+        btn('tab-fx', 'wand', 'Эффект', 'Сүүдэр, неон, glitch, муруй') + (PPT ? btn('tab-anim', 'eye', 'Анимэйшн') : '');
     } else if (k === 'multi') {
       h = btn('group', 'group', 'Бүлэглэх', 'Ctrl+G') + btn('mask', 'maskI', 'Маск', 'Доод давхаргаар маск хийх (Ctrl+Alt+M)') + '<span class="sep"></span>' +
         btn('b-union', 'bUnion', '', 'Нэгтгэх (Union)') + btn('b-subtract', 'bSub', '', 'Хасах (Subtract)') + btn('b-intersect', 'bInt', '', 'Огтлолцол (Intersect)') + btn('b-exclude', 'bExc', '', 'Давхцлыг хасах (Exclude)') + '<span class="sep"></span>' + btn('alignL', 'aL', '', 'Зүүн') + btn('alignC', 'aC', '', 'Голлуулах') + btn('alignR', 'aR', '', 'Баруун') +
@@ -1876,6 +1939,8 @@
     el.innerHTML = h; el.hidden = !h;
   }
   $('#ctxbar').addEventListener('click', function (e) {
+    var bp = e.target.closest('[data-bpop],[data-bset]');
+    if (bp) { e.stopPropagation(); brushPop(bp, bp.hasAttribute('data-bset')); return; }
     var d = e.target.closest('[data-draw]'); if (d) { draw.tool = d.dataset.draw; applyBrush(); renderCtxbar(); return; }
     var dc = e.target.closest('[data-dcol]'); if (dc) { draw.color = dc.dataset.dcol; applyBrush(); renderCtxbar(); return; }
     var b = e.target.closest('[data-c]'); if (!b) return;
@@ -1890,6 +1955,17 @@
     if (/^b-/.test(c)) { booleanOp(c.slice(2)); return; }
     if (c === 'cut' && o) { openCutout(o); return; }
     if (c === 'upx' && o) { openUpscale(o); return; }
+    if (/^tab-/.test(c)) { rpTab = c.slice(4); renderRight(); if (window.innerWidth <= 900) { var rpe = document.getElementById('rp'); if (rpe) rpe.classList.add('open'); } return; }
+    if (/^t-/.test(c) && o && o.isType && o.isType('textbox')) {
+      var tc = c.slice(2);
+      if (tc === 'b') { o.set('fontWeight', +o.fontWeight >= 600 || o.fontWeight === 'bold' ? 400 : 700); loadFace(o); }
+      if (tc === 'i') { o.set('fontStyle', o.fontStyle === 'italic' ? 'normal' : 'italic'); loadFace(o); }
+      if (tc === 'u') o.set('underline', !o.underline);
+      if (tc === 'al') { var als = ['left', 'center', 'right', 'justify']; o.set('textAlign', als[(als.indexOf(o.textAlign) + 1) % 4]); }
+      if (tc === 'up' || tc === 'dn') o.set('fontSize', Math.max(4, Math.round(o.fontSize * (tc === 'up' ? 1.1 : 0.9))));
+      if (o.gCurve) setCurve(o, o.gCurve); else o.initDimensions();
+      o.setCoords(); canvas.requestRenderAll(); commit(); refreshUI(); return;
+    }
     if (c === 'crop') startCrop();
     if (c === 'rmbg' && o) { b.disabled = true; removeBackground(o).then(function () { b.disabled = false; }); return; }
     if (c === 'asbg') setAsBackground();
@@ -1901,11 +1977,44 @@
     canvas.requestRenderAll(); refreshUI();
   });
   $('#ctxbar').addEventListener('input', function (e) {
-    if (e.target.hasAttribute('data-dsize')) { draw.size = +e.target.value; applyBrush(); }
+    if (e.target.hasAttribute('data-dsize')) { draw.size = +e.target.value; applyBrush(); var dv = $('#ctxbar [data-dsv]'); if (dv) dv.textContent = e.target.value; }
     if (e.target.hasAttribute('data-dop')) { draw.op = +e.target.value / 100; applyBrush(); }
     if (e.target.hasAttribute('data-dpick')) { draw.color = e.target.value; applyBrush(); }
   });
   $('#ctxbar').addEventListener('change', function (e) { if (e.target.hasAttribute('data-dpick')) renderCtxbar(); });
+  // brush picker + settings (a popover on <body>, above the bar)
+  function brushPop(anchor, settings) {
+    var pop = document.getElementById('brush-pop');
+    if (pop && !pop.hidden && pop.dataset.kind === (settings ? 's' : 'b')) { pop.hidden = true; return; }
+    if (!pop) { pop = document.createElement('div'); pop.id = 'brush-pop'; pop.className = 'bpop'; document.body.appendChild(pop); }
+    pop.dataset.kind = settings ? 's' : 'b';
+    if (!settings) pop.innerHTML = '<div class="bpop-t">Бийр</div><div class="bpop-g">' + BRUSHES.map(function (t) {
+      return '<button type="button" class="' + (draw.tool === t[0] ? 'on' : '') + '" data-draw="' + t[0] + '">' + icon(t[1]) + '<b>' + t[2] + '</b><i>' + (BRUSH_HELP[t[0]] || '') + '</i></button>';
+    }).join('') + '</div><p class="bpop-n">Shift дарж зурвал шулуун зураас. [ ] — зузаан.</p>';
+    else pop.innerHTML = '<div class="bpop-t">Тохиргоо — ' + esc((BRUSHES.filter(function (x) { return x[0] === draw.tool; })[0] || [0, 0, ''])[2]) + '</div>' +
+      '<div class="sl"><span>Тэгшлэх</span><input type="range" data-bs="smooth" min="0" max="100" value="' + (draw.smooth == null ? 40 : draw.smooth) + '"><b>' + (draw.smooth == null ? 40 : draw.smooth) + '</b></div>' +
+      (draw.tool === 'ink' ? '<label class="chk" style="margin-top:8px"><input type="checkbox" data-bs="taper"' + (draw.taper === false ? '' : ' checked') + '> Үзүүр нарийсах</label>' : '') +
+      (draw.tool === 'neon' ? '<div class="sl"><span>Гэрэлтэлт</span><input type="range" data-bs="glow" min="5" max="60" value="' + Math.round((draw.glow == null ? 2.2 : draw.glow) * 10) + '"><b>' + Math.round((draw.glow == null ? 2.2 : draw.glow) * 10) + '</b></div>' : '') +
+      (draw.tool === 'spray' ? '<div class="sl"><span>Нягт</span><input type="range" data-bs="density" min="5" max="120" value="' + (draw.density || 30) + '"><b>' + (draw.density || 30) + '</b></div>' : '') +
+      '<p class="bpop-n">Тэгшлэх нь гар чичрэлтийг багасгаж, зураасыг жигд болгоно.</p>';
+    pop.hidden = false;
+    var br = anchor.getBoundingClientRect();
+    pop.style.left = Math.max(8, Math.min(window.innerWidth - 340, br.left)) + 'px';
+    pop.style.bottom = Math.round(window.innerHeight - br.top + 8) + 'px';
+  }
+  document.addEventListener('click', function (e) {
+    var pop = document.getElementById('brush-pop'); if (!pop || pop.hidden) return;
+    var d = e.target.closest('#brush-pop [data-draw]');
+    if (d) { draw.tool = d.dataset.draw; applyBrush(); setTool('draw'); pop.hidden = true; return; }
+    if (!e.target.closest('#brush-pop')) pop.hidden = true;
+  });
+  document.addEventListener('input', function (e) {
+    var k = e.target.dataset && e.target.dataset.bs; if (!k) return;
+    if (k === 'taper') draw.taper = e.target.checked;
+    else { var v = +e.target.value; e.target.nextElementSibling.textContent = v; if (k === 'glow') draw.glow = v / 10; else draw[k] = v; }
+    applyBrush();
+  });
+  document.addEventListener('change', function (e) { if (e.target.dataset && e.target.dataset.bs === 'taper') draw.taper = e.target.checked; });
 
   // ---------- export ----------
 
@@ -2098,8 +2207,9 @@
       ['Ctrl Z · Ctrl Shift Z', 'Буцаах · дахин хийх'], ['Ctrl C · X · V · D', 'Хуулах · тайрах · буулгах · хувилах'], ['Ctrl S', 'Хадгалах'], ['Delete', 'Устгах'],
       ['Ctrl G · Ctrl Shift G', 'Бүлэглэх · задлах'], ['Ctrl ] · [', 'Урагш · хойш'], ['Сумнууд (+Shift)', '1px (10px) зөөх'],
       ['Enter · давхар дарах', 'Текст засах'], ['Space + чирэх · дугуй', 'Гүйлгэх'], ['Ctrl + дугуй', 'Томруулах'],
-      ['Shift 1 · Shift 2', 'Бүгдийг · frame-ийг харах'], ['X, W… шошгыг чирэх', 'Тоог өөрчлөх'], ['Frame нэрийг чирэх', 'Frame зөөх']
-    ].map(function (r) { return '<div class="kb"><kbd>' + r[0] + '</kbd><span>' + r[1] + '</span></div>'; }).join('');
+      ['Shift 1 · Shift 2', 'Бүгдийг · frame-ийг харах'], ['X, W… шошгыг чирэх', 'Тоог өөрчлөх'], ['Frame нэрийг чирэх', 'Frame зөөх'],
+      ['Давхарга: Shift / Ctrl + дарах', 'Олноор сонгох'], ['[ · ]', 'Бийрийн зузаан'], ['Shift + зурах', 'Шулуун зураас'], ['Самбарын ирмэгийг чирэх', 'Өргөнийг өөрчлөх'], ['Гулсагч дээр давхар дарах', '0 болгох']
+    ].concat(PPT ? [['F5 · Ctrl Enter', 'Үзүүлэх'], ['PageUp · PageDown', 'Слайд солих']] : []).map(function (r) { return '<div class="kb"><kbd>' + r[0] + '</kbd><span>' + r[1] + '</span></div>'; }).join('');
     // fixed to the viewport so it can't end up off-screen inside the panel
     var br = this.getBoundingClientRect();
     m.style.cssText = 'position:fixed;z-index:300;top:' + Math.round(br.bottom + 6) + 'px;right:' + Math.max(8, Math.round(window.innerWidth - br.right)) + 'px;left:auto;max-height:' + Math.round(window.innerHeight - br.bottom - 20) + 'px;overflow:auto;max-width:calc(100vw - 16px)';
@@ -2266,6 +2376,7 @@
     if (mod && k === '0') { e.preventDefault(); zoomTo(1); return; }
     if (mod && (k === '=' || k === '+')) { e.preventDefault(); zoomTo(canvas.getZoom() * 1.25); return; }
     if (mod && k === '-') { e.preventDefault(); zoomTo(canvas.getZoom() / 1.25); return; }
+    if (!mod && tool === 'draw' && (e.key === '[' || e.key === ']')) { e.preventDefault(); draw.size = clamp(Math.round(brushSize() * (e.key === ']' ? 1.15 : 0.87)) + (e.key === ']' ? 1 : -1), 1, 400); applyBrush(); renderCtxbar(); return; }
     if (mod && k === ']') { e.preventDefault(); arrange(e.shiftKey ? 'top' : 'up'); return; }
     if (mod && k === '[') { e.preventDefault(); arrange(e.shiftKey ? 'bottom' : 'down'); return; }
     if (e.shiftKey && e.code === 'Digit1') { fitAll(); return; }
@@ -2540,8 +2651,17 @@
   canvas.on('selection:updated', function () { if (vedit && active() !== vedit.o) endVEdit(); });
 
   // ---------- brushes ----------
-  var BRUSHES = [['pen', 'pen', 'Харандаа'], ['ink', 'ink', 'Бийр (үзүүр нь нарийсна)'], ['marker', 'marker', 'Маркер'], ['neon', 'neon', 'Неон'],
-    ['spray', 'spray', 'Шүршигч'], ['dots', 'dots', 'Цэгэн'], ['hatch', 'hatch', 'Судалтай'], ['eraser', 'eraser', 'Баллуур (зураасыг бүтнээр нь устгана)']];
+  var BRUSHES = [['pen', 'pen', 'Үзэг'], ['pencil', 'pencilI', 'Харандаа'], ['ink', 'ink', 'Бийр'], ['calli', 'calli', 'Уран бичлэг'], ['marker', 'marker', 'Маркер'], ['neon', 'neon', 'Неон'],
+    ['crayon', 'crayon', 'Өнгийн харандаа'], ['spray', 'spray', 'Шүршигч'], ['dots', 'dots', 'Цэгэн'], ['hatch', 'hatch', 'Судалтай'], ['erase', 'eraser', 'Баллуур'], ['eraser', 'eraseAll', 'Зураас устгах']];
+  var BRUSH_HELP = { pen: 'Жигд зураас', pencil: 'Бүдүүлэг ширхэгтэй', ink: 'Үзүүр нь нарийсна', calli: 'Чиглэлээс хамаарч зузаан/нарийн', marker: 'Тунгалаг тодруулагч', neon: 'Гэрэлтэй зураас',
+    crayon: 'Ширхэгтэй өргөн', spray: 'Шүршсэн цэгүүд', dots: 'Дугуй цэгүүд', hatch: 'Судалтай хээ', erase: 'Зураас, зураг, текстийн хэсгийг арилгана', eraser: 'Зураасыг бүтнээр нь устгана' };
+  function grainSrc(color, s, rough) {
+    var n = Math.max(8, Math.round(s)), c = document.createElement('canvas'); c.width = c.height = n;
+    var x = c.getContext('2d'), rgb = parseCol(color).hex, r = rand01(n * 131 + rgb.length);
+    for (var i = 0; i < n * n * (rough ? 0.55 : 0.75); i++) { x.globalAlpha = 0.35 + r() * 0.65; x.fillStyle = rgb; x.fillRect(Math.floor(r() * n), Math.floor(r() * n), 1, 1); }
+    return c;
+  }
+  function rand01(seed) { var s0 = seed >>> 0 || 7; return function () { s0 ^= s0 << 13; s0 ^= s0 >>> 17; s0 ^= s0 << 5; return ((s0 >>> 0) % 10000) / 10000; }; }
   function hatchSrc(color, size) {
     var s = Math.max(6, Math.round(size)), c = document.createElement('canvas'); c.width = c.height = s;
     var x = c.getContext('2d'); x.strokeStyle = color; x.lineWidth = Math.max(1, s / 5);
@@ -2551,16 +2671,22 @@
   function mixWhite(hex, k) { var p = parseCol(hex).hex, n = parseInt(p.slice(1), 16), f = function (v) { return Math.round(v + (255 - v) * k); }; return '#' + [f(n >> 16), f(n >> 8 & 255), f(n & 255)].map(function (v) { return ('0' + v.toString(16)).slice(-2); }).join(''); }
   function makeBrush() {
     var t = draw.tool, s = brushSize(), a = draw.op == null ? 1 : draw.op, b;
-    if (t === 'spray') { b = new fabric.SprayBrush(canvas); b.density = 30; b.dotWidth = Math.max(1, s / 6); b.width = s * 2; b.color = mkCol(draw.color, a); return b; }
+    if (t === 'spray') { b = new fabric.SprayBrush(canvas); b.density = draw.density || 30; b.dotWidth = Math.max(1, s / 6); b.width = s * 2; b.color = mkCol(draw.color, a); return b; }
     if (t === 'dots') { b = new fabric.CircleBrush(canvas); b.width = s; b.color = mkCol(draw.color, a); return b; }
     if (t === 'hatch') {
       b = new fabric.PatternBrush(canvas); var src = hatchSrc(draw.color, s * 0.8);
       b.source = src; b.width = s * 2.5; return b;   // .source survives into the saved stroke (a replaced getPatternSrc got stringified)
     }
+    if (t === 'pencil' || t === 'crayon') {
+      b = new fabric.PatternBrush(canvas); b.source = grainSrc(draw.color, t === 'crayon' ? 10 : 6, t === 'crayon');
+      b.width = t === 'crayon' ? s * 2.2 : Math.max(1.5, s * 0.7); b.strokeLineCap = 'round'; b.decimate = 1 + (draw.smooth == null ? 40 : draw.smooth) / 14; b.straightLineKey = 'shiftKey'; return b;
+    }
     b = new fabric.PencilBrush(canvas);
-    b.decimate = 2; b.strokeLineCap = 'round'; b.strokeLineJoin = 'round';
+    b.decimate = 1 + (draw.smooth == null ? 40 : draw.smooth) / 14; b.strokeLineCap = 'round'; b.strokeLineJoin = 'round'; b.straightLineKey = 'shiftKey';
+    if (t === 'erase') { b.color = 'rgba(255,72,72,0.45)'; b.width = s * 2; return b; }
+    if (t === 'calli') { b.color = mkCol(draw.color, a); b.width = Math.max(2, s * 0.5); return b; }
     if (t === 'marker') { b.color = mkCol(draw.color, 0.45 * a); b.width = s * 2.5; b.strokeLineCap = 'square'; }
-    else if (t === 'neon') { b.color = mixWhite(draw.color, 0.65); b.width = s * 0.8; b.shadow = new fabric.Shadow({ color: draw.color, blur: s * 2.2, offsetX: 0, offsetY: 0 }); }
+    else if (t === 'neon') { b.color = mixWhite(draw.color, 0.65); b.width = s * 0.8; b.shadow = new fabric.Shadow({ color: draw.color, blur: s * (draw.glow == null ? 2.2 : draw.glow), offsetX: 0, offsetY: 0 }); }
     else { b.color = mkCol(draw.color, a); b.width = t === 'ink' ? s * 1.6 : s; }
     return b;
   }
@@ -2588,11 +2714,73 @@
     if (draw.tool === 'marker') p.set({ globalCompositeOperation: 'multiply', name: 'Маркер' });
     if (draw.tool === 'neon') p.set({ name: 'Неон' });
     if (draw.tool === 'hatch') p.set({ name: 'Судал' });
+    if (draw.tool === 'pencil') p.set({ name: 'Харандаа' });
+    if (draw.tool === 'crayon') p.set({ name: 'Өнгийн харандаа' });
     if (draw.tool === 'ink') {
-      var o = inkOutline(p, brushSize() * 1.6, mkCol(draw.color, draw.op == null ? 1 : draw.op));
-      if (o) { restoring = true; canvas.remove(p); restoring = false; canvas.add(o); }
+      var o = draw.taper === false ? null : inkOutline(p, brushSize() * 1.6, mkCol(draw.color, draw.op == null ? 1 : draw.op));
+      if (o) { o.gStroke = true; restoring = true; canvas.remove(p); restoring = false; canvas.add(o); }
     }
+    if (draw.tool === 'calli') {
+      var cg = calliOutline(p, brushSize() * 1.8, mkCol(draw.color, draw.op == null ? 1 : draw.op));
+      if (cg) { cg.gStroke = true; restoring = true; canvas.remove(p); restoring = false; canvas.add(cg); }
+    }
+    if (draw.tool === 'erase') eraseWithPath(p);
   });
+  function pathPts(path, step) {
+    var raw = [], pts = [];
+    (path.path || []).forEach(function (c) { var n = c.length; if (n >= 3) raw.push({ x: c[n - 2], y: c[n - 1] }); });
+    raw.forEach(function (p) { var l = pts[pts.length - 1]; if (!l || Math.hypot(p.x - l.x, p.y - l.y) >= step) pts.push(p); });
+    return pts;
+  }
+  function polyPath(all, fill, name) {
+    if (all.length < 3) return null;
+    var d = 'M ' + r1(all[0].x) + ' ' + r1(all[0].y);
+    for (var j = 1; j < all.length; j++) { var p0 = all[j - 1], p1 = all[j]; d += ' Q ' + r1(p0.x) + ' ' + r1(p0.y) + ' ' + r1((p0.x + p1.x) / 2) + ' ' + r1((p0.y + p1.y) / 2); }
+    return new fabric.Path(d + ' Z', { fill: fill, stroke: null, strokeWidth: 0, name: name, perPixelTargetFind: true });
+  }
+  // calligraphy: a flat nib held at 45° — thick across, thin along its edge
+  function calliOutline(path, width) {
+    var pts = pathPts(path, Math.max(1.2, width / 8)); if (pts.length < 2) return null;
+    var a = -Math.PI / 4, nx = Math.cos(a) * width / 2, ny = Math.sin(a) * width / 2, L = [], R = [];
+    pts.forEach(function (p) { L.push({ x: p.x + nx, y: p.y + ny }); R.push({ x: p.x - nx, y: p.y - ny }); });
+    return polyPath(L.concat(R.reverse()), arguments[2], 'Уран бичлэг');
+  }
+  // a stroke of the eraser brush becomes a filled ribbon…
+  function ribbon(path, width) {
+    var pts = pathPts(path, Math.max(1, width / 6)), n = pts.length, L = [], R = [];
+    if (n === 1) pts.push({ x: pts[0].x + 0.5, y: pts[0].y }), n = 2;
+    if (n < 2) return null;
+    for (var i = 0; i < n; i++) {
+      var p0 = pts[Math.max(0, i - 1)], p1 = pts[Math.min(n - 1, i + 1)], dx = p1.x - p0.x, dy = p1.y - p0.y, len = Math.hypot(dx, dy) || 1;
+      L.push({ x: pts[i].x - dy / len * width / 2, y: pts[i].y + dx / len * width / 2 }); R.push({ x: pts[i].x + dy / len * width / 2, y: pts[i].y - dx / len * width / 2 });
+    }
+    var cap = function (c, from, sign) { var out = [], a0 = Math.atan2(from.y - c.y, from.x - c.x); for (var k = 1; k < 8; k++) { var ang = a0 + sign * Math.PI * k / 8; out.push({ x: c.x + Math.cos(ang) * width / 2, y: c.y + Math.sin(ang) * width / 2 }); } return out; };
+    var all = L.concat(cap(pts[n - 1], L[n - 1], -1), R.reverse(), cap(pts[0], R[R.length - 1], -1));
+    var d = 'M ' + all.map(function (p) { return r1(p.x) + ' ' + r1(p.y); }).join(' L ') + ' Z';
+    return d;
+  }
+  // …that is added to an inverted clip group on every object it crosses (like Fabric's eraser), so it moves and scales with them
+  function eraseWithPath(p) {
+    var d = ribbon(p, brushSize() * 2);
+    restoring = true; canvas.remove(p); restoring = false;
+    if (!d) return;
+    var probe = new fabric.Path(d), ob = probe.getBoundingRect(true, true), hit = 0, skip = 0;
+    userObjects().forEach(function (o) {
+      if (o.locked || o.visible === false) return;
+      var b = o.getBoundingRect(true, true);
+      if (b.left > ob.left + ob.width || b.left + b.width < ob.left || b.top > ob.top + ob.height || b.top + b.height < ob.top) return;
+      if (o.clipPath && !o.clipPath.gEraser) { skip++; return; }
+      var c = new fabric.Path(d, { fill: '#000', stroke: null, strokeWidth: 0 });
+      var M = fabric.util.multiplyTransformMatrices(fabric.util.invertTransform(o.calcTransformMatrix()), c.calcTransformMatrix());
+      fabric.util.applyTransformToObject(c, M);
+      if (!o.clipPath) o.clipPath = new fabric.Group([c], { inverted: true, gEraser: true });
+      else { o.clipPath.addWithUpdate(c); }
+      o.set('dirty', true); hit++;
+    });
+    canvas.requestRenderAll();
+    if (hit) commit();
+    if (skip) toast(skip + ' зүйл маск / хэлбэртэй тул арилгасангүй');
+  }
 
   // ---------- paints (fill / stroke) ----------
   var PAINT_TYPES = [['solid', 'Цул өнгө'], ['linear', 'Linear градиент'], ['radial', 'Radial градиент'], ['angular', 'Angular (конус)'], ['diamond', 'Diamond (ромбо)'], ['image', 'Зураг']];
@@ -2690,8 +2878,8 @@
   }
 
   // ---------- effects ----------
-  var FX_NAMES = { drop: 'Drop shadow', inner: 'Inner shadow', blur: 'Layer blur', bgblur: 'Background blur', noise: 'Noise', glass: 'Glass' };
-  var FX_HELP = { drop: 'Ард сүүдэр', inner: 'Дотор сүүдэр', blur: 'Бүхэлд нь бүдгэрүүлэх', bgblur: 'Ард байгааг бүдгэрүүлэх', noise: 'Ширхэглэг бүтэц', glass: 'Шил (frosted)' };
+  var FX_NAMES = { drop: 'Drop shadow', inner: 'Inner shadow', glow: 'Outer glow', iglow: 'Inner glow', long: 'Long shadow', echo: 'Echo', glitch: 'Glitch (RGB)', blur: 'Layer blur', bgblur: 'Background blur', noise: 'Noise', glass: 'Glass', feather: 'Feather', fade: 'Fade' };
+  var FX_HELP = { drop: 'Ард сүүдэр', inner: 'Дотор сүүдэр', glow: 'Гадна гэрэлтэлт', iglow: 'Дотор гэрэлтэлт', long: 'Урт налуу сүүдэр', echo: 'Давтагдсан хуулбар', glitch: 'Өнгөт шилжилт', blur: 'Бүхэлд нь бүдгэрүүлэх', bgblur: 'Ард байгааг бүдгэрүүлэх', noise: 'Ширхэглэг бүтэц', glass: 'Шил (frosted)', feather: 'Зөөлөн ирмэг', fade: 'Градиент уусгалт' };
   function fxList(o) {
     // older designs: a native shadow becomes the first effect
     var l = dcopy(o.gFx) || [];
@@ -2706,6 +2894,13 @@
     if (t === 'blur') return { t: t, on: true, b: Math.max(2, Math.round(u * 0.6)) };
     if (t === 'bgblur') return { t: t, on: true, b: u * 3 };
     if (t === 'noise') return { t: t, on: true, a: 0.25, s: 1, mono: true };
+    if (t === 'glow') return { t: t, on: true, b: u * 3, a: 0.6, c: '#a497ff' };
+    if (t === 'iglow') return { t: t, on: true, b: u * 3, a: 0.8, c: '#ffffff' };
+    if (t === 'long') return { t: t, on: true, l: u * 10, ang: 45, c: 'rgba(0,0,0,0.3)' };
+    if (t === 'echo') return { t: t, on: true, n: 3, x: u, y: u, a: 0.6 };
+    if (t === 'glitch') return { t: t, on: true, d: u, c1: '#00e5ff', c2: '#ff2bd6' };
+    if (t === 'feather') return { t: t, on: true, b: u * 2 };
+    if (t === 'fade') return { t: t, on: true, ang: 90, f: 0.35, to: 1 };
     return { t: 'glass', on: true, b: u * 3, a: 1 };
   }
   function fxUI(o) {
@@ -2725,6 +2920,22 @@
           '<label class="chk"><input type="checkbox" data-q="' + q('mono') + '"' + (e.mono ? ' checked' : '') + '> Өнгөгүй (саарал)</label>';
       } else if (e.t === 'glass') {
         h += fsl('Бүдэг', q('b'), 0, Math.max(60, Math.round(Math.min(W, H) / 10)), e.b) + fsl('Гэрэл', q('a'), 0, 100, Math.round((e.a == null ? 1 : e.a) * 100), '%');
+      } else if (e.t === 'glow' || e.t === 'iglow') {
+        h += fsl('Хэмжээ', q('b'), 0, Math.max(80, Math.round(Math.min(W, H) / 8)), e.b) + fsl('Хүч', q('a'), 0, 100, Math.round((e.a == null ? 0.6 : e.a) * 100), '%') + fcol(q('c'), e.c);
+      } else if (e.t === 'long') {
+        h += fsl('Урт', q('l'), 0, Math.max(200, Math.round(Math.min(W, H) / 4)), e.l) + fsl('Өнцөг', q('ang'), 0, 360, e.ang == null ? 45 : e.ang) + fcol(q('c'), e.c) +
+          '<label class="chk" style="margin-top:6px"><input type="checkbox" data-q="' + q('fd') + '"' + (e.fd ? ' checked' : '') + '> Төгсгөл рүүгээ бүдгэрэх</label>';
+      } else if (e.t === 'echo') {
+        h += '<div class="r3e">' + fnf('X', q('x'), e.x) + fnf('Y', q('y'), e.y) + fnf('#', q('n'), e.n || 3) + '</div>' + fsl('Тод', q('a'), 5, 100, Math.round((e.a == null ? 0.6 : e.a) * 100), '%') +
+          '<label class="chk" style="margin-top:6px"><input type="checkbox" data-q="' + q('usec') + '"' + (e.c ? ' checked' : '') + '> Өнгөөр</label>' + (e.c ? fcol(q('c'), e.c) : '');
+      } else if (e.t === 'glitch') {
+        h += fsl('Шилжилт', q('d'), 0, Math.max(40, Math.round(Math.min(W, H) / 20)), e.d) + fcol(q('c1'), e.c1 || '#00e5ff') + fcol(q('c2'), e.c2 || '#ff2bd6');
+      } else if (e.t === 'feather') {
+        h += fsl('Хэмжээ', q('b'), 0, Math.max(60, Math.round(Math.min(W, H) / 12)), e.b);
+      } else if (e.t === 'fade') {
+        h += '<label class="nf full"><select data-q="' + q('dir') + '">' + [['90', 'Доош уусна'], ['270', 'Дээш уусна'], ['0', 'Баруун тийш'], ['180', 'Зүүн тийш'], ['45', 'Налуу ↘'], ['r', 'Дугуй (ирмэг рүү)']].map(function (d) {
+          var curd = e.r ? 'r' : String(e.ang == null ? 90 : e.ang); return '<option value="' + d[0] + '"' + (d[0] === curd ? ' selected' : '') + '>' + d[1] + '</option>'; }).join('') + '</select></label>' +
+          fsl('Эхлэл', q('f'), 0, 95, Math.round((e.f == null ? 0.35 : e.f) * 100), '%') + fsl('Төгсгөл', q('to'), 5, 100, Math.round((e.to == null ? 1 : e.to) * 100), '%');
       }
       h += '</div>';
     });
@@ -2744,12 +2955,257 @@
     canvas.requestRenderAll();
   }
 
+  // ---------- image adjustments (the «Засвар» tab): one state object → a fixed filter chain ----------
+  var ADJ_DEF = { exposure: 0, bri: 0, con: 0, highlights: 0, shadows: 0, fade: 0, temperature: 0, tint: 0, sat: 0, vibrance: 0, hue: 0, sharpen: 0, blur: 0, vignette: 0, grain: 0, pixel: 0, split: 0, splitLo: '#1f6fff', splitHi: '#ff9a3c', base: null };
+  var PRE2 = [
+    { id: 'none', name: 'Анхны', css: 'none', a: {} },
+    { id: 'vivid', name: 'Тод', css: 'saturate(1.5) contrast(1.1)', a: { con: 12, sat: 18, vibrance: 30 } },
+    { id: 'bright', name: 'Гэгээн', css: 'brightness(1.15) saturate(1.1)', a: { exposure: 18, shadows: 20, highlights: -10, vibrance: 15 } },
+    { id: 'warm', name: 'Дулаан', css: 'sepia(.25) saturate(1.3)', a: { temperature: 35, exposure: 5, vibrance: 10 } },
+    { id: 'cool', name: 'Хүйтэн', css: 'hue-rotate(-12deg) saturate(1.1) brightness(1.03)', a: { temperature: -35, tint: -5 } },
+    { id: 'cine', name: 'Кино', css: 'contrast(1.15) saturate(1.1) hue-rotate(-8deg)', a: { split: 50, splitLo: '#0f7c8c', splitHi: '#ff8a3d', con: 15, sat: -5, vignette: 20 } },
+    { id: 'film', name: 'Фильм', css: 'contrast(.9) sepia(.2) saturate(.9)', a: { fade: 40, split: 30, splitLo: '#1d6f8a', splitHi: '#f2b36b', con: -5, grain: 12 } },
+    { id: 'moody', name: 'Бараан', css: 'brightness(.85) saturate(.7) contrast(1.15)', a: { exposure: -12, shadows: -20, sat: -25, vignette: 45, con: 15 } },
+    { id: 'matte', name: 'Матт', css: 'contrast(.85) brightness(1.05) saturate(.85)', a: { fade: 55, con: -10, sat: -10 } },
+    { id: 'retro', name: 'Ретро', css: 'sepia(.4) contrast(.9)', a: { fade: 35, temperature: 20, sat: -20, vignette: 35, grain: 18 } },
+    { id: 'bw', name: 'Хар цагаан', css: 'grayscale(1) contrast(1.2)', a: { base: 'Grayscale', con: 20 } },
+    { id: 'bwsoft', name: 'Зөөлөн ХЦ', css: 'grayscale(1) contrast(.85) brightness(1.05)', a: { base: 'Grayscale', fade: 35 } },
+    { id: 'noir', name: 'Нуар', css: 'grayscale(1) contrast(1.5) brightness(.85)', a: { base: 'Grayscale', con: 45, vignette: 50, exposure: -8 } },
+    { id: 'sepia', name: 'Сепиа', css: 'sepia(1)', a: { base: 'Sepia' } },
+    { id: 'vintage', name: 'Винтаж', css: 'sepia(.5) contrast(1.1) saturate(.8) hue-rotate(-10deg)', a: { base: 'Vintage' } },
+    { id: 'kodachrome', name: 'Кодахром', css: 'contrast(1.2) saturate(1.4) sepia(.15)', a: { base: 'Kodachrome' } },
+    { id: 'polaroid', name: 'Полароид', css: 'contrast(1.1) brightness(1.08) saturate(1.2) sepia(.1)', a: { base: 'Polaroid' } }
+  ];
+  // older designs stored plain Fabric filters: read them back into the state object
+  function adjOf(img) {
+    if (img.gAdj) return Object.assign({}, ADJ_DEF, img.gAdj);
+    var a = Object.assign({}, ADJ_DEF), gf = function (T, key) { var f = getFilter(img, T); return f ? Math.round(f[key] * 100) : 0; };
+    a.bri = gf(F.Brightness, 'brightness'); a.con = gf(F.Contrast, 'contrast'); a.sat = gf(F.Saturation, 'saturation'); a.hue = gf(F.HueRotation, 'rotation'); a.blur = gf(F.Blur, 'blur');
+    ['Grayscale', 'Sepia', 'Vintage', 'Kodachrome', 'Technicolor', 'Polaroid', 'Brownie'].forEach(function (n) { if (F[n] && getFilter(img, F[n])) a.base = n; });
+    return a;
+  }
+  function buildFilters(img) {
+    var a = img.gAdj || {}, L = [], adj = {}, any = false;
+    if (a.base && F[a.base]) L.push(new F[a.base]());
+    GX.ADJ_KEYS.forEach(function (k) { adj[k] = (a[k] || 0) / 100; if (adj[k]) any = true; });
+    if (any && F.GcAdjust) { adj.splitLo = a.splitLo || ADJ_DEF.splitLo; adj.splitHi = a.splitHi || ADJ_DEF.splitHi; L.push(new F.GcAdjust(adj)); }
+    if (a.bri) L.push(new F.Brightness({ brightness: a.bri / 100 * 0.6 }));
+    if (a.con) L.push(new F.Contrast({ contrast: a.con / 100 * 0.7 }));
+    if (a.sat) L.push(new F.Saturation({ saturation: a.sat / 100 }));
+    if (a.hue) L.push(new F.HueRotation({ rotation: a.hue / 100 }));
+    if (a.sharpen) { var s = a.sharpen / 100 * 1.2; L.push(new F.Convolute({ matrix: [0, -s, 0, -s, 1 + 4 * s, -s, 0, -s, 0] })); }
+    if (a.grain) L.push(new F.Noise({ noise: a.grain * 2.5 }));
+    if (a.pixel) L.push(new F.Pixelate({ blocksize: Math.max(2, Math.round(a.pixel / 3)) }));
+    if (a.blur) L.push(new F.Blur({ blur: a.blur / 100 }));
+    img.filters = L; img.applyFilters(); img.set('dirty', true);
+  }
+  var thumbCache = {};
+  function thumbOf(img) {
+    var src = img.getSrc(); if (thumbCache[src]) return thumbCache[src];
+    try {
+      var el = img._originalElement || img.getElement(), c = document.createElement('canvas'), S = 96; c.width = c.height = S;
+      var iw = el.naturalWidth || el.width, ih = el.naturalHeight || el.height, k = Math.max(S / iw, S / ih);
+      c.getContext('2d').drawImage(el, (S - iw * k) / 2, (S - ih * k) / 2, iw * k, ih * k);
+      thumbCache[src] = c.toDataURL('image/jpeg', 0.8);
+    } catch (e) { thumbCache[src] = src; }
+    return thumbCache[src];
+  }
+  function asl(label, key, a, min, max) {
+    var v = Math.round(a[key] || 0);
+    return '<div class="sl" title="Давхар дарж 0 болгоно"><span>' + label + '</span><input type="range" data-adj="' + key + '" min="' + (min == null ? -100 : min) + '" max="' + (max == null ? 100 : max) + '" value="' + v + '"><b>' + v + '</b></div>';
+  }
+  function adjustUI(o) {
+    var a = adjOf(o), th = thumbOf(o), cur = o.gPreset || 'none';
+    var csw = function (key, label) { return '<label class="chk"><span class="csw" style="margin:0"><i style="background:' + a[key] + '"></i><input type="color" data-adj="' + key + '" value="' + a[key] + '"></span>' + label + '</label>'; };
+    return '<div class="ps"><div class="adj-auto"><button type="button" class="btn acc" style="flex:1" data-ad="auto">✦ Автомат засах</button><button type="button" class="btn" data-ad="reset">Анхны байдал</button></div>' +
+      '<div class="ps-h" data-col="adjp">Шүүлтүүр</div><div class="pre-grid">' + PRE2.map(function (p) {
+        return '<button type="button" class="pre' + (p.id === cur ? ' on' : '') + '" data-ad="pre:' + p.id + '"><i style="background-image:url(\'' + th + '\');filter:' + p.css + '"></i>' + p.name + '</button>';
+      }).join('') + '</div></div>' +
+      '<div class="ps"><div class="ps-h" data-col="adjl">Гэрэл</div>' + asl('Гэрэлтүүлэг', 'exposure', a) + asl('Гэрэлтэлт', 'bri', a) + asl('Контраст', 'con', a) +
+        asl('Гэгээн хэсэг', 'highlights', a) + asl('Сүүдэр хэсэг', 'shadows', a) + asl('Бүдэг (fade)', 'fade', a, 0, 100) + '</div>' +
+      '<div class="ps"><div class="ps-h" data-col="adjc">Өнгө</div>' + asl('Дулаан ⇄ хүйтэн', 'temperature', a) + asl('Ногоон ⇄ ягаан', 'tint', a) + asl('Ханалт', 'sat', a) +
+        asl('Амьд өнгө', 'vibrance', a) + asl('Өнгөний тон', 'hue', a) + '</div>' +
+      '<div class="ps"><div class="ps-h" data-col="adjd">Нарийвчлал</div>' + asl('Тодруулах', 'sharpen', a, 0, 100) + asl('Бүдгэрүүлэх', 'blur', a, 0, 100) +
+        asl('Виньетк', 'vignette', a) + asl('Ширхэг', 'grain', a, 0, 100) + asl('Пиксель', 'pixel', a, 0, 100) + '</div>' +
+      '<div class="ps"><div class="ps-h" data-col="adjs">Өнгөөр тонлох (split)</div>' + asl('Хүч', 'split', a, 0, 100) +
+        '<div class="r2" style="margin-top:8px">' + csw('splitLo', 'Сүүдэр') + csw('splitHi', 'Гэрэл') + '</div></div>';
+  }
+  var adjRaf = null;
+  function adjSet(img, key, val) {
+    var a = adjOf(img); a[key] = typeof ADJ_DEF[key] === 'number' ? +val : val;
+    img.gAdj = a; img.gPreset = null;
+    if (adjRaf) cancelAnimationFrame(adjRaf);
+    adjRaf = requestAnimationFrame(function () { adjRaf = null; buildFilters(img); canvas.requestRenderAll(); });
+  }
+  function autoAdjust(img) {
+    try {
+      var el = img._originalElement || img.getElement(), c = document.createElement('canvas'); c.width = c.height = 64;
+      var x = c.getContext('2d'); x.drawImage(el, 0, 0, 64, 64);
+      var d = x.getImageData(0, 0, 64, 64).data, n = 0, sum = 0, sq = 0, rs = 0, bs = 0;
+      for (var i = 0; i < d.length; i += 4) { if (d[i + 3] < 128) continue; var L = (d[i] * 0.299 + d[i + 1] * 0.587 + d[i + 2] * 0.114) / 255; sum += L; sq += L * L; rs += d[i]; bs += d[i + 2]; n++; }
+      if (!n) return;
+      var m = sum / n, sd = Math.sqrt(Math.max(0, sq / n - m * m)), a = adjOf(img);
+      a.exposure = Math.round(clamp((0.5 - m) * 110, -40, 40)); a.con = Math.round(clamp((0.24 - sd) * 140, -10, 30));
+      a.shadows = m < 0.4 ? 15 : 0; a.highlights = m > 0.62 ? -15 : 0; a.vibrance = 18;
+      a.temperature = Math.round(clamp((bs - rs) / n / 255 * 60, -20, 20));
+      img.gAdj = a; img.gPreset = null; buildFilters(img); canvas.requestRenderAll(); commit(); renderRight();
+      toast('Гэрэл, өнгийг автоматаар тохирууллаа');
+    } catch (e) { toast('Энэ зургийг автоматаар засаж чадсангүй'); }
+  }
+  rp.addEventListener('input', function (e) {
+    var t = e.target, key = t.dataset.adj, o = active(); if (!key || !o || kindOf(o) !== 'image') return;
+    if (t.type === 'range') t.nextElementSibling.textContent = t.value;
+    if (t.type === 'color') t.previousElementSibling.style.background = t.value;
+    adjSet(o, key, t.value);
+  });
+  rp.addEventListener('change', function (e) { if (e.target.dataset.adj) { commit(); var p = rp.querySelector('.pre.on'); if (p) p.classList.remove('on'); } });
+  rp.addEventListener('dblclick', function (e) {
+    var t = e.target.closest('.sl'); if (!t) return;
+    var r = t.querySelector('input[type="range"]'), o = active(); if (!r || !o) return;
+    r.value = 0; r.nextElementSibling.textContent = 0;
+    if (r.dataset.adj) { adjSet(o, r.dataset.adj, 0); commit(); }
+    else { r.dispatchEvent(new Event('input', { bubbles: true })); r.dispatchEvent(new Event('change', { bubbles: true })); }
+  });
+  rp.addEventListener('click', function (e) {
+    var t = e.target.closest('[data-rtab]'); if (t) { rpTab = t.dataset.rtab; renderRight(); return; }
+    var hh = e.target.closest('.ps-h[data-col]');
+    if (hh && !e.target.closest('button,input,select,label')) { var ck = hh.dataset.col; collapsed[ck] = !collapsed[ck]; hh.parentNode.classList.toggle('col', !!collapsed[ck]); try { localStorage.setItem('gc-ed-col', JSON.stringify(collapsed)); } catch (x) {} return; }
+    var b = e.target.closest('[data-ad]'), o = active(); if (!b || !o) return;
+    var v = b.dataset.ad;
+    if (v === 'auto') return autoAdjust(o);
+    if (v === 'reset') { o.gAdj = null; o.gPreset = null; o.filters = []; o.applyFilters(); canvas.requestRenderAll(); commit(); renderRight(); return; }
+    if (/^pre:/.test(v)) {
+      var p = PRE2.filter(function (x) { return x.id === v.slice(4); })[0]; if (!p) return;
+      o.gAdj = Object.assign({}, ADJ_DEF, p.a); o.gPreset = p.id; buildFilters(o); canvas.requestRenderAll(); commit(); renderRight();
+    }
+  });
+
+  // ---------- text effects: one-click presets like Canva ----------
+  var TFX = [['none', 'Байхгүй'], ['shadow', 'Сүүдэр'], ['lift', 'Өргөх'], ['hollow', 'Хөндий'], ['splice', 'Давхар'], ['echo', 'Цуурай'], ['glitch', 'Glitch'], ['neon', 'Неон'], ['long', 'Урт сүүдэр'], ['outline', 'Хүрээ'], ['bg', 'Дэвсгэр']];
+  function textFxUI(o) {
+    var cur = o.gTfx || 'none';
+    var prev = { none: '', shadow: 'text-shadow:2px 3px 3px rgba(0,0,0,.45)', lift: 'text-shadow:0 5px 8px rgba(0,0,0,.35)', hollow: 'color:transparent;-webkit-text-stroke:1.5px var(--text)',
+      splice: 'color:transparent;-webkit-text-stroke:1.5px var(--text);text-shadow:3px 3px 0 #a497ff', echo: 'text-shadow:3px 3px 0 rgba(130,130,130,.6),6px 6px 0 rgba(130,130,130,.35)',
+      glitch: 'text-shadow:-2px 0 #00e5ff,2px 0 #ff2bd6', neon: 'color:#fff;text-shadow:0 0 4px #ff4fd8,0 0 10px #ff4fd8', long: 'text-shadow:1px 1px 0 #999,2px 2px 0 #999,3px 3px 0 #999,4px 4px 0 #999',
+      outline: '-webkit-text-stroke:1px #a497ff', bg: 'background:#a497ff;color:#fff;border-radius:3px;padding:0 3px' };
+    return '<div class="ps"><div class="ps-h" data-col="tfx">Текстийн эффект</div><div class="fx-presets">' + TFX.map(function (t) {
+      return '<button type="button" class="fx-pre' + (t[0] === cur ? ' on' : '') + '" data-tfx="' + t[0] + '"><b style="' + prev[t[0]] + '">Aa</b>' + t[1] + '</button>';
+    }).join('') + '</div><p class="note" style="margin:0">Дараа нь доорх «Эффект» хэсгээс нарийвчилж тохируулна.</p></div>';
+  }
+  function applyTextFx(o, id) {
+    var base = typeof o.fill === 'string' && o.fill !== 'transparent' ? o.fill : (o.gFillOrig || (typeof o.stroke === 'string' ? o.stroke : '#1e1e1e'));
+    if (o.gFillOrig && o.fill === 'transparent') o.set('fill', o.gFillOrig);
+    o.gFillOrig = null;
+    var u = Math.max(1, o.fontSize * (o.scaleY || 1) / 20), l = [];
+    o.set({ stroke: null, strokeWidth: 0, textBackgroundColor: '' });
+    if (id === 'shadow') l.push({ t: 'drop', on: true, x: u * 0.6, y: u * 0.6, b: u, c: 'rgba(0,0,0,0.45)' });
+    if (id === 'lift') l.push({ t: 'drop', on: true, x: 0, y: u * 1.5, b: u * 4, c: 'rgba(0,0,0,0.35)' });
+    if (id === 'hollow' || id === 'splice') { o.gFillOrig = base; o.set({ fill: 'transparent', stroke: base, strokeWidth: Math.max(1.5, u * 0.35), paintFirst: 'fill', strokeUniform: true }); }
+    if (id === 'splice') l.push({ t: 'echo', on: true, n: 1, x: u * 0.5, y: u * 0.5, a: 1, c: '#a497ff' });
+    if (id === 'echo') l.push({ t: 'echo', on: true, n: 3, x: u * 0.45, y: u * 0.45, a: 0.6 });
+    if (id === 'glitch') l.push({ t: 'glitch', on: true, d: u * 0.5, c1: '#00e5ff', c2: '#ff2bd6' });
+    if (id === 'neon') { o.set('fill', mixWhite(base, 0.7)); o.gFillOrig = base; l.push({ t: 'glow', on: true, b: u * 2.4, a: 0.8, c: base }); }
+    if (id === 'long') l.push({ t: 'long', on: true, l: u * 7, ang: 45, c: 'rgba(0,0,0,0.28)' });
+    if (id === 'outline') o.set({ stroke: '#a497ff', strokeWidth: Math.max(2, u * 0.5), paintFirst: 'stroke', strokeUniform: true });
+    if (id === 'bg') o.set('textBackgroundColor', '#a497ff');
+    o.gTfx = id === 'none' ? null : id;
+    setFx(o, l); o.initDimensions(); o.set('dirty', true);
+  }
+  rp.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-tfx]'); if (!b) return;
+    eachSel(function (x) { if (x.isType('textbox')) applyTextFx(x, b.dataset.tfx); });
+    canvas.requestRenderAll(); commit(); renderRight();
+  });
+
+  // ---------- soft edges and fades (any object) ----------
+  function softUI(o) {
+    var fe = fxList(o).filter(function (e) { return e.t === 'feather'; })[0], fa = fxList(o).filter(function (e) { return e.t === 'fade'; })[0];
+    var dir = fa ? (fa.r ? 'r' : String(fa.ang == null ? 90 : fa.ang)) : 'none';
+    var b = function (v, label) { return '<button type="button" class="btn' + (dir === v ? ' acc' : '') + '" data-soft="' + v + '">' + label + '</button>'; };
+    return '<div class="ps"><div class="ps-h" data-col="soft">Ирмэг, уусгалт</div>' +
+      '<div class="ps-l" style="margin-top:0">Уусгах (градиент тунгалаг)</div><div class="r3" style="grid-template-columns:repeat(3,1fr)">' + b('none', 'Байхгүй') + b('90', '↓ Доош') + b('270', '↑ Дээш') + b('0', '→ Баруун') + b('180', '← Зүүн') + b('r', '◎ Дугуй') + '</div>' +
+      (fa ? fsl('Эхлэл', 'soft:f', 0, 95, Math.round((fa.f == null ? 0.35 : fa.f) * 100), '%') + fsl('Төгсгөл', 'soft:to', 5, 100, Math.round((fa.to == null ? 1 : fa.to) * 100), '%') : '') +
+      '<div class="ps-l">Зөөлөн ирмэг (feather)</div>' + fsl('Хэмжээ', 'soft:b', 0, Math.max(60, Math.round(Math.min(W, H) / 12)), fe ? fe.b : 0) + '</div>';
+  }
+  rp.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-soft]'); if (!b) return;
+    var v = b.dataset.soft;
+    editFx(function (l) {
+      for (var i = l.length - 1; i >= 0; i--) if (l[i].t === 'fade') l.splice(i, 1);
+      if (v !== 'none') l.push(v === 'r' ? { t: 'fade', on: true, r: true, f: 0.35, to: 1 } : { t: 'fade', on: true, ang: +v, f: 0.35, to: 1 });
+    });
+    commit(); renderRight();
+  });
+  rp.addEventListener('input', function (e) {
+    var q = e.target.dataset.q; if (!q || !/^soft:/.test(q)) return;
+    var key = q.slice(5), n = +e.target.value;
+    e.target.nextElementSibling.textContent = n + (key === 'b' ? '' : '%');
+    editFx(function (l) {
+      if (key === 'b') {
+        var fe = l.filter(function (x) { return x.t === 'feather'; })[0];
+        if (!fe && n > 0) l.push(fe = { t: 'feather', on: true, b: n });
+        if (fe) { if (n > 0) fe.b = n; else l.splice(l.indexOf(fe), 1); }
+      } else { var fa = l.filter(function (x) { return x.t === 'fade'; })[0]; if (fa) fa[key] = n / 100; }
+    });
+  });
+  rp.addEventListener('change', function (e) { var q = e.target.dataset.q; if (q && /^soft:/.test(q)) commit(); });
+
+  // ---------- mask groups: move / scale the picture inside the mask ----------
+  function maskGroupUI(o) {
+    var kids = o.getObjects(), img = kids.length === 1 && kids[0].isType('image') ? kids[0] : null, st = o.gMaskGroup || {};
+    return '<div class="ps"><div class="ps-h" data-col="mask">Маск · «' + esc(st.name || '') + '»</div>' +
+      '<label class="chk"><input type="checkbox" data-p="maskinv"' + (o.clipPath && o.clipPath.inverted ? ' checked' : '') + '> Урвуу маск (хэлбэрийн гадна талыг харуулах)</label>' +
+      '<div class="ps-l">Доторх зураг, контент</div>' +
+      fsl('← →', 'mk:x', -100, 100, Math.round(st.dx || 0)) + fsl('↑ ↓', 'mk:y', -100, 100, Math.round(st.dy || 0)) + fsl('Томруулах', 'mk:s', 50, 300, Math.round((st.s || 1) * 100), '%') +
+      (img ? '<button type="button" class="btn full" style="margin-top:6px" data-b="mreplace">' + icon('image') + 'Доторх зургийг солих</button>' : '') +
+      '<button type="button" class="btn full" style="margin-top:6px" data-b="unmask">' + icon('maskI') + 'Маскыг задлах</button></div>';
+  }
+  // content offset in % of the group size and scale around the centre (relative to the state when the mask was made)
+  rp.addEventListener('input', function (e) {
+    var q = e.target.dataset.q; if (!q || !/^mk:/.test(q)) return;
+    var o = active(); if (!o || !o.gMaskGroup) return;
+    var st = o.gMaskGroup, n = +e.target.value, key = q.slice(3);
+    e.target.nextElementSibling.textContent = n + (key === 's' ? '%' : '');
+    if (!st.base) st.base = o.getObjects().map(function (k) { return { l: k.left, t: k.top, sx: k.scaleX, sy: k.scaleY }; });
+    if (key === 'x') st.dx = n; if (key === 'y') st.dy = n; if (key === 's') st.s = n / 100;
+    var s = st.s || 1, dx = (st.dx || 0) / 100 * o.width, dy = (st.dy || 0) / 100 * o.height;
+    o.getObjects().forEach(function (k, i) { var b0 = st.base[i]; if (!b0) return; k.set({ left: b0.l * s + dx, top: b0.t * s + dy, scaleX: b0.sx * s, scaleY: b0.sy * s }); });
+    o.set('dirty', true); canvas.requestRenderAll();
+  });
+  rp.addEventListener('change', function (e) { var q = e.target.dataset.q; if (q && /^mk:/.test(q)) commit(); });
+
+  // ---------- entrance animations (presentation mode) ----------
+  var ANIMS = [['none', 'Байхгүй'], ['fade', 'Бүдгэрэх'], ['rise', 'Дээш'], ['drop', 'Доош'], ['panl', 'Зүүнээс'], ['panr', 'Баруунаас'], ['pop', 'Томрох'], ['zoom', 'Жижгэрэх'], ['blur', 'Тодрох'], ['wipe', 'Арчих'], ['spin', 'Эргэх'], ['type', 'Бичих']];
+  function animUI(o) {
+    var a = o.gAnim || {}, cur = a.t || 'none';
+    return '<div class="ps"><div class="ps-h" data-col="anim">Орох анимэйшн</div><div class="anim-grid">' + ANIMS.map(function (x) {
+        if (x[0] === 'type' && kindOf(o) !== 'text') return '';
+        return '<button type="button" class="anim-b' + (x[0] === cur ? ' on' : '') + '" data-an="' + x[0] + '"><i></i>' + x[1] + '</button>';
+      }).join('') + '</div>' +
+      (cur !== 'none' ? fsl('Хугацаа', 'an:d', 2, 30, Math.round((a.d || 0.7) * 10)) + fsl('Хүлээх', 'an:dl', 0, 50, Math.round((a.dl || 0) * 10)) + '<p class="note">Хугацаа, хүлээлт — секундын 1/10. Үзүүлэх үед слайд нээгдэхэд тоглоно.</p>' : '') +
+      '<button type="button" class="btn full" style="margin-top:8px" data-b="anprev">' + icon('eye') + 'Энэ слайдыг үзэх</button></div>';
+  }
+  rp.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-an]'); if (!b) return;
+    var t = b.dataset.an;
+    eachSel(function (x) { if (x.isFrame) return; x.gAnim = t === 'none' ? null : Object.assign({ d: 0.7, dl: 0 }, x.gAnim || {}, { t: t }); });
+    commit(); renderRight(); if (PPT) pptThumbSoon();
+  });
+  rp.addEventListener('input', function (e) {
+    var q = e.target.dataset.q; if (!q || !/^an:/.test(q)) return;
+    var key = q.slice(3), n = +e.target.value / 10; e.target.nextElementSibling.textContent = e.target.value;
+    eachSel(function (x) { if (x.gAnim) x.gAnim[key] = n; });
+  });
+  rp.addEventListener('change', function (e) { var q = e.target.dataset.q; if (q && /^an:/.test(q)) commit(); });
+
   // ---------- masks ----------
   function makeMask() {
     var sel = active(); if (!sel || sel.type !== 'activeSelection') return toast('Маск хийхийн тулд 2+ зүйл сонгоно уу');
     var all = canvas.getObjects(), objs = sel.getObjects().filter(function (x) { return !x.isFrame; }).sort(function (a, b) { return all.indexOf(a) - all.indexOf(b); });
     if (objs.length < 2) return toast('Маск хийхийн тулд 2+ зүйл сонгоно уу');
-    var mask = objs[0], rest = objs.slice(1), idx = all.indexOf(mask);
+    var txt = objs.filter(function (x) { return x.isType('textbox'); })[0], imgs = objs.filter(function (x) { return x.isType('image'); });
+    var shapeM = objs.filter(function (x) { return !x.isType('image') && !x.isType('textbox'); })[0];
+    var mask = txt || (imgs.length && shapeM ? shapeM : objs[0]), rest = objs.filter(function (x) { return x !== mask; }), idx = Math.min.apply(null, objs.map(function (x) { return all.indexOf(x); }));
     canvas.discardActiveObject();
     mask.clone(function (mc) {
       restoring = true;
@@ -2757,6 +3213,7 @@
       var g = new fabric.Group(rest, { name: 'Маск' });
       var gc = g.getCenterPoint(), mcc = mask.getCenterPoint();
       mc.set({ originX: 'center', originY: 'center', left: mcc.x - gc.x, top: mcc.y - gc.y, shadow: null, opacity: 1, absolutePositioned: false, gFx: null });
+      if (mc.isType && mc.isType('textbox') && mc.path) mc.gCurve = mask.gCurve;
       g.clipPath = mc; g.gMaskGroup = { name: mask.name || objName(mask) };
       canvas.insertAt(g, idx);
       restoring = false;
@@ -2764,6 +3221,41 @@
       toast('Хамгийн доод давхарга маск боллоо');
     }, PROPS);
   }
+  // image → shown inside big bold text
+  function textMask(img) {
+    var b = img.getBoundingRect(true, true), txt = new fabric.Textbox('ТЕКСТ', {
+      fontFamily: stack(currentPair().heading), fontWeight: 900, fontSize: Math.max(40, b.height * 0.45), textAlign: 'center', width: b.width, name: 'Маск текст', fill: '#000'
+    });
+    ensureFont(currentPair().heading).then(function () {
+      txt.set({ left: b.left, top: b.top + (b.height - txt.height) / 2 }); txt.setCoords();
+      restoring = true; canvas.add(txt); restoring = false;
+      canvas.setActiveObject(new fabric.ActiveSelection([img, txt], { canvas: canvas }));
+      makeMask();
+      toast('Зураг текст дотор орлоо — текстийг солихын тулд «Маскыг задлах» → текстээ засаад дахин маск болгоно');
+    });
+  }
+  // curved text (Canva's «Curve»): the first line runs along a circular arc
+  function setCurve(o, v) {
+    o.gCurve = v ? Math.max(-100, Math.min(100, v)) : 0;
+    o.path = null; o.initDimensions();
+    if (!o.gCurve) { o.set('dirty', true); o.setCoords(); return; }
+    var w = Math.max(10, o.calcTextWidth ? o.calcTextWidth() : o.width), th = Math.min(1.95 * Math.PI, Math.abs(o.gCurve) / 100 * 2 * Math.PI), r = w / th;
+    var c = o.getCenterPoint(), d;
+    if (o.gCurve > 0) {
+      var a0 = -Math.PI / 2 - th / 2, a1 = -Math.PI / 2 + th / 2;
+      d = 'M ' + r1(r * Math.cos(a0)) + ' ' + r1(r * Math.sin(a0)) + ' A ' + r1(r) + ' ' + r1(r) + ' 0 ' + (th > Math.PI ? 1 : 0) + ' 1 ' + r1(r * Math.cos(a1)) + ' ' + r1(r * Math.sin(a1));
+    } else {
+      var b0 = Math.PI / 2 + th / 2, b1 = Math.PI / 2 - th / 2;
+      d = 'M ' + r1(r * Math.cos(b0)) + ' ' + r1(r * Math.sin(b0)) + ' A ' + r1(r) + ' ' + r1(r) + ' 0 ' + (th > Math.PI ? 1 : 0) + ' 0 ' + r1(r * Math.cos(b1)) + ' ' + r1(r * Math.sin(b1));
+    }
+    o.set({ path: new fabric.Path(d, { visible: false }), pathAlign: 'center', pathSide: 'left', pathStartOffset: 0 });
+    o.initDimensions(); o.setPositionByOrigin(c, 'center', 'center'); o.set('dirty', true); o.setCoords();
+  }
+  // curved text is saved as gCurve only — the arc is rebuilt on load (a stored path object isn't revived by loadFromJSON)
+  var tbToObject = fabric.Textbox.prototype.toObject;
+  fabric.Textbox.prototype.toObject = function (props) { var r = tbToObject.call(this, props); if (this.gCurve) { delete r.path; delete r.pathSide; delete r.pathAlign; delete r.pathStartOffset; } else if (r.path && !r.path.type) delete r.path; return r; };
+  canvas.on('text:changed', function (ev) { var o = ev.target; if (o && o.gCurve) setCurve(o, o.gCurve); });
+  canvas.on('text:editing:exited', function (ev) { var o = ev.target; if (o && o.gCurve) { setCurve(o, o.gCurve); canvas.requestRenderAll(); } });
   function releaseMask(g) {
     if (!g || g.type !== 'group' || !g.clipPath) return;
     var cp = g.clipPath, M = g.calcTransformMatrix(), idx = canvas.getObjects().indexOf(g);
@@ -2786,13 +3278,18 @@
 
   // ---------- extra image mask shapes ----------
   var MASK_SHAPES = [['none', 'Тэгш өнцөгт'], ['rounded', 'Бөөрөнхий булантай'], ['circle', 'Тойрог'], ['oval', 'Зууван'], ['arch', 'Нуман хаалга'],
-    ['star', 'Од'], ['triangle', 'Гурвалжин'], ['hexagon', 'Зургаан өнцөгт'], ['diamond', 'Ромбо'], ['heart', 'Зүрх'], ['blob', 'Бөөрөнхий хэлбэр']];
+    ['pill', 'Капсул'], ['star', 'Од'], ['spark', 'Гялбаа'], ['triangle', 'Гурвалжин'], ['pentagon', 'Таван өнцөгт'], ['hexagon', 'Зургаан өнцөгт'], ['octagon', 'Найман өнцөгт'], ['diamond', 'Ромбо'], ['para', 'Параллелограмм'], ['heart', 'Зүрх'], ['blob', 'Бөөрөнхий хэлбэр']];
   function polyPts(n, R, r, rot) { var p = []; for (var i = 0; i < n; i++) { var a = rot + Math.PI * 2 * i / n, rr = r != null && i % 2 ? r : R; p.push({ x: Math.cos(a) * rr, y: Math.sin(a) * rr }); } return p; }
   function extraMask(img, kind) {
     var w = img.width, h = img.height, m = Math.min(w, h) / 2, cp = null, o = { originX: 'center', originY: 'center' };
     if (kind === 'star') cp = new fabric.Polygon(polyPts(10, m, m * 0.45, -Math.PI / 2), o);
     if (kind === 'triangle') cp = new fabric.Polygon([{ x: 0, y: -h / 2 }, { x: w / 2, y: h / 2 }, { x: -w / 2, y: h / 2 }], o);
     if (kind === 'hexagon') cp = new fabric.Polygon(polyPts(6, m, null, 0), o);
+    if (kind === 'pentagon') cp = new fabric.Polygon(polyPts(5, m, null, -Math.PI / 2), o);
+    if (kind === 'octagon') cp = new fabric.Polygon(polyPts(8, m, null, Math.PI / 8), o);
+    if (kind === 'spark') cp = new fabric.Polygon(polyPts(8, m, m * 0.28, -Math.PI / 2), o);
+    if (kind === 'para') cp = new fabric.Polygon([{ x: -w / 2 + w * 0.2, y: -h / 2 }, { x: w / 2, y: -h / 2 }, { x: w / 2 - w * 0.2, y: h / 2 }, { x: -w / 2, y: h / 2 }], o);
+    if (kind === 'pill') { var rr = Math.min(w, h) / 2; cp = new fabric.Rect(Object.assign({ width: w, height: h, rx: rr, ry: rr }, o)); }
     if (kind === 'diamond') cp = new fabric.Polygon([{ x: 0, y: -h / 2 }, { x: w / 2, y: 0 }, { x: 0, y: h / 2 }, { x: -w / 2, y: 0 }], o);
     if (kind === 'heart') { var s = m / 12; cp = new fabric.Path('M 0 ' + (-3 * s) + ' C ' + (-2 * s) + ' ' + (-10 * s) + ' ' + (-12 * s) + ' ' + (-8 * s) + ' ' + (-11 * s) + ' ' + (-1 * s) + ' C ' + (-10 * s) + ' ' + (4 * s) + ' ' + (-3 * s) + ' ' + (7 * s) + ' 0 ' + (11 * s) + ' C ' + (3 * s) + ' ' + (7 * s) + ' ' + (10 * s) + ' ' + (4 * s) + ' ' + (11 * s) + ' ' + (-1 * s) + ' C ' + (12 * s) + ' ' + (-8 * s) + ' ' + (2 * s) + ' ' + (-10 * s) + ' 0 ' + (-3 * s) + ' Z', o); }
     if (kind === 'blob') { var k = Math.min(w, h) / 200; cp = new fabric.Path('M 60 -85 C 95 -60 100 -15 90 25 C 80 70 40 95 -5 92 C -55 90 -95 60 -98 15 C -100 -35 -70 -80 -25 -95 C 5 -103 35 -100 60 -85 Z', Object.assign({ scaleX: k, scaleY: k }, o)); }
@@ -2826,18 +3323,24 @@
       var j = +parts[1], k = parts[2];
       editFx(function (l) {
         var e = l[j]; if (!e) return;
-        if (k === 'mono') e.mono = !!v;
-        else if (k === 'c') e.c = mkCol(v, parseCol(e.c).a);
-        else if (k === 'cH') { var hx = hexq(v); if (hx) e.c = mkCol(hx, parseCol(e.c).a); }
-        else if (k === 'cA') { if (n !== null) e.c = mkCol(parseCol(e.c).hex, clamp(n, 0, 100) / 100); }
-        else if (n !== null) e[k] = k === 'a' ? n / 100 : n;
+        var ck = /^(c|c1|c2)(H|A)?$/.exec(k);
+        if (k === 'mono' || k === 'fd') e[k] = !!v;
+        else if (k === 'usec') e.c = v ? '#a497ff' : null;
+        else if (k === 'dir') { if (v === 'r') { e.r = true; } else { e.r = false; e.ang = +v; } }
+        else if (ck) {
+          var prevC = e[ck[1]] || '#000000';
+          if (!ck[2]) e[ck[1]] = mkCol(v, parseCol(prevC).a);
+          else if (ck[2] === 'H') { var hx = hexq(v); if (hx) e[ck[1]] = mkCol(hx, parseCol(prevC).a); }
+          else if (n !== null) e[ck[1]] = mkCol(parseCol(prevC).hex, clamp(n, 0, 100) / 100);
+        }
+        else if (n !== null) e[k] = (k === 'a' || k === 'f' || k === 'to') ? n / 100 : (k === 'n' ? clamp(Math.round(n), 1, 8) : n);
       });
       if (!live) commit();
     }
   }
   rp.addEventListener('input', function (e) {
     var t = e.target, q = t.dataset.q; if (!q) return;
-    if (t.type === 'range') { var b = t.nextElementSibling; if (b) b.textContent = t.value + (/:(a|scale|radius)$/.test(q) && !/^fx:\d+:s$/.test(q) ? '%' : ''); qInput(q, t.value, true); }
+    if (t.type === 'range') { var b = t.nextElementSibling; if (b) b.textContent = t.value + (/:(a|scale|radius|f|to)$/.test(q) && !/^fx:\d+:s$/.test(q) ? '%' : ''); qInput(q, t.value, true); }
     else if (t.type === 'color') { t.previousElementSibling.style.background = t.value; qInput(q, t.value, true); }
   });
   rp.addEventListener('change', function (e) {
@@ -2854,7 +3357,7 @@
       if (sub === 'add') {
         var t = parts[2];
         editFx(function (l, x) {
-          if (t === 'drop' && l.some(function (q) { return q.t === 'drop'; })) return;
+          if ((t === 'drop' || t === 'feather' || t === 'fade') && l.some(function (q) { return q.t === t; })) return;
           l.push(fxDefaults(t));
           if (t === 'glass') {
             if (typeof x.fill === 'string' && !x.isType('image')) x.set('fill', 'rgba(255,255,255,0.14)');
@@ -2896,6 +3399,9 @@
     if (a === 'cut' && o) { openCutout(o); return; }
     if (a === 'upx' && o) { openUpscale(o); return; }
     if (a === 'unmask') { releaseMask(o); return; }
+    if (a === 'textmask' && o) { textMask(o); return; }
+    if (a === 'mreplace' && o && o.gMaskGroup) { replaceTarget = o.getObjects()[0]; replaceTarget.gInGroup = o; $('#ed-replace').value = ''; $('#ed-replace').click(); return; }
+    if (a === 'anprev') { if (PPT) pptPresent(Math.max(0, frames().indexOf(page)), true); return; }
     if (a === 'vedit' && o) { if (vedit) endVEdit(); else startVEdit(o); return; }
   });
   // drag gradient stops along the bar
@@ -3032,7 +3538,7 @@
       // original pixels (for restore); mask = current alpha
       ox.drawImage(orig.naturalWidth === W0 ? orig : cur, 0, 0, Wc, Hc);
       mx.drawImage(cur, 0, 0, Wc, Hc);
-      var st = { tool: 'erase', size: Math.max(8, Math.round(Math.max(Wc, Hc) / 30)), hard: 70, tol: 30, contig: true, ghost: true, zoom: 1 };
+      var st = { tool: 'erase', size: Math.max(8, Math.round(Math.max(Wc, Hc) / 30)), hard: 70, tol: 30, contig: true, ghost: true, zoom: 1, flow: 100, bgv: 'checker', ref: null };
       var undoS = [], redoS = [];
 
       var m = document.createElement('div'); m.className = 'cut-modal';
@@ -3043,25 +3549,27 @@
         '<div class="cut-body"><div class="cut-view"><canvas></canvas></div>' +
         '<div class="cut-side">' +
           '<div class="ps-l" style="margin-top:0">Хэрэгсэл</div><div class="cut-tools">' +
-            [['erase', 'eraser', 'Баллуур', 'Чирж арилгана'], ['restore', 'pen', 'Сэргээх', 'Арилгасан хэсгийг буцааж зурна'], ['wand', 'wand', 'Шидэт саваа', 'Ижил өнгөтэй хэсгийг дарж арилгана'],
+            [['erase', 'eraser', 'Баллуур', 'Чирж арилгана (E)'], ['restore', 'pen', 'Сэргээх', 'Арилгасан хэсгийг буцааж зурна (R) · X — солих'], ['bgerase', 'eraseAll', 'Өнгөөр', 'Сойзны төвийн өнгөтэй ижил пикселийг л арилгана (B) — үс, ирмэгт'], ['wand', 'wand', 'Шидэт саваа', 'Ижил өнгөтэй хэсгийг дарж арилгана (W)'],
               ['lasso', 'lassoI', 'Лассо', 'Тойруулж зураад дотор талыг арилгана'], ['lassoOut', 'lassoI', 'Лассо — гадна', 'Тойруулж зураад гадна талыг арилгана'], ['lassoIn', 'lassoI', 'Лассо — сэргээх', 'Тойруулсан хэсгийг сэргээнэ']].map(function (t) {
               return '<button type="button" class="ctool" data-ct="' + t[0] + '" title="' + t[3] + '">' + icon(t[1]) + '<span>' + t[2] + '</span></button>';
             }).join('') + '</div>' +
-          '<div data-opt-brush><div class="sl"><span>Хэмжээ</span><input type="range" data-cs="size" min="2" max="' + Math.round(Math.max(Wc, Hc) / 6) + '" value="' + st.size + '"><b>' + st.size + '</b></div>' +
-            '<div class="sl"><span>Хатуулаг</span><input type="range" data-cs="hard" min="0" max="100" value="' + st.hard + '"><b>' + st.hard + '</b></div></div>' +
+          '<div data-opt-brush><div class="sl"><span>Хэмжээ [ ]</span><input type="range" data-cs="size" min="2" max="' + Math.round(Math.max(Wc, Hc) / 6) + '" value="' + st.size + '"><b>' + st.size + '</b></div>' +
+            '<div class="sl"><span>Хатуулаг</span><input type="range" data-cs="hard" min="0" max="100" value="' + st.hard + '"><b>' + st.hard + '</b></div>' +
+            '<div class="sl"><span>Хүч (flow)</span><input type="range" data-cs="flow" min="5" max="100" value="' + st.flow + '"><b>' + st.flow + '</b></div></div>' +
           '<div data-opt-wand hidden><div class="sl"><span>Хүлцэл</span><input type="range" data-cs="tol" min="1" max="100" value="' + st.tol + '"><b>' + st.tol + '</b></div>' +
-            '<label class="chk"><input type="checkbox" data-cs="contig" checked> Зөвхөн залгаа хэсэг</label><p class="note">Shift + дарах: сэргээх</p></div>' +
+            '<label class="chk" data-opt-contig><input type="checkbox" data-cs="contig" checked> Зөвхөн залгаа хэсэг</label><p class="note" data-opt-wnote>Shift + дарах: сэргээх</p></div>' +
           '<div class="ps-l">Бүхэлд нь</div>' +
           '<button type="button" class="btn acc full" data-cu="ai">' + icon('wand') + 'AI-аар дэвсгэр арилгах</button>' +
           '<div class="r2" style="margin-top:6px"><button type="button" class="btn" data-cu="invert">Урвуулах</button><button type="button" class="btn" data-cu="reset">Анхных руу</button></div>' +
-          '<button type="button" class="btn full" style="margin-top:6px" data-cu="soften">Ирмэгийг зөөлрүүлэх</button>' +
-          '<div class="ps-l">Харагдац</div><label class="chk"><input type="checkbox" data-cs="ghost" checked> Арилгасан хэсгийг бүдэг харуулах</label>' +
+          '<div class="ps-l">Ирмэг цэвэрлэх</div><div class="r3e"><button type="button" class="btn" data-cu="grow" title="Ирмэгийг 1–2px тэлнэ">Тэлэх</button><button type="button" class="btn" data-cu="shrink" title="Ирмэгийг 1–2px агшаана — дэвсгэрийн үлдэгдлийг авна">Агшаах</button><button type="button" class="btn" data-cu="soften" title="Ирмэгийг зөөлрүүлнэ">Зөөлрүүлэх</button></div>' +
+          '<div class="ps-l">Харагдац</div><label class="nf full"><select data-cs="bgv"><option value="checker">Шатар (тунгалаг)</option><option value="white">Цагаан дэвсгэр</option><option value="black">Хар дэвсгэр</option><option value="green">Ногоон дэвсгэр</option><option value="mask">Улаан маск (арилгасан хэсэг)</option></select></label>' +
+          '<label class="chk" style="margin-top:6px"><input type="checkbox" data-cs="ghost" checked> Арилгасан хэсгийг бүдэг харуулах</label>' +
           '<div class="sl"><span>Томруулах</span><input type="range" data-cs="zoom" min="100" max="400" value="100"><b>100%</b></div>' +
-          '<p class="note">Зургийн жинхэнэ хэмжээ: ' + W0 + '×' + H0 + 'px. Хоёр хуруугаар / Ctrl+дугуйгаар томруулна.</p>' +
+          '<p class="note">Зургийн жинхэнэ хэмжээ: ' + W0 + '×' + H0 + 'px. Ctrl + дугуй / хоёр хуруугаар томруулна, Space + чирж гүйлгэнэ. Товчлол: E R B W L, X солих, [ ] хэмжээ, Shift+[ ] хатуулаг.</p>' +
         '</div></div>';
       document.body.appendChild(m);
       var view = m.querySelector('.cut-view'), V = m.querySelector('canvas'), vx = V.getContext('2d');
-      var fitK = 1, lasso = null, drawing = false, last = null, hover = null;
+      var fitK = 1, lasso = null, drawing = false, last = null, hover = null, panKey = false, panning2 = null;
 
       function mk(w, h) { var c = document.createElement('canvas'); c.width = w; c.height = h; return c; }
       function layout() {
@@ -3079,22 +3587,47 @@
         cx.globalCompositeOperation = 'source-over';
         var s = V.width / Wc;
         vx.setTransform(1, 0, 0, 1, 0, 0); vx.clearRect(0, 0, V.width, V.height);
-        if (st.ghost) { vx.globalAlpha = 0.22; vx.drawImage(O, 0, 0, V.width, V.height); vx.globalAlpha = 1; }
-        vx.drawImage(C, 0, 0, V.width, V.height);
+        if (st.bgv === 'mask') {
+          vx.drawImage(O, 0, 0, V.width, V.height);
+          var rm = mk(Wc, Hc), rx = rm.getContext('2d'); rx.fillStyle = 'rgba(255,40,60,0.55)'; rx.fillRect(0, 0, Wc, Hc); rx.globalCompositeOperation = 'destination-out'; rx.drawImage(M, 0, 0);
+          vx.drawImage(rm, 0, 0, V.width, V.height);
+        } else {
+          if (st.bgv !== 'checker') { vx.fillStyle = { white: '#ffffff', black: '#000000', green: '#00b140' }[st.bgv] || '#fff'; vx.fillRect(0, 0, V.width, V.height); }
+          if (st.ghost) { vx.globalAlpha = 0.22; vx.drawImage(O, 0, 0, V.width, V.height); vx.globalAlpha = 1; }
+          vx.drawImage(C, 0, 0, V.width, V.height);
+        }
         vx.setTransform(s, 0, 0, s, 0, 0);
         if (lasso && lasso.length > 1) {
           vx.beginPath(); vx.moveTo(lasso[0].x, lasso[0].y); lasso.forEach(function (p) { vx.lineTo(p.x, p.y); });
           vx.lineWidth = 2 / s; vx.strokeStyle = '#fff'; vx.setLineDash([]); vx.stroke(); vx.strokeStyle = ACC; vx.setLineDash([6 / s, 4 / s]); vx.stroke(); vx.setLineDash([]);
         }
-        if (hover && (st.tool === 'erase' || st.tool === 'restore')) {
+        if (hover && (st.tool === 'erase' || st.tool === 'restore' || st.tool === 'bgerase')) {
           vx.beginPath(); vx.arc(hover.x, hover.y, st.size / 2, 0, Math.PI * 2);
           vx.lineWidth = 1.5 / s; vx.strokeStyle = '#fff'; vx.stroke(); vx.lineWidth = 0.75 / s; vx.strokeStyle = '#000'; vx.stroke();
         }
       }
       function pos(e) { var r = V.getBoundingClientRect(); return { x: (e.clientX - r.left) * Wc / r.width, y: (e.clientY - r.top) * Hc / r.height }; }
-      function save() { undoS.push(mx.getImageData(0, 0, Wc, Hc)); if (undoS.length > 6) undoS.shift(); redoS = []; }
+      function save() { undoS.push(mx.getImageData(0, 0, Wc, Hc)); if (undoS.length > (Wc * Hc > 4e6 ? 8 : 16)) undoS.shift(); redoS = []; }
+      // background eraser: only pixels close to the colour under the brush centre fade out (hair, fur, fine edges)
+      function stampBG(x, y) {
+        var r = st.size / 2, x0 = Math.max(0, Math.floor(x - r)), y0 = Math.max(0, Math.floor(y - r)), x1 = Math.min(Wc, Math.ceil(x + r)), y1 = Math.min(Hc, Math.ceil(y + r));
+        if (x1 <= x0 || y1 <= y0) return;
+        var w = x1 - x0, hh = y1 - y0, od = ox.getImageData(x0, y0, w, hh).data, md = mx.getImageData(x0, y0, w, hh), d = md.data;
+        if (!st.ref) { var ci = ((Math.floor(y) - y0) * w + (Math.floor(x) - x0)) * 4; st.ref = [od[ci], od[ci + 1], od[ci + 2]]; }
+        var tol = st.tol * st.tol * 7.5, hard = st.hard / 100, k = st.flow / 100;
+        for (var j = 0; j < hh; j++) for (var i = 0; i < w; i++) {
+          var dx = x0 + i - x, dy = y0 + j - y, dist = Math.sqrt(dx * dx + dy * dy) / r; if (dist > 1) continue;
+          var p = (j * w + i) * 4, dr = od[p] - st.ref[0], dg = od[p + 1] - st.ref[1], db = od[p + 2] - st.ref[2], cd = dr * dr + dg * dg + db * db;
+          if (cd > tol) continue;
+          var fall = dist <= hard ? 1 : 1 - (dist - hard) / Math.max(0.001, 1 - hard), soft = 1 - Math.min(1, cd / tol) * 0.5;
+          d[p + 3] = Math.max(0, d[p + 3] * (1 - fall * soft * k));
+        }
+        mx.putImageData(md, x0, y0);
+      }
       function stamp(x, y) {
+        if (st.tool === 'bgerase') return stampBG(x, y);
         var r = st.size / 2, h = st.hard / 100;
+        mx.globalAlpha = st.flow / 100;
         mx.globalCompositeOperation = st.tool === 'erase' ? 'destination-out' : 'source-over';
         if (h >= 0.98) { mx.fillStyle = '#fff'; mx.beginPath(); mx.arc(x, y, r, 0, Math.PI * 2); mx.fill(); }
         else {
@@ -3102,7 +3635,7 @@
           g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(1, 'rgba(255,255,255,0)');
           mx.fillStyle = g; mx.beginPath(); mx.arc(x, y, r, 0, Math.PI * 2); mx.fill();
         }
-        mx.globalCompositeOperation = 'source-over';
+        mx.globalCompositeOperation = 'source-over'; mx.globalAlpha = 1;
       }
       function line(a, b) {
         var d = Math.hypot(b.x - a.x, b.y - a.y), step = Math.max(1, st.size * 0.18), n = Math.ceil(d / step);
@@ -3147,8 +3680,9 @@
       function setTool(t) {
         st.tool = t;
         m.querySelectorAll('[data-ct]').forEach(function (b) { b.classList.toggle('on', b.dataset.ct === t); });
-        m.querySelector('[data-opt-brush]').hidden = !(t === 'erase' || t === 'restore');
-        m.querySelector('[data-opt-wand]').hidden = t !== 'wand';
+        m.querySelector('[data-opt-brush]').hidden = !(t === 'erase' || t === 'restore' || t === 'bgerase');
+        m.querySelector('[data-opt-wand]').hidden = !(t === 'wand' || t === 'bgerase');
+        m.querySelector('[data-opt-contig]').hidden = t !== 'wand'; m.querySelector('[data-opt-wnote]').hidden = t !== 'wand';
         V.style.cursor = t === 'wand' ? 'crosshair' : /lasso/.test(t) ? 'crosshair' : 'none';
         render();
       }
@@ -3156,17 +3690,21 @@
         if (e.button !== 0 && e.pointerType === 'mouse') return;
         V.setPointerCapture(e.pointerId);
         var p = pos(e);
+        if (panKey) { panning2 = { x: e.clientX, y: e.clientY, sl: view.scrollLeft, st: view.scrollTop }; return; }
         if (st.tool === 'wand') { save(); wand(p, e.shiftKey || e.altKey); render(); return; }
+        st.ref = null;
         if (/lasso/.test(st.tool)) { lasso = [p]; drawing = true; return; }
         save(); drawing = true; last = p; stamp(p.x, p.y); render();
       });
       V.addEventListener('pointermove', function (e) {
+        if (panning2) { view.scrollLeft = panning2.sl - (e.clientX - panning2.x); view.scrollTop = panning2.st - (e.clientY - panning2.y); return; }
         var p = pos(e); hover = p;
         if (drawing && lasso) { var l = lasso[lasso.length - 1]; if (Math.hypot(p.x - l.x, p.y - l.y) > 2 / (V.width / Wc)) lasso.push(p); }
         else if (drawing) { line(last, p); last = p; }
         render();
       });
       V.addEventListener('pointerup', function () {
+        if (panning2) { panning2 = null; return; }
         if (lasso) { fillLasso(lasso, st.tool); lasso = null; }
         drawing = false; last = null; render();
       });
@@ -3187,13 +3725,22 @@
       m.addEventListener('input', function (e) {
         var t = e.target, k = t.dataset.cs; if (!k) return;
         if (t.type === 'range') { t.nextElementSibling.textContent = t.value + (k === 'zoom' ? '%' : ''); }
-        if (k === 'size' || k === 'hard' || k === 'tol') st[k] = +t.value;
+        if (k === 'size' || k === 'hard' || k === 'tol' || k === 'flow') st[k] = +t.value;
+        if (k === 'bgv') { st.bgv = t.value; render(); }
         if (k === 'zoom') { st.zoom = +t.value / 100; layout(); }
         if (k === 'ghost') { st.ghost = t.checked; render(); }
         if (k === 'contig') st.contig = t.checked;
       });
-      function close() { m.remove(); window.removeEventListener('resize', layout); document.removeEventListener('keydown', onKey, true); }
+      function close() { m.remove(); window.removeEventListener('resize', layout); document.removeEventListener('keydown', onKey, true); document.removeEventListener('keyup', onKeyUp, true); }
+      function onKeyUp(e) { if (e.code === 'Space') { panKey = false; V.style.cursor = st.tool === 'wand' || /lasso/.test(st.tool) ? 'crosshair' : 'none'; } }
+      document.addEventListener('keyup', onKeyUp, true);
       function onKey(e) {
+        if (e.target && e.target.tagName === 'SELECT') return;
+        if (e.code === 'Space') { e.preventDefault(); panKey = true; V.style.cursor = 'grab'; return; }
+        var kk = keyName(e), map = { e: 'erase', r: 'restore', b: 'bgerase', w: 'wand', l: 'lasso' };
+        if (!e.ctrlKey && !e.metaKey && map[kk]) { setTool(map[kk]); return; }
+        if (!e.ctrlKey && !e.metaKey && kk === 'x') { setTool(st.tool === 'restore' ? 'erase' : 'restore'); return; }
+        if (e.shiftKey && (e.key === '{' || e.key === '}' || e.code === 'BracketLeft' || e.code === 'BracketRight')) { e.preventDefault(); st.hard = clamp(st.hard + (e.code === 'BracketRight' ? 10 : -10), 0, 100); var hi = m.querySelector('[data-cs="hard"]'); hi.value = st.hard; hi.nextElementSibling.textContent = st.hard; return; }
         if (e.key === 'Escape') { e.stopPropagation(); close(); }
         if ((e.ctrlKey || e.metaKey) && keyName(e) === 'z') { e.preventDefault(); e.stopPropagation(); act(e.shiftKey ? 'redo' : 'undo'); }
         if (e.key === '[' || e.key === ']') { st.size = clamp(st.size + (e.key === ']' ? 1 : -1) * Math.max(2, st.size * 0.15), 2, Math.max(Wc, Hc) / 6); var si = m.querySelector('[data-cs="size"]'); si.value = st.size; si.nextElementSibling.textContent = Math.round(st.size); render(); }
@@ -3205,6 +3752,12 @@
         if (a === 'invert') { save(); var d = mx.getImageData(0, 0, Wc, Hc); for (var i = 3; i < d.data.length; i += 4) { d.data[i - 3] = d.data[i - 2] = d.data[i - 1] = 255; d.data[i] = 255 - d.data[i]; } mx.putImageData(d, 0, 0); }
         if (a === 'reset') { save(); mx.globalCompositeOperation = 'copy'; mx.fillStyle = '#fff'; mx.fillRect(0, 0, Wc, Hc); mx.globalCompositeOperation = 'source-over'; }
         if (a === 'soften') { save(); soften(Math.max(1, Math.max(Wc, Hc) / 800)); }
+        if (a === 'grow' || a === 'shrink') {
+          save(); soften(Math.max(1, Math.max(Wc, Hc) / 900));
+          var ed = mx.getImageData(0, 0, Wc, Hc), dd = ed.data;
+          for (var q = 3; q < dd.length; q += 4) dd[q] = a === 'grow' ? Math.min(255, dd[q] * 2) : Math.max(0, dd[q] * 2 - 255);
+          mx.putImageData(ed, 0, 0);
+        }
         if (a === 'ai') {
           var b = m.querySelector('[data-cu="ai"]'); b.disabled = true; b.lastChild.textContent = 'AI ажиллаж байна…';
           aiMask(O).then(function (mc) {
@@ -3421,13 +3974,14 @@
   // slide strip (bottom)
   function pptStrip() {
     var bar = document.getElementById('ppt-bar'); if (!bar) return;
-    var fs = frames(), sig = fs.map(function (f) { return f.id; }).join(',');
+    var fs = frames(), sig = fs.map(function (f) { return f.id + (f.gTrans ? 't' : '') + (childrenOf(f).some(function (o) { return o.gAnim; }) ? 'a' : ''); }).join(',');
     var list = bar.querySelector('#ppt-list');
     if (sig !== pptSig) {
       pptSig = sig;
       list.innerHTML = fs.map(function (f, i) {
         var ar = fh(f) / fw(f);
-        return '<button type="button" class="ppt-sl" draggable="true" data-fid="' + f.id + '" title="' + esc(f.name || '') + '"><img alt="" style="aspect-ratio:' + (1 / ar) + '" src="' + (pptThumbs[f.id] || pptThumb(f)) + '"><i>' + (i + 1) + '</i></button>';
+        var fxb = (f.gTrans ? '⇄' : '') + (childrenOf(f).some(function (o) { return o.gAnim; }) ? '✦' : '');
+        return '<button type="button" class="ppt-sl" draggable="true" data-fid="' + f.id + '" title="' + esc(f.name || '') + '"><img alt="" style="aspect-ratio:' + (1 / ar) + '" src="' + (pptThumbs[f.id] || pptThumb(f)) + '"><i>' + (i + 1) + '</i>' + (fxb ? '<em>' + fxb + '</em>' : '') + '</button>';
       }).join('') + '<button type="button" class="ppt-add" data-pa="add" title="Шинэ слайд" aria-label="Шинэ слайд">+</button>';
     }
     list.querySelectorAll('.ppt-sl').forEach(function (b) { b.classList.toggle('on', page && b.dataset.fid === page.id); });
@@ -3446,6 +4000,7 @@
           '<button type="button" data-pa="notes" title="Тэмдэглэл">✎ <span>Тэмдэглэл</span></button>' +
           '<button type="button" data-pa="left" title="Зүүн тийш">‹</button><button type="button" data-pa="right" title="Баруун тийш">›</button>' +
           '<button type="button" data-pa="dup" title="Слайд хуулах">⧉</button><button type="button" data-pa="del" title="Слайд устгах">🗑</button>' +
+          '<button type="button" data-pa="grid" title="Бүх слайдыг том харах" class="wide">▦ Бүгд</button>' +
           '<span class="ppt-count" id="ppt-count"></span>' +
         '</div>' +
         '<div class="ppt-list" id="ppt-list"></div>' +
@@ -3456,6 +4011,7 @@
       if (b.dataset.fid) { var f = frames().filter(function (x) { return x.id === b.dataset.fid; })[0]; bar._noscroll = true; pptGo(f); bar._noscroll = false; return; }
       var a = b.dataset.pa, i = frames().indexOf(page);
       if (a === 'add') pptAdd();
+      if (a === 'grid') { pptGrid(); return; }
       if (a === 'dup' && page) pptDuplicate(page);
       if (a === 'del' && page) { selectFrame(page); removeSel(); }
       if ((a === 'left' || a === 'right') && page) { pptMove(page, i + (a === 'left' ? -1 : 1)); fitFrame(page); commit(); refreshUI(); }
@@ -3492,52 +4048,187 @@
     return false;
   }
 
-  // slideshow
-  function pptPresent(start) {
-    if (crop) endCrop(true);
-    var t = active(); if (t && t.isEditing) t.exitEditing();
-    var fs = frames(), i = clamp(start || 0, 0, fs.length - 1), cache = {}, cur = 0;
-    var ov = document.createElement('div'); ov.className = 'ppt-show'; ov.tabIndex = -1;
-    ov.innerHTML = '<img class="s0" alt=""><img class="s1" alt=""><div class="ppt-show-ui"><button type="button" data-sx="prev" aria-label="Өмнөх">‹</button><span></span><button type="button" data-sx="next" aria-label="Дараах">›</button><button type="button" data-sx="x" aria-label="Хаах">✕</button></div><div class="ppt-prog"><i></i></div>';
-    document.body.appendChild(ov);
-    var imgs = ov.querySelectorAll('img'), lab = ov.querySelector('.ppt-show-ui span'), prog = ov.querySelector('.ppt-prog i');
-    function src(k) {
-      if (cache[k]) return cache[k];
-      var f = fs[k], sw = Math.min(3840, Math.max(1280, (window.screen.width || 1920) * (window.devicePixelRatio || 1)));
-      try { cache[k] = quietRender(f, sw / fw(f)).toDataURL('image/jpeg', 0.92); } catch (e) { cache[k] = ''; }
-      return cache[k];
+  // slideshow: page transitions + element entrance animations (each animated layer is rendered on its own)
+  var TRANS = [['none', 'Байхгүй'], ['fade', 'Бүдгэрэх'], ['slide', 'Гулсах'], ['push', 'Түлхэх'], ['zoom', 'Томрох'], ['blur', 'Тодрох'], ['wipe', 'Арчих'], ['rise', 'Дээш'], ['flip', 'Эргэх']];
+  function renderOnly(o, f, mult) {
+    var vpt = canvas.viewportTransform, bg = canvas.backgroundColor, hid = [], out, pad = 0;
+    (o.gFx || []).forEach(function (e) { if (e.on !== false) pad = Math.max(pad, (e.b || 0) * 2, e.l || 0, (e.d || 0) + 4, Math.abs(e.x || 0) * (e.n || 1) + Math.abs(e.y || 0) * (e.n || 1)); });
+    if (o.shadow) pad = Math.max(pad, (o.shadow.blur || 0) * 1.5 + Math.abs(o.shadow.offsetX || 0) + Math.abs(o.shadow.offsetY || 0));
+    var b = o.getBoundingRect(true, true), l = Math.max(f.left, b.left - pad), t = Math.max(f.top, b.top - pad);
+    var r = Math.min(f.left + fw(f), b.left + b.width + pad), btm = Math.min(f.top + fh(f), b.top + b.height + pad);
+    if (r - l < 1 || btm - t < 1) return null;
+    userObjects().forEach(function (x) { if (x !== o && x.visible !== false) { x.visible = false; hid.push(x); } });
+    frames().forEach(function (x) { if (x.visible !== false) { x.visible = false; hid.push(x); } });
+    exporting = true; canvas.backgroundColor = null;
+    try {
+      canvas.viewportTransform = [1, 0, 0, 1, 0, 0];
+      out = canvas.toCanvasElement(safeMult(r - l, btm - t, mult), { left: l, top: t, width: r - l, height: btm - t });
+    } finally {
+      hid.forEach(function (x) { x.visible = true; });
+      canvas.viewportTransform = vpt; canvas.calcViewportBoundaries(); canvas.backgroundColor = bg; exporting = false;
     }
-    function show(k) {
-      if (k < 0 || k >= fs.length) { if (k >= fs.length) end(); return; }
-      i = k; var next = imgs[1 - cur];
-      next.src = src(i); next.classList.add('on'); imgs[cur].classList.remove('on'); cur = 1 - cur;
+    return { url: out.toDataURL('image/png'), x: (l - f.left) / fw(f) * 100, y: (t - f.top) / fh(f) * 100, w: (r - l) / fw(f) * 100, h: (btm - t) / fh(f) * 100 };
+  }
+  function buildSlide(f) {
+    var sw = Math.min(3840, Math.max(1280, (window.screen.width || 1920) * (window.devicePixelRatio || 1))), mult = sw / fw(f);
+    var anim = childrenOf(f).filter(function (o) { return o.gAnim && o.gAnim.t && o.visible !== false && (!o.globalCompositeOperation || o.globalCompositeOperation === 'source-over'); });
+    anim.forEach(function (o) { o.visible = false; });
+    var base;
+    try { base = quietRender(f, mult).toDataURL('image/jpeg', 0.92); } finally { anim.forEach(function (o) { o.visible = true; }); }
+    var el = document.createElement('div'); el.className = 'pslide'; el.dataset.ar = fw(f) / fh(f);
+    var h = '<img class="pbase" alt="" src="' + base + '">';
+    anim.forEach(function (o) {
+      var L = renderOnly(o, f, mult); if (!L) return;
+      var a = o.gAnim, n = (o.text || '').length;
+      h += '<img class="play an-' + a.t + '" alt="" src="' + L.url + '" style="left:' + L.x + '%;top:' + L.y + '%;width:' + L.w + '%;height:' + L.h + '%;--d:' + (a.d || 0.7) + 's;--dl:' + (a.dl || 0) + 's;--steps:' + Math.max(4, Math.min(60, n)) + '">';
+    });
+    el.innerHTML = h;
+    return el;
+  }
+  function pptPresent(start, preview) {
+    if (crop) endCrop(true);
+    var t0 = active(); if (t0 && t0.isEditing) t0.exitEditing();
+    canvas.discardActiveObject(); canvas.requestRenderAll();
+    var fs = frames(), i = clamp(start || 0, 0, fs.length - 1), cache = {}, curEl = null, busy = false, auto = null, t0s = Date.now();
+    var ov = document.createElement('div'); ov.className = 'ppt-show'; ov.tabIndex = -1;
+    ov.innerHTML = '<div class="ppt-stage"></div><div class="ppt-cover" hidden></div><div class="ppt-notes-ov" hidden></div>' +
+      '<div class="ppt-show-ui"><button type="button" data-sx="prev" aria-label="Өмнөх" title="Өмнөх (←)">‹</button><span class="ppt-lab"></span><button type="button" data-sx="next" aria-label="Дараах" title="Дараах (→)">›</button>' +
+      '<i class="sep"></i><span class="ppt-time" title="Өнгөрсөн хугацаа">0:00</span><button type="button" data-sx="notes" title="Тэмдэглэл (N)">✎</button><button type="button" data-sx="auto" title="Автоматаар тоглуулах (A)">⏵</button><button type="button" data-sx="x" aria-label="Хаах" title="Гарах (Esc)">✕</button></div>' +
+      '<div class="ppt-prog"><i></i></div><div class="ppt-keys">← → шилжих · A автомат · N тэмдэглэл · B хар дэлгэц · Esc гарах</div>';
+    document.body.appendChild(ov);
+    var stage = ov.querySelector('.ppt-stage'), lab = ov.querySelector('.ppt-lab'), prog = ov.querySelector('.ppt-prog i'), tm = ov.querySelector('.ppt-time'), notes = ov.querySelector('.ppt-notes-ov'), cover = ov.querySelector('.ppt-cover');
+    setTimeout(function () { var k = ov.querySelector('.ppt-keys'); if (k) k.classList.add('hide'); }, 3500);
+    var tick = setInterval(function () { var s = Math.floor((Date.now() - t0s) / 1000); tm.textContent = Math.floor(s / 60) + ':' + ('0' + s % 60).slice(-2); }, 1000);
+    function fit(el) {
+      var ar = +el.dataset.ar || 16 / 9, W0 = window.innerWidth, H0 = window.innerHeight, w = Math.min(W0, H0 * ar), h = w / ar;
+      el.style.width = w + 'px'; el.style.height = h + 'px'; el.style.left = (W0 - w) / 2 + 'px'; el.style.top = (H0 - h) / 2 + 'px';
+    }
+    function get(k) { if (!cache[k]) { try { cache[k] = buildSlide(fs[k]); } catch (e) { console.error(e); cache[k] = document.createElement('div'); } } return cache[k]; }
+    function show(k, back) {
+      if (busy) return;
+      if (k < 0) return;
+      if (k >= fs.length) { if (auto) { k = 0; } else return end(); }
+      var el = get(k), tr = (fs[k].gTrans && fs[k].gTrans.t) || (curEl ? 'none' : 'none'), td = (fs[k].gTrans && fs[k].gTrans.d) || 0.6;
+      el.className = 'pslide'; fit(el); stage.appendChild(el);
+      void el.offsetWidth;
+      el.classList.add('go');
+      if (curEl && curEl !== el && tr !== 'none') {
+        busy = true; var old = curEl;
+        el.style.setProperty('--td', td + 's'); old.style.setProperty('--td', td + 's');
+        el.classList.add('tr-in', 'tr-' + tr); old.classList.add('tr-out', 'tr-' + tr); if (back) { el.classList.add('back'); old.classList.add('back'); }
+        setTimeout(function () { old.remove(); el.classList.remove('tr-in', 'tr-' + tr, 'back'); busy = false; }, td * 1000 + 40);
+      } else if (curEl && curEl !== el) curEl.remove();
+      curEl = el; i = k;
       lab.textContent = (i + 1) + ' / ' + fs.length; prog.style.width = ((i + 1) / fs.length * 100) + '%';
-      setTimeout(function () { if (fs[i + 1]) src(i + 1); }, 80);
+      notes.textContent = fs[i].gNotes || 'Энэ слайдад тэмдэглэл алга.';
+      setTimeout(function () { if (fs[i + 1]) get(i + 1); }, 120);
     }
     var ended = false;
-    function end() { if (ended) return; ended = true; document.removeEventListener('keydown', onKey, true); document.removeEventListener('fullscreenchange', onFs); if (document.fullscreenElement) document.exitFullscreen().catch(function () {}); ov.remove(); pptGo(fs[i]); }
+    function end() {
+      if (ended) return; ended = true; clearInterval(tick); if (auto) clearInterval(auto);
+      document.removeEventListener('keydown', onKey, true); document.removeEventListener('fullscreenchange', onFs); window.removeEventListener('resize', onResize);
+      if (document.fullscreenElement) document.exitFullscreen().catch(function () {});
+      ov.remove(); pptGo(fs[i]);
+    }
+    function toggleAuto() {
+      var b = ov.querySelector('[data-sx="auto"]');
+      if (auto) { clearInterval(auto); auto = null; b.textContent = '⏵'; b.classList.remove('on'); }
+      else { auto = setInterval(function () { show(i + 1); }, 5000); b.textContent = '⏸'; b.classList.add('on'); }
+    }
     function onKey(e) {
-      e.stopPropagation();
-      var k = e.key;
-      if (k === 'Escape') { e.preventDefault(); end(); }
-      else if (k === 'ArrowRight' || k === 'ArrowDown' || k === 'PageDown' || k === ' ' || k === 'Enter' || k === 'n') { e.preventDefault(); show(i + 1); }
-      else if (k === 'ArrowLeft' || k === 'ArrowUp' || k === 'PageUp' || k === 'Backspace' || k === 'p') { e.preventDefault(); show(i - 1); }
-      else if (k === 'Home') { e.preventDefault(); show(0); }
+      e.stopPropagation(); var k = e.key;
+      if (k === 'Escape') { e.preventDefault(); if (!cover.hidden) cover.hidden = true; else end(); }
+      else if (k === 'ArrowRight' || k === 'ArrowDown' || k === 'PageDown' || k === ' ' || k === 'Enter') { e.preventDefault(); show(i + 1); }
+      else if (k === 'ArrowLeft' || k === 'ArrowUp' || k === 'PageUp' || k === 'Backspace') { e.preventDefault(); show(i - 1, true); }
+      else if (k === 'Home') { e.preventDefault(); show(0, true); }
       else if (k === 'End') { e.preventDefault(); show(fs.length - 1); }
+      else if (keyName(e) === 'n') notes.hidden = !notes.hidden;
+      else if (keyName(e) === 'a') toggleAuto();
+      else if (keyName(e) === 'b' || keyName(e) === 'w') { var col = keyName(e) === 'b' ? '#000' : '#fff'; if (!cover.hidden && cover.dataset.c === col) cover.hidden = true; else { cover.dataset.c = col; cover.style.background = col; cover.hidden = false; } }
     }
     function onFs() { if (!document.fullscreenElement) end(); }
-    document.addEventListener('keydown', onKey, true);
+    function onResize() { stage.querySelectorAll('.pslide').forEach(fit); }
+    document.addEventListener('keydown', onKey, true); window.addEventListener('resize', onResize);
     ov.addEventListener('click', function (e) {
       var b = e.target.closest('[data-sx]');
-      if (b) { if (b.dataset.sx === 'x') end(); else show(i + (b.dataset.sx === 'next' ? 1 : -1)); return; }
-      show(e.clientX < window.innerWidth / 3 ? i - 1 : i + 1);
+      if (b) { var a = b.dataset.sx; if (a === 'x') end(); else if (a === 'notes') notes.hidden = !notes.hidden; else if (a === 'auto') toggleAuto(); else show(i + (a === 'next' ? 1 : -1), a === 'prev'); return; }
+      if (e.target.closest('.ppt-notes-ov')) return;
+      if (!cover.hidden) { cover.hidden = true; return; }
+      if (e.clientX < window.innerWidth / 3) show(i - 1, true); else show(i + 1);
     });
     var tx = null;
     ov.addEventListener('touchstart', function (e) { tx = e.touches[0].clientX; }, { passive: true });
-    ov.addEventListener('touchend', function (e) { if (tx == null) return; var dx = e.changedTouches[0].clientX - tx; tx = null; if (Math.abs(dx) > 40) { e.preventDefault(); show(i + (dx < 0 ? 1 : -1)); } });
-    if (ov.requestFullscreen) ov.requestFullscreen().then(function () { document.addEventListener('fullscreenchange', onFs); }).catch(function () {});
+    ov.addEventListener('touchend', function (e) { if (tx == null) return; var dx = e.changedTouches[0].clientX - tx; tx = null; if (Math.abs(dx) > 40) { e.preventDefault(); show(i + (dx < 0 ? 1 : -1), dx > 0); } });
+    if (!preview && ov.requestFullscreen) ov.requestFullscreen().then(function () { document.addEventListener('fullscreenchange', onFs); }).catch(function () {});
     ov.focus();
     show(i);
+  }
+  // slide settings in the right panel (frame selected / nothing selected in presentation mode)
+  function slideUI(f) {
+    var t = f.gTrans || {}, cur = t.t || 'none';
+    return '<div class="ps"><div class="ps-h" data-col="trans">Слайд шилжилт</div><div class="anim-grid">' + TRANS.map(function (x) {
+        return '<button type="button" class="anim-b' + (x[0] === cur ? ' on' : '') + '" data-tr="' + x[0] + '"><i></i>' + x[1] + '</button>';
+      }).join('') + '</div>' +
+      (cur !== 'none' ? fsl('Хугацаа', 'tr:d', 2, 20, Math.round((t.d || 0.6) * 10)) : '') +
+      '<button type="button" class="btn full" style="margin-top:8px" data-b="trall">Бүх слайдад хэрэглэх</button></div>' +
+      '<div class="ps"><div class="ps-h" data-col="anall">Элементүүдийн анимэйшн</div><p class="note" style="margin:0 0 8px">Энэ слайдын бүх элементэд дарааллаар нь (дээрээс доош) нэг дор хэрэглэнэ.</p><div class="anim-grid">' +
+      [['none', 'Байхгүй'], ['fade', 'Бүдгэрэх'], ['rise', 'Дээш'], ['pop', 'Томрох'], ['panl', 'Зүүнээс'], ['blur', 'Тодрох']].map(function (x) { return '<button type="button" class="anim-b" data-anall="' + x[0] + '"><i></i>' + x[1] + '</button>'; }).join('') + '</div>' +
+      '<button type="button" class="btn acc full" style="margin-top:8px" data-b="anprev">▶ Энэ слайдыг үзэх</button></div>';
+  }
+  rp.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-tr],[data-anall]'); if (!b) return;
+    var o = active(), f = o && o.isFrame ? o : page; if (!f) return;
+    if (b.dataset.tr) { var tt = b.dataset.tr; f.gTrans = tt === 'none' ? null : { t: tt, d: (f.gTrans && f.gTrans.d) || 0.6 }; }
+    else {
+      var kids = childrenOf(f).sort(function (a, c) { return (a.top - c.top) || (a.left - c.left); }), an = b.dataset.anall;
+      kids.forEach(function (k, ix) { k.gAnim = an === 'none' ? null : { t: an, d: 0.6, dl: Math.round(ix * 1.2) / 10 }; });
+      toast(an === 'none' ? 'Анимэйшнүүдийг арилгалаа' : kids.length + ' элементэд анимэйшн нэмэгдлээ');
+    }
+    commit(); renderRight(); pptThumbSoon();
+  });
+  rp.addEventListener('input', function (e) {
+    var q = e.target.dataset.q; if (q !== 'tr:d') return;
+    var o = active(), f = o && o.isFrame ? o : page; e.target.nextElementSibling.textContent = e.target.value;
+    if (f && f.gTrans) f.gTrans.d = +e.target.value / 10;
+  });
+  rp.addEventListener('change', function (e) { if (e.target.dataset.q === 'tr:d') commit(); });
+  rp.addEventListener('click', function (e) {
+    if (!e.target.closest('[data-b="trall"]')) return;
+    var o = active(), f = o && o.isFrame ? o : page; if (!f) return;
+    frames().forEach(function (x) { x.gTrans = f.gTrans ? { t: f.gTrans.t, d: f.gTrans.d } : null; });
+    commit(); toast('Бүх ' + frames().length + ' слайдад хэрэглэлээ'); pptThumbSoon();
+  });
+  // grid view of all slides (drag to reorder)
+  function pptGrid() {
+    var fs = frames(), ov = document.createElement('div'); ov.className = 'ppt-grid';
+    ov.innerHTML = '<div class="pg-top"><b>Бүх слайд · ' + fs.length + '</b><span class="grow"></span><span class="note">Чирж дарааллыг солино · дарж нээнэ</span><button type="button" class="btn-primary" data-pg="x">Хаах</button></div><div class="pg-list"></div>';
+    document.body.appendChild(ov);
+    var list = ov.querySelector('.pg-list');
+    function draw() {
+      list.innerHTML = frames().map(function (f, k) {
+        var url; try { url = quietRender(f, 420 / fw(f)).toDataURL('image/jpeg', 0.85); } catch (e) { url = ''; }
+        var badge = (f.gTrans ? '⇄ ' : '') + (childrenOf(f).some(function (o) { return o.gAnim; }) ? '✦' : '');
+        return '<button type="button" class="pg-c' + (f === page ? ' on' : '') + '" draggable="true" data-fid="' + f.id + '"><img alt="" src="' + url + '" style="aspect-ratio:' + fw(f) / fh(f) + '"><span>' + (k + 1) + (badge ? ' <i>' + badge + '</i>' : '') + '</span></button>';
+      }).join('');
+    }
+    draw();
+    var dragId = null;
+    function close() { ov.remove(); document.removeEventListener('keydown', key, true); }
+    function key(e) { if (e.key === 'Escape') { e.stopPropagation(); close(); } }
+    document.addEventListener('keydown', key, true);
+    ov.addEventListener('click', function (e) {
+      if (e.target.closest('[data-pg="x"]')) return close();
+      var c = e.target.closest('.pg-c'); if (!c) return;
+      var f = frames().filter(function (x) { return x.id === c.dataset.fid; })[0]; close(); pptGo(f);
+    });
+    ov.addEventListener('dragstart', function (e) { var c = e.target.closest('.pg-c'); if (c) { dragId = c.dataset.fid; e.dataTransfer.effectAllowed = 'move'; try { e.dataTransfer.setData('text/plain', dragId); } catch (x) {} } });
+    ov.addEventListener('dragover', function (e) { if (dragId && e.target.closest('.pg-c')) e.preventDefault(); });
+    ov.addEventListener('drop', function (e) {
+      var c = e.target.closest('.pg-c'); if (!c || !dragId) return; e.preventDefault();
+      var fs2 = frames(), from = fs2.filter(function (x) { return x.id === dragId; })[0], to = fs2.findIndex(function (x) { return x.id === c.dataset.fid; });
+      dragId = null; if (!from || to < 0) return;
+      pptMove(from, to); commit(); refreshUI(); draw();
+    });
   }
 
   // PowerPoint export: every slide as a picture; with editable=true plain texts stay real (editable) text boxes

@@ -8,7 +8,7 @@ import json, os
 import landings as L
 
 ROOT, SITE, e, ld = L.ROOT, L.SITE, L.e, L.ld
-V = "4"
+V = "5"
 
 ICON = {
     "pdf": '<path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5"/><path d="m9 17 1-3 5-5 2 2-5 5z" fill="currentColor"/>',
@@ -109,7 +109,7 @@ def build():
     <p class="hm-kicker">ҮНЭГҮЙ · БҮРТГЭЛГҮЙ · МОНГОЛ ХЭЛЭЭР</p>
     <h1>Дизайн хэрэгслүүд</h1>
     <p class="hm-lead">PDF · зураг · дизайн — бүгд үнэгүй, бүртгэлгүй.</p>
-    <nav class="hm-jump"><a href="#editor">Засварлагч</a><a href="#pdf">PDF</a><a href="#image">Зураг</a><a href="#design">Дизайн</a></nav>
+    <nav class="hm-jump"><a href="#editor">Засварлагч</a><a href="#ppt">Илтгэл</a><a href="#pdf">PDF</a><a href="#image">Зураг</a><a href="#design">Дизайн</a></nav>
   </section>
 
   <section class="hm-sec hm-editor" id="editor">
@@ -154,6 +154,44 @@ def build():
       <a href="/editor/?size=1280x720"><i style="aspect-ratio:16/9"></i>YouTube</a>
       <a href="/editor/?size=1240x1754"><i style="aspect-ratio:1/1.41"></i>A4 постер</a>
       <a href="/editor/?size=1050x600"><i style="aspect-ratio:1.75"></i>Нэрийн хуудас</a>
+    </div>
+  </section>
+
+  <section class="hm-sec hm-ppt" id="ppt">
+    <a class="pm" href="/slides/?deck=hotel" aria-label="Илтгэл бэлдэх — зочид буудлын загвараар эхлэх">
+      <span class="pm-win">
+        <span class="pm-top"><i class="em-logo"></i><b>Тансаг зочид буудал</b><span class="grow"></span><em>Шилжилт: Бүдгэрэх</em><strong>▶ Үзүүлэх</strong></span>
+        <span class="pm-main">
+          <span class="pm-slide s1"><img src="/api/stock/file?u=https%3A%2F%2Fimages.pexels.com%2Fphotos%2F919%2Fnight-dark-hotel-luxury.jpg%3Fauto%3Dcompress%26cs%3Dtinysrgb%26w%3D900" alt="" loading="lazy"><span class="pm-t"><small>ТАНЫ ЛОГО</small><b>Тансаг</b><i>З О Ч И Д &nbsp; Б У У Д А Л</i></span></span>
+          <span class="pm-slide s2"><img src="/api/stock/file?u=https%3A%2F%2Fimages.pexels.com%2Fphotos%2F776538%2Fpexels-photo-776538.jpeg%3Fauto%3Dcompress%26cs%3Dtinysrgb%26w%3D900" alt="" loading="lazy"><span class="pm-t l"><small>РЕСТОРАН &amp; БАР</small><b>Орой бүр<br>амьд хөгжим</b></span></span>
+          <span class="pm-slide s3"><span class="pm-biz"><b>Үр дүн тоогоор</b><span><em>+240%</em><em>12K</em><em>98%</em></span><span class="bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span></span></span>
+        </span>
+        <span class="pm-strip"><i class="on"><img src="/api/stock/file?u=https%3A%2F%2Fimages.pexels.com%2Fphotos%2F919%2Fnight-dark-hotel-luxury.jpg%3Fauto%3Dcompress%26cs%3Dtinysrgb%26w%3D900" alt="" loading="lazy"></i><i><img src="/api/stock/file?u=https%3A%2F%2Fimages.pexels.com%2Fphotos%2F6758532%2Fpexels-photo-6758532.jpeg%3Fauto%3Dcompress%26cs%3Dtinysrgb%26w%3D900" alt="" loading="lazy"></i><i><img src="/api/stock/file?u=https%3A%2F%2Fimages.pexels.com%2Fphotos%2F776538%2Fpexels-photo-776538.jpeg%3Fauto%3Dcompress%26cs%3Dtinysrgb%26w%3D900" alt="" loading="lazy"></i><i class="w"></i><i><img src="/api/stock/file?u=https%3A%2F%2Fimages.pexels.com%2Fphotos%2F769289%2Fpexels-photo-769289.jpeg%3Fauto%3Dcompress%26cs%3Dtinysrgb%26w%3D900" alt="" loading="lazy"></i><i class="add">+</i></span>
+      </span>
+      <span class="he-chip c1">⇄ 9 төрлийн шилжилт</span>
+      <span class="he-chip c2">✦ Анимэйшн</span>
+      <span class="he-chip c3">PowerPoint · PDF</span>
+    </a>
+    <div class="he-copy">
+      <p class="hm-kicker">ИЛТГЭЛ · PPT · ҮНЭГҮЙ</p>
+      <h2>Илтгэлээ<br><em>минутанд бэлд.</em></h2>
+      <p class="he-lead">Бэлэн загвараас эхэлж слайдаа засаад бүтэн дэлгэцээр үзүүл, эсвэл PowerPoint, PDF-ээр татаж ав. Canva шиг хялбар — монгол фонттой.</p>
+      <ul class="he-feats">
+        <li><span>{svg("tpl")}</span><b>65 слайд загвар</b><small>Ресторан, бизнес, аялал</small></li>
+        <li><span>{svg("img")}</span><b>Шилжилт, анимэйшн</b><small>9 шилжилт · 12 эффект</small></li>
+        <li><span>{svg("bg")}</span><b>Бүтэн дэлгэцээр</b><small>Тэмдэглэл, таймер, автомат</small></li>
+        <li><span>{svg("pdf")}</span><b>PowerPoint · PDF</b><small>Текст нь засагдана</small></li>
+      </ul>
+      <div class="he-btns"><a class="hm-btn" href="/slides/">Илтгэл бэлдэх <i>→</i></a><a class="hm-btn ghost" href="/slides/?deck=biz">Бизнес загвар</a></div>
+    </div>
+    <div class="he-sizes pm-decks"><span>Загвараас эхэл:</span>
+      <a href="/slides/?deck=hotel"><i style="background:linear-gradient(135deg,#0f0f0e 55%,#d6b67a 55%)"></i>Зочид буудал</a>
+      <a href="/slides/?deck=fine"><i style="background:linear-gradient(135deg,#0b0b0b 55%,#c9a45c 55%)"></i>Fine dining</a>
+      <a href="/slides/?deck=coffee"><i style="background:linear-gradient(135deg,#1b120c 55%,#c8a27a 55%)"></i>Кофе шоп</a>
+      <a href="/slides/?deck=biz"><i style="background:linear-gradient(135deg,#ffffff 55%,#1646ff 55%)"></i>Бизнес</a>
+      <a href="/slides/?deck=realty"><i style="background:linear-gradient(135deg,#ffffff 55%,#b08d57 55%)"></i>Үл хөдлөх</a>
+      <a href="/slides/?deck=edu"><i style="background:linear-gradient(135deg,#fff6e5 55%,#ff7a1a 55%)"></i>Хичээл</a>
+      <a href="/slides/?deck=mongolia"><i style="background:linear-gradient(135deg,#141414 55%,#f4a261 55%)"></i>Монгол аялал</a>
     </div>
   </section>
 

@@ -18,7 +18,8 @@
   function mkCanvas(w, h) { var c = document.createElement('canvas'); c.width = Math.max(1, Math.ceil(w)); c.height = Math.max(1, Math.ceil(h)); return c; }
   function fxOn(o) { return (o.gFx || []).filter(function (e) { return e && e.on !== false; }); }
   function fxOf(o, t) { return fxOn(o).filter(function (e) { return e.t === t; })[0]; }
-  function hasPixelFx(o) { return fxOn(o).some(function (e) { return e.t === 'inner' || e.t === 'blur' || e.t === 'noise' || e.t === 'glass'; }); }
+  var PIXEL_FX = { inner: 1, blur: 1, noise: 1, glass: 1, feather: 1, fade: 1, glow: 1, echo: 1, glitch: 1, long: 1, iglow: 1 };
+  function hasPixelFx(o) { return fxOn(o).some(function (e) { return PIXEL_FX[e.t]; }); }
   function rgba(c, a) {
     var col = new F.Color(c || '#000'), s = col.getSource();
     return 'rgba(' + s[0] + ',' + s[1] + ',' + s[2] + ',' + ((s[3] == null ? 1 : s[3]) * (a == null ? 1 : a)) + ')';
@@ -90,9 +91,68 @@
         innerShadow(c, -2 * z, -2 * z, 8 * z, 'rgba(0,0,0,' + (0.18 * (e.a == null ? 1 : e.a)) + ')');
       }
     });
+    list.forEach(function (e) { if (e.t === 'iglow') innerShadow(c, 0, 0, (e.b || 0) * z, rgba(e.c || '#ffffff', e.a == null ? 0.9 : e.a)); });
     list.forEach(function (e) { if (e.t === 'noise') noise(o, c, e.a == null ? 0.25 : e.a, !!e.mono, e.s || 1, z); });
     var bl = fxOf(o, 'blur'); if (bl && bl.b > 0) blurCanvas(c, bl.b * z);
-    void ctx;
+    // soft edges and gradient transparency shape the object's own alpha
+    var fe = fxOf(o, 'feather'); if (fe && fe.b > 0) feather(c, fe.b * z);
+    var fa = fxOf(o, 'fade'); if (fa) fadeMask(c, fa);
+    // glow / echo / glitch / long shadow are painted behind the object inside the (padded) cache
+    var behind = list.filter(function (e) { return e.t === 'glow' || e.t === 'echo' || e.t === 'glitch' || e.t === 'long'; });
+    if (behind.length) {
+      var snap = mkCanvas(c.width, c.height); snap.getContext('2d').drawImage(c, 0, 0);
+      ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.clearRect(0, 0, c.width, c.height);
+      behind.forEach(function (e) { drawBehind(ctx, snap, e, z); });
+      ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; ctx.drawImage(snap, 0, 0);
+      ctx.restore();
+    }
+  }
+  function tinted(src, color) {
+    var m = mkCanvas(src.width, src.height), mx = m.getContext('2d');
+    mx.drawImage(src, 0, 0); mx.globalCompositeOperation = 'source-in'; mx.fillStyle = color; mx.fillRect(0, 0, m.width, m.height);
+    return m;
+  }
+  function drawBehind(ctx, snap, e, z) {
+    if (e.t === 'glow') {
+      var g = tinted(snap, rgba(e.c || '#a497ff')); blurCanvas(g, Math.max(1, (e.b || 20) * z / 2));
+      var n = 1 + Math.round((e.a == null ? 0.6 : e.a) * 3);
+      for (var i = 0; i < n; i++) ctx.drawImage(g, 0, 0);
+    } else if (e.t === 'echo') {
+      var cnt = Math.max(1, Math.min(8, e.n || 3)), src = e.c ? tinted(snap, rgba(e.c)) : snap;
+      for (var k = cnt; k >= 1; k--) { ctx.globalAlpha = Math.max(0.05, (e.a == null ? 0.6 : e.a) * (1 - (k - 1) / cnt)); ctx.drawImage(src, (e.x || 0) * z * k, (e.y || 0) * z * k); }
+      ctx.globalAlpha = 1;
+    } else if (e.t === 'glitch') {
+      var d = (e.d == null ? 6 : e.d) * z;
+      ctx.globalAlpha = 0.9;
+      ctx.drawImage(tinted(snap, e.c1 || '#00e5ff'), -d, 0);
+      ctx.drawImage(tinted(snap, e.c2 || '#ff2bd6'), d, 0);
+      ctx.globalAlpha = 1;
+    } else if (e.t === 'long') {
+      var L = (e.l == null ? 60 : e.l) * z, ang = (e.ang == null ? 45 : e.ang) * Math.PI / 180, sh = tinted(snap, rgba(e.c || 'rgba(0,0,0,0.35)'));
+      var dx = Math.cos(ang), dy = Math.sin(ang), step = Math.max(1, L / 90);
+      for (var t = L; t >= step; t -= step) { if (e.f) ctx.globalAlpha = 1 - t / L * 0.9; ctx.drawImage(sh, dx * t, dy * t); }
+      ctx.globalAlpha = 1;
+    }
+  }
+  function feather(c, r) {
+    var m = mkCanvas(c.width, c.height); m.getContext('2d').drawImage(c, 0, 0);
+    blurCanvas(m, r);
+    // pull the blurred alpha inward so the edge fades out instead of growing
+    var ctx = c.getContext('2d'); ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalCompositeOperation = 'destination-in'; ctx.drawImage(m, 0, 0); ctx.drawImage(m, 0, 0); ctx.restore();
+  }
+  function fadeMask(c, e) {
+    var w = c.width, h = c.height, ctx = c.getContext('2d'), g;
+    var f0 = e.f == null ? 0.35 : e.f, f1 = e.to == null ? 1 : e.to;
+    if (e.r) {
+      g = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, Math.hypot(w, h) / 2);
+    } else {
+      var a = (e.ang == null ? 90 : e.ang) * Math.PI / 180, dx = Math.cos(a), dy = Math.sin(a), half = (Math.abs(dx) * w + Math.abs(dy) * h) / 2;
+      g = ctx.createLinearGradient(w / 2 - dx * half, h / 2 - dy * half, w / 2 + dx * half, h / 2 + dy * half);
+    }
+    g.addColorStop(0, 'rgba(0,0,0,1)'); g.addColorStop(Math.min(0.999, Math.max(0, f0)), 'rgba(0,0,0,1)'); g.addColorStop(Math.max(Math.min(1, f1), Math.min(1, f0 + 0.001)), 'rgba(0,0,0,0)');
+    if (f1 < 1) g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalCompositeOperation = 'destination-in'; ctx.fillStyle = g; ctx.fillRect(0, 0, w, h); ctx.restore();
   }
   function innerShadow(c, dx, dy, blur, color) {
     var w = c.width, h = c.height, s = mkCanvas(w, h), sx = s.getContext('2d');
@@ -125,7 +185,13 @@
   // extra cache room for blur / outside stroke so nothing gets clipped
   function fxPad(o) {
     var p = 0;
-    fxOn(o).forEach(function (e) { if (e.t === 'blur') p = Math.max(p, (e.b || 0) * 1.5 + 2); });
+    fxOn(o).forEach(function (e) {
+      if (e.t === 'blur') p = Math.max(p, (e.b || 0) * 1.5 + 2);
+      if (e.t === 'glow') p = Math.max(p, (e.b || 20) * 1.6 + 4);
+      if (e.t === 'echo') p = Math.max(p, Math.max(Math.abs(e.x || 0), Math.abs(e.y || 0)) * Math.min(8, e.n || 3) + 2);
+      if (e.t === 'glitch') p = Math.max(p, (e.d == null ? 6 : e.d) + 2);
+      if (e.t === 'long') p = Math.max(p, (e.l == null ? 60 : e.l) + 2);
+    });
     if (o.gStrokePos === 'outside' && o.stroke && o.strokeWidth) p = Math.max(p, o.strokeWidth / 2 + 1);
     return p;
   }
@@ -314,8 +380,72 @@
     return 'linear-gradient(90deg, ' + st + ')';
   }
 
+  // ---------- photo adjustments: one filter for exposure, tone, colour temperature, split toning, vignette ----------
+  var FI = F.Image.filters;
+  var ADJ_KEYS = ['exposure', 'highlights', 'shadows', 'temperature', 'tint', 'vibrance', 'fade', 'vignette', 'split'];
+  function hex3(h) { var c = new F.Color(h || '#000').getSource(); return [c[0] / 255, c[1] / 255, c[2] / 255]; }
+  FI.GcAdjust = F.util.createClass(FI.BaseFilter, {
+    type: 'GcAdjust',
+    exposure: 0, highlights: 0, shadows: 0, temperature: 0, tint: 0, vibrance: 0, fade: 0, vignette: 0, split: 0, splitLo: '#1f6fff', splitHi: '#ff9a3c',
+    fragmentSource: 'precision highp float;\n' +
+      'uniform sampler2D uTexture; varying vec2 vTexCoord;\n' +
+      'uniform float uExp, uHi, uSh, uTemp, uTint, uVib, uFade, uVig, uSplit; uniform vec3 uLo, uHiC;\n' +
+      'void main() {\n' +
+      '  vec4 col = texture2D(uTexture, vTexCoord); vec3 c = col.rgb;\n' +
+      '  c *= pow(2.0, uExp * 1.5);\n' +
+      '  c.r += uTemp * 0.12; c.b -= uTemp * 0.12; c.g -= uTint * 0.1;\n' +
+      '  float L = dot(c, vec3(0.299, 0.587, 0.114));\n' +
+      '  c += vec3(uSh * 0.4 * (1.0 - smoothstep(0.0, 0.6, L)));\n' +
+      '  c += vec3(uHi * 0.35 * smoothstep(0.4, 1.0, L));\n' +
+      '  float mx = max(c.r, max(c.g, c.b)), mn = min(c.r, min(c.g, c.b));\n' +
+      '  L = dot(c, vec3(0.299, 0.587, 0.114));\n' +
+      '  c = mix(vec3(L), c, 1.0 + uVib * (1.0 - clamp(mx - mn, 0.0, 1.0)));\n' +
+      '  c += (uLo - 0.5) * uSplit * 0.5 * (1.0 - L) + (uHiC - 0.5) * uSplit * 0.5 * L;\n' +
+      '  c = c * (1.0 - uFade * 0.25) + uFade * 0.1;\n' +
+      '  float d = distance(vTexCoord, vec2(0.5)) * 1.414;\n' +
+      '  float v = smoothstep(0.35, 1.05, d);\n' +
+      '  if (uVig > 0.0) c *= 1.0 - uVig * v; else c = mix(c, vec3(1.0), -uVig * v);\n' +
+      '  gl_FragColor = vec4(clamp(c, 0.0, 1.0), col.a);\n' +
+      '}',
+    isNeutralState: function () { var t = this; return ADJ_KEYS.every(function (k) { return !t[k]; }); },
+    applyTo2d: function (o) {
+      var d = o.imageData.data, W = o.imageData.width, H = o.imageData.height, t = this;
+      var ex = Math.pow(2, t.exposure * 1.5), lo = hex3(t.splitLo), hi = hex3(t.splitHi);
+      var ss = function (a, b, x) { x = Math.max(0, Math.min(1, (x - a) / (b - a))); return x * x * (3 - 2 * x); };
+      for (var y = 0; y < H; y++) for (var x = 0; x < W; x++) {
+        var i = (y * W + x) * 4; if (!d[i + 3]) continue;
+        var r = d[i] / 255, g = d[i + 1] / 255, b = d[i + 2] / 255;
+        r *= ex; g *= ex; b *= ex;
+        r += t.temperature * 0.12; b -= t.temperature * 0.12; g -= t.tint * 0.1;
+        var L = r * 0.299 + g * 0.587 + b * 0.114, sh = t.shadows * 0.4 * (1 - ss(0, 0.6, L)), hl = t.highlights * 0.35 * ss(0.4, 1, L);
+        r += sh + hl; g += sh + hl; b += sh + hl;
+        var mx = Math.max(r, g, b), mn = Math.min(r, g, b); L = r * 0.299 + g * 0.587 + b * 0.114;
+        var k = 1 + t.vibrance * (1 - Math.max(0, Math.min(1, mx - mn)));
+        r = L + (r - L) * k; g = L + (g - L) * k; b = L + (b - L) * k;
+        if (t.split) { var s1 = t.split * 0.5 * (1 - L), s2 = t.split * 0.5 * L; r += (lo[0] - 0.5) * s1 + (hi[0] - 0.5) * s2; g += (lo[1] - 0.5) * s1 + (hi[1] - 0.5) * s2; b += (lo[2] - 0.5) * s1 + (hi[2] - 0.5) * s2; }
+        if (t.fade) { r = r * (1 - t.fade * 0.25) + t.fade * 0.1; g = g * (1 - t.fade * 0.25) + t.fade * 0.1; b = b * (1 - t.fade * 0.25) + t.fade * 0.1; }
+        if (t.vignette) {
+          var dd = Math.hypot(x / W - 0.5, y / H - 0.5) * 1.414, v = ss(0.35, 1.05, dd);
+          if (t.vignette > 0) { var m = 1 - t.vignette * v; r *= m; g *= m; b *= m; } else { var q = -t.vignette * v; r += (1 - r) * q; g += (1 - g) * q; b += (1 - b) * q; }
+        }
+        d[i] = Math.max(0, Math.min(1, r)) * 255; d[i + 1] = Math.max(0, Math.min(1, g)) * 255; d[i + 2] = Math.max(0, Math.min(1, b)) * 255;
+      }
+    },
+    getUniformLocations: function (gl, p) {
+      var u = {}; ['uExp', 'uHi', 'uSh', 'uTemp', 'uTint', 'uVib', 'uFade', 'uVig', 'uSplit', 'uLo', 'uHiC'].forEach(function (k) { u[k] = gl.getUniformLocation(p, k); }); return u;
+    },
+    sendUniformData: function (gl, u) {
+      gl.uniform1f(u.uExp, this.exposure); gl.uniform1f(u.uHi, this.highlights); gl.uniform1f(u.uSh, this.shadows);
+      gl.uniform1f(u.uTemp, this.temperature); gl.uniform1f(u.uTint, this.tint); gl.uniform1f(u.uVib, this.vibrance);
+      gl.uniform1f(u.uFade, this.fade); gl.uniform1f(u.uVig, this.vignette); gl.uniform1f(u.uSplit, this.split);
+      gl.uniform3fv(u.uLo, hex3(this.splitLo)); gl.uniform3fv(u.uHiC, hex3(this.splitHi));
+    },
+    toObject: function () { var t = this, r = { type: this.type, splitLo: this.splitLo, splitHi: this.splitHi }; ADJ_KEYS.forEach(function (k) { r[k] = t[k]; }); return r; }
+  });
+  FI.GcAdjust.fromObject = FI.BaseFilter.fromObject;
+
   // ---------- extra serialised properties ----------
-  var EXTRA = ['gFx', 'gStrokePos', 'gRound', 'gPaint', 'gPaintS', 'gPen', 'gMaskGroup', 'gBrush'];
+  var EXTRA = ['gFx', 'gStrokePos', 'gRound', 'gPaint', 'gPaintS', 'gPen', 'gMaskGroup', 'gBrush', 'gAnim', 'gTrans', 'gCurve', 'gSharp', 'gPreset', 'gAdj', 'gEraser'];
   F.Object.prototype.cacheProperties = F.Object.prototype.cacheProperties.concat(['gRound', 'gStrokePos']);
   // copies / undo snapshots must not share effect & paint arrays
   var baseToObject = O.toObject;
@@ -328,7 +458,7 @@
   window.GFX = {
     EXTRA: EXTRA, HAS_FILTER: HAS_FILTER, fxOn: fxOn, fxOf: fxOf,
     makePaint: makePaint, applyPaint: applyPaint, colorAt: colorAt, cssPreview: cssPreview, rgba: rgba,
-    blurCanvas: blurCanvas, roundedPoly: roundedPoly,
+    blurCanvas: blurCanvas, roundedPoly: roundedPoly, ADJ_KEYS: ADJ_KEYS, PIXEL_FX: PIXEL_FX,
     // sync the drop shadow entry → Fabric's native shadow and mark caches dirty
     sync: function (o) {
       var ds = fxOf(o, 'drop');
