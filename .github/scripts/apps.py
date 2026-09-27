@@ -10,7 +10,7 @@ import json, os, re
 import landings as L
 
 ROOT, SITE, e, ld = L.ROOT, L.SITE, L.e, L.ld
-V = "7"
+V = "8"
 
 
 def mn_fonts():
@@ -136,7 +136,7 @@ def templates_page():
                 title="Монгол сошиал пост загвар — Цагаан сар, Наадам, ажлын зар, үнэгүй | Graphican",
                 desc=f"{len(names)} үнэгүй монгол загвар: Цагаан сар, Наадам, шинэ жилийн мэндчилгээ, ажлын байрны зар, хямдрал, хоолны цэс, Facebook cover, story. Онлайн засаад PNG-ээр татна.",
                 h1="Монгол сошиал загварууд", name="Монгол сошиал загварууд", body=body, faq=faq,
-                scripts=["/assets/vendor/fabric.min.js", "/assets/editor-fx.js?v=3", f"/assets/templates.js?v={V}", f"/assets/tplgallery.js?v={V}"])
+                scripts=["/assets/vendor/fabric.min.js", "/assets/editor-fx.js?v=4", f"/assets/templates.js?v={V}", f"/assets/tplgallery.js?v={V}"])
 
 
 APPS = [font_page, color_page, templates_page]
@@ -238,7 +238,7 @@ def slides_page():
     """/slides/ — the editor in presentation mode (same app, own document). Built from editor/index.html."""
     src = open(os.path.join(ROOT, "editor", "index.html"), encoding="utf-8").read()
     t = "Илтгэл бэлдэх (PPT) — онлайн, үнэгүй, монгол загвартай | Graphican"
-    d = "Canva шиг илтгэл, презентацыг хөтөч дээрээ бэлд: 35 бэлэн слайд загвар, монгол фонт, үнэгүй зураг, бүтэн дэлгэцээр үзүүлэх, PowerPoint (.pptx) ба PDF татах. Бүртгэлгүй."
+    d = "Canva шиг илтгэл, презентацыг хөтөч дээрээ бэлд: 140 гаруй бэлэн слайд загвар, видеотой слайд, монгол фонт, үнэгүй зураг ба видео, бүтэн дэлгэцээр үзүүлэх, PowerPoint (.pptx) ба PDF татах. Бүртгэлгүй."
     s = src
     s = re.sub(r"<title>.*?</title>", f"<title>{t}</title>", s, 1)
     s = re.sub(r'<meta name="description" content="[^"]*">', f'<meta name="description" content="{d}">', s, 1)

@@ -66,6 +66,9 @@
     spray: '<rect x="7" y="9" width="8" height="12" rx="2"/><path d="M9 9V6h4v3M16 4h.01M19 3h.01M19 6h.01M17 7h.01"/>',
     eraser: '<path d="m7 21-4-4 11-11 7 7-8 8H7Z"/><path d="M21 21H11M9 11l7 7"/>',
     image: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="m21 16-5-5L6 20"/>',
+    video: '<rect x="3" y="5" width="14" height="14" rx="2"/><path d="m17 10 4-2.5v9L17 14"/>',
+    play: '<path d="M7 5v14l12-7z" fill="currentColor"/>',
+    pause: '<path d="M8 5v14M16 5v14" stroke-width="3"/>',
     eye: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/>',
     eyeOff: '<path d="M3 3l18 18M10.6 5.1A10 10 0 0 1 12 5c6.5 0 10 7 10 7a17 17 0 0 1-3.2 4.2M6.6 6.6C3.8 8.4 2 12 2 12s3.5 7 10 7a9.7 9.7 0 0 0 5.4-1.6"/>',
     lock: '<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
@@ -745,7 +748,7 @@
 
   // ---------- adding things ----------
 
-  var NAMES = { textbox: 'Текст', image: 'Зураг', rect: 'Тэгш өнцөгт', ellipse: 'Эллипс', circle: 'Тойрог', triangle: 'Гурвалжин', line: 'Шугам', polygon: 'Од', path: 'Зураас', group: 'Бүлэг' };
+  var NAMES = { textbox: 'Текст', image: 'Зураг', gvideo: 'Видео', rect: 'Тэгш өнцөгт', ellipse: 'Эллипс', circle: 'Тойрог', triangle: 'Гурвалжин', line: 'Шугам', polygon: 'Од', path: 'Зураас', group: 'Бүлэг' };
   // put an object at a point (default: centre of the current frame)
   function place(obj, at) {
     if (!page) addFrame(DEF_W, DEF_H);
@@ -867,6 +870,7 @@
     if (o.type === 'activeSelection') return 'multi';
     if (o.type === 'group') return 'group';
     if (o.isType('textbox') || o.isType('i-text') || o.isType('text')) return 'text';
+    if (o.type === 'gvideo') return 'video';
     if (o.isType('image')) return 'image';
     if (o.isType('line') || o.isType('path')) return 'line';
     return 'shape';
@@ -1261,6 +1265,7 @@
   // fill frame f with a template (poster or slide layout); resolves once the layers are on the canvas
   function applyTpl(tp, f, quiet) {
     f.set({ width: tp.w, height: tp.h, fill: tp.bg, name: PPT ? f.name : tp.name }); f.gTransparent = false; f.setCoords(); setCurrent(f);
+    if (PPT && tp.trans) f.gTrans = { t: tp.trans, d: 0.7 };
     if (!quiet) { fitFrame(f); selectFrame(f); refreshUI(); }
     if (!quiet && tp.photos && tp.photos.length) toast('«' + tp.name + '» — зураг ачаалж байна…');
     var X = f.left, Y = f.top;
@@ -1333,15 +1338,21 @@
     m.innerHTML = '<div class="stk-box" role="dialog" aria-modal="true" aria-label="Видео">' +
       '<video src="' + esc(proxied(it.preview || it.full)) + '" crossorigin="anonymous" controls autoplay muted loop playsinline></video>' +
       '<div class="stk-bar"><span>' + esc(it.author || '') + ' · ' + (stock.src === 'pexels' ? 'Pexels' : 'Pixabay') + '</span>' +
-      '<button type="button" class="btn" data-v="frame">Энэ кадрыг зураг болгох</button>' +
-      '<a class="btn-primary" href="' + esc(proxied(it.full || it.preview, 'graphican-' + it.id + '.mp4')) + '" download>Видео татах (HD)</a>' +
+      '<button type="button" class="btn-primary" data-v="add">' + (replaceVid ? 'Энэ видеогоор солих' : 'Дизайнд оруулах') + '</button>' +
+      '<button type="button" class="btn" data-v="frame">Кадрыг зураг болгох</button>' +
+      '<a class="btn" href="' + esc(proxied(it.full || it.preview, 'graphican-' + it.id + '.mp4')) + '" download>Татах (HD)</a>' +
       '<button type="button" class="btn" data-v="close" aria-label="Хаах">✕</button></div>' +
-      '<p class="note">Editor нь зурган дизайн хийдэг тул видеог бүтнээр нь байршуулахгүй — хүссэн кадраа зураг болгож оруулах эсвэл видеог татаж Reels/монтаждаа ашиглаарай.</p></div>';
+      '<p class="note">Видео дизайн дотор тоглоно. Илтгэлийг үзүүлэх үед болон PowerPoint (.pptx) файлд хөдөлгөөнтэйгөөр орно; PNG/PDF-д одоогийн кадр нь гарна.</p></div>';
     document.body.appendChild(m);
     var v = m.querySelector('video');
     function close() { v.pause(); m.remove(); document.removeEventListener('keydown', vk, true); }
     m.addEventListener('click', function (e) {
       if (e.target === m || e.target.closest('[data-v="close"]')) return close();
+      if (e.target.closest('[data-v="add"]')) {
+        var src = /^px\d+$/.test(it.id) ? 'pexels:' + it.id.slice(2) : proxied(it.full || it.preview);
+        close(); addVideo({ src: src, poster: proxied(it.thumb), credit: (stock.src === 'pexels' ? 'Pexels' : 'Pixabay') + ' · ' + (it.author || '') });
+        return;
+      }
       if (e.target.closest('[data-v="frame"]')) {
         if (!v.videoWidth) return toast('Видео ачаалагдаж дуусаагүй байна');
         var c = document.createElement('canvas'); c.width = v.videoWidth; c.height = v.videoHeight;
@@ -1351,6 +1362,117 @@
     });
     function vk(e) { if (e.key === 'Escape') { e.stopPropagation(); close(); } }
     document.addEventListener('keydown', vk, true);
+  }
+
+  // ---------- video layers ----------
+  // fabric.Gvideo (editor-fx.js) holds a poster image; here we decide when its <video> plays and keep the canvas redrawing.
+  var replaceVid = null, presenting = false, mediaURLs = {};
+  var baseResolve = fabric.Gvideo.resolve;
+  // uploaded videos live in IndexedDB ("idb:<id>"), never inside the design JSON
+  fabric.Gvideo.resolve = function (s) {
+    var m = /^idb:(.+)$/.exec(s || ''); if (!m) return baseResolve(s);
+    if (mediaURLs[m[1]]) return mediaURLs[m[1]];
+    return dbGet('media:' + m[1]).then(function (b) { return b ? (mediaURLs[m[1]] = URL.createObjectURL(b)) : null; });
+  };
+  function allVideos() {
+    var out = [];
+    (function walk(list) { list.forEach(function (o) { if (o.type === 'gvideo') out.push(o); else if (o._objects) walk(o._objects); }); })(canvas.getObjects());
+    return out;
+  }
+  function topOf(o) { while (o.group && o.group.type !== 'activeSelection') o = o.group; return o; }
+  function vidWanted(o) {
+    if (presenting || document.hidden || o.gPaused || o.visible === false) return false;
+    var t = topOf(o);
+    if (PPT) return frameOf(t) === page;
+    return t.isOnScreen ? t.isOnScreen(true) : true;
+  }
+  var vidLast = 0;
+  function vidLoop(ts) {
+    requestAnimationFrame(vidLoop);
+    if (ts - vidLast < 40) return;          // ~25 fps is plenty for a preview
+    vidLast = ts;
+    var list = allVideos(); if (!list.length) return;
+    var redraw = false;
+    list.forEach(function (o) {
+      var want = vidWanted(o), v = want ? o.gEnsure() : o._vid;
+      if (!v) return;
+      if (want && v.paused && !v._pp && !v._blocked) { v._pp = true; var pr = v.play(); if (pr && pr.then) pr.then(function () { v._pp = false; }, function () { v._pp = false; v._blocked = true; setTimeout(function () { v._blocked = false; }, 3000); }); else v._pp = false; }
+      if (!want && !v.paused) v.pause();
+      if (!v.paused && v.readyState >= 2) { o.dirty = true; var g = o.group; while (g) { g.dirty = true; g = g.group; } redraw = true; }
+    });
+    if (redraw) canvas.requestRenderAll();
+  }
+  requestAnimationFrame(vidLoop);
+  canvas.on('object:removed', function (e) {
+    var o = e.target; if (!o) return;
+    if (o.type === 'gvideo') o.gDispose();
+    else if (o._objects && !canvas.getObjects().some(function (x) { return x === o; })) (function walk(l) { l.forEach(function (k) { if (k.type === 'gvideo' && !k.group) k.gDispose(); else if (k._objects) walk(k._objects); }); })(o._objects);
+  });
+  // corner-resizing a video re-crops it (cover) instead of stretching the picture
+  canvas.on('object:modified', function (e) {
+    var o = e.target; if (!o || o.type !== 'gvideo' || (o.scaleX === 1 && o.scaleY === 1)) return;
+    var sx = Math.abs(o.scaleX), sy = Math.abs(o.scaleY), c = o.getCenterPoint(), r = o.gMaskR;
+    o.set({ width: o.width * sx, height: o.height * sy, scaleX: o.scaleX < 0 ? -1 : 1, scaleY: o.scaleY < 0 ? -1 : 1, dirty: true });
+    o.setPositionByOrigin(c, 'center', 'center'); if (o.gMask) fitMask(o, o.gMask, r); o.setCoords(); canvas.requestRenderAll();
+  });
+  function vidToggle(o) {
+    o.gPaused = !o.gPaused;
+    if (o.gPaused && o._vid) o._vid.pause();
+    renderCtxbar(); renderRight();
+  }
+  function vidReplace(o) {
+    replaceVid = o; lpTab = 'stock'; stock.type = 'video'; if (stock.src !== 'pexels' && stock.src !== 'pixabay') stock.src = 'pexels';
+    $$('.lp-tabs button').forEach(function (x) { var on = x.dataset.tab === 'stock'; x.classList.toggle('on', on); x.setAttribute('aria-selected', on ? 'true' : 'false'); });
+    renderLeft(); if (window.innerWidth <= 900) { var lpe = document.getElementById('lp'); if (lpe) lpe.classList.add('open'); }
+    if (!stock.items.length || stock.items[0].kind !== 'video') { stock.page = 1; if (typeof loadStock === 'function') loadStock(); }
+    toast('Солих видеогоо сонгоно уу');
+  }
+  function videoUI(o) {
+    var v = o._vid, st = o.gPaused ? 'Зогссон' : v && !v.paused ? 'Тоглож байна' : v && v.error ? 'Ачаалж чадсангүй' : 'Ачаалж байна…';
+    return '<div class="ps"><div class="ps-h" data-col="vid">Видео<span class="acts"><span class="vid-st">' + st + '</span></span></div>' +
+      '<div class="r2"><button type="button" class="btn acc" data-b="vplay">' + icon(o.gPaused ? 'play' : 'pause') + (o.gPaused ? 'Тоглуулах' : 'Зогсоох') + '</button>' +
+        '<button type="button" class="btn" data-b="vreplace">' + icon('video') + 'Солих</button></div>' +
+      '<label class="chk" style="margin-top:8px"><input type="checkbox" data-p="vsound"' + (o.gSound ? ' checked' : '') + '> Дуутай тоглуулах (үзүүлэх үед)</label>' +
+      '<label class="chk"><input type="checkbox" data-p="vloop"' + (o.gLoop !== false ? ' checked' : '') + '> Давтаж тоглуулах</label>' +
+      '<div class="ps-l">Кадрын байрлал</div>' + sl('Хэвтээ', 'vfx', 0, 100, Math.round((o.gFX == null ? 0.5 : o.gFX) * 100)) + sl('Босоо', 'vfy', 0, 100, Math.round((o.gFY == null ? 0.5 : o.gFY) * 100)) +
+      '<div class="ps-l">Маск хэлбэр</div>' + sel('mask', MASK_SHAPES, o.gMask || 'none') +
+      (o.gCredit ? '<p class="note" style="margin-top:8px">' + esc(o.gCredit) + ' — үнэгүй, арилжааны зорилгоор ашиглаж болно.</p>' : '') + '</div>';
+  }
+  // add a video (stock or uploaded) as a layer, or swap the one being replaced
+  function addVideo(opt) {
+    toast('Видео ачаалж байна…');
+    fabric.util.loadImage(opt.poster || fabric.Gvideo.poster(opt.src) || '', function (img, err) {
+      var el = err || !img ? null : img, iw = (el && el.naturalWidth) || 1920, ih = (el && el.naturalHeight) || 1080;
+      var target = replaceVid && replaceVid.canvas ? replaceVid : null; replaceVid = null;
+      if (target) {
+        target.gDispose(); target.gSrc = opt.src; target.gCredit = opt.credit || ''; target.gPaused = false;
+        if (el) target.setElement(el, { width: target.width, height: target.height });
+        target.set('dirty', true); canvas.setActiveObject(target); canvas.requestRenderAll(); commit(); refreshUI(); toast('Видео солигдлоо');
+        return;
+      }
+      var k = Math.min(W * (PPT ? 1 : 0.8) / iw, H * (PPT ? 1 : 0.8) / ih);
+      var o = new fabric.Gvideo(el, { width: Math.round(iw * k), height: Math.round(ih * k), gSrc: opt.src, gCredit: opt.credit || '', name: 'Видео', strokeWidth: 0 });
+      place(o); toast('Видео нэмэгдлээ — булангаас нь чирж тайрна, «Эффект», «Анимэйшн» ажиллана');
+    }, null, 'anonymous');
+  }
+  function addVideoFile(file) {
+    if (file.size > 300e6) return toast('Видео хэт том байна (300MB-аас бага байх хэрэгтэй)');
+    var id = 'v' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6), url = URL.createObjectURL(file);
+    var v = document.createElement('video'); v.muted = true; v.preload = 'auto'; v.src = url;
+    var done = false, fail = function () { if (!done) { done = true; toast('Энэ видео форматыг хөтөч тоглуулж чадахгүй байна (MP4 / WebM ашиглана уу)'); } };
+    v.addEventListener('error', fail);
+    v.addEventListener('loadeddata', function () { try { v.currentTime = Math.min(0.5, (v.duration || 1) / 4); } catch (e) {} });
+    v.addEventListener('seeked', function () {
+      if (done) return; done = true;
+      var k = Math.min(1, 1280 / Math.max(v.videoWidth, v.videoHeight)), c = document.createElement('canvas');
+      c.width = Math.round(v.videoWidth * k); c.height = Math.round(v.videoHeight * k); c.getContext('2d').drawImage(v, 0, 0, c.width, c.height);
+      mediaURLs[id] = url;
+      dbSet('media:' + id, file).then(function (ok) {
+        if (!ok) toast('Видеог энэ хөтөчид хадгалж чадсангүй — хуудсыг дахин ачаалбал алга болно', 6000);
+        addVideo({ src: 'idb:' + id, poster: c.toDataURL('image/jpeg', 0.85), credit: '' });
+      });
+    }, { once: true });
+    setTimeout(fail, 20000);
   }
 
   // ---------- left panel ----------
@@ -1381,6 +1503,7 @@
     var k = kindOf(o);
     if (k === 'text') return icon('textI');
     if (k === 'image') return icon('image');
+    if (k === 'video') return icon('video');
     if (k === 'group') return icon(o.gMaskGroup ? 'maskI' : 'group');
     if (k === 'line') return icon(o.isType('path') ? 'pathI' : 'line');
     return icon(o.isType('ellipse') || o.isType('circle') ? 'ellipse' : o.isType('triangle') ? 'triangle' : o.isType('polygon') ? 'star' : 'shapeI');
@@ -1398,14 +1521,14 @@
   function norm(s) { return String(s || '').toLowerCase(); }
   function tplMatch(t, q, extra) { if (!q) return true; var h = norm(t.name + ' ' + (extra || '') + ' ' + (t.tags || '')); return q.split(/\s+/).every(function (w) { return h.indexOf(w) >= 0; }); }
   function tcard(t, attr, cls) {
-    return '<button type="button" class="tc ' + (cls || '') + '" ' + attr + ' title="' + esc(t.name) + '"><span class="tc-img" style="aspect-ratio:' + t.w + '/' + t.h + ';background-color:' + t.bg + '"></span><span class="tc-n">' + esc(t.name) + '</span></button>';
+    return '<button type="button" class="tc ' + (cls || '') + '" ' + attr + ' title="' + esc(t.name) + '"><span class="tc-img" style="aspect-ratio:' + t.w + '/' + t.h + ';background-color:' + t.bg + '"></span>' + (t.videos && t.videos.length ? '<i class="tc-vid">Видео</i>' : '') + '<span class="tc-n">' + esc(t.name) + '</span></button>';
   }
   function deckCard(d) {
     var c = d.slides[0];
-    return '<button type="button" class="tc deckc" data-deckv="' + d.id + '" title="' + esc(d.name) + '"><span class="tc-img" data-cover="' + c.id + '" style="aspect-ratio:16/9;background-color:' + c.bg + '"></span><b class="tc-t">' + esc(d.name) + '</b><span class="tc-m">' + d.slides.length + ' слайд</span></button>';
+    return '<button type="button" class="tc deckc" data-deckv="' + d.id + '" title="' + esc(d.name) + '"><span class="tc-img" data-cover="' + c.id + '" style="aspect-ratio:16/9;background-color:' + c.bg + '"></span>' + (d.video ? '<i class="tc-vid">Видео</i>' : '') + '<b class="tc-t">' + esc(d.name) + '</b><span class="tc-m">' + d.slides.length + ' слайд</span></button>';
   }
   function tplShell() {
-    var cats = PPT ? [['all', 'Бүгд']].concat(uniqTags()) : [['all', 'Бүгд'], ['photo', 'Фототой']].concat(Object.keys(window.GTPL.cats).map(function (c) { return [c, window.GTPL.cats[c]]; }));
+    var cats = PPT ? [['all', 'Бүгд'], ['video', 'Видеотой']].concat(uniqTags()) : [['all', 'Бүгд'], ['photo', 'Фототой']].concat(Object.keys(window.GTPL.cats).map(function (c) { return [c, window.GTPL.cats[c]]; }));
     return '<div class="tp-top"><label class="tp-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="tp-q" type="search" autocomplete="off" spellcheck="false" placeholder="' + (PPT ? 'Илтгэл хайх: ресторан, бизнес, аялал…' : 'Загвар хайх: кофе, наадам, хямдрал…') + '" value="' + esc(tplUI.q) + '"></label>' +
       '<div class="tp-chips">' + cats.map(function (c) { return '<button type="button" class="' + (tplUI.cat === c[0] ? 'on' : '') + '" data-tcat="' + c[0] + '">' + esc(c[1]) + '</button>'; }).join('') + '</div></div>' +
       '<div id="tp-res"></div>';
@@ -1422,7 +1545,7 @@
           '<div class="tc-grid g2">' + d.slides.map(function (t) { return tcard(t, 'data-slide="' + t.id + '"'); }).join('') + '</div>';
         tplUI.deck = null;
       }
-      var list = decks.filter(function (d) { return (tplUI.cat === 'all' || d.tag === tplUI.cat) && (tplMatch(d, q, d.tag) || d.slides.some(function (s) { return tplMatch(s, q); })); });
+      var list = decks.filter(function (d) { return (tplUI.cat === 'all' || d.tag === tplUI.cat || (tplUI.cat === 'video' && d.video)) && (tplMatch(d, q, d.tag) || d.slides.some(function (s) { return tplMatch(s, q); })); });
       if (!q && tplUI.cat === 'all') {
         var rec = recentGet(RK).map(function (id) { return decks.filter(function (x) { return x.id === id; })[0]; }).filter(Boolean).slice(0, 4);
         if (rec.length) h += '<div class="tp-h">Сүүлд ашигласан</div><div class="tc-grid g2">' + rec.map(deckCard).join('') + '</div>';
@@ -1700,7 +1823,7 @@
     var radius = null;
     if (o.isType('rect')) radius = Math.round((o.rx || 0) * (o.scaleX || 1));
     if (o.isType('triangle') || o.type === 'polygon') radius = Math.round((o.gRound || 0) * (o.scaleX || 1));
-    if (k === 'image') radius = o.gMask === 'rounded' ? Math.round(o.gMaskR != null ? o.gMaskR : Math.min(o.width, o.height) * 0.12 * o.scaleX) : 0;
+    if (k === 'image' || k === 'video') radius = o.gMask === 'rounded' ? Math.round(o.gMaskR != null ? o.gMaskR : Math.min(o.width, o.height) * 0.12 * o.scaleX) : 0;
     h += '<div class="ps"><div class="ps-h" data-col="look">Харагдац</div><div class="r2">' + nf(icon('opacity'), 'op', Math.round((o.opacity == null ? 1 : o.opacity) * 100), { unit: '%', title: 'Тунгалаг байдал' }) +
       (radius !== null ? nf(icon('radius'), 'rad', radius, { title: 'Булангийн радиус' }) : '<span></span>') + '</div>' +
       '<div style="margin-top:6px">' + sel('blend', BLENDS, o.globalCompositeOperation || 'source-over') + '</div></div>';
@@ -1729,6 +1852,7 @@
         '<div class="ps-l">Маск хэлбэр</div>' + sel('mask', MASK_SHAPES, o.gMask || 'none') +
         '<button type="button" class="btn full" style="margin-top:6px" data-b="textmask" title="Зургийг том текстэн дотор харуулна">' + icon('text') + 'Текстэн маск үүсгэх</button></div>';
     }
+    if (k === 'video') h += videoUI(o);
     // fill
     var closedPath = o.isType && o.isType('path') && (o.gPen ? o.gPen.closed : (o.path || []).some(function (c) { return c[0] === 'Z' || c[0] === 'z'; }));
     if (k === 'shape' || k === 'text' || closedPath) h += '<div class="ps"><div class="ps-h" data-col="fill">Fill' + (o.fill ? '' : '<span class="acts"><button type="button" class="ib" data-a="addfill" title="Нэмэх">' + icon('plus') + '</button></span>') + '</div>' + (o.fill ? paintUI('fill', o) : '') + '</div>';
@@ -1790,6 +1914,11 @@
     if (p === 'rot' && n !== null) o.rotate(n);
     if ((p === 'w' || p === 'h') && n > 0) {
       if (kindOf(o) === 'text' && p === 'w') { o.set({ width: n / (o.scaleX || 1) }); o.initDimensions(); }
+      else if (kindOf(o) === 'video') {
+        var vw = p === 'w' ? n / (o.scaleX || 1) : o.width, vh = p === 'h' ? n / (o.scaleY || 1) : o.height;
+        if (lockOn(o)) { if (p === 'w') vh = o.height * vw / o.width; else vw = o.width * vh / o.height; }
+        o.set({ width: vw, height: vh, dirty: true }); refitMask(o);
+      }
       else {
         var sx = p === 'w' ? n / o.width : o.scaleX, sy = p === 'h' ? n / (o.height || 1) : o.scaleY;
         if (lockOn(o)) { if (p === 'w') sy = o.scaleY * (sx / o.scaleX); else sx = o.scaleX * (sy / o.scaleY); }
@@ -1800,7 +1929,7 @@
     if (p === 'rad' && n !== null) {
       if (o.isType('rect')) o.set({ rx: Math.max(0, n) / (o.scaleX || 1), ry: Math.max(0, n) / (o.scaleY || 1) });
       if (o.isType('triangle') || o.type === 'polygon') o.set({ gRound: Math.max(0, n) / (o.scaleX || 1), dirty: true });
-      if (kindOf(o) === 'image') fitMask(o, n > 0 ? 'rounded' : null, n);
+      if (kindOf(o) === 'image' || kindOf(o) === 'video') fitMask(o, n > 0 ? 'rounded' : null, n);
     }
     if (p === 'blend') eachSel(function (x) { x.set('globalCompositeOperation', v); });
     if (p === 'font') { ensureFont(v).then(function () { eachSel(function (x) { if (x.isType('textbox')) { x.set('fontFamily', stack(v)); refreshText(x); loadFace(x); } }); commit(); }); return; }
@@ -1819,6 +1948,11 @@
     if (p === 'tbg') eachSel(function (x) { x.set('textBackgroundColor', v ? '#e7e3fd' : ''); });
     if (/^tbgc/.test(p)) eachSel(function (x) { x.set('textBackgroundColor', colorFrom(p, 'tbgc', v, x.textBackgroundColor)); });
     if (p === 'mask') { if (!extraMask(o, v)) fitMask(o, v === 'none' ? null : v); }
+    if (o.type === 'gvideo') {
+      if (p === 'vfx' || p === 'vfy') o.set(p === 'vfx' ? 'gFX' : 'gFY', clamp(n, 0, 100) / 100).set('dirty', true);
+      if (p === 'vsound') o.gSound = !!v;
+      if (p === 'vloop') { o.gLoop = !!v; if (o._vid) o._vid.loop = !!v; }
+    }
     if (/^f-/.test(p) && n !== null) {
       var map = { 'f-bri': [F.Brightness, 'brightness'], 'f-con': [F.Contrast, 'contrast'], 'f-sat': [F.Saturation, 'saturation'], 'f-hue': [F.HueRotation, 'rotation'], 'f-blur': [F.Blur, 'blur'] }[p];
       setFilter(o, map[0], map[1], n / 100, 0);
@@ -1965,6 +2099,9 @@
     } else if (k === 'image') {
       h = btn('crop', 'crop', 'Тайрах') + btn('tab-adjust', 'sliders', 'Засвар', 'Гэрэл, өнгө, шүүлтүүр') + btn('tab-fx', 'wand', 'Эффект', 'Сүүдэр, гэрэлтэлт, уусгалт') + '<span class="sep"></span>' + btn('rmbg', 'wand', 'Дэвсгэр арилгах') + btn('cut', 'eraser', 'Гараар засах', 'Баллуур, сэргээх, шидэт саваа, лассо') + btn('upx', 'wand', '✦ Сайжруулах', 'AI томруулж чанарыг сайжруулах') + '<span class="sep"></span>' + btn('asbg', 'bg', '', 'Frame-ийг дүүргэх') +
         btn('rot90', 'rotate', '', '90° эргүүлэх') + btn('flipX', 'flipH', '', 'Хэвтээ толин тусгал') + btn('flipY', 'flipV', '', 'Босоо толин тусгал');
+    } else if (k === 'video') {
+      h = btn('vplay', o.gPaused ? 'play' : 'pause', o.gPaused ? 'Тоглуулах' : 'Зогсоох', 'Canvas дээр тоглуулах / зогсоох') + btn('vreplace', 'video', 'Солих', 'Өөр видео сонгох') + '<span class="sep"></span>' +
+        btn('tab-fx', 'wand', 'Эффект', 'Сүүдэр, гэрэлтэлт, уусгалт') + (PPT ? btn('tab-anim', 'eye', 'Анимэйшн') : '') + '<span class="sep"></span>' + btn('asbg', 'bg', '', 'Frame-ийг дүүргэх') + btn('flipX', 'flipH', '', 'Хэвтээ толин тусгал');
     } else if (k === 'text' && !(o && o.isEditing)) {
       h = btn('t-b', 'bold', '', 'Тод') + btn('t-i', 'italic', '', 'Налуу') + btn('t-u', 'underline', '', 'Доогуур зураас') + '<span class="sep"></span>' +
         btn('t-al', { left: 'tL', center: 'tC', right: 'tR', justify: 'tJ' }[o.textAlign] || 'tL', '', 'Зэрэгцүүлэх') + btn('t-up', 'plus', '', 'Томруулах') + btn('t-dn', 'minus', '', 'Жижигрүүлэх') + '<span class="sep"></span>' +
@@ -1993,6 +2130,8 @@
     if (/^b-/.test(c)) { booleanOp(c.slice(2)); return; }
     if (c === 'cut' && o) { openCutout(o); return; }
     if (c === 'upx' && o) { openUpscale(o); return; }
+    if (c === 'vplay' && o) { vidToggle(o); return; }
+    if (c === 'vreplace' && o) { vidReplace(o); return; }
     if (/^tab-/.test(c)) { rpTab = c.slice(4); renderRight(); if (window.innerWidth <= 900) { var rpe = document.getElementById('rp'); if (rpe) rpe.classList.add('open'); } return; }
     if (/^t-/.test(c) && o && o.isType && o.isType('textbox')) {
       var tc = c.slice(2);
@@ -2337,7 +2476,7 @@
 
   // ---------- files: picker, drag & drop, paste ----------
 
-  $('#ed-file').addEventListener('change', function () { Array.prototype.forEach.call(this.files, function (f) { addImageBlob(f); }); this.value = ''; });
+  $('#ed-file').addEventListener('change', function () { Array.prototype.forEach.call(this.files, function (f) { if (/^video\//.test(f.type)) addVideoFile(f); else addImageBlob(f); }); this.value = ''; });
   var dragDepth = 0;
   function hasFiles(e) { return e.dataTransfer && Array.prototype.indexOf.call(e.dataTransfer.types, 'Files') >= 0; }
   stage.addEventListener('dragenter', function (e) { if (hasFiles(e)) { e.preventDefault(); dragDepth++; $('#ed-dropzone').hidden = false; } });
@@ -3504,6 +3643,9 @@
     if (a === 'mreplace' && o && o.gMaskGroup) { replaceTarget = o.getObjects()[0]; replaceTarget.gInGroup = o; $('#ed-replace').value = ''; $('#ed-replace').click(); return; }
     if (a === 'anprev') { if (PPT) pptPresent(Math.max(0, frames().indexOf(page)), true); return; }
     if (a === 'anplay') { animPreview(null); return; }
+    if (a === 'vplay' && o) { vidToggle(o); return; }
+    if (a === 'vreplace' && o) { vidReplace(o); return; }
+    if (a === 'vrestart' && o && o._vid) { o._vid.currentTime = 0; return; }
     if (a === 'anone') { animPreview(selObjs(), true); return; }
     if (a === 'vedit' && o) { if (vedit) endVEdit(); else startVEdit(o); return; }
   });
@@ -4179,27 +4321,98 @@
     }
     return { url: out.toDataURL('image/png'), x: (l - f.left) / fw(f) * 100, y: (t - f.top) / fh(f) * 100, w: (r - l) / fw(f) * 100, h: (btm - t) / fh(f) * 100 };
   }
+  // render only the given objects of frame f (frame background optional) — the layers of a slideshow slide / pptx slide
+  function renderSet(objs, f, mult, withFrame) {
+    var vpt = canvas.viewportTransform, bg = canvas.backgroundColor, hid = [], out;
+    userObjects().forEach(function (x) { if (objs.indexOf(x) < 0 && x.visible !== false) { x.visible = false; hid.push(x); } });
+    frames().forEach(function (x) { if ((x !== f || !withFrame) && x.visible !== false) { x.visible = false; hid.push(x); } });
+    var tf = withFrame && f.gTransparent ? f.fill : null; if (tf) f.fill = '#ffffff';
+    exporting = true; canvas.backgroundColor = null;
+    try {
+      canvas.viewportTransform = [1, 0, 0, 1, 0, 0];
+      out = canvas.toCanvasElement(safeMult(fw(f), fh(f), mult), { left: f.left, top: f.top, width: fw(f), height: fh(f) });
+    } finally {
+      hid.forEach(function (x) { x.visible = true; }); if (tf) f.fill = tf;
+      canvas.viewportTransform = vpt; canvas.calcViewportBoundaries(); canvas.backgroundColor = bg; exporting = false;
+    }
+    return out;
+  }
+  // box of an object in % of its frame (unrotated), plus CSS for its shape mask
+  function boxPct(o, f) {
+    var c = o.getCenterPoint(), w = o.width * Math.abs(o.scaleX), h = o.height * Math.abs(o.scaleY);
+    return { x: (c.x - w / 2 - f.left) / fw(f) * 100, y: (c.y - h / 2 - f.top) / fh(f) * 100, w: w / fw(f) * 100, h: h / fh(f) * 100, pw: w, ph: h };
+  }
+  function maskCss(o, b) {
+    var m = o.gMask, w = b.pw, h = b.ph;
+    if (m === 'circle') return 'clip-path:circle(' + (Math.min(w, h) / 2 / (Math.hypot(w, h) / Math.SQRT2) * 100).toFixed(2) + '% at 50% 50%);';
+    if (m === 'oval') return 'clip-path:ellipse(50% 50% at 50% 50%);';
+    if (m === 'rounded') { var r = o.gMaskR != null ? o.gMaskR : Math.min(w, h) * 0.12; return 'border-radius:' + (r / w * 100).toFixed(2) + '% / ' + (r / h * 100).toFixed(2) + '%;'; }
+    if (m === 'arch') return 'border-radius:50% 50% 0 0 / ' + (w / 2 / h * 100).toFixed(2) + '% ' + (w / 2 / h * 100).toFixed(2) + '% 0 0;';
+    return '';
+  }
+  function videoTag(o, f, a) {
+    var b = boxPct(o, f), tr = (o.angle ? 'rotate(' + o.angle + 'deg) ' : '') + (o.flipX ? 'scaleX(-1)' : '');
+    var src = fabric.Gvideo.resolve(o.gSrc), n = 'v' + Math.random().toString(36).slice(2, 8);
+    var st = 'left:' + b.x + '%;top:' + b.y + '%;width:' + b.w + '%;height:' + b.h + '%;object-position:' + ((o.gFX == null ? 0.5 : o.gFX) * 100) + '% ' + ((o.gFY == null ? 0.5 : o.gFY) * 100) + '%;' +
+      maskCss(o, b) + (o.opacity != null && o.opacity < 1 ? '--op:' + o.opacity + ';opacity:' + o.opacity + ';' : '') + (tr ? 'transform:' + tr + ';' : '') +
+      (a ? '--d:' + (a.d || 0.7) + 's;--dl:' + (a.dl || 0) + 's;' : '');
+    var tag = '<video class="pvid' + (a ? ' play an-' + a.t : '') + '" data-vn="' + n + '" playsinline preload="auto"' + (o.gLoop !== false ? ' loop' : '') + (o.gSound ? '' : ' muted') + ' crossorigin="anonymous" style="' + st + '"></video>';
+    return { html: tag, n: n, src: src };
+  }
   function buildSlide(f) {
     var sw = Math.min(3840, Math.max(1280, (window.screen.width || 1920) * (window.devicePixelRatio || 1))), mult = sw / fw(f);
-    var anim = childrenOf(f).filter(function (o) { return o.gAnim && o.gAnim.t && o.visible !== false && (!o.globalCompositeOperation || o.globalCompositeOperation === 'source-over'); });
-    anim.forEach(function (o) { o.visible = false; });
-    var base;
-    try { base = quietRender(f, mult).toDataURL('image/jpeg', 0.92); } finally { anim.forEach(function (o) { o.visible = true; }); }
+    var kids = childrenOf(f).filter(function (o) { return o.visible !== false; });
+    var isAnim = function (o) { return o.gAnim && o.gAnim.t && (!o.globalCompositeOperation || o.globalCompositeOperation === 'source-over'); };
+    var special = function (o) { return o.type === 'gvideo' || isAnim(o); };
     var el = document.createElement('div'); el.className = 'pslide'; el.dataset.ar = fw(f) / fh(f);
-    var h = '<img class="pbase" alt="" src="' + base + '">';
-    anim.forEach(function (o) {
-      var L = renderOnly(o, f, mult); if (!L) return;
-      var a = o.gAnim, n = (o.text || '').length;
-      h += '<img class="play an-' + a.t + '" alt="" src="' + L.url + '" style="left:' + L.x + '%;top:' + L.y + '%;width:' + L.w + '%;height:' + L.h + '%;--d:' + (a.d || 0.7) + 's;--dl:' + (a.dl || 0) + 's;--steps:' + Math.max(4, Math.min(60, n)) + '">';
-    });
+    var h = '', srcs = [];
+    if (!kids.some(function (o) { return o.type === 'gvideo'; })) {
+      // no video: one flat picture + one layer per animated object (on top)
+      var anim = kids.filter(isAnim);
+      anim.forEach(function (o) { o.visible = false; });
+      var base;
+      try { base = quietRender(f, mult).toDataURL('image/jpeg', 0.92); } finally { anim.forEach(function (o) { o.visible = true; }); }
+      h = '<img class="pbase" alt="" src="' + base + '">';
+      anim.forEach(function (o) { h += animLayer(o, f, mult); });
+    } else {
+      // videos: keep the stacking order — static runs become pictures, videos are real <video> elements
+      var run = [], first = true;
+      var flush = function () {
+        if (!run.length && !first) return;
+        var c = renderSet(run, f, mult, first);
+        h += first ? '<img class="pbase" alt="" src="' + c.toDataURL('image/jpeg', 0.92) + '">' : '<img class="pbase" alt="" src="' + c.toDataURL('image/png') + '">';
+        first = false; run = [];
+      };
+      kids.forEach(function (o) {
+        if (!special(o)) { run.push(o); return; }
+        flush();
+        if (o.type === 'gvideo') { var t = videoTag(o, f, isAnim(o) ? o.gAnim : null); h += t.html; srcs.push(t); }
+        else h += animLayer(o, f, mult);
+      });
+      flush();
+    }
     el.innerHTML = h;
+    srcs.forEach(function (t) { var v = el.querySelector('[data-vn="' + t.n + '"]'); if (v) Promise.resolve(t.src).then(function (u) { if (u) v.src = u; }); });
     return el;
+  }
+  function animLayer(o, f, mult) {
+    var L = renderOnly(o, f, mult); if (!L) return '';
+    var a = o.gAnim, n = (o.text || '').length;
+    return '<img class="play an-' + a.t + '" alt="" src="' + L.url + '" style="left:' + L.x + '%;top:' + L.y + '%;width:' + L.w + '%;height:' + L.h + '%;--d:' + (a.d || 0.7) + 's;--dl:' + (a.dl || 0) + 's;--steps:' + Math.max(4, Math.min(60, n)) + '">';
+  }
+  function slideVideos(el, play) {
+    if (!el) return;
+    el.querySelectorAll('video').forEach(function (v) {
+      if (play) { try { v.currentTime = 0; } catch (e) {} var p = v.play(); if (p && p.catch) p.catch(function () { v.muted = true; v.play().catch(function () {}); }); }
+      else v.pause();
+    });
   }
   function pptPresent(start, preview) {
     if (crop) endCrop(true);
     var t0 = active(); if (t0 && t0.isEditing) t0.exitEditing();
     canvas.discardActiveObject(); canvas.requestRenderAll();
     var fs = frames(), i = clamp(start || 0, 0, fs.length - 1), cache = {}, curEl = null, busy = false, auto = null, t0s = Date.now();
+    presenting = true; allVideos().forEach(function (o) { if (o._vid) o._vid.pause(); });
     var ov = document.createElement('div'); ov.className = 'ppt-show'; ov.tabIndex = -1;
     ov.innerHTML = '<div class="ppt-stage"></div><div class="ppt-cover" hidden></div><div class="ppt-notes-ov" hidden></div>' +
       '<div class="ppt-show-ui"><button type="button" data-sx="prev" aria-label="Өмнөх" title="Өмнөх (←)">‹</button><span class="ppt-lab"></span><button type="button" data-sx="next" aria-label="Дараах" title="Дараах (→)">›</button>' +
@@ -4226,8 +4439,9 @@
         busy = true; var old = curEl;
         el.style.setProperty('--td', td + 's'); old.style.setProperty('--td', td + 's');
         el.classList.add('tr-in', 'tr-' + tr); old.classList.add('tr-out', 'tr-' + tr); if (back) { el.classList.add('back'); old.classList.add('back'); }
-        setTimeout(function () { old.remove(); el.classList.remove('tr-in', 'tr-' + tr, 'back'); busy = false; }, td * 1000 + 40);
-      } else if (curEl && curEl !== el) curEl.remove();
+        setTimeout(function () { slideVideos(old, false); old.remove(); el.classList.remove('tr-in', 'tr-' + tr, 'back'); busy = false; }, td * 1000 + 40);
+      } else if (curEl && curEl !== el) { slideVideos(curEl, false); curEl.remove(); }
+      if (curEl !== el) slideVideos(el, true);
       curEl = el; i = k;
       lab.textContent = (i + 1) + ' / ' + fs.length; prog.style.width = ((i + 1) / fs.length * 100) + '%';
       notes.textContent = fs[i].gNotes || 'Энэ слайдад тэмдэглэл алга.';
@@ -4236,6 +4450,7 @@
     var ended = false;
     function end() {
       if (ended) return; ended = true; clearInterval(tick); if (auto) clearInterval(auto);
+      presenting = false; Object.keys(cache).forEach(function (k) { slideVideos(cache[k], false); cache[k].querySelectorAll('video').forEach(function (v) { v.removeAttribute('src'); v.load(); }); });
       document.removeEventListener('keydown', onKey, true); document.removeEventListener('fullscreenchange', onFs); window.removeEventListener('resize', onResize);
       if (document.fullscreenElement) document.exitFullscreen().catch(function () {});
       ov.remove(); pptGo(fs[i]);
@@ -4342,10 +4557,27 @@
     });
   }
 
+  // a video as base64 for PowerPoint (+ its poster as the cover picture)
+  function videoData(o) {
+    return Promise.resolve(fabric.Gvideo.resolve(o.gSrc)).then(function (u) {
+      if (!u) throw new Error('no video');
+      return fetch(u).then(function (r) { if (!r.ok) throw new Error('video ' + r.status); return r.blob(); });
+    }).then(function (b) {
+      if (b.size > 150e6) throw new Error('too big');
+      return new Promise(function (res, rej) { var fr = new FileReader(); fr.onload = function () { res({ b: b, url: fr.result }); }; fr.onerror = rej; fr.readAsDataURL(b); });
+    }).then(function (x) {
+      var type = /webm/.test(x.b.type) ? 'video/webm' : /quicktime|mov/.test(x.b.type) ? 'video/mov' : 'video/mp4';
+      var el = o._element, iw = el.naturalWidth || el.width || 16, ih = el.naturalHeight || el.height || 9, kk = Math.min(1, 1280 / Math.max(iw, ih));
+      var c = document.createElement('canvas'); c.width = Math.max(1, Math.round(iw * kk)); c.height = Math.max(1, Math.round(ih * kk));
+      try { c.getContext('2d').drawImage(el, 0, 0, c.width, c.height); } catch (e) {}
+      var cover; try { cover = c.toDataURL('image/png'); } catch (e) { cover = undefined; }
+      return { data: type + ';base64,' + x.url.split(',')[1], cover: cover };
+    });
+  }
   // PowerPoint export: every slide as a picture; with editable=true plain texts stay real (editable) text boxes
   function exportPptx(editable) {
-    toast('PowerPoint бэлтгэж байна…');
-    var fs = frames();
+    var fs = frames(), nv = allVideos().length;
+    toast('PowerPoint бэлтгэж байна…' + (nv ? ' (' + nv + ' видео татаж байна — түр хүлээнэ үү)' : ''), nv ? 8000 : 3000);
     return (window.PptxGenJS ? Promise.resolve() : loadScript('/assets/vendor/pptxgen.bundle.js')).then(function () {
       var pptx = new window.PptxGenJS(), f0 = fs[0], SW = 13.333, SH = +(SW * fh(f0) / fw(f0)).toFixed(3);
       pptx.defineLayout({ name: 'GC', width: SW, height: SH }); pptx.layout = 'GC';
@@ -4353,34 +4585,58 @@
       var chain = Promise.resolve();
       fs.forEach(function (f) {
         chain = chain.then(function () {
-          var k = SW / fw(f), sh = fh(f) * k, texts = [];
-          if (editable) childrenOf(f).forEach(function (o) {
-            if (kindOf(o) !== 'text' || o.visible === false || !o.text || !o.text.trim()) return;
-            if (typeof o.fill !== 'string' || o.fill === 'transparent' || o.gPaint || (o.stroke && o.strokeWidth > 0) || (o.gFx && o.gFx.length)) return;
-            texts.push(o);
-          });
-          texts.forEach(function (o) { o.visible = false; });
-          var data;
-          try { data = quietRender(f, Math.min(2, 3840 / fw(f))).toDataURL('image/jpeg', 0.9); }
-          finally { texts.forEach(function (o) { o.visible = true; }); }
-          var s = pptx.addSlide();
-          s.addImage({ data: data, x: 0, y: 0, w: SW, h: Math.min(SH, sh) });
-          texts.forEach(function (o) {
-            var c = o.getCenterPoint(), w = o.width * o.scaleX, h = o.height * o.scaleY, col = new fabric.Color(o.fill), pt = o.fontSize * o.scaleY * k * 72;
-            // keep the exact line breaks from the canvas (no re-wrapping if PowerPoint substitutes a wider font)
-            var lines = (o._textLines || []).map(function (l) { return l.join(''); }), txt = lines.length ? lines.join('\n') : o.text;
-            var al = o.textAlign === 'justify' ? 'left' : (o.textAlign || 'left'), bw = w * 1.3, bx = al === 'center' ? c.x - bw / 2 : al === 'right' ? c.x + w / 2 - bw : c.x - w / 2;
-            if (o.angle) { bw = w; bx = c.x - w / 2; }
-            s.addText(txt, {
-              x: (bx - f.left) * k, y: (c.y - h / 2 - f.top) * k, w: bw * k, h: h * k * 1.08,
-              fontFace: primary(o.fontFamily), fontSize: +pt.toFixed(1), color: col.toHex(), transparency: Math.round((1 - col.getAlpha() * (o.opacity == null ? 1 : o.opacity)) * 100),
-              bold: (parseInt(o.fontWeight, 10) || (o.fontWeight === 'bold' ? 700 : 400)) >= 600, italic: o.fontStyle === 'italic', underline: o.underline ? { style: 'sng' } : undefined,
-              align: al, valign: 'top', margin: 0, fit: 'none', wrap: false,
-              lineSpacingMultiple: +Math.max(0.7, (o.lineHeight || 1.16) * 0.94).toFixed(2), charSpacing: o.charSpacing ? +(o.charSpacing / 1000 * pt).toFixed(1) : undefined,
-              rotate: o.angle ? Math.round(o.angle) : undefined
+          // videos go in as real media: fetch them first (a video that can't be fetched stays a still picture)
+          var vids = childrenOf(f).filter(function (o) { return o.type === 'gvideo' && o.visible !== false; });
+          return Promise.all(vids.map(function (o) { return videoData(o).then(function (d) { o._pptx = d; }, function () { o._pptx = null; }); })).then(function () {
+            var k = SW / fw(f), sh = fh(f) * k, texts = [], s = pptx.addSlide(), mult = Math.min(2, 3840 / fw(f));
+            var kids = childrenOf(f).filter(function (o) { return o.visible !== false; }), media = kids.filter(function (o) { return o.type === 'gvideo' && o._pptx; });
+            var lastMedia = media.length ? kids.indexOf(media[media.length - 1]) : -1;
+            if (editable) kids.forEach(function (o, ix) {
+              if (ix < lastMedia || kindOf(o) !== 'text' || !o.text || !o.text.trim()) return;   // text under a video stays in the picture
+              if (typeof o.fill !== 'string' || o.fill === 'transparent' || o.gPaint || (o.stroke && o.strokeWidth > 0) || (o.gFx && o.gFx.length)) return;
+              texts.push(o);
             });
+            if (!media.length) {
+              texts.forEach(function (o) { o.visible = false; });
+              var data;
+              try { data = quietRender(f, mult).toDataURL('image/jpeg', 0.9); }
+              finally { texts.forEach(function (o) { o.visible = true; }); }
+              s.addImage({ data: data, x: 0, y: 0, w: SW, h: Math.min(SH, sh) });
+            } else {
+              var run = [], first = true;
+              var flush = function () {
+                if (!run.length && !first) return;
+                var c = renderSet(run, f, mult, first);
+                s.addImage({ data: first ? c.toDataURL('image/jpeg', 0.9) : c.toDataURL('image/png'), x: 0, y: 0, w: SW, h: Math.min(SH, sh) });
+                first = false; run = [];
+              };
+              kids.forEach(function (o) {
+                if (texts.indexOf(o) >= 0) return;
+                if (media.indexOf(o) < 0) { run.push(o); return; }
+                flush();
+                var b = boxPct(o, f);
+                s.addMedia({ type: 'video', data: o._pptx.data, cover: o._pptx.cover, x: b.x / 100 * SW, y: b.y / 100 * Math.min(SH, sh), w: b.w / 100 * SW, h: b.h / 100 * Math.min(SH, sh) });
+              });
+              flush();
+            }
+            vids.forEach(function (o) { delete o._pptx; });
+            texts.forEach(function (o) {
+              var c = o.getCenterPoint(), w = o.width * o.scaleX, h = o.height * o.scaleY, col = new fabric.Color(o.fill), pt = o.fontSize * o.scaleY * k * 72;
+              // keep the exact line breaks from the canvas (no re-wrapping if PowerPoint substitutes a wider font)
+              var lines = (o._textLines || []).map(function (l) { return l.join(''); }), txt = lines.length ? lines.join('\n') : o.text;
+              var al = o.textAlign === 'justify' ? 'left' : (o.textAlign || 'left'), bw = w * 1.3, bx = al === 'center' ? c.x - bw / 2 : al === 'right' ? c.x + w / 2 - bw : c.x - w / 2;
+              if (o.angle) { bw = w; bx = c.x - w / 2; }
+              s.addText(txt, {
+                x: (bx - f.left) * k, y: (c.y - h / 2 - f.top) * k, w: bw * k, h: h * k * 1.08,
+                fontFace: primary(o.fontFamily), fontSize: +pt.toFixed(1), color: col.toHex(), transparency: Math.round((1 - col.getAlpha() * (o.opacity == null ? 1 : o.opacity)) * 100),
+                bold: (parseInt(o.fontWeight, 10) || (o.fontWeight === 'bold' ? 700 : 400)) >= 600, italic: o.fontStyle === 'italic', underline: o.underline ? { style: 'sng' } : undefined,
+                align: al, valign: 'top', margin: 0, fit: 'none', wrap: false,
+                lineSpacingMultiple: +Math.max(0.7, (o.lineHeight || 1.16) * 0.94).toFixed(2), charSpacing: o.charSpacing ? +(o.charSpacing / 1000 * pt).toFixed(1) : undefined,
+                rotate: o.angle ? Math.round(o.angle) : undefined
+              });
+            });
+            if (f.gNotes) s.addNotes(f.gNotes);
           });
-          if (f.gNotes) s.addNotes(f.gNotes);
         });
       });
       return chain.then(function () { return pptx.write({ outputType: 'blob' }); });

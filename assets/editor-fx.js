@@ -457,6 +457,54 @@
     return r;
   };
 
+  // ---------- video layer ----------
+  // A photo-like object that shows a video. The poster image is its Fabric element (so it saves, thumbnails and
+  // exports like a picture); the <video> plays on top of that when the editor starts it. Always cover-fits its box.
+  function blankPoster() { var c = mkCanvas(160, 90), x = c.getContext('2d'), g = x.createLinearGradient(0, 0, 160, 90); g.addColorStop(0, '#23262f'); g.addColorStop(1, '#101217'); x.fillStyle = g; x.fillRect(0, 0, 160, 90); return c; }
+  var VPROPS = ['gSrc', 'gLoop', 'gSound', 'gFX', 'gFY', 'gCredit'];
+  F.Gvideo = F.util.createClass(F.Image, {
+    type: 'gvideo',
+    gSrc: '', gLoop: true, gSound: false, gFX: 0.5, gFY: 0.5,
+    initialize: function (el, o) { this.callSuper('initialize', el || blankPoster(), o); },
+    frameEl: function () { var v = this._vid; return v && v.readyState >= 2 && v.videoWidth ? v : this._element; },
+    _render: function (ctx) {
+      var el = this.frameEl(), w = this.width, h = this.height;
+      var iw = el && (el.videoWidth || el.naturalWidth || el.width), ih = el && (el.videoHeight || el.naturalHeight || el.height);
+      if (!iw || !ih) { ctx.fillStyle = '#1b1d24'; ctx.fillRect(-w / 2, -h / 2, w, h); return; }
+      var k = Math.max(w / iw, h / ih), sw = w / k, sh = h / k, fx = this.gFX == null ? 0.5 : this.gFX, fy = this.gFY == null ? 0.5 : this.gFY;
+      F.util.setImageSmoothing(ctx, true);
+      ctx.drawImage(el, (iw - sw) * fx, (ih - sh) * fy, sw, sh, -w / 2, -h / 2, w, h);
+      this._stroke(ctx);
+    },
+    applyFilters: function () { return this; },
+    applyResizeFilters: function () {},
+    toObject: function (p) { return this.callSuper('toObject', VPROPS.concat(p || [])); },
+    // create (once) and return the <video>; the editor decides when it plays
+    gEnsure: function () {
+      if (this._vid || !this.gSrc) return this._vid;
+      var self = this, v = document.createElement('video');
+      v.crossOrigin = 'anonymous'; v.muted = true; v.defaultMuted = true; v.loop = this.gLoop !== false; v.playsInline = true; v.preload = 'auto';
+      v.setAttribute('playsinline', ''); v.setAttribute('muted', '');
+      var redraw = function () { self.dirty = true; if (self.canvas) self.canvas.requestRenderAll(); };
+      v.addEventListener('loadeddata', redraw); v.addEventListener('seeked', redraw);
+      v.addEventListener('error', function () { self._vidErr = true; });
+      this._vid = v;
+      Promise.resolve(F.Gvideo.resolve(this.gSrc)).then(function (u) { if (u && self._vid === v) { v.src = u; v.load(); } });
+      return v;
+    },
+    gDispose: function () { var v = this._vid; if (!v) return; this._vid = null; try { v.pause(); v.removeAttribute('src'); v.load(); } catch (e) {} }
+  });
+  // "pexels:<id>" → our Worker resolves the id to the HD file; other sources can be plugged in by the editor
+  F.Gvideo.resolve = function (s) { var m = /^pexels:(\d+)$/.exec(s || ''); return m ? '/api/stock/video?id=' + m[1] : s; };
+  F.Gvideo.poster = function (s) { var m = /^pexels:(\d+)$/.exec(s || ''); return m ? '/api/stock/video?id=' + m[1] + '&poster=1' : ''; };
+  F.Gvideo.blankPoster = blankPoster;
+  F.Gvideo.fromObject = function (obj, cb) {
+    var o = F.util.object.clone(obj), src = o.src; delete o.src; o.filters = []; delete o.resizeFilter;
+    var make = function (img) { F.util.enlivenObjectEnlivables(o, o, function () { cb(new F.Gvideo(img || blankPoster(), o)); }); };
+    if (!src) return make(null);
+    F.util.loadImage(src, function (img, err) { make(err ? null : img); }, null, 'anonymous');
+  };
+
   window.GFX = {
     EXTRA: EXTRA, HAS_FILTER: HAS_FILTER, fxOn: fxOn, fxOf: fxOf,
     makePaint: makePaint, applyPaint: applyPaint, colorAt: colorAt, cssPreview: cssPreview, rgba: rgba,

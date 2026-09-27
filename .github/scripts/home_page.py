@@ -8,7 +8,7 @@ import json, os
 import landings as L
 
 ROOT, SITE, e, ld = L.ROOT, L.SITE, L.e, L.ld
-V = "5"
+V = "6"
 
 ICON = {
     "pdf": '<path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5"/><path d="m9 17 1-3 5-5 2 2-5 5z" fill="currentColor"/>',
@@ -175,14 +175,14 @@ def build():
     <div class="he-copy">
       <p class="hm-kicker">ИЛТГЭЛ · PPT · ҮНЭГҮЙ</p>
       <h2>Илтгэлээ<br><em>минутанд бэлд.</em></h2>
-      <p class="he-lead">Бэлэн загвараас эхэлж слайдаа засаад бүтэн дэлгэцээр үзүүл, эсвэл PowerPoint, PDF-ээр татаж ав. Canva шиг хялбар — монгол фонттой.</p>
+      <p class="he-lead">Бэлэн загвараас эхэлж слайдаа засаад бүтэн дэлгэцээр үзүүл, эсвэл PowerPoint, PDF-ээр татаж ав. Видео байршуулж болно — Canva шиг хялбар, монгол фонттой.</p>
       <ul class="he-feats">
-        <li><span>{svg("tpl")}</span><b>65 слайд загвар</b><small>Ресторан, бизнес, аялал</small></li>
+        <li><span>{svg("tpl")}</span><b>142 слайд загвар</b><small>21 илтгэл · 7 нь видеотой</small></li>
         <li><span>{svg("img")}</span><b>Шилжилт, анимэйшн</b><small>9 шилжилт · 12 эффект</small></li>
         <li><span>{svg("bg")}</span><b>Бүтэн дэлгэцээр</b><small>Тэмдэглэл, таймер, автомат</small></li>
         <li><span>{svg("pdf")}</span><b>PowerPoint · PDF</b><small>Текст нь засагдана</small></li>
       </ul>
-      <div class="he-btns"><a class="hm-btn" href="/slides/">Илтгэл бэлдэх <i>→</i></a><a class="hm-btn ghost" href="/slides/?deck=biz">Бизнес загвар</a></div>
+      <div class="he-btns"><a class="hm-btn" href="/slides/">Илтгэл бэлдэх <i>→</i></a><a class="hm-btn ghost" href="/slides/?deck=pitch">Видеотой загвар</a></div>
     </div>
     <div class="he-sizes pm-decks"><span>Загвараас эхэл:</span>
       <a href="/slides/?deck=hotel"><i style="background:linear-gradient(135deg,#0f0f0e 55%,#d6b67a 55%)"></i>Зочид буудал</a>

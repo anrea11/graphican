@@ -564,13 +564,17 @@
     ] }
   ];
 
-  var ORDER = ['hotel', 'fine', 'resto', 'coffee', 'interior', 'realty', 'biz', 'creative', 'mongolia', 'edu'];
-  DECKS.sort(function (a, b) { return ORDER.indexOf(a.id) - ORDER.indexOf(b.id); });
+  // decks2.js (loaded first) adds the newer decks, several of them with video slides
+  DECKS = DECKS.concat(G.moreDecks || []);
+  var ORDER = ['pitch', 'travel', 'hotel', 'fashion', 'fine', 'report', 'event', 'resto', 'coffee', 'fitness', 'estate', 'interior', 'realty', 'wedding', 'portfolio', 'biz', 'clinic', 'creative', 'mongolia', 'edu'];
+  var ix = function (d) { var i = ORDER.indexOf(d.id); return i < 0 ? 99 : i; };
+  DECKS.sort(function (a, b) { return ix(a) - ix(b); });
   DECKS.forEach(function (d) {
     d.slides = d.slides.map(function (s, i) {
-      return { id: d.id + '-' + (i + 1), name: s.name, deck: d.id, w: W, h: HH, fonts: d.fonts, sw: d.sw, bg: d.sw[0], items: s.items };
+      return { id: d.id + '-' + (i + 1), name: s.name, deck: d.id, w: W, h: HH, fonts: d.fonts, sw: d.sw, bg: d.sw[0], items: s.items, trans: s.trans || d.trans || null };
     });
-    d.slides.forEach(function (s) { s.photos = G.photosOf(s); });
+    d.slides.forEach(function (s) { s.photos = G.photosOf(s); s.videos = G.videosOf ? G.videosOf(s) : []; s.tags = d.tag + ' ' + d.name + (s.videos.length ? ' видео video' : ''); });
+    d.video = d.slides.some(function (s) { return s.videos.length; });
   });
   G.decks = DECKS;
   G.slide = function (id) { for (var i = 0; i < DECKS.length; i++) for (var j = 0; j < DECKS[i].slides.length; j++) if (DECKS[i].slides[j].id === id) return DECKS[i].slides[j]; return null; };

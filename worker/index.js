@@ -2,12 +2,13 @@
   Graphican Worker — serves the static site and a small stock-media API for /editor.
   Keys live in Cloudflare secrets (never in the browser):  PEXELS_KEY, PIXABAY_KEY
     GET /api/stock?src=pexels|pixabay&type=photo|vector|video&q=&page=
-    GET /api/stock/file?u=<media url>          (CORS proxy so images can be used/exported on the canvas)
+    GET /api/stock/file?u=<media url>          (CORS proxy so images can be used/exported on the canvas; Range-aware for video)
+    GET /api/stock/video?id=<pexels id>[&poster=1|&info=1]   (template videos: redirects to the HD mp4 / poster through the proxy)
   Workers AI (binding "AI" in wrangler.jsonc) for the PDF editor:
     POST /api/ai/translate  {texts:[...], source, target}  -> {texts:[...]}   (Llama 3.3 in batches, m2m100 fallback)
     POST /api/ai/chat       {mode:'summary'|'ask', text, question, lang} -> {answer}
 */
-const MEDIA_HOSTS = ['images.pexels.com', 'videos.pexels.com', 'cdn.pixabay.com', 'pixabay.com'];
+const MEDIA_HOSTS = ['images.pexels.com', 'videos.pexels.com', 'player.vimeo.com', 'cdn.pixabay.com', 'pixabay.com'];
 // find a key even if the secret was named slightly differently (PEXELS_API_KEY, pexels, trailing spaces…)
 function findKey(env, word) {
   const exact = env[word + '_KEY'];
@@ -76,20 +77,51 @@ async function search(url, env, ctx) {
   return res;
 }
 
-async function file(url) {
+async function file(url, request) {
   let target;
   try { target = new URL(url.searchParams.get('u') || ''); } catch (e) { return json({ error: 'bad_url' }, 400); }
   if (target.protocol !== 'https:' || !MEDIA_HOSTS.some(h => target.hostname === h || target.hostname.endsWith('.' + h))) return json({ error: 'host_not_allowed' }, 403);
-  const r = await fetch(target.toString(), { cf: { cacheTtl: 86400, cacheEverything: true } });
+  // videos need byte ranges (seeking, looping, Safari won't play without them)
+  const range = request && request.headers.get('range');
+  const r = await fetch(target.toString(), { headers: range ? { Range: range } : {}, cf: { cacheTtl: 86400, cacheEverything: true } });
   if (!r.ok) return json({ error: 'upstream', status: r.status }, 502);
   const h = new Headers();
   h.set('content-type', r.headers.get('content-type') || 'application/octet-stream');
-  if (r.headers.get('content-length')) h.set('content-length', r.headers.get('content-length'));
+  ['content-length', 'content-range', 'accept-ranges'].forEach(k => { if (r.headers.get(k)) h.set(k, r.headers.get(k)); });
+  if (!h.get('accept-ranges') && /^video\//.test(h.get('content-type'))) h.set('accept-ranges', 'bytes');
   h.set('access-control-allow-origin', '*');
+  h.set('access-control-expose-headers', 'content-length, content-range, accept-ranges');
   h.set('cache-control', 'public, max-age=86400');
   const name = url.searchParams.get('dl');
   if (name) h.set('content-disposition', `attachment; filename="${name.replace(/[^\w.\-]+/g, '_')}"`);
-  return new Response(r.body, { status: 200, headers: h });
+  return new Response(r.body, { status: r.status === 206 ? 206 : 200, headers: h });
+}
+
+// template videos are stored as a Pexels id; resolve it to a real file here so the key never reaches the browser
+async function video(url, env, ctx) {
+  const id = (url.searchParams.get('id') || '').replace(/\D/g, '').slice(0, 12);
+  if (!id) return json({ error: 'bad_id' }, 400);
+  const key = findKey(env, 'PEXELS');
+  if (!key) return json({ error: 'no_key' }, 503);
+  const cache = caches.default, ck = new Request(`https://stock.cache/pexels-video/${id}`);
+  let meta = null, hit = await cache.match(ck);
+  if (hit) meta = await hit.json();
+  else {
+    const r = await fetch(`https://api.pexels.com/videos/videos/${id}`, { headers: { Authorization: key } });
+    if (!r.ok) return json({ error: 'upstream', status: r.status }, r.status === 404 ? 404 : 502);
+    const v = await r.json();
+    const files = (v.video_files || []).filter(f => f.file_type === 'video/mp4' && f.link).sort((a, b) => (a.width || 0) - (b.width || 0));
+    const long = f => Math.max(f.width || 0, f.height || 0);
+    // ~1080p is plenty for a slide and keeps files small; fall back to the biggest one
+    const hd = files.find(f => long(f) >= 1800) || files[files.length - 1];
+    const sd = files.find(f => long(f) >= 900) || hd;
+    if (!hd) return json({ error: 'no_file' }, 404);
+    meta = { id: +id, w: v.width, h: v.height, dur: v.duration, image: v.image, hd: hd.link, sd: sd.link, author: v.user && v.user.name, page: v.url };
+    ctx.waitUntil(cache.put(ck, json(meta, 200, { 'cache-control': 'public, max-age=86400' })));
+  }
+  if (url.searchParams.get('info')) return json({ id: meta.id, w: meta.w, h: meta.h, dur: meta.dur, author: meta.author, page: meta.page, file: new URL(meta.hd).hostname }, 200, { 'cache-control': 'public, max-age=3600' });
+  const target = url.searchParams.get('poster') ? meta.image : (url.searchParams.get('q') === 'sd' ? meta.sd : meta.hd);
+  return new Response(null, { status: 302, headers: { location: '/api/stock/file?u=' + encodeURIComponent(target), 'cache-control': 'public, max-age=3600', 'access-control-allow-origin': '*' } });
 }
 
 // ---------- Workers AI ----------
@@ -180,7 +212,8 @@ export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     if (url.pathname === '/api/stock') return search(url, env, ctx);
-    if (url.pathname === '/api/stock/file') return file(url);
+    if (url.pathname === '/api/stock/file') return file(url, request);
+    if (url.pathname === '/api/stock/video') return video(url, env, ctx);
     if (url.pathname === '/api/stock/health') // names only — never values
       return json({ pexels: !!findKey(env, 'PEXELS'), pixabay: !!findKey(env, 'PIXABAY'), names: Object.keys(env).filter(n => n !== 'ASSETS' && n !== 'AI'), ai: !!env.AI }, 200, { 'cache-control': 'no-store' });
     if (url.pathname === '/api/ai/ping') { // quick live check of the AI binding

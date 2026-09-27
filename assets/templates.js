@@ -40,6 +40,22 @@
     var u = 'https://images.pexels.com/photos/' + p[0] + '/' + (p[2] || 'pexels-photo-' + p[0] + '.jpeg') + '?auto=compress&cs=tinysrgb&w=' + (w || 1600);
     return '/api/stock/file?u=' + encodeURIComponent(u);
   }
+  // free videos (Pexels licence). Stored by id; the Worker (/api/stock/video) resolves it to the HD file and poster.
+  var VX = {
+    horses: [33341536, 'Монгол адуу — дроноор'], steppe: [37984596, 'Тал нутаг, адуу'], road: [4360140, 'Тал дундах зам'], sunset: [4360141, 'Уулын жаргах нар'],
+    yurt: [4360050, 'Гэр'], clouds: [4360139, 'Уулсын үүл'], river: [4360144, 'Уул, гол'], camel: [11657668, 'Говийн тэмээ'], lake: [37233181, 'Нуурын жаргах нар'],
+    coffee: [6769801, 'Сүү нэмэх'], latteart: [6769791, 'Латте арт'], drip: [2853788, 'Кофе дусал'],
+    gradient: [8333185, 'Өнгөт абстракт'], gradient2: [7898649, 'Градиент'], motion: [7101965, 'Motion дэвсгэр'], abstract: [8733062, 'Абстракт'],
+    team: [3205674, 'Багаар ажиллах'], meeting: [6563912, 'Санаа солилцох'], office: [8266178, 'Хамтран ажиллах'],
+    city: [1229535, 'Үдшийн хот'], citynight: [33637800, 'Шөнийн хот — дрон'], traffic: [8064422, 'Замын хөдөлгөөн'],
+    runway: [15396486, 'Цэнхэр даашинз'], walk: [17016628, 'Удаан алхалт'], models: [855563, 'Загвар өмсөгчид'], studio: [33191884, 'Студийн зураг авалт'],
+    lift: [3195395, 'Жин өргөх'], workout: [4686178, 'Дасгал'], boxing: [4754030, 'Бокс'], bench: [5320001, 'Штанг'],
+    crowd: [16501141, 'Концертын олон'], hands: [26744501, 'Гараа өргөх'], stage: [13082773, 'Тайз'], lights: [34059094, 'Улаан гэрэл'],
+    mansion: [5744343, 'Харш — дрон'], villa: [12525959, 'Ногоон дундах байшин'], pool: [19120252, 'Усан сантай байшин']
+  };
+  function VIDEO(x, y, w, h, key, o) { o = o || {}; o.t = 'video'; o.x = x; o.y = y; o.w = w; o.h = h; o.key = key; return o; }
+  function vxSrc(k) { return 'pexels:' + VX[k][0]; }
+  function vxPoster(k) { return '/api/stock/video?id=' + VX[k][0] + '&poster=1'; }
   // PHOTO(x, y, w, h, key, {fx, fy: focal point 0..1, mask: 'circle'|'rounded'|'arch'|'oval', r: corner radius, angle, opacity})
   function PHOTO(x, y, w, h, key, o) { o = o || {}; o.t = 'photo'; o.x = x; o.y = y; o.w = w; o.h = h; o.key = key; return o; }
   function SCRIM(x, y, w, h, angle, stops, o) { o = o || {}; o.grad = lin(angle, stops); return R(x, y, w, h, '#000000', Object.assign({ name: 'Сүүдэр' }, o)); }
@@ -844,7 +860,16 @@
     if (s.opacity != null) o.set('opacity', s.opacity);
     if (s.blend) o.set('globalCompositeOperation', s.blend);
     if (s.grad) paint(o, s.grad);
+    if (s.anim) o.gAnim = { t: s.anim, d: s.ad || 0.7, dl: s.dl || 0 };   // entrance animation (presentation mode)
     if (window.GFX && window.GFX.sync) window.GFX.sync(o);
+  }
+  function maskIt(o, s, cw, ch, sc) {
+    var F = window.fabric, m = Math.min(cw, ch), cp = null, oc = { originX: 'center', originY: 'center' };
+    if (s.mask === 'circle') cp = new F.Circle(Object.assign({ radius: m / 2 }, oc));
+    if (s.mask === 'oval') cp = new F.Ellipse(Object.assign({ rx: cw / 2, ry: ch / 2 }, oc));
+    if (s.mask === 'rounded') cp = new F.Rect(Object.assign({ width: cw, height: ch, rx: (s.r || 40) / sc, ry: (s.r || 40) / sc }, oc));
+    if (s.mask === 'arch') cp = new F.Path('M ' + (-cw / 2) + ' ' + (ch / 2) + ' L ' + (-cw / 2) + ' ' + (-ch / 2 + cw / 2) + ' A ' + (cw / 2) + ' ' + (cw / 2) + ' 0 0 1 ' + (cw / 2) + ' ' + (-ch / 2 + cw / 2) + ' L ' + (cw / 2) + ' ' + (ch / 2) + ' Z', oc);
+    o.set('clipPath', cp); o.gMask = s.mask; o.gMaskR = s.mask === 'rounded' ? (s.r || 40) : null;
   }
   // font(name) returns a CSS font stack
   function objects(tp, X, Y, font, imgs) {
@@ -884,19 +909,17 @@
           var fx = s.fx == null ? 0.5 : s.fx, fy = s.fy == null ? 0.5 : s.fy;
           o = new F.Image(el, { left: X + s.x, top: Y + s.y, cropX: (iw - cw) * fx, cropY: (ih - ch) * fy, width: cw, height: ch, scaleX: sc, scaleY: sc, name: 'Зураг', strokeWidth: 0 });
           o.gCredit = 'Pexels · ' + PX[s.key][1];
-          if (s.mask) {
-            var m = Math.min(cw, ch), cp = null, oc = { originX: 'center', originY: 'center' };
-            if (s.mask === 'circle') cp = new F.Circle(Object.assign({ radius: m / 2 }, oc));
-            if (s.mask === 'oval') cp = new F.Ellipse(Object.assign({ rx: cw / 2, ry: ch / 2 }, oc));
-            if (s.mask === 'rounded') cp = new F.Rect(Object.assign({ width: cw, height: ch, rx: (s.r || 40) / sc, ry: (s.r || 40) / sc }, oc));
-            if (s.mask === 'arch') cp = new F.Path('M ' + (-cw / 2) + ' ' + (ch / 2) + ' L ' + (-cw / 2) + ' ' + (-ch / 2 + cw / 2) + ' A ' + (cw / 2) + ' ' + (cw / 2) + ' 0 0 1 ' + (cw / 2) + ' ' + (-ch / 2 + cw / 2) + ' L ' + (cw / 2) + ' ' + (ch / 2) + ' Z', oc);
-            o.set('clipPath', cp); o.gMask = s.mask; o.gMaskR = s.mask === 'rounded' ? (s.r || 40) : null;
-          }
+          if (s.mask) maskIt(o, s, cw, ch, sc);
         } else {
           // photo could not load: a soft placeholder the user can replace
           o = new F.Rect({ left: X + s.x, top: Y + s.y, width: s.w, height: s.h, rx: s.mask === 'rounded' ? (s.r || 40) : s.mask === 'circle' ? Math.min(s.w, s.h) / 2 : 0, ry: s.mask === 'rounded' ? (s.r || 40) : s.mask === 'circle' ? Math.min(s.w, s.h) / 2 : 0, fill: '#cfd3dc', name: 'Зургийн байр' });
           paint(o, lin(90, [[0, '#d9dde6'], [1, '#aab1c0']]));
         }
+        if (s.angle) { o.rotate(s.angle); o.setPositionByOrigin(new F.Point(X + s.x + s.w / 2, Y + s.y + s.h / 2), 'center', 'center'); }
+      } else if (s.t === 'video' && F.Gvideo && VX[s.key]) {
+        o = new F.Gvideo((imgs && imgs['v:' + s.key]) || null, { left: X + s.x, top: Y + s.y, width: s.w, height: s.h, gSrc: vxSrc(s.key), gFX: s.fx == null ? 0.5 : s.fx, gFY: s.fy == null ? 0.5 : s.fy, name: 'Видео', strokeWidth: 0 });
+        o.gCredit = 'Pexels видео';
+        if (s.mask) maskIt(o, s, s.w, s.h, 1);
         if (s.angle) { o.rotate(s.angle); o.setPositionByOrigin(new F.Point(X + s.x + s.w / 2, Y + s.y + s.h / 2), 'center', 'center'); }
       } else if (s.t === 'ph') {
         o = new F.Rect({ left: X + s.x, top: Y + s.y, width: s.w, height: s.h, rx: s.rx || 0, ry: s.rx || 0, fill: s.fill || '#e5e7eb', name: 'Зургийн байр' });
@@ -928,15 +951,17 @@
     return imgCache[url];
   }
   function photosOf(tp) { var k = []; tp.items().forEach(function (s) { if (s.t === 'photo' && k.indexOf(s.key) < 0) k.push(s.key); }); return k; }
-  // async: loads the template's photos first (w = requested pixel width), then builds the objects
+  function videosOf(tp) { var k = []; tp.items().forEach(function (s) { if (s.t === 'video' && VX[s.key] && k.indexOf(s.key) < 0) k.push(s.key); }); return k; }
+  // async: loads the template's photos (w = requested pixel width) and video posters first, then builds the objects
   function build(tp, X, Y, font, w) {
-    var keys = photosOf(tp), imgs = {};
-    return Promise.all(keys.map(function (k) { return loadImg(pxUrl(k, w)).then(function (im) { imgs[k] = im; }); }))
+    var keys = photosOf(tp), vids = videosOf(tp), imgs = {};
+    return Promise.all(keys.map(function (k) { return loadImg(pxUrl(k, w)).then(function (im) { imgs[k] = im; }); })
+      .concat(vids.map(function (k) { return loadImg(vxPoster(k)).then(function (im) { imgs['v:' + k] = im; }); })))
       .then(function () { return objects(tp, X, Y, font, imgs); });
   }
   var KW = { latte: 'кофе кафе', beans: 'кофе кафе', beans2: 'кофе', cafe: 'кофе кафе', barista: 'кофе кафе', steak: 'ресторан хоол', steak2: 'ресторан хоол', restin: 'ресторан', wine: 'ресторан дарс', burger: 'хоол ресторан', burger2: 'хоол', pizza: 'хоол', coupe: 'бар коктейль', cocktail: 'бар', pool: 'зочид буудал аялал', lobby: 'зочид буудал', tart: 'амттан бялуу', dessert: 'амттан', cake: 'бялуу төрсөн өдөр', rider: 'морь', gobi: 'аялал говь', house: 'байр орон сууц', living: 'интерьер' };
   LIST.forEach(function (t) { if (!t.bg) t.bg = t.sw[0]; t.photos = photosOf(t); t.credits = t.photos.map(function (k) { return PX[k][1]; }); t.tags = t.photos.map(function (k) { return KW[k] || ''; }).join(' '); });
   window.GTPL = { list: LIST, cats: CATS, get: function (id) { return LIST.filter(function (t) { return t.id === id; })[0]; }, objects: objects, build: build, photoUrl: pxUrl, cssUrl: cssUrl,
-    H: { T: T, R: R, C: C, BLOB: BLOB, BG: BG, PH: PH, STAR: STAR, SPARK: SPARK, PHOTO: PHOTO, SCRIM: SCRIM, lin: lin, rad: rad, pill: pill, GRAIN: GRAIN, GRAIN2: GRAIN2 },
-    photosOf: photosOf, decks: [] };
+    H: { T: T, R: R, C: C, BLOB: BLOB, BG: BG, PH: PH, STAR: STAR, SPARK: SPARK, PHOTO: PHOTO, VIDEO: VIDEO, SCRIM: SCRIM, lin: lin, rad: rad, pill: pill, GRAIN: GRAIN, GRAIN2: GRAIN2 },
+    photosOf: photosOf, videosOf: videosOf, VX: VX, decks: [] };
 })();
