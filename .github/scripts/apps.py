@@ -210,7 +210,7 @@ def render(p, header):
 
 <footer class="lp-foot">
   <p><a href="/">Graphican</a> — брэндинг, digital design, видео. Эдгээр хэрэгслийг дизайнер Анхбаяр бүтээж, хүн бүрт үнэгүй нээлттэй болгосон.</p>
-  <p><a href="/about/#work">Ажлууд</a> · <a href="/design/">Design guide</a> · <a href="/tools/">Design tools</a> · <a href="/about/#contact">Хамтран ажиллах</a></p>
+  <p><a href="/about/#work">Ажлууд</a> · <a href="/design/">Design guide</a> · <a href="/tools/">Design tools</a> · <a href="/about/#contact">Хамтран ажиллах</a> · <a href="/support/">Дэмжих</a></p>
 </footer>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
@@ -221,8 +221,73 @@ def render(p, header):
 """
 
 
+def support_page(header):
+    """/support/ — how to support Graphican (texts + payment details from content/site.json → support, editable in /admin)."""
+    site = json.load(open(os.path.join(ROOT, "content", "site.json"), encoding="utf-8"))
+    sp, ct = site.get("support") or {}, site.get("contact") or {}
+    title = sp.get("page_title") or "Graphican-ийг дэмжих"
+    text = sp.get("page_text") or ""
+    rows = [(k, sp.get(f)) for k, f in [("Банк", "bank_name"), ("Дансны дугаар", "bank_account"), ("Данс эзэмшигч", "bank_holder"), ("IBAN", "iban")] if sp.get(f)]
+    bank = ""
+    if rows:
+        bank = '<div class="sp-card"><h2>Дансаар шилжүүлэх</h2><dl>' + "".join(
+            f'<div><dt>{e(k)}</dt><dd><span>{e(v)}</span><button type="button" class="sp-copy" data-copy="{e(v)}">Хуулах</button></dd></div>' for k, v in rows) + \
+            '</dl><p class="sp-note">Гүйлгээний утга дээр «Graphican дэмжлэг» гэж бичээрэй.</p></div>'
+    qr = f'<div class="sp-card sp-qr"><h2>QPay / QR</h2><img src="{e(sp["qpay_image"])}" alt="QPay QR код" loading="lazy"></div>' if sp.get("qpay_image") else ""
+    extra = f'<a class="sp-btn" href="{e(sp["extra_link"])}" target="_blank" rel="noopener">{e(sp.get("extra_label") or "Дэмжих")} →</a>' if sp.get("extra_link") else ""
+    contact = []
+    if ct.get("messenger"): contact.append(f'<a class="sp-btn ghost" href="{e(ct["messenger"])}" target="_blank" rel="noopener">Messenger</a>')
+    if ct.get("phone"): contact.append(f'<a class="sp-btn ghost" href="tel:+976{e(ct["phone"])}">{e(ct["phone"])}</a>')
+    if ct.get("email"): contact.append(f'<a class="sp-btn ghost" href="mailto:{e(ct["email"])}">{e(ct["email"])}</a>')
+    pay = bank + qr
+    if not pay:
+        pay = '<div class="sp-card"><h2>Дэмжлэг үзүүлэх</h2><p>Дэмжлэг үзүүлэх, хамтран ажиллах талаар бидэнтэй шууд холбогдоорой — мэдээллийг тань хүлээж байна.</p></div>'
+    body = f"""
+  <section class="lp-hero app-hero sp-hero">
+    <p class="lp-kicker">ДЭМЖЛЭГ · GRAPHICAN</p>
+    <h1>{e(title)}</h1>
+    <p class="lp-lead">{e(text)}</p>
+    {('<p>' + extra + '</p>') if extra else ''}
+  </section>
+  <section class="lp-sec sp-grid">{pay}
+    <div class="sp-card"><h2>Холбоо барих</h2><p>Санал хүсэлт, шинэ боломжийн санаа, хамтын ажиллагааны талаар:</p><div class="sp-links">{"".join(contact)}</div></div>
+    <div class="sp-card"><h2>Өөр аргаар дэмжих</h2><p>Graphican-ийг найзууддаа хуваалцах, хэрэгслүүдийг ашиглаж санал бодлоо хэлэх нь бас том дэмжлэг.</p><div class="sp-links"><button type="button" class="sp-btn ghost" data-share="1">Хуваалцах</button><a class="sp-btn ghost" href="/tools/">Хэрэгслүүд</a></div></div>
+  </section>
+"""
+    css = """<style>
+.sp-hero h1{max-width:18ch}
+.sp-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+.sp-card{padding:24px;border-radius:20px;border:1px solid rgba(255,255,255,.1);background:radial-gradient(120% 100% at 100% 0%,rgba(157,128,255,.14),transparent 60%),rgba(255,255,255,.03)}
+.sp-card h2{margin:0 0 12px;font-size:20px}
+.sp-card p{margin:0 0 14px;opacity:.8;line-height:1.6}
+.sp-card dl{margin:0;display:grid;gap:10px}
+.sp-card dl div{display:grid;gap:2px}
+.sp-card dt{font-size:12px;letter-spacing:.08em;text-transform:uppercase;opacity:.6}
+.sp-card dd{margin:0;display:flex;align-items:center;gap:10px;font-size:18px;font-weight:600;font-variant-numeric:tabular-nums}
+.sp-copy{height:30px;padding:0 12px;border-radius:999px;border:1px solid rgba(255,255,255,.18);background:transparent;color:inherit;font:600 12px/1 inherit;cursor:pointer}
+.sp-note{margin-top:14px!important;font-size:13px}
+.sp-qr img{display:block;width:100%;max-width:260px;border-radius:14px;background:#fff}
+.sp-links{display:flex;flex-wrap:wrap;gap:8px}
+.sp-btn{display:inline-flex;align-items:center;height:44px;padding:0 20px;border-radius:999px;border:0;background:linear-gradient(135deg,#9d80ff 0%,#6d56fa 48%,#4b33d9 100%);color:#fff;font:600 15px/1 inherit;text-decoration:none;cursor:pointer;box-shadow:0 10px 24px -10px rgba(109,86,250,.8)}
+.sp-btn.ghost{background:transparent;border:1px solid rgba(255,255,255,.18);box-shadow:none;font-size:14px;height:40px;padding:0 16px}
+</style>
+<script>
+document.addEventListener('click',function(e){var c=e.target.closest('[data-copy]');if(c){navigator.clipboard&&navigator.clipboard.writeText(c.dataset.copy);c.textContent='Хуулагдлаа ✓';setTimeout(function(){c.textContent='Хуулах'},1600)}
+var s=e.target.closest('[data-share]');if(s){var d={title:'Graphican — үнэгүй дизайн хэрэгслүүд',url:'https://graphican.online/'};if(navigator.share)navigator.share(d).catch(function(){});else{navigator.clipboard&&navigator.clipboard.writeText(d.url);s.textContent='Холбоос хуулагдлаа ✓'}}});
+</script>"""
+    p = dict(slug="__support", name="Дэмжлэг", title=f"{title} | Graphican", desc=text[:155] or "Graphican-ийг дэмжих", faq=[], scripts=[], body=body)
+    html = render(p, header).replace('/tools/__support/', '/support/').replace('<span aria-current="page">Дэмжлэг</span>', '<span aria-current="page">Дэмжлэг</span>')
+    html = html.replace('<a href="/tools/">Design tools</a><span>/</span><span aria-current="page">Дэмжлэг</span>', '<span aria-current="page">Дэмжлэг</span>')
+    html = html.replace("</head>", css + "\n</head>", 1)
+    simple = {"@context": "https://schema.org", "@type": "WebPage", "url": SITE + "/support/", "name": title, "description": text[:155], "inLanguage": "mn", "isPartOf": {"@id": SITE + "/#website"}}
+    html = re.sub(r'<script type="application/ld\+json">.*?</script>', lambda m: ld(simple), html, count=1, flags=re.S)
+    d = os.path.join(ROOT, "support"); os.makedirs(d, exist_ok=True)
+    open(os.path.join(d, "index.html"), "w", encoding="utf-8").write(html)
+
+
 def build():
     header = L.header_html()
+    support_page(header)
     out = []
     for fn in APPS:
         p = fn()

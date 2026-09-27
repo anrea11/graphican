@@ -48,3 +48,6 @@
   // back-button from the editor: page may come from bfcache with the busy state still on
   window.addEventListener('pageshow', function () { drop.classList.remove('busy'); input.value = ''; });
 })();
+
+/* support card after downloads (assets/support.js) */
+(function () { if (window.GCSupport || document.querySelector('script[src*="/assets/support.js"]')) return; var s = document.createElement('script'); s.src = '/assets/support.js?v=1'; s.defer = true; (document.head || document.documentElement).appendChild(s); })();

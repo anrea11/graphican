@@ -1920,3 +1920,6 @@
       app.innerHTML = '<p class="load-error">Контент ачаалж чадсангүй. Хуудсаа дахин ачаална уу.</p>';
     });
 })();
+
+/* support card after downloads (assets/support.js) */
+(function () { if (window.GCSupport || document.querySelector('script[src*="/assets/support.js"]')) return; var s = document.createElement('script'); s.src = '/assets/support.js?v=1'; s.defer = true; (document.head || document.documentElement).appendChild(s); })();

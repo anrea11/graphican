@@ -457,5 +457,23 @@
   "footer": {
     "copyright": "© 2026 GRAPHICAN",
     "tagline": "BRANDING • DIGITAL DESIGN • VIDEO"
+  },
+  "support": {
+    "enabled": true,
+    "title": "Graphican-ийг хамтдаа хөгжүүлье",
+    "text": "Таны ашиглаж байгаа Graphican-ийг бид цаашид илүү олон боломж, илүү сайн ажиллагаатай болгохоор хөгжүүлж байна. Хэрэг болсон бол хөгжлийг маань дэмжээрэй.",
+    "button": "Дэмжлэг үзүүлэх",
+    "later": "Дараа больё",
+    "link": "/support/",
+    "snooze_days": 3,
+    "page_title": "Graphican-ийг дэмжих",
+    "page_text": "Graphican-ийн бүх хэрэгсэл үнэгүй, бүртгэлгүй. Серверийн зардал, шинэ загвар, шинэ боломжуудыг таны дэмжлэгээр хөгжүүлдэг. Ямар ч хэмжээний дэмжлэг бидэнд урам болно — баярлалаа!",
+    "bank_name": "",
+    "bank_account": "",
+    "bank_holder": "",
+    "iban": "",
+    "qpay_image": "",
+    "extra_label": "",
+    "extra_link": ""
   }
 }

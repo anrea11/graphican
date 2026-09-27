@@ -248,6 +248,28 @@ collections:
               - { name: copyright, label: "Зохиогчийн эрх", widget: string }
               - { name: tagline, label: "Уриа", widget: string }
 
+          - name: support
+            label: "Дэмжлэг — татсаны дараах цонх ба /support/ хуудас"
+            widget: object
+            collapsed: true
+            fields:
+              - { name: enabled, label: "Татсаны дараа цонх харуулах", widget: boolean, default: true }
+              - { name: title, label: "Цонхны гарчиг", widget: string }
+              - { name: text, label: "Цонхны текст", widget: text }
+              - { name: button, label: "Дэмжих товч", widget: string }
+              - { name: later, label: "Татгалзах товч", widget: string }
+              - { name: link, label: "Дэмжих товчны холбоос", widget: string, hint: "Анхдагч: /support/ (доорх мэдээлэлтэй хуудас). QPay, Buy Me a Coffee зэрэг гадны холбоос байж болно." }
+              - { name: snooze_days, label: "«Дараа больё» дарвал хэд хоног харуулахгүй", widget: number, value_type: int, default: 3 }
+              - { name: page_title, label: "/support/ хуудасны гарчиг", widget: string }
+              - { name: page_text, label: "/support/ хуудасны текст", widget: text }
+              - { name: bank_name, label: "Банкны нэр", widget: string, required: false }
+              - { name: bank_account, label: "Дансны дугаар", widget: string, required: false }
+              - { name: bank_holder, label: "Данс эзэмшигч", widget: string, required: false }
+              - { name: iban, label: "IBAN (заавал биш)", widget: string, required: false }
+              - { name: qpay_image, label: "QPay / QR код зураг", widget: image, required: false }
+              - { name: extra_label, label: "Нэмэлт товчны нэр (жишээ: Buy Me a Coffee)", widget: string, required: false }
+              - { name: extra_link, label: "Нэмэлт товчны холбоос", widget: string, required: false }
+
       # ================= DESIGN PAGE (/design) =================
       - name: design
         label: "Design guide (/design) ба Design tools (/tools)"
