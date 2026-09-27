@@ -1,4 +1,4 @@
-/* Graphican Editor — Figma-style layout: layers left, canvas centre, properties right, tool dock bottom. */
+/* Graphican Editor — layers left, canvas centre, properties right, tool dock bottom. The "Graphican skin" at the end gives it the brand look. */
 @font-face { font-family:"iBrand"; src:url("/assets/fonts/ibrand.otf") format("opentype"); font-display:swap; }
 
 :root {
@@ -623,3 +623,129 @@ body[data-mode="ppt"] .dock { bottom:134px; } body[data-mode="ppt"] .ctxbar { bo
 .tc .tc-vid::before, .deckc .tc-vid::before { content:""; width:0; height:0; border-left:6px solid #fff; border-top:4px solid transparent; border-bottom:4px solid transparent; }
 .stk-it.broken { display:none; }
 .stk-qen { margin:0 0 8px; }
+
+/* =====================================================================================================
+   Graphican skin — the editor's own identity (brand violet gradient + glow, floating studio panels,
+   dot-grid canvas, dark glass tool dock, tracked uppercase section labels). Colours first, then layout.
+   ===================================================================================================== */
+:root {
+  --canvas:#ebeaf1; --bg:#ffffff; --bg2:#f4f3f8; --bg3:#e9e7f1;
+  --text:#16141d; --muted:#6c6879; --dim:#a4a0b1; --line:#ebe9f1; --line2:#dcd9e6;
+  --acc:#6d56fa; --acc2:#9b7bff; --acc-soft:rgba(109,86,250,.10);
+  --grad:linear-gradient(135deg, #9d80ff 0%, #6d56fa 48%, #4b33d9 100%);
+  --glow:0 6px 18px -6px rgba(109,86,250,.7), inset 0 1px 0 rgba(255,255,255,.25);
+  --dot:rgba(52,34,158,.16);
+  --glass:rgba(20,18,28,.9); --glass-line:rgba(255,255,255,.09); --glass-text:#e9e6f3;
+  --panel-shadow:0 1px 2px rgba(22,16,48,.05), 0 16px 36px -22px rgba(22,16,48,.35);
+  --shadow:0 2px 6px rgba(22,16,48,.08), 0 14px 34px -12px rgba(22,16,48,.28);
+}
+[data-theme="dark"] {
+  --canvas:#0b0a0f; --bg:#15141b; --bg2:#1f1d27; --bg3:#2a2733;
+  --text:#f2f0f7; --muted:#a5a1b2; --dim:#6f6b7c; --line:#25232e; --line2:#35323f;
+  --acc-soft:rgba(139,108,255,.18); --dot:rgba(255,255,255,.075);
+  --glass:rgba(24,22,32,.88); --panel-shadow:0 1px 0 rgba(255,255,255,.03) inset, 0 20px 40px -24px rgba(0,0,0,.8);
+}
+html, body { background:var(--canvas); }
+::selection { background:rgba(109,86,250,.25); }
+* { scrollbar-width:thin; scrollbar-color:var(--line2) transparent; }
+
+/* canvas: dot grid (position / size follow the view from editor.js) + a soft brand glow */
+.stage { background-color:var(--canvas); background-image:radial-gradient(circle, var(--dot) 1px, transparent 1.3px); background-size:24px 24px; }
+.stage::before { content:''; position:absolute; inset:0; pointer-events:none; z-index:0;
+  background:radial-gradient(60% 50% at 50% 110%, rgba(109,86,250,.10), transparent 70%), radial-gradient(40% 35% at 0% 0%, rgba(157,128,255,.07), transparent 70%); }
+[data-theme="dark"] .stage::before { background:radial-gradient(60% 50% at 50% 115%, rgba(109,86,250,.22), transparent 70%), radial-gradient(40% 40% at 0% 0%, rgba(157,128,255,.10), transparent 70%); }
+.stage .canvas-container { z-index:1; }
+
+/* panels */
+.lp, .rp { background:var(--bg); }
+.lp-head { padding:14px 12px 6px; }
+.logo { font-size:19px; gap:9px; }
+.orb { width:15px; height:15px; box-shadow:0 0 12px #816dfb, 0 0 2px #fff inset; }
+.lp-file { border-bottom:0; padding:0 12px 8px; }
+.file-name { font-size:13.5px; border-radius:8px; }
+.mode-sw { margin:2px 12px 12px; padding:3px; border-radius:999px; background:var(--bg2); }
+.mode-sw a { border-radius:999px; padding:7px 0; letter-spacing:.01em; }
+.mode-sw a.on { background:var(--grad); color:#fff; box-shadow:var(--glow); }
+
+/* tabs: left = segmented pill, right = accent pills */
+.lp-tabs { margin:0 12px 6px; padding:3px; gap:0; border:0; border-radius:999px; background:var(--bg2); }
+.lp-tabs button { height:28px; border-radius:999px; font-size:11.5px; }
+.lp-tabs button:hover { background:transparent; }
+.lp-tabs button.on { background:var(--bg); color:var(--text); box-shadow:0 1px 2px rgba(22,16,48,.08), 0 3px 10px -4px rgba(22,16,48,.25); }
+[data-theme="dark"] .lp-tabs button.on { background:var(--bg3); box-shadow:none; }
+.rp-tabs { gap:4px; padding:10px 12px 8px; border-bottom:1px solid var(--line); }
+.rp-tabs button { height:30px; margin:0; border:0; border-radius:999px; font-size:11.5px; }
+.rp-tabs button:hover { background:var(--bg2); }
+.rp-tabs button.on { background:var(--acc-soft); color:var(--acc); border:0; }
+[data-theme="dark"] .rp-tabs button.on { color:#c4b5ff; }
+
+/* property sections: tracked uppercase labels like the site navigation */
+.ps { padding:14px 14px 16px; }
+.ps-h { font-size:10.5px; font-weight:700; letter-spacing:.09em; text-transform:uppercase; color:var(--muted); margin-bottom:10px; }
+.ps-h[data-col]::before { border-top-color:var(--dim); }
+.ps-top .ps-h { font-size:13.5px; letter-spacing:0; text-transform:none; color:var(--text); margin-bottom:0; }
+.ps-l { font-size:10px; letter-spacing:.06em; text-transform:uppercase; }
+.rp-head { height:54px; padding:0 10px; border-bottom:1px solid var(--line); }
+.zoom { border-radius:999px; padding:0 10px; background:var(--bg2); }
+
+/* controls */
+.ib { border-radius:8px; }
+.btn { border-radius:9px; border-color:var(--line2); height:30px; }
+.btn.acc { background:var(--acc-soft); color:var(--acc); }
+[data-theme="dark"] .btn.acc { color:#c4b5ff; }
+.btn-primary { height:32px; padding:0 18px; border-radius:999px; background:var(--grad); box-shadow:var(--glow); letter-spacing:.01em; }
+.btn-primary:hover { filter:brightness(1.1) saturate(1.1); }
+.nf { height:30px; border-radius:9px; }
+.nf:focus-within { border-color:var(--acc); box-shadow:0 0 0 3px var(--acc-soft); }
+.seg { border-radius:10px; padding:3px; }
+.seg button { border-radius:7px; }
+input[type="range"] { accent-color:var(--acc); }
+.tp-chips button { border-color:var(--line2); }
+.tp-chips button.on { background:var(--grad); border-color:transparent; color:#fff; box-shadow:var(--glow); }
+.hint { border-radius:999px; padding:9px 18px; border:1px solid var(--line); }
+
+/* layers */
+.ly { height:32px; border-radius:9px; }
+.ly:hover { background:var(--bg2); }
+.ly.on { background:var(--acc-soft); box-shadow:inset 3px 0 0 var(--acc); }
+.ly.frame .li { color:var(--acc); }
+
+/* menus: dark with the brand gradient on hover */
+.menu { background:#17151f; border:1px solid rgba(255,255,255,.08); border-radius:12px; padding:6px; box-shadow:0 18px 40px -14px rgba(10,6,30,.6); }
+.menu > button, .menu .mi { border-radius:8px; }
+.menu > button:hover, .menu .mi:hover { background:var(--grad); }
+
+/* tool dock + context bar: dark glass in both themes */
+.dock, .ctxbar { background:var(--glass); color:var(--glass-text); border:1px solid var(--glass-line); border-radius:20px; padding:6px;
+  -webkit-backdrop-filter:blur(16px) saturate(150%); backdrop-filter:blur(16px) saturate(150%);
+  box-shadow:0 22px 44px -18px rgba(20,10,60,.55), 0 2px 6px rgba(0,0,0,.18); }
+.dock .tool, .ctxbar .tool { color:var(--glass-text); border-radius:13px; }
+.dock .tool:hover, .ctxbar .tool:hover { background:rgba(255,255,255,.08); }
+.dock .tool.on, .ctxbar .tool.ok { background:var(--grad); color:#fff; box-shadow:var(--glow); }
+.dock .sep, .ctxbar .sep { background:rgba(255,255,255,.12); }
+.ctxbar .ctx-lbl { color:rgba(255,255,255,.55); }
+.ctxbar .ctx-v { color:#fff; }
+.ctxbar .ctx-num { background:rgba(255,255,255,.07); border-color:rgba(255,255,255,.12); color:#fff; }
+.ctxbar .sw { border-color:rgba(255,255,255,.25); }
+
+/* presentation strip */
+.ppt-bar { background:var(--bg); border-top:1px solid var(--line); }
+.ppt-acts button { border-radius:9px; }
+.ppt-sl.on img { box-shadow:0 0 0 2px var(--acc), 0 8px 18px -8px rgba(109,86,250,.7); }
+
+/* desktop: panels float as rounded cards around the canvas */
+@media (min-width:901px) {
+  .app { padding:10px; gap:10px; background:var(--canvas); }
+  .lp, .rp { border:1px solid var(--line); border-radius:18px; box-shadow:var(--panel-shadow); }
+  .lp { border-right:1px solid var(--line); } .rp { border-left:1px solid var(--line); }
+  .lp::before, .rp::before { content:''; position:absolute; top:-1px; left:22px; right:22px; height:2px; border-radius:0 0 3px 3px; background:var(--grad); opacity:.85; pointer-events:none; }
+  .stage { border-radius:18px; box-shadow:inset 0 0 0 1px var(--line); }
+  .rsz { width:10px; }
+  .lp .rsz { right:-10px !important; } .rp .rsz { left:-10px !important; }
+  .ppt-bar { border-radius:0 0 18px 18px; }
+  .rp-tabs { border-radius:0; }
+}
+.btn-present { background:var(--grad) !important; box-shadow:var(--glow), 0 10px 26px -12px rgba(76,51,217,.6) !important; border-radius:999px !important; }
+.lp-tabs button { padding:0 2px; letter-spacing:-.01em; }
+.mob-top button.dl { background:var(--grad) !important; box-shadow:var(--glow); }
+.mob-btn, .mob-top { border-radius:16px; }

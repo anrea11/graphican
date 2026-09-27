@@ -238,8 +238,18 @@
     preserveObjectStacking: true, stopContextMenu: true, fireMiddleClick: true, enablePointerEvents: !!window.PointerEvent,
     selectionColor: 'rgba(109,86,250,.08)', selectionBorderColor: ACC, selectionLineWidth: 1, targetFindTolerance: 5
   });
-  function canvasBg() { return getComputedStyle(document.documentElement).getPropertyValue('--canvas').trim() || '#f5f5f5'; }
+  // the canvas itself is transparent: the stage behind it draws the Graphican dot grid, kept in step with pan / zoom
+  function canvasBg() { return 'rgba(0,0,0,0)'; }
   canvas.backgroundColor = canvasBg();
+  var dotSig = '';
+  canvas.on('after:render', function () {
+    var v = canvas.viewportTransform, st = 24 * v[0];
+    while (st < 14) st *= 2; while (st > 48) st /= 2;
+    var sig = st.toFixed(2) + ',' + (v[4] % st).toFixed(1) + ',' + (v[5] % st).toFixed(1);
+    if (sig === dotSig) return; dotSig = sig;
+    var s = canvas.wrapperEl && canvas.wrapperEl.parentNode; if (!s) return;
+    s.style.backgroundSize = st + 'px ' + st + 'px'; s.style.backgroundPosition = (v[4] % st) + 'px ' + (v[5] % st) + 'px';
+  });
 
   // ---- picking like Photoshop / Figma ----
   // • dragging inside the selected layer moves THAT layer, even where another layer covers it
