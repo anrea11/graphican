@@ -55,7 +55,7 @@
   };
   function VIDEO(x, y, w, h, key, o) { o = o || {}; o.t = 'video'; o.x = x; o.y = y; o.w = w; o.h = h; o.key = key; return o; }
   function vxSrc(k) { return 'pexels:' + VX[k][0]; }
-  function vxPoster(k) { return '/api/stock/video?id=' + VX[k][0] + '&poster=1'; }
+  function vxPoster(k, w) { return '/api/stock/video?id=' + VX[k][0] + '&poster=1&w=' + Math.min(1600, w || 1280); }
   // PHOTO(x, y, w, h, key, {fx, fy: focal point 0..1, mask: 'circle'|'rounded'|'arch'|'oval', r: corner radius, angle, opacity})
   function PHOTO(x, y, w, h, key, o) { o = o || {}; o.t = 'photo'; o.x = x; o.y = y; o.w = w; o.h = h; o.key = key; return o; }
   function SCRIM(x, y, w, h, angle, stops, o) { o = o || {}; o.grad = lin(angle, stops); return R(x, y, w, h, '#000000', Object.assign({ name: 'Сүүдэр' }, o)); }
@@ -956,7 +956,7 @@
   function build(tp, X, Y, font, w) {
     var keys = photosOf(tp), vids = videosOf(tp), imgs = {};
     return Promise.all(keys.map(function (k) { return loadImg(pxUrl(k, w)).then(function (im) { imgs[k] = im; }); })
-      .concat(vids.map(function (k) { return loadImg(vxPoster(k)).then(function (im) { imgs['v:' + k] = im; }); })))
+      .concat(vids.map(function (k) { return loadImg(vxPoster(k, w)).then(function (im) { imgs['v:' + k] = im; }); })))
       .then(function () { return objects(tp, X, Y, font, imgs); });
   }
   var KW = { latte: 'кофе кафе', beans: 'кофе кафе', beans2: 'кофе', cafe: 'кофе кафе', barista: 'кофе кафе', steak: 'ресторан хоол', steak2: 'ресторан хоол', restin: 'ресторан', wine: 'ресторан дарс', burger: 'хоол ресторан', burger2: 'хоол', pizza: 'хоол', coupe: 'бар коктейль', cocktail: 'бар', pool: 'зочид буудал аялал', lobby: 'зочид буудал', tart: 'амттан бялуу', dessert: 'амттан', cake: 'бялуу төрсөн өдөр', rider: 'морь', gobi: 'аялал говь', house: 'байр орон сууц', living: 'интерьер' };

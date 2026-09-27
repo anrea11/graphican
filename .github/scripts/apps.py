@@ -136,7 +136,7 @@ def templates_page():
                 title="Монгол сошиал пост загвар — Цагаан сар, Наадам, ажлын зар, үнэгүй | Graphican",
                 desc=f"{len(names)} үнэгүй монгол загвар: Цагаан сар, Наадам, шинэ жилийн мэндчилгээ, ажлын байрны зар, хямдрал, хоолны цэс, Facebook cover, story. Онлайн засаад PNG-ээр татна.",
                 h1="Монгол сошиал загварууд", name="Монгол сошиал загварууд", body=body, faq=faq,
-                scripts=["/assets/vendor/fabric.min.js", "/assets/editor-fx.js?v=4", f"/assets/templates.js?v={V}", f"/assets/tplgallery.js?v={V}"])
+                scripts=["/assets/vendor/fabric.min.js", "/assets/editor-fx.js?v=5", f"/assets/templates.js?v={V}", f"/assets/tplgallery.js?v={V}"])
 
 
 APPS = [font_page, color_page, templates_page]

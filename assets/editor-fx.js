@@ -495,8 +495,9 @@
     gDispose: function () { var v = this._vid; if (!v) return; this._vid = null; try { v.pause(); v.removeAttribute('src'); v.load(); } catch (e) {} }
   });
   // "pexels:<id>" → our Worker resolves the id to the HD file; other sources can be plugged in by the editor
-  F.Gvideo.resolve = function (s) { var m = /^pexels:(\d+)$/.exec(s || ''); return m ? '/api/stock/video?id=' + m[1] : s; };
-  F.Gvideo.poster = function (s) { var m = /^pexels:(\d+)$/.exec(s || ''); return m ? '/api/stock/video?id=' + m[1] + '&poster=1' : ''; };
+  // q: 'hd' for the slideshow / PowerPoint; the editor canvas plays the lighter SD file
+  F.Gvideo.resolve = function (s, q) { var m = /^pexels:(\d+)$/.exec(s || ''); return m ? '/api/stock/video?id=' + m[1] + (q === 'hd' ? '&q=hd' : '') : s; };
+  F.Gvideo.poster = function (s, w) { var m = /^pexels:(\d+)$/.exec(s || ''); return m ? '/api/stock/video?id=' + m[1] + '&poster=1&w=' + (w || 1280) : ''; };
   F.Gvideo.blankPoster = blankPoster;
   F.Gvideo.fromObject = function (obj, cb) {
     var o = F.util.object.clone(obj), src = o.src; delete o.src; o.filters = []; delete o.resizeFilter;

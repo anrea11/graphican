@@ -1369,8 +1369,8 @@
   var replaceVid = null, presenting = false, mediaURLs = {};
   var baseResolve = fabric.Gvideo.resolve;
   // uploaded videos live in IndexedDB ("idb:<id>"), never inside the design JSON
-  fabric.Gvideo.resolve = function (s) {
-    var m = /^idb:(.+)$/.exec(s || ''); if (!m) return baseResolve(s);
+  fabric.Gvideo.resolve = function (s, q) {
+    var m = /^idb:(.+)$/.exec(s || ''); if (!m) return baseResolve(s, q);
     if (mediaURLs[m[1]]) return mediaURLs[m[1]];
     return dbGet('media:' + m[1]).then(function (b) { return b ? (mediaURLs[m[1]] = URL.createObjectURL(b)) : null; });
   };
@@ -4352,11 +4352,12 @@
   }
   function videoTag(o, f, a) {
     var b = boxPct(o, f), tr = (o.angle ? 'rotate(' + o.angle + 'deg) ' : '') + (o.flipX ? 'scaleX(-1)' : '');
-    var src = fabric.Gvideo.resolve(o.gSrc), n = 'v' + Math.random().toString(36).slice(2, 8);
+    var src = fabric.Gvideo.resolve(o.gSrc, 'hd'), n = 'v' + Math.random().toString(36).slice(2, 8), pst = '';
+    try { pst = o.getSrc(); } catch (e) {}
     var st = 'left:' + b.x + '%;top:' + b.y + '%;width:' + b.w + '%;height:' + b.h + '%;object-position:' + ((o.gFX == null ? 0.5 : o.gFX) * 100) + '% ' + ((o.gFY == null ? 0.5 : o.gFY) * 100) + '%;' +
       maskCss(o, b) + (o.opacity != null && o.opacity < 1 ? '--op:' + o.opacity + ';opacity:' + o.opacity + ';' : '') + (tr ? 'transform:' + tr + ';' : '') +
       (a ? '--d:' + (a.d || 0.7) + 's;--dl:' + (a.dl || 0) + 's;' : '');
-    var tag = '<video class="pvid' + (a ? ' play an-' + a.t : '') + '" data-vn="' + n + '" playsinline preload="auto"' + (o.gLoop !== false ? ' loop' : '') + (o.gSound ? '' : ' muted') + ' crossorigin="anonymous" style="' + st + '"></video>';
+    var tag = '<video class="pvid' + (a ? ' play an-' + a.t : '') + '" data-vn="' + n + '" playsinline preload="metadata"' + (o.gLoop !== false ? ' loop' : '') + (o.gSound ? '' : ' muted') + ' crossorigin="anonymous"' + (pst && pst.length < 400000 ? ' poster="' + esc(pst) + '"' : '') + ' style="' + st + '"></video>';
     return { html: tag, n: n, src: src };
   }
   function buildSlide(f) {
@@ -4559,7 +4560,7 @@
 
   // a video as base64 for PowerPoint (+ its poster as the cover picture)
   function videoData(o) {
-    return Promise.resolve(fabric.Gvideo.resolve(o.gSrc)).then(function (u) {
+    return Promise.resolve(fabric.Gvideo.resolve(o.gSrc, 'hd')).then(function (u) {
       if (!u) throw new Error('no video');
       return fetch(u).then(function (r) { if (!r.ok) throw new Error('video ' + r.status); return r.blob(); });
     }).then(function (b) {

@@ -98,7 +98,7 @@ async function file(url, request) {
 }
 
 // template videos are stored as a Pexels id; resolve it to a real file here so the key never reaches the browser
-async function video(url, env, ctx) {
+async function video(url, env, ctx, request) {
   const id = (url.searchParams.get('id') || '').replace(/\D/g, '').slice(0, 12);
   if (!id) return json({ error: 'bad_id' }, 400);
   const key = findKey(env, 'PEXELS');
@@ -120,8 +120,13 @@ async function video(url, env, ctx) {
     ctx.waitUntil(cache.put(ck, json(meta, 200, { 'cache-control': 'public, max-age=86400' })));
   }
   if (url.searchParams.get('info')) return json({ id: meta.id, w: meta.w, h: meta.h, dur: meta.dur, author: meta.author, page: meta.page, file: new URL(meta.hd).hostname }, 200, { 'cache-control': 'public, max-age=3600' });
-  const target = url.searchParams.get('poster') ? meta.image : (url.searchParams.get('q') === 'sd' ? meta.sd : meta.hd);
-  return new Response(null, { status: 302, headers: { location: '/api/stock/file?u=' + encodeURIComponent(target), 'cache-control': 'public, max-age=3600', 'access-control-allow-origin': '*' } });
+  // posters: a resized JPEG (Pexels' own image CDN), not the full original; videos: SD for the editor, HD on request
+  const pw = Math.max(160, Math.min(1920, parseInt(url.searchParams.get('w') || '1280', 10) || 1280));
+  const target = url.searchParams.get('poster') ? meta.image.split('?')[0] + '?auto=compress&cs=tinysrgb&w=' + pw
+    : (url.searchParams.get('q') === 'hd' ? meta.hd : meta.sd);
+  // stream it straight back (no redirect round-trip; Range requests keep working for seeking)
+  const fu = new URL('/api/stock/file', url); fu.search = ''; fu.searchParams.set('u', target);
+  return file(fu, request);
 }
 
 // ---------- Workers AI ----------
@@ -213,7 +218,7 @@ export default {
     const url = new URL(request.url);
     if (url.pathname === '/api/stock') return search(url, env, ctx);
     if (url.pathname === '/api/stock/file') return file(url, request);
-    if (url.pathname === '/api/stock/video') return video(url, env, ctx);
+    if (url.pathname === '/api/stock/video') return video(url, env, ctx, request);
     if (url.pathname === '/api/stock/health') // names only — never values
       return json({ pexels: !!findKey(env, 'PEXELS'), pixabay: !!findKey(env, 'PIXABAY'), names: Object.keys(env).filter(n => n !== 'ASSETS' && n !== 'AI'), ai: !!env.AI }, 200, { 'cache-control': 'no-store' });
     if (url.pathname === '/api/ai/ping') { // quick live check of the AI binding
