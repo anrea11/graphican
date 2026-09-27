@@ -177,7 +177,7 @@ def build():
       <h2>Илтгэлээ<br><em>минутанд бэлд.</em></h2>
       <p class="he-lead">Бэлэн загвараас эхэлж слайдаа засаад бүтэн дэлгэцээр үзүүл, эсвэл PowerPoint, PDF-ээр татаж ав. Видео байршуулж болно — Canva шиг хялбар, монгол фонттой.</p>
       <ul class="he-feats">
-        <li><span>{svg("tpl")}</span><b>142 слайд загвар</b><small>21 илтгэл · 7 нь видеотой</small></li>
+        <li><span>{svg("tpl")}</span><b>240+ слайд загвар</b><small>31 илтгэл · 7 нь видеотой</small></li>
         <li><span>{svg("img")}</span><b>Шилжилт, анимэйшн</b><small>9 шилжилт · 12 эффект</small></li>
         <li><span>{svg("bg")}</span><b>Бүтэн дэлгэцээр</b><small>Тэмдэглэл, таймер, автомат</small></li>
         <li><span>{svg("pdf")}</span><b>PowerPoint · PDF</b><small>Текст нь засагдана</small></li>

@@ -566,7 +566,7 @@
 
   // decks2.js (loaded first) adds the newer decks, several of them with video slides
   DECKS = DECKS.concat(G.moreDecks || []);
-  var ORDER = ['pitch', 'travel', 'hotel', 'fashion', 'fine', 'report', 'event', 'resto', 'coffee', 'fitness', 'estate', 'interior', 'realty', 'wedding', 'portfolio', 'biz', 'clinic', 'creative', 'mongolia', 'edu'];
+  var ORDER = ['pitch', 'travel', 'swiss', 'hotel', 'fashion', 'editorial', 'cyber', 'fine', 'report', 'dashboard', 'event', 'agency', 'resto', 'luxury', 'coffee', 'cafe', 'vpitch', 'fitness', 'brutal', 'estate', 'corporate', 'interior', 'cinema', 'realty', 'wedding', 'portfolio', 'biz', 'clinic', 'creative', 'mongolia', 'edu'];
   var ix = function (d) { var i = ORDER.indexOf(d.id); return i < 0 ? 99 : i; };
   DECKS.sort(function (a, b) { return ix(a) - ix(b); });
   DECKS.forEach(function (d) {

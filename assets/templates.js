@@ -921,6 +921,8 @@
         o.gCredit = 'Pexels видео';
         if (s.mask) maskIt(o, s, s.w, s.h, 1);
         if (s.angle) { o.rotate(s.angle); o.setPositionByOrigin(new F.Point(X + s.x + s.w / 2, Y + s.y + s.h / 2), 'center', 'center'); }
+      } else if (s.t === 'line') {
+        o = new F.Line([X + s.x1, Y + s.y1, X + s.x2, Y + s.y2], { stroke: s.color || '#000000', strokeWidth: s.sw || 2, strokeLineCap: 'round', name: s.name || 'Шугам' });
       } else if (s.t === 'ph') {
         o = new F.Rect({ left: X + s.x, top: Y + s.y, width: s.w, height: s.h, rx: s.rx || 0, ry: s.rx || 0, fill: s.fill || '#e5e7eb', name: 'Зургийн байр' });
         out.push(o);
