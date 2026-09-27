@@ -216,7 +216,7 @@
       '<button type="button" class="bc-ghost" data-exp="css">CSS хувьсагч</button>' +
       '<button type="button" class="bc-ghost" data-exp="png">PNG татах</button>' +
       '<button type="button" class="bc-ghost" data-exp="link">Холбоос хуулах</button>' +
-      '<a class="bc-ghost acc" id="bc-editor" href="/editor/">Editor-т ашиглах →</a>' +
+      '<a class="bc-ghost acc" id="bc-editor" href="/editor/">Design editor-т ашиглах →</a>' +
     '</div>' +
     '<div class="bc-scales" id="bc-scales"></div>' +
     '<h2 class="bc-h">Бодит хэрэглээн дээр</h2>' +

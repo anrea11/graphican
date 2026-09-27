@@ -726,7 +726,7 @@
         '<div class="tp-flow reveal">' +
           '<span class="flow-t">Хэрэгслүүд хоорондоо холбоотой</span>' +
           '<p>Нэг хэрэгслийн үр дүнг <b>«Үргэлжлүүлэх →»</b> товчоор дараагийнх руу шууд дамжуулна — татаж аваад дахин оруулах шаардлагагүй.</p>' +
-          '<div class="tp-chain"><span>Зураг</span><i>→</i><span>Дэвсгэр арилгах</span><i>→</i><span>✦ Томруулах</span><i>→</i><span>Сошиал хэмжээ</span><i>→</i><span>Засварлагч</span><i>→</i><span>Татах</span></div>' +
+          '<div class="tp-chain"><span>Зураг</span><i>→</i><span>Дэвсгэр арилгах</span><i>→</i><span>✦ Томруулах</span><i>→</i><span>Сошиал хэмжээ</span><i>→</i><span>Design editor</span><i>→</i><span>Татах</span></div>' +
         '</div>' +
       '</section>'
     );
@@ -1922,4 +1922,4 @@
 })();
 
 /* support card after downloads (assets/support.js) */
-(function () { if (window.GCSupport || document.querySelector('script[src*="/assets/support.js"]')) return; var s = document.createElement('script'); s.src = '/assets/support.js?v=3'; s.defer = true; (document.head || document.documentElement).appendChild(s); })();
+(function () { if (window.GCSupport || document.querySelector('script[src*="/assets/support.js"]')) return; var s = document.createElement('script'); s.src = '/assets/support.js?v=4'; s.defer = true; (document.head || document.documentElement).appendChild(s); })();

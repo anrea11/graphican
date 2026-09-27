@@ -10,7 +10,7 @@ import json, os, re
 import landings as L
 
 ROOT, SITE, e, ld = L.ROOT, L.SITE, L.e, L.ld
-V = "8"
+V = "9"
 
 
 def mn_fonts():
@@ -79,7 +79,7 @@ def color_page():
         ("5 өнгө тус бүр юунд хэрэглэгдэх вэ?", "<b>Үндсэн</b> — лого, товч, гол элемент. <b>Хоёрдогч</b> — дэмжих график, дэвсгэр. <b>Онцлох</b> — үнэ, хямдралын шошго гэх мэт анхаарал татах цөөн газар. <b>Бараан</b> — текст. <b>Цайвар</b> — дэвсгэр, хоосон зай."),
         ("Монгол уламжлалт өнгө гэж юу вэ?", "Мөнх хөх тэнгэрийг бэлгэдэх хөх, гал, амьдралыг бэлгэдэх улаан, эрдэнэ, нарыг бэлгэдэх алтан шар, ариун цагаан сүү, тал нутгийн ногоон. Эдгээрийг орчин үеийн өнгөний тэнцвэрээр хослуулсан."),
         ("Контраст гэж юу вэ, яагаад чухал вэ?", "Текст ба дэвсгэрийн гэрэлтэлтийн харьцаа. Жижиг текстэд дор хаяж 4.5:1 (WCAG AA) байх хэрэгтэй, эс бөгөөс утсан дээр, нарны гэрэлд уншигдахгүй. Хэрэгсэл өнгө бүрийн хослолыг автоматаар шалгана."),
-        ("Өнгөө дизайндаа яаж ашиглах вэ?", "HEX кодыг хуулж Figma, Photoshop, Canva-д оруулах, CSS хувьсагчаар вэбсайтдаа хэрэглэх, PNG-ээр татаж баг, хэвлэлийн газартаа илгээх, эсвэл «Editor-т ашиглах» дарж шууд дизайн хийнэ."),
+        ("Өнгөө дизайндаа яаж ашиглах вэ?", "HEX кодыг хуулж Figma, Photoshop, Canva-д оруулах, CSS хувьсагчаар вэбсайтдаа хэрэглэх, PNG-ээр татаж баг, хэвлэлийн газартаа илгээх, эсвэл «Design editor-т ашиглах» дарж шууд дизайн хийнэ."),
     ]
     body = f"""
   <section class="lp-hero app-hero">
@@ -314,7 +314,7 @@ def slides_page():
     s = s.replace('<body class="ed-booting">', '<body class="ed-booting" data-mode="ppt">', 1)
     s = s.replace('<a href="/editor/" class="on">Дизайн</a><a href="/slides/">Илтгэл (PPT)</a>', '<a href="/editor/">Дизайн</a><a href="/slides/" class="on">Илтгэл (PPT)</a>')
     s = s.replace('value="Нэргүй дизайн"', 'value="Нэргүй илтгэл"')
-    s = s.replace('<h1 class="sr-only">Graphican Editor — үнэгүй онлайн дизайн засварлагч</h1>', '<h1 class="sr-only">Илтгэл бэлдэх (PPT) — онлайн, үнэгүй</h1>')
+    s = s.replace('<h1 class="sr-only">Graphican Design editor — үнэгүй онлайн дизайн засварлагч</h1>', '<h1 class="sr-only">Илтгэл бэлдэх (PPT) — онлайн, үнэгүй</h1>')
     s = s.replace('<button type="button" data-file="new">Шинэ дизайн</button>', '<button type="button" data-file="new">Шинэ илтгэл</button>')
     assert 'data-mode="ppt"' in s
     d_ = os.path.join(ROOT, "slides"); os.makedirs(d_, exist_ok=True)

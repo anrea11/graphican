@@ -1,18 +1,18 @@
 /*
   Graphican — "support us" card shown shortly after a download (any tool).
   Text / link come from content/site.json → support (editable in /admin); the defaults below are used until it loads.
-  Shown at most once per page visit and never while snoozed:
-    «Дараа больё» → snooze_days (3), ✕ → 1 day, «Дэмжлэг үзүүлэх» → 30 days.
+  Works on every page of the site (editor, PDF tools, image tools, fonts…): shown after a download, but not again
+  while snoozed — closing it any way («Дараа больё», ✕, Esc, backdrop) → snooze_minutes (20), «Дэмжлэг үзүүлэх» → 7 days.
   Other scripts may call GCSupport.done() after a download; <a download> clicks are picked up automatically.
 */
 (function () {
   'use strict';
   if (window.GCSupport) return;
-  var KEY = 'gc-support', DAY = 864e5, shown = false, timer = null;
+  var KEY = 'gc-support2', MIN = 6e4, DAY = 864e5, shown = false, timer = null;
   var cfg = {
     enabled: true, title: 'Graphican-ийг хамтдаа хөгжүүлье',
     text: 'Таны ашиглаж байгаа Graphican-ийг бид цаашид илүү олон боломж, илүү сайн ажиллагаатай болгохоор хөгжүүлж байна. Хэрэг болсон бол хөгжлийг маань дэмжээрэй.',
-    button: 'Дэмжлэг үзүүлэх', later: 'Дараа больё', link: '/support/', snooze_days: 3
+    button: 'Дэмжлэг үзүүлэх', later: 'Дараа больё', link: '/support/', snooze_minutes: 20
   };
   var loaded = null;
   function load() {
@@ -26,7 +26,8 @@
     return loaded;
   }
   function until() { try { return +(localStorage.getItem(KEY) || 0); } catch (e) { return 0; } }
-  function snooze(days) { try { localStorage.setItem(KEY, String(Date.now() + days * DAY)); } catch (e) {} }
+  function snooze(ms) { try { localStorage.setItem(KEY, String(Date.now() + ms)); } catch (e) {} }
+  function later() { var m = +cfg.snooze_minutes; return (m >= 0 ? m : 20) * MIN; }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
 
   var CSS = '.gcs-bg{position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(8,6,18,.55);' +
@@ -55,7 +56,7 @@
     '@media (prefers-reduced-motion:reduce){.gcs,.gcs-bg{transition:none}}';
 
   function show() {
-    if (shown || !cfg.enabled || Date.now() < until() || document.querySelector('.gcs-bg')) return;
+    if (!cfg.enabled || Date.now() < until() || document.querySelector('.gcs-bg')) return;
     shown = true;
     if (!document.getElementById('gcs-css')) { var st = document.createElement('style'); st.id = 'gcs-css'; st.textContent = CSS; document.head.appendChild(st); }
     var bg = document.createElement('div'); bg.className = 'gcs-bg';
@@ -70,17 +71,17 @@
     bg.appendChild(el); document.body.appendChild(bg);
     var prev = document.activeElement;
     requestAnimationFrame(function () { requestAnimationFrame(function () { bg.classList.add('on'); try { el.querySelector('.gcs-go').focus({ preventScroll: true }); } catch (e) {} }); });
-    function close(days) {
-      snooze(days); bg.classList.remove('on');
+    function close(ms) {
+      snooze(ms); shown = false; bg.classList.remove('on');
       document.removeEventListener('keydown', onKey, true);
       setTimeout(function () { bg.remove(); try { if (prev && prev.focus) prev.focus({ preventScroll: true }); } catch (e) {} }, 350);
     }
-    bg.addEventListener('mousedown', function (e) { if (e.target === bg) close(1); });
-    function onKey(e) { if (e.key === 'Escape') { e.stopPropagation(); close(1); } }
+    bg.addEventListener('mousedown', function (e) { if (e.target === bg) close(later()); });
+    function onKey(e) { if (e.key === 'Escape') { e.stopPropagation(); close(later()); } }
     document.addEventListener('keydown', onKey, true);
-    el.querySelector('.gcs-x').addEventListener('click', function () { close(1); });
-    el.querySelector('.gcs-no').addEventListener('click', function () { close(+cfg.snooze_days || 3); });
-    el.querySelector('.gcs-go').addEventListener('click', function () { close(30); });
+    el.querySelector('.gcs-x').addEventListener('click', function () { close(later()); });
+    el.querySelector('.gcs-no').addEventListener('click', function () { close(later()); });
+    el.querySelector('.gcs-go').addEventListener('click', function () { close(7 * DAY); });
   }
   // after a download: wait a moment (the save dialog / file card appears first), then show the card
   function done() {

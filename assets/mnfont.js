@@ -104,7 +104,7 @@
           '<button type="button" class="mf-sel' + (sel[f.name] ? ' on' : '') + '" data-sel="' + i + '" aria-pressed="' + (sel[f.name] ? 'true' : 'false') + '" title="Олноор татахад сонгох" aria-label="Сонгох"></button></header>' +
         '<div class="mf-prev" data-open="' + i + '" style="font-family:' + esc(stack(f)) + ';font-weight:' + weightOf(f) + ';font-size:' + st.size + 'px">' + esc(st.text || f.name) + '</div>' +
         '<footer><button type="button" class="mf-dl" data-dl="' + i + '">↓ Татах' + (sizeOf(f) ? '<i>' + mb(sizeOf(f)) + '</i>' : '') + '</button><button type="button" data-css="' + i + '">CSS</button>' +
-        '<a href="/editor/?font=' + encodeURIComponent(f.name) + '&text=' + encodeURIComponent((st.text || f.name).slice(0, 120)) + '">Editor-т ашиглах →</a></footer>' +
+        '<a href="/editor/?font=' + encodeURIComponent(f.name) + '&text=' + encodeURIComponent((st.text || f.name).slice(0, 120)) + '">Design editor-т ашиглах →</a></footer>' +
       '</article>';
     }).join('') || '<p class="mf-empty">Ийм нэртэй монгол фонт олдсонгүй.</p>';
     grid.querySelectorAll('.mf-card').forEach(function (c) { if (io) io.observe(c); else loadFont(FONTS[+c.dataset.i]); });
@@ -234,7 +234,7 @@
         '<h3>Вэб дээр ашиглах</h3><pre class="mf-code">' + esc(snippet(f, cardWeights(f))) + '</pre>' +
         '<div class="mf-acts"><button type="button" class="lp-btn" data-dl="' + i + '">↓ Фонт татах (ZIP' + (sizeOf(f) ? ' · ' + mb(sizeOf(f)) : '') + ')</button>' +
           '<button type="button" class="mf-ghost" data-css="' + i + '">CSS хуулах</button>' +
-          '<a class="mf-ghost" href="/editor/?font=' + encodeURIComponent(f.name) + '&text=' + encodeURIComponent(txt.slice(0, 120)) + '">Editor-т ашиглах</a></div>' +
+          '<a class="mf-ghost" href="/editor/?font=' + encodeURIComponent(f.name) + '&text=' + encodeURIComponent(txt.slice(0, 120)) + '">Design editor-т ашиглах</a></div>' +
         '<p class="mf-lic">Google Fonts-ын бүх фонт үнэгүй, арилжааны зорилгоор (лого, сошиал, хэвлэл) ашиглаж болно (SIL Open Font License / Apache).</p>' +
       '</div></div>';
     document.body.appendChild(m); document.body.style.overflow = 'hidden';
