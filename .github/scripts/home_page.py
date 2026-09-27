@@ -280,7 +280,7 @@ def build():
 <link rel="preload" href="/assets/fonts/web/InterTight-Bold.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/assets/fonts/web/Inter-Regular.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/assets/fonts/web/fonts.css">
-<link rel="stylesheet" href="/assets/style.css?v=35">
+<link rel="stylesheet" href="/assets/style.css?v=36">
 <link rel="stylesheet" href="/assets/design.css?v=34">
 <link rel="stylesheet" href="/assets/home.css?v={V}">
 </head>
@@ -289,7 +289,7 @@ def build():
 {L.header_html()}
 {body}
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
-<script src="/assets/app.js?v=36"></script>
+<script src="/assets/app.js?v=37"></script>
 </body>
 </html>
 """

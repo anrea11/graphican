@@ -420,6 +420,21 @@
     }
     if ('IntersectionObserver' in window) new IntersectionObserver(function (e) { visible = e[0].isIntersecting; }).observe(hero);
     document.addEventListener('visibilitychange', function () { last = 0; });
+    // adaptive quality: if this device can't keep up (median frame > 22ms), drop the per-card lighting layers;
+    // if it is still slow, stop the spin and leave a still ring (the page must never feel sluggish)
+    var lite = false, still = false, samples = [], warm = 0, judged = 0;
+    function judge(dt) {
+      if (still || document.hidden || judged >= 2) return;
+      warm += dt; if (warm < 900) return;            // ignore start-up frames (images decoding)
+      samples.push(dt);
+      var sum = 0; for (var q = 0; q < samples.length; q++) sum += samples[q];
+      if (sum < 1400 || samples.length < 10) return;
+      var med = samples.slice().sort(function (a, b) { return a - b; })[samples.length >> 1];
+      samples = []; warm = 0; judged++;
+      if (med > 22 && !lite) { lite = true; hero.classList.add('ring-lite'); }
+      else if (med > 28 && lite) { still = true; hero.classList.add('ring-still'); }
+    }
+    function set(el, k, v) { if (el['_' + k] !== v) { el['_' + k] = v; el.style[k] = v; } }
     function paint(t) {
       tiltX += (tiltTarget - tiltX) * .06; nudge += (nudgeTarget - nudge) * .05;
       var view = angle + nudge;
@@ -432,22 +447,23 @@
         if (!show) continue;
         var lit = Math.max(0, Math.cos(a * Math.PI / 180 * 0.7));
         var fade = a > 88 ? Math.max(0, 1 - (a - 88) / 27) : 1;
-        var bob = (reduceMotion || mobile) ? 0 : Math.sin(t / 1400 + i * 1.3) * 10;
-        c.el.style.transform = 'rotateY(' + (i * step) + 'deg) translateZ(' + (-R).toFixed(1) + 'px) translateY(' + bob.toFixed(1) + 'px)';
-        c.el.style.opacity = fade.toFixed(3);
-        c.dark.style.opacity = (0.58 * (1 - lit)).toFixed(3);
-        c.halo.style.opacity = (0.15 + lit * 0.85).toFixed(3);
-        c.light.style.opacity = (0.35 + lit * 0.65).toFixed(3);
+        var bob = (reduceMotion || mobile || lite) ? 0 : Math.sin(t / 1400 + i * 1.3) * 10;
+        set(c.el, 'transform', 'rotateY(' + (i * step) + 'deg) translateZ(' + (-R).toFixed(1) + 'px) translateY(' + bob.toFixed(1) + 'px)');
+        set(c.el, 'opacity', fade.toFixed(2));
+        set(c.dark, 'opacity', (0.58 * (1 - lit)).toFixed(2));
+        if (lite) continue;
+        set(c.halo, 'opacity', (0.15 + lit * 0.85).toFixed(2));
+        set(c.light, 'opacity', (0.35 + lit * 0.65).toFixed(2));
         var side = rel > 0 ? -1 : 1;
         if (side !== c.side) { c.light.style.transform = 'scaleX(' + side + ')'; c.side = side; }
         if (!mobile) c.sheen.style.transform = 'translate3d(' + ((((t / 3200 + i * .37) % 1.6) - .3) * 100).toFixed(1) + '%,0,0)';
       }
     }
     function tick(t) {
-      var dt = last ? Math.min(64, t - last) : 16; last = t;
+      var raw = last ? t - last : 16, dt = Math.min(64, raw); last = t;
       speed += ((hoverCard ? 0 : base) - speed) * .05;
-      if (visible) { angle -= speed * dt / 1000; paint(t); }
-      requestAnimationFrame(tick);
+      if (visible) { judge(raw); if (!still) { angle -= speed * dt / 1000; paint(t); } }
+      if (!still) requestAnimationFrame(tick);
     }
     paint(0);
     requestAnimationFrame(tick);

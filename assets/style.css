@@ -1326,3 +1326,14 @@ body::after { animation:none; inset:0; }                  /* static grain instea
 .about-first > .fx { z-index:1; opacity:.85; }
 .about-first .about-inner { position:relative; z-index:2; width:100%; }
 .about-first .about-photo { box-shadow:0 40px 90px -30px rgba(109,86,250,.55); }
+
+/* ---------- performance v6 ---------- */
+/* the backdrop ring must never spin (it inherited the hero ring's animation) and the light beams stay still:
+   an animated 60px blur over a whole section was re-rendered on every frame */
+.fx .ring { animation:none !important; }
+.fx .beam { animation:none !important; }
+.fx .b2, .fx .b3 { filter:none; }
+/* hero ring on slower computers (set by app.js when frames take too long) */
+.ring-lite .rc-halo, .ring-lite .rc-light, .ring-lite .rc-sheen { display:none; }
+.ring-lite .rc-in { -webkit-box-reflect:none !important; box-shadow:0 0 0 1px rgba(164,151,255,.3); }
+.ring-lite .rc { will-change:auto; }
