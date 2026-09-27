@@ -8,7 +8,7 @@
     POST /api/ai/translate  {texts:[...], source, target}  -> {texts:[...]}   (Llama 3.3 in batches, m2m100 fallback)
     POST /api/ai/chat       {mode:'summary'|'ask', text, question, lang} -> {answer}
 */
-const MEDIA_HOSTS = ['images.pexels.com', 'videos.pexels.com', 'player.vimeo.com', 'cdn.pixabay.com', 'pixabay.com'];
+const MEDIA_HOSTS = ['images.pexels.com', 'videos.pexels.com', 'player.vimeo.com', 'i.vimeocdn.com', 'cdn.pixabay.com', 'pixabay.com'];
 // find a key even if the secret was named slightly differently (PEXELS_API_KEY, pexels, trailing spaces…)
 function findKey(env, word) {
   const exact = env[word + '_KEY'];
@@ -22,16 +22,38 @@ function findKey(env, word) {
 const json = (obj, status = 200, extra = {}) =>
   new Response(JSON.stringify(obj), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'access-control-allow-origin': '*', ...extra } });
 
+// Mongolian (Cyrillic) search words → English keywords; both stock sites only understand English well
+async function toEnglish(q, env, ctx) {
+  if (!q || !/[\u0400-\u04FF]/.test(q) || !env.AI) return q;
+  const cache = caches.default, ck = new Request('https://stock.cache/tr/' + encodeURIComponent(q.toLowerCase()));
+  const hit = await cache.match(ck);
+  if (hit) return (await hit.text()) || q;
+  let out = '';
+  try {
+    const r = await env.AI.run(LLM, { messages: [
+      { role: 'system', content: 'Translate the Mongolian stock-photo search query into short English search keywords (1-4 words). Reply with the English words only, no quotes, no explanation.' },
+      { role: 'user', content: q }], max_tokens: 20, temperature: 0 });
+    out = String((r && (r.response || (r.result && r.result.response))) || '').split('\n')[0].replace(/["'.]/g, '').trim();
+  } catch (e) { out = ''; }
+  if (!out || /[\u0400-\u04FF]/.test(out)) {
+    try { const m = await env.AI.run('@cf/meta/m2m100-1.2b', { text: q, source_lang: 'mn', target_lang: 'en' }); out = String((m && m.translated_text) || '').trim(); } catch (e) { out = ''; }
+  }
+  out = out.slice(0, 80) || q;
+  ctx.waitUntil(cache.put(ck, new Response(out, { headers: { 'cache-control': 'public, max-age=2592000' } })));
+  return out;
+}
+
 async function search(url, env, ctx) {
-  const src = url.searchParams.get('src') === 'pixabay' ? 'pixabay' : 'pexels';
+  const src = (url.searchParams.get('src') || url.searchParams.get('provider')) === 'pixabay' ? 'pixabay' : 'pexels';
   const type = ['photo', 'vector', 'video'].includes(url.searchParams.get('type')) ? url.searchParams.get('type') : 'photo';
-  const q = (url.searchParams.get('q') || '').trim().slice(0, 100);
+  const qIn = (url.searchParams.get('q') || '').trim().slice(0, 100);
+  const q = (await toEnglish(qIn, env, ctx)).slice(0, 100);
   const page = Math.max(1, Math.min(50, parseInt(url.searchParams.get('page') || '1', 10) || 1));
   const key = findKey(env, src === 'pexels' ? 'PEXELS' : 'PIXABAY');
   if (!key) return json({ error: 'no_key', src }, 503);
 
   // 24h edge cache (Pixabay's API terms ask for caching; also keeps us well under rate limits)
-  const cacheKey = new Request(`https://stock.cache/${src}/${type}/${page}/${encodeURIComponent(q.toLowerCase())}`);
+  const cacheKey = new Request(`https://stock.cache/v2/${src}/${type}/${page}/${encodeURIComponent(q.toLowerCase())}`);
   const cache = caches.default;
   const hit = await cache.match(cacheKey);
   if (hit) return hit;
@@ -60,19 +82,24 @@ async function search(url, env, ctx) {
     const u = `https://pixabay.com/api/${isVid ? 'videos/' : ''}?key=${key}&q=${encodeURIComponent(q)}&per_page=30&page=${page}&safesearch=true&lang=en` +
       (isVid ? '' : `&image_type=${type === 'vector' ? 'vector' : 'photo'}`) + (q ? '' : '&order=popular');
     const r = await fetch(u);
-    if (!r.ok) return json({ error: 'upstream', status: r.status }, 502);
-    const d = await r.json();
+    // 400 = page past the last result; 429 = rate limit — answer with an empty page / a clear error instead of throwing
+    if (r.status === 400) return json({ src, type, page, total: 0, items: [], q: qIn, qEn: q !== qIn ? q : undefined });
+    if (!r.ok) return json({ error: r.status === 429 ? 'rate_limit' : 'upstream', status: r.status }, 502);
+    let d; try { d = await r.json(); } catch (e) { return json({ error: 'upstream', status: 502 }, 502); }
     total = d.totalHits || 0;
     if (isVid) {
       items = (d.hits || []).map(h => {
         const v = h.videos || {}, med = v.medium || v.small || {}, sm = v.small || v.tiny || med;
-        return { id: 'pb' + h.id, kind: 'video', thumb: med.thumbnail || sm.thumbnail || '', preview: sm.url, full: (v.large && v.large.url) || med.url, w: med.width, h: med.height, dur: h.duration, author: h.user, page: h.pageURL };
+        const thumb = med.thumbnail || sm.thumbnail || (v.tiny && v.tiny.thumbnail) || (h.picture_id ? `https://i.vimeocdn.com/video/${h.picture_id}_640x360.jpg` : '');
+        return { id: 'pb' + h.id, kind: 'video', thumb, preview: sm.url || med.url, full: (v.large && v.large.url) || med.url || sm.url, w: med.width, h: med.height, dur: h.duration, author: h.user, page: h.pageURL };
       });
     } else {
-      items = (d.hits || []).map(h => ({ id: 'pb' + h.id, kind: type, thumb: h.webformatURL, full: h.largeImageURL || h.webformatURL, w: h.imageWidth, h: h.imageHeight, author: h.user, page: h.pageURL, alt: h.tags }));
+      // webformat/large links (pixabay.com/get/…) expire after 24h — previewURL (cdn) is the permanent fallback
+      items = (d.hits || []).map(h => ({ id: 'pb' + h.id, kind: type, thumb: h.webformatURL || h.previewURL, thumb2: h.previewURL, full: h.largeImageURL || h.webformatURL, full2: h.webformatURL || h.previewURL, w: h.imageWidth, h: h.imageHeight, author: h.user, page: h.pageURL, alt: h.tags }));
     }
   }
-  const res = json({ src, type, page, total, items }, 200, { 'cache-control': 'public, max-age=86400' });
+  // Pixabay links expire in 24h, so keep its results well under that (edge 12h, browser 10 min)
+  const res = json({ src, type, page, total, items, q: qIn, qEn: q !== qIn ? q : undefined }, 200, { 'cache-control': src === 'pixabay' ? 'public, max-age=600, s-maxage=43200' : 'public, max-age=3600, s-maxage=86400' });
   ctx.waitUntil(cache.put(cacheKey, res.clone()));
   return res;
 }

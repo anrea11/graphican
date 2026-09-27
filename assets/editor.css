@@ -621,3 +621,5 @@ body[data-mode="ppt"] .dock { bottom:134px; } body[data-mode="ppt"] .ctxbar { bo
 .vid-st { font-size:10.5px; font-weight:500; color:var(--muted); }
 .tc .tc-vid, .deckc .tc-vid { position:absolute; left:8px; top:8px; z-index:2; display:inline-flex; align-items:center; gap:4px; padding:3px 7px 3px 6px; border-radius:99px; background:rgba(12,12,16,.72); color:#fff; font-size:10px; font-weight:700; letter-spacing:.02em; backdrop-filter:blur(4px); }
 .tc .tc-vid::before, .deckc .tc-vid::before { content:""; width:0; height:0; border-left:6px solid #fff; border-top:4px solid transparent; border-bottom:4px solid transparent; }
+.stk-it.broken { display:none; }
+.stk-qen { margin:0 0 8px; }

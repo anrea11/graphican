@@ -1323,17 +1323,18 @@
     return '<div class="sec-t">Үнэгүй зураг, видео</div>' +
       seg('src', [['pexels', 'Pexels'], ['pixabay', 'Pixabay']]) +
       seg('type', stock.src === 'pixabay' ? [['photo', 'Зураг'], ['vector', 'Вектор'], ['video', 'Видео']] : [['photo', 'Зураг'], ['video', 'Видео']]) +
-      '<form class="stk-form" id="stk-form"><input id="stk-q" type="search" placeholder="Хайх (англиар: coffee, city…)" value="' + esc(stock.q) + '" aria-label="Зураг хайх"><button type="submit" class="btn acc">Хайх</button></form>' +
+      '<form class="stk-form" id="stk-form"><input id="stk-q" type="search" placeholder="Хайх: кофе, хот, уул, coffee…" value="' + esc(stock.q) + '" aria-label="Зураг хайх"><button type="submit" class="btn acc">Хайх</button></form>' +
       '<div id="stk-res"></div>';
   }
   function renderStock() {
     var el = document.getElementById('stk-res'); if (!el) return;
     if (stock.err === 'no_key') { el.innerHTML = '<p class="note">' + (stock.src === 'pexels' ? 'Pexels' : 'Pixabay') + '-ийн API түлхүүр хараахан тохируулагдаагүй байна.</p>'; return; }
-    if (stock.err) { el.innerHTML = '<p class="note">Ачаалж чадсангүй. Дахин оролдоно уу.</p>'; return; }
-    if (!stock.items.length) { el.innerHTML = stock.loading ? '<p class="note">Хайж байна…</p>' : '<p class="note">Юу ч олдсонгүй. Өөр үгээр (англиар) хайгаад үзээрэй.</p>'; return; }
-    el.innerHTML = '<div class="stk-grid">' + stock.items.map(function (it, i) {
+    if (stock.err) { el.innerHTML = '<p class="note">' + (stock.err === 'rate_limit' ? 'Хайлт хэт олон удаа хийгдлээ — хэдэн секунд хүлээгээд дахин оролдоно уу.' : 'Ачаалж чадсангүй.') + '</p><button type="button" class="btn full" data-stk-retry="1">Дахин оролдох</button>'; return; }
+    var qn = stock.qEn ? '<p class="note stk-qen">«' + esc(stock.q) + '» → <b>' + esc(stock.qEn) + '</b> гэж хайлаа</p>' : '';
+    if (!stock.items.length) { el.innerHTML = stock.loading ? '<p class="note">Хайж байна…</p>' : qn + '<p class="note">Юу ч олдсонгүй. Өөр үгээр хайгаад үзээрэй' + (stock.src === 'pixabay' ? ' эсвэл Pexels-ийг сонгоно уу' : '') + '.</p>'; return; }
+    el.innerHTML = qn + '<div class="stk-grid">' + stock.items.map(function (it, i) {
       return '<button type="button" class="stk-it' + (it.kind === 'video' ? ' vid' : '') + '" data-stock="' + i + '" title="' + esc((it.alt || '') + ' — ' + (it.author || '')) + '" style="aspect-ratio:' + (it.w && it.h ? Math.max(.6, Math.min(1.8, it.w / it.h)) : 1) + '">' +
-        '<img src="' + esc(it.thumb) + '" alt="' + esc(it.alt || it.author || '') + '" loading="lazy" referrerpolicy="no-referrer">' +
+        '<img src="' + esc(/pixabay\.com\/get\//.test(it.thumb || '') ? proxied(it.thumb) : it.thumb) + '"' + (it.thumb2 ? ' data-fb="' + esc(it.thumb2) + '"' : '') + ' alt="' + esc(it.alt || it.author || '') + '" loading="lazy" referrerpolicy="no-referrer">' +
         (it.kind === 'video' ? '<span class="stk-dur">▶ ' + (it.dur ? Math.round(it.dur) + 'с' : '') + '</span>' : '') + '</button>';
     }).join('') + '</div>' +
       (stock.items.length < stock.total ? '<button type="button" class="btn full" data-stk-more="1" style="margin-top:8px">' + (stock.loading ? 'Ачаалж байна…' : 'Цааш үзэх') + '</button>' : '') +
@@ -1350,16 +1351,22 @@
       .then(function (x) {
         if (tok !== stockTok) return;
         if (!x.ok) { stock.err = x.d.error || 'err'; return; }
-        stock.items = stock.items.concat(x.d.items || []); stock.total = x.d.total || 0; stock.page++;
+        stock.items = stock.items.concat(x.d.items || []); stock.total = x.d.total || 0; stock.page++; stock.qEn = x.d.qEn || '';
       })
       .catch(function () { if (tok === stockTok) stock.err = 'net'; })
       .then(function () { if (tok !== stockTok) return; stock.loading = false; renderStock(); });
   }
+  // a stock thumbnail that fails (expired Pixabay link…) falls back to the permanent small preview
+  document.addEventListener('error', function (e) {
+    var im = e.target; if (!im || im.tagName !== 'IMG' || !im.closest || !im.closest('.stk-it')) return;
+    if (im.dataset.fb) { var fb = im.dataset.fb; delete im.dataset.fb; im.src = fb; } else im.closest('.stk-it').classList.add('broken');
+  }, true);
   function proxied(u, dl) { return '/api/stock/file?u=' + encodeURIComponent(u) + (dl ? '&dl=' + encodeURIComponent(dl) : ''); }
   function useStock(it) {
     if (it.kind === 'video') return openStockVideo(it);
     toast('Зураг ачаалж байна…');
-    fetch(proxied(it.full)).then(function (r) { if (!r.ok) throw 0; return r.blob(); })
+    var get = function (u) { return fetch(proxied(u)).then(function (r) { if (!r.ok) throw 0; return r.blob(); }); };
+    get(it.full).catch(function () { if (it.full2 && it.full2 !== it.full) return get(it.full2); throw 0; })
       .then(function (b) { return addImageBlob(b); })
       .catch(function () { toast('Зургийг татаж чадсангүй'); });
   }
@@ -1685,6 +1692,7 @@
     e.preventDefault(); stock.q = document.getElementById('stk-q').value.trim(); loadStock();
   });
   $('#lp-body').addEventListener('click', function (e) {
+    if (e.target.closest('[data-stk-retry]')) { loadStock(); return; }
     var sk = e.target.closest('[data-stk-src],[data-stk-type],[data-stock],[data-stk-more]');
     if (sk) {
       var sd = sk.dataset;
