@@ -12,7 +12,7 @@ import html, json, os, re
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 SITE = "https://graphican.online"
-V = "5"  # landing.css / landing.js cache version
+V = "6"  # landing.css / landing.js cache version
 
 PDF = ".pdf,application/pdf"
 IMG = "image/*,.heic,.heif,.tif,.tiff,.webp,.avif"
@@ -398,7 +398,7 @@ def page(p, header):
 </footer>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
-<script src="/assets/handoff.js?v=33"></script>
+<script src="/assets/handoff.js?v=34"></script>
 <script src="/assets/landing.js?v={V}"></script>
 </body>
 </html>

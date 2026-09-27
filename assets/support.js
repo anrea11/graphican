@@ -2,23 +2,24 @@
   Graphican — "support us" card shown shortly after a download (any tool).
   Text / link come from content/site.json → support (editable in /admin); the defaults below are used until it loads.
   Works on every page of the site (editor, PDF tools, image tools, fonts…): shown after a download, but not again
-  while snoozed — closing it any way («Дараа больё», ✕, Esc, backdrop) → snooze_minutes (20), «Дэмжлэг үзүүлэх» → 7 days.
+  after every download — closing it («Дараа больё», ✕, Esc, backdrop) pauses it only for snooze_minutes (0 = none);
+  «Дэмжлэг үзүүлэх» → 1 day.
   Other scripts may call GCSupport.done() after a download; <a download> clicks are picked up automatically.
 */
 (function () {
   'use strict';
   if (window.GCSupport) return;
-  var KEY = 'gc-support2', MIN = 6e4, DAY = 864e5, shown = false, timer = null;
+  var KEY = 'gc-support3', MIN = 6e4, DAY = 864e5, shown = false, timer = null;
   var cfg = {
     enabled: true, title: 'Graphican-ийг хамтдаа хөгжүүлье',
     text: 'Таны ашиглаж байгаа Graphican-ийг бид цаашид илүү олон боломж, илүү сайн ажиллагаатай болгохоор хөгжүүлж байна. Хэрэг болсон бол хөгжлийг маань дэмжээрэй.',
-    button: 'Дэмжлэг үзүүлэх', later: 'Дараа больё', link: '/support/', snooze_minutes: 20
+    button: 'Дэмжлэг үзүүлэх', later: 'Дараа больё', link: '/support/', snooze_minutes: 0
   };
   var loaded = null;
   function load() {
     if (loaded) return loaded;
     loaded = Promise.race([
-      fetch('/content/site.json', { cache: 'force-cache' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
+      fetch('/content/site.json', { cache: 'no-cache' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) {
         if (d && d.support) Object.keys(d.support).forEach(function (k) { if (d.support[k] !== '' && d.support[k] != null) cfg[k] = d.support[k]; });
       }),
       new Promise(function (r) { setTimeout(r, 1500); })
@@ -27,7 +28,7 @@
   }
   function until() { try { return +(localStorage.getItem(KEY) || 0); } catch (e) { return 0; } }
   function snooze(ms) { try { localStorage.setItem(KEY, String(Date.now() + ms)); } catch (e) {} }
-  function later() { var m = +cfg.snooze_minutes; return (m >= 0 ? m : 20) * MIN; }
+  function later() { var m = +cfg.snooze_minutes; return (m >= 0 ? m : 0) * MIN; }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
 
   var CSS = '.gcs-bg{position:fixed;inset:0;z-index:2147483000;display:flex;align-items:center;justify-content:center;padding:16px;background:rgba(8,6,18,.55);' +
@@ -81,7 +82,7 @@
     document.addEventListener('keydown', onKey, true);
     el.querySelector('.gcs-x').addEventListener('click', function () { close(later()); });
     el.querySelector('.gcs-no').addEventListener('click', function () { close(later()); });
-    el.querySelector('.gcs-go').addEventListener('click', function () { close(7 * DAY); });
+    el.querySelector('.gcs-go').addEventListener('click', function () { close(DAY); });
   }
   // after a download: wait a moment (the save dialog / file card appears first), then show the card
   function done() {
