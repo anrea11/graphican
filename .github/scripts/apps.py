@@ -233,7 +233,7 @@ def support_page(header):
         bank = '<div class="sp-card"><h2>Дансаар шилжүүлэх</h2><dl>' + "".join(
             f'<div><dt>{e(k)}</dt><dd><span>{e(v)}</span><button type="button" class="sp-copy" data-copy="{e(v)}">Хуулах</button></dd></div>' for k, v in rows) + \
             '</dl><p class="sp-note">Гүйлгээний утга дээр «Graphican дэмжлэг» гэж бичээрэй.</p></div>'
-    qr = f'<div class="sp-card sp-qr"><h2>QPay / QR</h2><img src="{e(sp["qpay_image"])}" alt="QPay QR код" loading="lazy"></div>' if sp.get("qpay_image") else ""
+    qr = f'<div class="sp-card sp-qr"><h2>QR кодоор төлөх</h2><img src="{e(sp["qpay_image"])}" alt="Дэмжлэгийн QR код" width="240" height="240" loading="lazy"><p class="sp-note">Банкны аппаараа уншуулаад дүнгээ оруулна уу.</p></div>' if sp.get("qpay_image") else ""
     extra = f'<a class="sp-btn" href="{e(sp["extra_link"])}" target="_blank" rel="noopener">{e(sp.get("extra_label") or "Дэмжих")} →</a>' if sp.get("extra_link") else ""
     contact = []
     if ct.get("messenger"): contact.append(f'<a class="sp-btn ghost" href="{e(ct["messenger"])}" target="_blank" rel="noopener">Messenger</a>')
@@ -263,8 +263,8 @@ def support_page(header):
 .sp-card dl{margin:0;display:grid;gap:10px}
 .sp-card dl div{display:grid;gap:2px}
 .sp-card dt{font-size:12px;letter-spacing:.08em;text-transform:uppercase;opacity:.6}
-.sp-card dd{margin:0;display:flex;align-items:center;gap:10px;font-size:18px;font-weight:600;font-variant-numeric:tabular-nums}
-.sp-copy{height:30px;padding:0 12px;border-radius:999px;border:1px solid rgba(255,255,255,.18);background:transparent;color:inherit;font:600 12px/1 inherit;cursor:pointer}
+.sp-card dd{margin:0;display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:18px;font-weight:600;font-variant-numeric:tabular-nums}
+.sp-card dd .sp-copy{flex:none;height:30px;padding:0 12px;border-radius:999px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.04);color:#d8d4e4;font-family:inherit;font-size:12px;font-weight:600;line-height:1;cursor:pointer}.sp-card dd .sp-copy:hover{background:rgba(255,255,255,.1);color:#fff}
 .sp-note{margin-top:14px!important;font-size:13px}
 .sp-qr img{display:block;width:100%;max-width:260px;border-radius:14px;background:#fff}
 .sp-links{display:flex;flex-wrap:wrap;gap:8px}

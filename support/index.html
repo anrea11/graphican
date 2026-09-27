@@ -29,7 +29,7 @@
 <link rel="stylesheet" href="/assets/fonts/web/fonts.css">
 <link rel="stylesheet" href="/assets/style.css?v=35">
 <link rel="stylesheet" href="/assets/design.css?v=34">
-<link rel="stylesheet" href="/assets/landing.css?v=3">
+<link rel="stylesheet" href="/assets/landing.css?v=4">
 <link rel="stylesheet" href="/assets/apps.css?v=8">
 <style>
 .sp-hero h1{max-width:18ch}
@@ -40,8 +40,8 @@
 .sp-card dl{margin:0;display:grid;gap:10px}
 .sp-card dl div{display:grid;gap:2px}
 .sp-card dt{font-size:12px;letter-spacing:.08em;text-transform:uppercase;opacity:.6}
-.sp-card dd{margin:0;display:flex;align-items:center;gap:10px;font-size:18px;font-weight:600;font-variant-numeric:tabular-nums}
-.sp-copy{height:30px;padding:0 12px;border-radius:999px;border:1px solid rgba(255,255,255,.18);background:transparent;color:inherit;font:600 12px/1 inherit;cursor:pointer}
+.sp-card dd{margin:0;display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:18px;font-weight:600;font-variant-numeric:tabular-nums}
+.sp-card dd .sp-copy{flex:none;height:30px;padding:0 12px;border-radius:999px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.04);color:#d8d4e4;font-family:inherit;font-size:12px;font-weight:600;line-height:1;cursor:pointer}.sp-card dd .sp-copy:hover{background:rgba(255,255,255,.1);color:#fff}
 .sp-note{margin-top:14px!important;font-size:13px}
 .sp-qr img{display:block;width:100%;max-width:260px;border-radius:14px;background:#fff}
 .sp-links{display:flex;flex-wrap:wrap;gap:8px}
@@ -91,7 +91,7 @@ var s=e.target.closest('[data-share]');if(s){var d={title:'Graphican — үнэ�
     <p class="lp-lead">Graphican-ийн бүх хэрэгсэл үнэгүй, бүртгэлгүй. Серверийн зардал, шинэ загвар, шинэ боломжуудыг таны дэмжлэгээр хөгжүүлдэг. Ямар ч хэмжээний дэмжлэг бидэнд урам болно — баярлалаа!</p>
     
   </section>
-  <section class="lp-sec sp-grid"><div class="sp-card"><h2>Дэмжлэг үзүүлэх</h2><p>Дэмжлэг үзүүлэх, хамтран ажиллах талаар бидэнтэй шууд холбогдоорой — мэдээллийг тань хүлээж байна.</p></div>
+  <section class="lp-sec sp-grid"><div class="sp-card"><h2>Дансаар шилжүүлэх</h2><dl><div><dt>Банк</dt><dd><span>Голомт банк</span><button type="button" class="sp-copy" data-copy="Голомт банк">Хуулах</button></dd></div><div><dt>Дансны дугаар</dt><dd><span>2715141580</span><button type="button" class="sp-copy" data-copy="2715141580">Хуулах</button></dd></div><div><dt>Данс эзэмшигч</dt><dd><span>Мөнхбаяр Анхбаяр</span><button type="button" class="sp-copy" data-copy="Мөнхбаяр Анхбаяр">Хуулах</button></dd></div></dl><p class="sp-note">Гүйлгээний утга дээр «Graphican дэмжлэг» гэж бичээрэй.</p></div><div class="sp-card sp-qr"><h2>QR кодоор төлөх</h2><img src="/assets/uploads/golomt-qr.png" alt="Дэмжлэгийн QR код" width="240" height="240" loading="lazy"><p class="sp-note">Банкны аппаараа уншуулаад дүнгээ оруулна уу.</p></div>
     <div class="sp-card"><h2>Холбоо барих</h2><p>Санал хүсэлт, шинэ боломжийн санаа, хамтын ажиллагааны талаар:</p><div class="sp-links"><a class="sp-btn ghost" href="https://m.me/anrea11" target="_blank" rel="noopener">Messenger</a><a class="sp-btn ghost" href="tel:+97680750675">80750675</a><a class="sp-btn ghost" href="mailto:ankhbayar0100@gmail.com">ankhbayar0100@gmail.com</a></div></div>
     <div class="sp-card"><h2>Өөр аргаар дэмжих</h2><p>Graphican-ийг найзууддаа хуваалцах, хэрэгслүүдийг ашиглаж санал бодлоо хэлэх нь бас том дэмжлэг.</p><div class="sp-links"><button type="button" class="sp-btn ghost" data-share="1">Хуваалцах</button><a class="sp-btn ghost" href="/tools/">Хэрэгслүүд</a></div></div>
   </section>

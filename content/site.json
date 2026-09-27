@@ -468,11 +468,11 @@
     "snooze_days": 3,
     "page_title": "Graphican-ийг дэмжих",
     "page_text": "Graphican-ийн бүх хэрэгсэл үнэгүй, бүртгэлгүй. Серверийн зардал, шинэ загвар, шинэ боломжуудыг таны дэмжлэгээр хөгжүүлдэг. Ямар ч хэмжээний дэмжлэг бидэнд урам болно — баярлалаа!",
-    "bank_name": "",
-    "bank_account": "",
-    "bank_holder": "",
+    "bank_name": "Голомт банк",
+    "bank_account": "2715141580",
+    "bank_holder": "Мөнхбаяр Анхбаяр",
     "iban": "",
-    "qpay_image": "",
+    "qpay_image": "/assets/uploads/golomt-qr.png",
     "extra_label": "",
     "extra_link": ""
   }
