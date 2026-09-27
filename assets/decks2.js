@@ -206,7 +206,7 @@
         return o;
       }),
       S('Campaign film', function () { return [
-        BG(BLK), VIDEO(0, 0, W, HH, 'walk'), SCRIM(0, 0, W, HH, 0, [[0, '#000000', 0.72], [0.5, '#000000', 0.2], [1, '#000000', 0]]),
+        BG(BLK), VIDEO(0, 0, W, HH, 'models'), SCRIM(0, 0, W, HH, 0, [[0, '#000000', 0.72], [0.5, '#000000', 0.2], [1, '#000000', 0]]),
         lab('ATELIER NOMAD', 90, 140, '#ffffff'),
         A(L('Campaign\nfilm', 560, 156, 126, 1000, { weight: 400, italic: 1, color: '#ffffff', lh: 0.92 }), 'rise', 0.2, 1),
         A(L('“ТАЛЫН САЛХИ”  ·  2026', 930, 20, 140, 800, { body: 1, weight: 700, color: '#ffffff', cs: 500 }), 'fade', 0.6)
@@ -230,7 +230,7 @@
         return o;
       }),
       S('Холбоо барих', function () { return [
-        BG(BLK), VIDEO(0, 0, W, HH, 'models'), R(0, 0, W, HH, BLK, { opacity: 0.64, name: 'Бараан' }),
+        BG(BLK), VIDEO(0, 0, W, HH, 'walk', { fy: 0.3 }), R(0, 0, W, HH, BLK, { opacity: 0.64, name: 'Бараан' }),
         A(T('ATELIER NOMAD', 330, 130, { weight: 300, color: BONE, cs: 100, w: 1800 }), 'blur', 0.1, 1),
         R(900, 520, 120, 1.5, RUST, { name: 'Шугам' }),
         T('Showroom  ·  Сүхбаатар дүүрэг, 1-р хороо', 560, 30, { body: 1, color: BONE, w: 1400 }),
