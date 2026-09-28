@@ -102,7 +102,7 @@
       return '<article class="mf-card" data-i="' + i + '">' +
         '<header><button type="button" class="mf-name" data-open="' + i + '">' + esc(f.name) + '</button><span>' + CAT[f.cat] + ' · ' + f.w.length + ' жин' + (f.it ? ' · italic' : '') + '</span>' +
           '<button type="button" class="mf-sel' + (sel[f.name] ? ' on' : '') + '" data-sel="' + i + '" aria-pressed="' + (sel[f.name] ? 'true' : 'false') + '" title="Олноор татахад сонгох" aria-label="Сонгох"></button></header>' +
-        '<div class="mf-prev" data-open="' + i + '" style="font-family:' + esc(stack(f)) + ';font-weight:' + weightOf(f) + ';font-size:' + st.size + 'px">' + esc(st.text || f.name) + '</div>' +
+        '<div class="mf-prev" translate="no" data-open="' + i + '" style="font-family:' + esc(stack(f)) + ';font-weight:' + weightOf(f) + ';font-size:' + st.size + 'px">' + esc(st.text || f.name) + '</div>' +
         '<footer><button type="button" class="mf-dl" data-dl="' + i + '">↓ Татах' + (sizeOf(f) ? '<i>' + mb(sizeOf(f)) + '</i>' : '') + '</button><button type="button" data-css="' + i + '">CSS</button>' +
         '<a href="/editor/?font=' + encodeURIComponent(f.name) + '&text=' + encodeURIComponent((st.text || f.name).slice(0, 120)) + '">Design editor-т ашиглах →</a></footer>' +
       '</article>';
@@ -226,7 +226,7 @@
         '<h3>Жингүүд</h3><div class="mf-water">' + f.w.map(function (w) {
           return '<div><span>' + w + '</span><p style="font-family:' + esc(stack(f)) + ';font-weight:' + w + '">' + esc(txt) + '</p></div>';
         }).join('') + '</div>' +
-        (ps.length ? '<h3>Хослуулах санал</h3><div class="mf-pairs">' + ps.map(function (p) {
+        (ps.length ? '<h3>Хослуулах санал</h3><div class="mf-pairs" translate="no">' + ps.map(function (p) {
           return '<div class="mf-pair"><b style="font-family:' + esc(stack(f)) + ';font-weight:' + near(f.w, 700) + '">' + esc(txt.slice(0, 40)) + '</b>' +
             '<p style="font-family:' + esc(stack(p)) + '">Энгийн бичвэрт ' + esc(p.name) + ' фонтыг хэрэглэвэл уншихад хялбар, гарчигтайгаа зохицно. Өдөр тутмын мэдээлэл, үнэ, хаяг зэргийг ийм хэмжээгээр бичнэ.</p>' +
             '<span>' + esc(f.name) + ' + ' + esc(p.name) + '</span></div>';

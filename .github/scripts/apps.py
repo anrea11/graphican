@@ -10,7 +10,7 @@ import json, os, re
 import landings as L
 
 ROOT, SITE, e, ld = L.ROOT, L.SITE, L.e, L.ld
-V = "9"
+V = "10"
 
 
 def mn_fonts():
@@ -183,6 +183,7 @@ def render(p, header):
 <meta name="twitter:image" content="{img}">
 {ld(graph)}
 <script>if(location.hostname==='www.graphican.online')location.replace('https://graphican.online'+location.pathname+location.search+location.hash)</script>
+<script src="/assets/i18n.js?v=1"></script>
 <meta name="theme-color" content="#0a0a10">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2308080a'/%3E%3Ccircle cx='16' cy='16' r='7' fill='%23a497ff'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">

@@ -6,6 +6,7 @@
     GET /api/stock/video?id=<pexels id>[&poster=1|&info=1]   (template videos: redirects to the HD mp4 / poster through the proxy)
   Workers AI (binding "AI" in wrangler.jsonc) for the PDF editor:
     POST /api/ai/translate  {texts:[...], source, target}  -> {texts:[...]}   (Llama 3.3 in batches, m2m100 fallback)
+    POST /api/i18n          {texts:[...]} -> {texts:[...]}   (site English UI: strings missing from assets/i18n-en.js, edge-cached)
     POST /api/ai/chat       {mode:'summary'|'ask', text, question, lang} -> {answer}
 */
 const MEDIA_HOSTS = ['images.pexels.com', 'videos.pexels.com', 'player.vimeo.com', 'i.vimeocdn.com', 'cdn.pixabay.com', 'pixabay.com'];
@@ -240,8 +241,41 @@ async function aiChat(request, env) {
   }
 }
 
+// English UI of the site (assets/i18n.js): only strings missing from assets/i18n-en.js land here.
+// Each string is translated once and kept in the edge cache for 30 days.
+async function i18n(request, env, ctx) {
+  let b;
+  try { b = await readJson(request, 40000); } catch (e) { return json({ error: 'bad_request' }, 400); }
+  const texts = Array.isArray(b.texts) ? b.texts.slice(0, 40).map(t => String(t || '').slice(0, 600)) : [];
+  if (!texts.length) return json({ texts: [] });
+  const cache = caches.default;
+  const keyOf = async t => {
+    const h = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(t));
+    return new Request('https://i18n.cache/v1/en/' + [...new Uint8Array(h)].map(x => x.toString(16).padStart(2, '0')).join(''));
+  };
+  const keys = await Promise.all(texts.map(keyOf));
+  const out = await Promise.all(keys.map(async k => { const r = await cache.match(k); return r ? r.text() : null; }));
+  const miss = out.map((v, i) => (v == null && /[Ѐ-ӿ]/.test(texts[i]) ? i : -1)).filter(i => i >= 0);
+  if (miss.length && env.AI) {
+    let tr = null;
+    try { tr = await llmBatch(env, miss.map(i => texts[i]), 'mn', 'en'); } catch (e) { tr = null; }
+    if (tr) miss.forEach((i, k) => {
+      const v = String(tr[k] || '').trim();
+      if (!v || /[Ѐ-ӿ]/.test(v)) return;
+      out[i] = v;
+      ctx.waitUntil(cache.put(keys[i], new Response(v, { headers: { 'cache-control': 'public, max-age=2592000' } })));
+    });
+  }
+  return json({ texts: out.map((v, i) => v == null ? texts[i] : v) });
+}
+
 export default {
   async fetch(request, env, ctx) {
+    if (new URL(request.url).pathname === '/api/i18n') {
+      if (request.method !== 'POST') return json({ error: 'method' }, 405);
+      if (!allowed(request)) return json({ error: 'forbidden' }, 403);
+      return i18n(request, env, ctx);
+    }
     const url = new URL(request.url);
     if (url.pathname === '/api/stock') return search(url, env, ctx);
     if (url.pathname === '/api/stock/file') return file(url, request);

@@ -39,7 +39,7 @@
   // Split text into letters that go from blurred → sharp (the "more." effect).
   // strength: how much of the word is blurred (0..1). Spaces kept.
   function blurText(text, strength) {
-    var chars = Array.from(String(text || ''));
+    var chars = Array.from(String(window.GLang ? GLang.t(text || '') : text || '')); // translate before splitting into letters
     var n = chars.length;
     var cut = Math.max(1, n * (strength == null ? 0.65 : strength));
     var out = '', word = '';

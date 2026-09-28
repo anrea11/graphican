@@ -19,7 +19,7 @@
   function slugify(s) { return String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'kit'; }
 
   function blurText(text, strength) {
-    var chars = Array.from(String(text || ''));
+    var chars = Array.from(String(window.GLang ? GLang.t(text || '') : text || '')); // translate before splitting into letters
     var cut = Math.max(1, chars.length * (strength == null ? 0.6 : strength));
     var out = '', word = '';
     chars.forEach(function (ch, i) {
