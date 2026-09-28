@@ -1546,7 +1546,7 @@
           return pr.then(function () {
             k++; busy(true, 'Орчуулж байна… ' + k + ' / ' + batches.length + ' (' + langName(src) + ' → ' + langName(dst) + ')');
             return fetch('/api/ai/translate', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ texts: b, source: src, target: dst }) })
-              .then(apiJson).then(function (d) { if (d.__err) throw new Error(d.error === 'no_ai' ? 'AI орчуулга одоогоор идэвхгүй байна' : 'Орчуулга амжилтгүй (' + (d.error || d.__status) + ')'); out = out.concat(d.texts || []); });
+              .then(apiJson).then(function (d) { if (d.__err) throw new Error(d.error === 'rate_limit' ? 'Хэт олон орчуулга хийгдлээ — 1 минут хүлээгээд дахин оролдоно уу' : d.error === 'no_ai' ? 'AI орчуулга одоогоор идэвхгүй байна' : 'Орчуулга амжилтгүй (' + (d.error || d.__status) + ')'); out = out.concat(d.texts || []); });
           });
         }, Promise.resolve()).then(function () { return out; });
       })
@@ -1634,7 +1634,7 @@
         if (!t.trim()) throw new Error('Баримтад текст алга. Скан зураг бол эхлээд «Текст таних (OCR)»-ийг ажиллуулна уу.');
         out.innerHTML = '<span class="spin"></span> AI бодож байна…';
         return fetch('/api/ai/chat', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ mode: mode, text: t, question: q, lang: val(m, '[name=lang]') }) })
-          .then(apiJson).then(function (d) { if (d.__err) throw new Error(d.error === 'no_ai' ? 'AI одоогоор идэвхгүй байна' : 'AI хариулж чадсангүй (' + (d.error || d.__status) + ')'); return d.answer; });
+          .then(apiJson).then(function (d) { if (d.__err) throw new Error(d.error === 'rate_limit' ? 'Хэт олон асуулт илгээгдлээ — 1 минут хүлээгээд дахин оролдоно уу' : d.error === 'no_ai' ? 'AI одоогоор идэвхгүй байна' : 'AI хариулж чадсангүй (' + (d.error || d.__status) + ')'); return d.answer; });
       }).then(function (a) {
         out.innerHTML = esc(a || '—').replace(/\n/g, '<br>').replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
         if (t0len() > 24000) out.innerHTML += '<p class="note">Баримт урт тул эхний ~24 000 тэмдэгтийг уншсан.</p>';

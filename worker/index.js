@@ -5,7 +5,7 @@
     GET /api/stock/file?u=<media url>          (CORS proxy so images can be used/exported on the canvas; Range-aware for video)
     GET /api/stock/video?id=<pexels id>[&poster=1|&info=1]   (template videos: redirects to the HD mp4 / poster through the proxy)
   Workers AI (binding "AI" in wrangler.jsonc) for the PDF editor:
-    POST /api/ai/translate  {texts:[...], source, target}  -> {texts:[...]}   (Llama 3.3 in batches, m2m100 fallback)
+    POST /api/ai/translate  {texts:[...], source, target}  -> {texts:[...]}   (per-line edge cache → Microsoft Translator if AZURE_TRANSLATOR_KEY is set → Llama 3.3 → m2m100)
     POST /api/i18n          {texts:[...]} -> {texts:[...]}   (site English UI: strings missing from assets/i18n-en.js, edge-cached)
     POST /api/ai/chat       {mode:'summary'|'ask', text, question, lang} -> {answer}
 */
@@ -174,7 +174,7 @@ async function video(url, env, ctx, request) {
 const ALLOWED = /^https?:\/\/(graphican\.online|www\.graphican\.online|[\w-]+\.[\w-]+\.workers\.dev|localhost(:\d+)?|127\.0\.0\.1(:\d+)?)$/;
 function allowed(request) {
   const o = request.headers.get('origin') || '';
-  return !o || ALLOWED.test(o);
+  return ALLOWED.test(o);
 }
 async function readJson(request, max) {
   const t = await request.text();
@@ -208,8 +208,85 @@ async function m2m(env, t, source, target) {
   const r = await env.AI.run('@cf/meta/m2m100-1.2b', { text: t, source_lang: source, target_lang: target });
   return (r && r.translated_text) || t;
 }
-async function aiTranslate(request, env) {
-  if (!env.AI) return json({ error: 'no_ai' }, 503);
+// ---- translation: edge cache per line → Microsoft Translator (free 2M chars/month, if a key is set) → Workers AI ----
+// Secrets (optional): AZURE_TRANSLATOR_KEY, AZURE_TRANSLATOR_REGION (e.g. "eastasia"; leave empty for a global resource)
+const AZ_LANG = { mn: 'mn-Cyrl', zh: 'zh-Hans' };
+function azKey(env) {
+  for (const n of ['AZURE_TRANSLATOR_KEY', 'AZURE_KEY', 'TRANSLATOR_KEY']) if (typeof env[n] === 'string' && env[n].trim()) return env[n].trim();
+  const n = Object.keys(env).find(k => /AZURE|TRANSLATOR/i.test(k) && /KEY/i.test(k) && typeof env[k] === 'string' && env[k].trim());
+  return n ? env[n].trim() : '';
+}
+async function azureBatch(env, lines, source, target) {
+  const key = azKey(env);
+  if (!key) return null;
+  const region = (env.AZURE_TRANSLATOR_REGION || env.AZURE_REGION || '').trim();
+  const out = [];
+  for (let i = 0; i < lines.length; i += 100) {            // ≤100 items and well under 50k chars per call
+    const part = lines.slice(i, i + 100);
+    const u = 'https://api.cognitive.microsofttranslator.com/translate?api-version=3.0&from=' + (AZ_LANG[source] || source) + '&to=' + (AZ_LANG[target] || target);
+    const h = { 'Ocp-Apim-Subscription-Key': key, 'content-type': 'application/json' };
+    if (region) h['Ocp-Apim-Subscription-Region'] = region;
+    const r = await fetch(u, { method: 'POST', headers: h, body: JSON.stringify(part.map(t => ({ Text: t }))) });
+    if (!r.ok) return null;                                   // 403/429 = monthly quota used up → Workers AI takes over
+    const d = await r.json();
+    if (!Array.isArray(d) || d.length !== part.length) return null;
+    d.forEach(x => out.push(String((x && x.translations && x.translations[0] && x.translations[0].text) || '')));
+  }
+  return out;
+}
+async function trKey(text, source, target) {
+  const h = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(source + '>' + target + '\n' + text));
+  return new Request('https://tr.cache/v1/' + [...new Uint8Array(h)].map(x => x.toString(16).padStart(2, '0')).join(''));
+}
+// translate unique lines; returns array (same order). Cached lines cost nothing.
+async function translateLines(env, ctx, lines, source, target) {
+  const cache = caches.default, out = lines.slice();
+  const todo = [];
+  await Promise.all(lines.map(async (t, i) => {
+    if (!t.trim() || !/\p{L}/u.test(t)) return;
+    const k = await trKey(t, source, target), hit = await cache.match(k);
+    if (hit) out[i] = await hit.text(); else todo.push({ i, t, k });
+  }));
+  if (!todo.length) return out;
+  let tr = null;
+  try { tr = await azureBatch(env, todo.map(x => x.t), source, target); } catch (e) { tr = null; }
+  if (!tr && env.AI) {
+    tr = [];
+    const chunks = [];
+    for (let i = 0; i < todo.length; i += 40) chunks.push(todo.slice(i, i + 40));
+    const res = await pool(chunks, 3, async ch => {
+      let r = null;
+      try { r = await llmBatch(env, ch.map(x => x.t), source, target); } catch (e) { r = null; }
+      if (!r) r = await pool(ch.map(x => x.t), 6, t => m2m(env, t, source, target));
+      return r;
+    });
+    tr = [].concat(...res);
+  }
+  if (!tr) throw new Error('no_translator');
+  todo.forEach((x, k) => {
+    const v = String(tr[k] || '').trim();
+    if (!v) return;
+    out[x.i] = v;
+    ctx.waitUntil(cache.put(x.k, new Response(v, { headers: { 'cache-control': 'public, max-age=2592000' } })));
+  });
+  return out;
+}
+
+// light abuse guard per visitor IP (per data centre, approximate — enough to stop scripts burning the daily AI allowance)
+async function overLimit(request, name, perMin, perDay) {
+  const ip = request.headers.get('cf-connecting-ip') || 'x', cache = caches.default, now = Date.now();
+  const win = [['m', Math.floor(now / 60000), perMin, 90], ['d', Math.floor(now / 864e5), perDay, 90000]];
+  for (const [w, slot, max, ttl] of win) {
+    const k = new Request(`https://rl.cache/${name}/${w}/${slot}/${ip}`);
+    const hit = await cache.match(k), n = hit ? +(await hit.text()) || 0 : 0;
+    if (n >= max) return true;
+    await cache.put(k, new Response(String(n + 1), { headers: { 'cache-control': 'public, max-age=' + ttl } }));
+  }
+  return false;
+}
+
+async function aiTranslate(request, env, ctx) {
+  if (!env.AI && !azKey(env)) return json({ error: 'no_ai' }, 503);
   let b;
   try { b = await readJson(request, 60000); } catch (e) { return json({ error: 'bad_request' }, 400); }
   const texts = Array.isArray(b.texts) ? b.texts.slice(0, 250).map(t => String(t || '').slice(0, 1000)) : [];
@@ -217,20 +294,8 @@ async function aiTranslate(request, env) {
   if (!texts.length) return json({ texts: [] });
   if (texts.join('').length > 20000) return json({ error: 'too_large' }, 413);
   try {
-    // LLM in chunks (much better for Mongolian); per-line m2m100 as a fallback
-    const chunks = [];
-    for (let i = 0; i < texts.length; i += 40) chunks.push(texts.slice(i, i + 40));
-    const res = await pool(chunks, 3, async ch => {
-      const todo = ch.map((t, i) => ({ t, i })).filter(x => x.t.trim() && /\p{L}/u.test(x.t));
-      const out = ch.slice();
-      if (!todo.length) return out;
-      let tr = null;
-      try { tr = await llmBatch(env, todo.map(x => x.t), source, target); } catch (e) { tr = null; }
-      if (!tr) tr = await pool(todo.map(x => x.t), 6, t => m2m(env, t, source, target));
-      todo.forEach((x, k) => { out[x.i] = tr[k] || x.t; });
-      return out;
-    });
-    return json({ texts: [].concat(...res) });
+    const uniq = [...new Set(texts)], tr = await translateLines(env, ctx, uniq, source, target), map = new Map(uniq.map((t, i) => [t, tr[i]]));
+    return json({ texts: texts.map(t => map.get(t) || t) });
   } catch (e) {
     return json({ error: 'ai_failed', detail: String(e && e.message || e).slice(0, 200) }, 502);
   }
@@ -269,9 +334,10 @@ async function i18n(request, env, ctx) {
   const keys = await Promise.all(texts.map(keyOf));
   const out = await Promise.all(keys.map(async k => { const r = await cache.match(k); return r ? r.text() : null; }));
   const miss = out.map((v, i) => (v == null && /[Ѐ-ӿ]/.test(texts[i]) ? i : -1)).filter(i => i >= 0);
-  if (miss.length && env.AI) {
+  if (miss.length && (env.AI || azKey(env))) {
     let tr = null;
-    try { tr = await llmBatch(env, miss.map(i => texts[i]), 'mn', 'en'); } catch (e) { tr = null; }
+    try { tr = await azureBatch(env, miss.map(i => texts[i]), 'mn', 'en'); } catch (e) { tr = null; }
+    if (!tr) try { tr = await llmBatch(env, miss.map(i => texts[i]), 'mn', 'en'); } catch (e) { tr = null; }
     if (tr) miss.forEach((i, k) => {
       const v = String(tr[k] || '').trim();
       if (!v || /[Ѐ-ӿ]/.test(v)) return;
@@ -297,6 +363,7 @@ export default {
       return json({ pexels: !!findKey(env, 'PEXELS'), pixabay: !!findKey(env, 'PIXABAY'), names: Object.keys(env).filter(n => n !== 'ASSETS' && n !== 'AI'), ai: !!env.AI }, 200, { 'cache-control': 'no-store' });
     if (url.pathname === '/api/ai/ping') { // quick live check of the AI binding
       if (!env.AI) return json({ ai: false }, 503, { 'cache-control': 'no-store' });
+      if (await overLimit(request, 'ping', 4, 20)) return json({ error: 'rate_limit' }, 429, { 'cache-control': 'no-store' });
       // ?m=<alias> compares models on the same sample (both directions)
       const MODELS = { llama70: LLM, gemma4: '@cf/google/gemma-4-26b-a4b-it', gemma3: '@cf/google/gemma-3-12b-it', gptoss20: '@cf/openai/gpt-oss-20b', qwen3: '@cf/qwen/qwen3-30b-a3b-fp8', scout: '@cf/meta/llama-4-scout-17b-16e-instruct', mistral: '@cf/mistralai/mistral-small-3.1-24b-instruct' };
       const mdl = MODELS[url.searchParams.get('m')] || LLM;
@@ -311,7 +378,9 @@ export default {
     if (url.pathname === '/api/ai/translate' || url.pathname === '/api/ai/chat') {
       if (request.method !== 'POST') return json({ error: 'method' }, 405);
       if (!allowed(request)) return json({ error: 'forbidden' }, 403);
-      return url.pathname === '/api/ai/chat' ? aiChat(request, env) : aiTranslate(request, env);
+      const chat = url.pathname === '/api/ai/chat';
+      if (await overLimit(request, chat ? 'chat' : 'tr', chat ? 6 : 30, chat ? 40 : 400)) return json({ error: 'rate_limit' }, 429, { 'retry-after': '60' });
+      return chat ? aiChat(request, env) : aiTranslate(request, env, ctx);
     }
     if (url.pathname.startsWith('/api/')) return json({ error: 'not_found' }, 404);
     return env.ASSETS.fetch(request);
