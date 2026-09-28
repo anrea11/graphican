@@ -1362,6 +1362,11 @@
       .then(function (x) {
         if (tok !== stockTok) return;
         if (!x.ok) { stock.err = x.d.error || 'err'; return; }
+        // the Worker answered from the other site (rate limit / outage) → switch the tab so credit + paging match
+        if (x.d.fallback && x.d.src && x.d.src !== stock.src) {
+          stock.src = x.d.src; renderLeft();
+          toast((x.d.fallback === 'pexels' ? 'Pexels' : 'Pixabay') + '-ийн хайлт түр ачаалалтай байна — ' + (x.d.src === 'pexels' ? 'Pexels' : 'Pixabay') + '-аас харууллаа');
+        }
         stock.items = stock.items.concat(x.d.items || []); stock.total = x.d.total || 0; stock.page++; stock.qEn = x.d.qEn || '';
       })
       .catch(function () { if (tok === stockTok) stock.err = 'net'; })

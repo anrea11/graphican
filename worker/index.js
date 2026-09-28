@@ -44,8 +44,21 @@ async function toEnglish(q, env, ctx) {
   return out;
 }
 
+// one provider hits its rate limit (Pexels 200/h, Pixabay 100/min) or is down → answer from the other one
 async function search(url, env, ctx) {
-  const src = (url.searchParams.get('src') || url.searchParams.get('provider')) === 'pixabay' ? 'pixabay' : 'pexels';
+  const want = (url.searchParams.get('src') || url.searchParams.get('provider')) === 'pixabay' ? 'pixabay' : 'pexels';
+  const res = await searchFrom(want, url, env, ctx);
+  if (res.status === 200 || url.searchParams.get('nofb')) return res;
+  const other = want === 'pexels' ? 'pixabay' : 'pexels';
+  if (other === 'pexels' && url.searchParams.get('type') === 'vector') return res;     // only Pixabay has vectors
+  let err = {}; try { err = await res.clone().json(); } catch (e) {}
+  if (!['rate_limit', 'upstream', 'no_key'].includes(err.error)) return res;
+  const alt = await searchFrom(other, url, env, ctx);
+  if (alt.status !== 200) return res;
+  const d = await alt.json(); d.fallback = want;
+  return json(d, 200, { 'cache-control': 'no-store' });
+}
+async function searchFrom(src, url, env, ctx) {
   const type = ['photo', 'vector', 'video'].includes(url.searchParams.get('type')) ? url.searchParams.get('type') : 'photo';
   const qIn = (url.searchParams.get('q') || '').trim().slice(0, 100);
   const q = (await toEnglish(qIn, env, ctx)).slice(0, 100);
@@ -61,11 +74,11 @@ async function search(url, env, ctx) {
 
   let items = [], total = 0;
   if (src === 'pexels') {
-    if (type === 'vector') return json({ items: [], total: 0, note: 'Pexels-д вектор байхгүй' });
+    if (type === 'vector') return json({ src, items: [], total: 0, note: 'Pexels-д вектор байхгүй' });
     const base = type === 'video' ? 'https://api.pexels.com/videos/' : 'https://api.pexels.com/v1/';
     const ep = q ? `${base}search?query=${encodeURIComponent(q)}&` : (type === 'video' ? `${base}popular?` : `${base}curated?`);
     const r = await fetch(`${ep}per_page=30&page=${page}`, { headers: { Authorization: key } });
-    if (!r.ok) return json({ error: 'upstream', status: r.status }, 502);
+    if (!r.ok) return json({ error: r.status === 429 ? 'rate_limit' : 'upstream', status: r.status }, 502);
     const d = await r.json();
     total = d.total_results || 0;
     if (type === 'video') {
@@ -179,11 +192,11 @@ const LANG_NAMES = { en: 'English', mn: 'Mongolian (Cyrillic)', ru: 'Russian', z
   es: 'Spanish', it: 'Italian', tr: 'Turkish', kk: 'Kazakh', uk: 'Ukrainian', pl: 'Polish', pt: 'Portuguese', ar: 'Arabic', hi: 'Hindi', vi: 'Vietnamese', th: 'Thai', id: 'Indonesian' };
 const LLM = '@cf/meta/llama-3.3-70b-instruct-fp8-fast';
 // translate a batch of lines with the LLM; returns null if the answer can't be parsed
-async function llmBatch(env, lines, source, target) {
+async function llmBatch(env, lines, source, target, model) {
   const sys = `You are a professional translator. Translate each item from ${LANG_NAMES[source] || source} to ${LANG_NAMES[target] || target}. ` +
     'Keep numbers, names, e-mails, URLs and codes unchanged. Keep it short and natural, like the original document line. ' +
     'Answer ONLY with a JSON array of strings, same length and order as the input.';
-  const r = await env.AI.run(LLM, { messages: [{ role: 'system', content: sys }, { role: 'user', content: JSON.stringify(lines) }], max_tokens: 2400, temperature: 0.1 });
+  const r = await env.AI.run(model || LLM, { messages: [{ role: 'system', content: sys }, { role: 'user', content: JSON.stringify(lines) }], max_tokens: 2400, temperature: 0.1 });
   let t = (r && (r.response || (r.result && r.result.response))) || '';
   if (typeof t !== 'string') t = JSON.stringify(t);
   const m = t.match(/\[[\s\S]*\]/);
@@ -284,7 +297,15 @@ export default {
       return json({ pexels: !!findKey(env, 'PEXELS'), pixabay: !!findKey(env, 'PIXABAY'), names: Object.keys(env).filter(n => n !== 'ASSETS' && n !== 'AI'), ai: !!env.AI }, 200, { 'cache-control': 'no-store' });
     if (url.pathname === '/api/ai/ping') { // quick live check of the AI binding
       if (!env.AI) return json({ ai: false }, 503, { 'cache-control': 'no-store' });
-      try { const r = await llmBatch(env, ['Good morning', 'Total amount due', 'Contract end date'], 'en', 'mn'); return json({ ai: true, sample: r }, 200, { 'cache-control': 'no-store' }); }
+      // ?m=<alias> compares models on the same sample (both directions)
+      const MODELS = { llama70: LLM, gemma4: '@cf/google/gemma-4-26b-a4b-it', gemma3: '@cf/google/gemma-3-12b-it', gptoss20: '@cf/openai/gpt-oss-20b', qwen3: '@cf/qwen/qwen3-30b-a3b-fp8', scout: '@cf/meta/llama-4-scout-17b-16e-instruct', mistral: '@cf/mistralai/mistral-small-3.1-24b-instruct' };
+      const mdl = MODELS[url.searchParams.get('m')] || LLM;
+      try {
+        const t0 = Date.now();
+        const r = await llmBatch(env, ['Good morning', 'Total amount due', 'Contract end date', 'Please sign both copies and return them by Friday.'], 'en', 'mn', mdl);
+        const r2 = await llmBatch(env, ['Гэрээний хугацаа дууссаны дараа талууд харилцан тохиролцож сунгаж болно.', 'Нийт төлөх дүн', 'Уулын бэлд байрлах жижиг гэр'], 'mn', 'en', mdl);
+        return json({ ai: true, model: mdl, ms: Date.now() - t0, sample: r, back: r2 }, 200, { 'cache-control': 'no-store' });
+      }
       catch (e) { return json({ ai: true, error: String(e && e.message || e).slice(0, 200) }, 502, { 'cache-control': 'no-store' }); }
     }
     if (url.pathname === '/api/ai/translate' || url.pathname === '/api/ai/chat') {
