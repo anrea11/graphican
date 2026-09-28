@@ -348,6 +348,21 @@ async function i18n(request, env, ctx) {
   return json({ texts: out.map((v, i) => v == null ? texts[i] : v) });
 }
 
+// anonymous client events → Workers Logs (no storage of our own): {t:'err'|'dl', page, msg?, src?, line?}
+async function clientLog(request) {
+  if (request.method !== 'POST' || !allowed(request)) return new Response(null, { status: 204 });
+  if (await overLimit(request, 'log', 20, 300)) return new Response(null, { status: 204 });
+  let b = {};
+  try { const t = await request.text(); if (t.length > 4000) return new Response(null, { status: 204 }); b = JSON.parse(t || '{}'); } catch (e) { return new Response(null, { status: 204 }); }
+  const cut = (v, n) => String(v == null ? '' : v).slice(0, n);
+  const ua = request.headers.get('user-agent') || '';
+  const dev = /iPhone|iPad/.test(ua) ? 'ios' : /Android/.test(ua) ? 'android' : /Mac OS/.test(ua) ? 'mac' : /Windows/.test(ua) ? 'windows' : 'other';
+  const br = /Edg\//.test(ua) ? 'edge' : /Firefox\//.test(ua) ? 'firefox' : /CriOS|Chrome\//.test(ua) ? 'chrome' : /Safari\//.test(ua) ? 'safari' : 'other';
+  console.log(JSON.stringify({ client: cut(b.t, 8), page: cut(b.page, 120), tool: cut(b.tool, 40), msg: cut(b.msg, 300), src: cut(b.src, 160), line: +b.line || 0,
+    dev, br, country: (request.cf && request.cf.country) || '' }));
+  return new Response(null, { status: 204 });
+}
+
 export default {
   async fetch(request, env, ctx) {
     if (new URL(request.url).pathname === '/api/i18n') {
@@ -356,6 +371,7 @@ export default {
       return i18n(request, env, ctx);
     }
     const url = new URL(request.url);
+    if (url.pathname === '/api/log') return clientLog(request);
     if (url.pathname === '/api/stock') return search(url, env, ctx);
     if (url.pathname === '/api/stock/file') return file(url, request);
     if (url.pathname === '/api/stock/video') return video(url, env, ctx, request);

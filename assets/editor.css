@@ -749,3 +749,11 @@ input[type="range"] { accent-color:var(--acc); }
 .lp-tabs button { padding:0 2px; letter-spacing:-.01em; }
 .mob-top button.dl { background:var(--grad) !important; box-shadow:var(--glow); }
 .mob-btn, .mob-top { border-radius:16px; }
+
+/* one-time "save to file" hint */
+.ed-savetip { position:fixed; left:50%; bottom:92px; z-index:90; width:min(460px, calc(100vw - 24px)); transform:translate(-50%, 16px); opacity:0; transition:transform .35s cubic-bezier(.2,.8,.2,1), opacity .3s;
+  padding:14px 16px; border-radius:16px; background:#15131d; color:#eeeaf7; border:1px solid rgba(164,151,255,.28); box-shadow:0 20px 50px -18px rgba(0,0,0,.6); font-size:13px; line-height:1.5; }
+.ed-savetip.on { transform:translate(-50%, 0); opacity:1; }
+.ed-savetip p { margin:0 0 10px; color:#cfc9de; } .ed-savetip b { color:#fff; }
+.ed-savetip div { display:flex; gap:8px; justify-content:flex-end; }
+.ed-savetip .btn { background:transparent; color:#e5e0f2; border-color:rgba(255,255,255,.18); }

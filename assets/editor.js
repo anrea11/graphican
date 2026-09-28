@@ -2469,6 +2469,27 @@
     if (b.dataset.mob === 'export') exportFrames([page]);
   });
 
+  // one-time hint: designs live only in this browser → offer to save a .graphican file (shown once, after some real work)
+  (function saveTip() {
+    var K = 'gc-savetip';
+    try { if (localStorage.getItem(K)) return; } catch (e) { return; }
+    var t0 = Date.now(), iv = setInterval(function () {
+      if (Date.now() - t0 < 45000 || userObjects().length < 2 || document.querySelector('.cut-modal,.gcs-bg')) return;
+      clearInterval(iv);
+      var d = document.createElement('div'); d.className = 'ed-savetip'; d.setAttribute('role', 'status');
+      d.innerHTML = '<p><b>Дизайн тань зөвхөн энэ хөтөч дотор хадгалагддаг.</b> Хөтчийн түүх цэвэрлэх, өөр төхөөрөмж ашиглахад алга болж болно — чухал ажлаа файлаар хадгалаарай.</p>' +
+        '<div><button type="button" class="btn-primary" data-st="save">Файлаар хадгалах</button><button type="button" class="btn" data-st="ok">Ойлголоо</button></div>';
+      document.body.appendChild(d);
+      requestAnimationFrame(function () { d.classList.add('on'); });
+      d.addEventListener('click', function (e) {
+        var b = e.target.closest('[data-st]'); if (!b) return;
+        try { localStorage.setItem(K, '1'); } catch (er) {}
+        if (b.dataset.st === 'save') { var sv = document.querySelector('#ed-file-menu [data-file="save"]'); if (sv) sv.click(); }
+        d.classList.remove('on'); setTimeout(function () { d.remove(); }, 300);
+      });
+    }, 10000);
+  })();
+
   // file menu: new design · save to a .graphican file · open one
   $('#ed-filemenu').addEventListener('click', function (e) { e.stopPropagation(); var m = $('#ed-file-menu'), was = m.hidden; closeMenus(); m.hidden = !was; });
   $('#ed-file-menu').addEventListener('click', function (e) {

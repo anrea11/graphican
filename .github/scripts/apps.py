@@ -211,7 +211,7 @@ def render(p, header):
 
 <footer class="lp-foot">
   <p><a href="/">Graphican</a> — брэндинг, digital design, видео. Эдгээр хэрэгслийг дизайнер Анхбаяр бүтээж, хүн бүрт үнэгүй нээлттэй болгосон.</p>
-  <p><a href="/about/#work">Ажлууд</a> · <a href="/design/">Design guide</a> · <a href="/tools/">Design tools</a> · <a href="/about/#contact">Хамтран ажиллах</a> · <a href="/support/">Дэмжих</a></p>
+  <p><a href="/about/#work">Ажлууд</a> · <a href="/design/">Design guide</a> · <a href="/tools/">Design tools</a> · <a href="/about/#contact">Хамтран ажиллах</a> · <a href="/support/">Дэмжих</a> · <a href="/privacy/">Нууцлал</a> · <a href="/terms/">Нөхцөл</a></p>
 </footer>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
@@ -286,9 +286,96 @@ var s=e.target.closest('[data-share]');if(s){var d={title:'Graphican — үнэ�
     open(os.path.join(d, "index.html"), "w", encoding="utf-8").write(html)
 
 
+LEGAL_DATE = "2026 оны 9-р сарын 28"
+
+
+def legal_pages(header):
+    """/privacy/ and /terms/ — plain-language privacy policy and terms of use (Mongolian)."""
+    site = json.load(open(os.path.join(ROOT, "content", "site.json"), encoding="utf-8"))
+    ct = site.get("contact") or {}
+    reach = " · ".join(x for x in [
+        f'<a href="mailto:{e(ct["email"])}">{e(ct["email"])}</a>' if ct.get("email") else "",
+        f'<a href="tel:+976{e(ct["phone"])}">{e(ct["phone"])}</a>' if ct.get("phone") else "",
+        f'<a href="{e(ct["messenger"])}" target="_blank" rel="noopener">Messenger</a>' if ct.get("messenger") else ""] if x)
+    privacy = f"""
+  <section class="lp-hero app-hero lg-hero"><p class="lp-kicker">GRAPHICAN · НУУЦЛАЛ</p><h1>Нууцлалын бодлого</h1>
+    <p class="lp-lead">Товчхондоо: бид бүртгэл шаарддаггүй, таны нэр, имэйлийг цуглуулдаггүй, таны файлуудыг ихэнх тохиолдолд хаашаа ч илгээдэггүй. Доор дэлгэрэнгүй.</p></section>
+  <section class="lp-sec lg-doc">
+    <h2>1. Хэн бэ</h2>
+    <p>graphican.online сайтыг дизайнер Мөнхбаярын Анхбаяр хөгжүүлж, ажиллуулдаг. Холбоо барих: {reach}.</p>
+    <h2>2. Бүртгэл ба хувийн мэдээлэл</h2>
+    <p>Сайтын бүх хэрэгслийг бүртгэлгүй ашиглана. Бид таны нэр, имэйл, утас, төлбөрийн мэдээллийг цуглуулдаггүй. Та өөрөө бидэнтэй имэйл, утас, Messenger-ээр холбогдвол зөвхөн тухайн харилцаанд хариулахад ашиглана.</p>
+    <h2>3. Таны файлууд</h2>
+    <p>PDF хэрэгслүүд, зураг томруулах, дэвсгэр арилгах, нүүр засах, Design editor зэрэг хэрэгслүүд таны файлыг <b>таны төхөөрөмж дээр, хөтөч дотор</b> боловсруулдаг — файл манай сервер рүү илгээгдэхгүй. Үл хамаарах тохиолдлууд:</p>
+    <ul>
+      <li><b>AI орчуулга, хураангуй, баримтаас асуух.</b> Эдгээрийг ашиглахад баримтын <b>текст</b> Cloudflare Workers AI руу (тохируулсан үед Microsoft Translator руу) илгээгдэж орчуулагдана. Ижил мөрийг дахин орчуулахгүйн тулд орчуулсан мөрийг Cloudflare-ийн кэшэд 30 хүртэл хоног хадгалж болох бөгөөд хэн орчуулсантай холбогддоггүй. Нууц баримтыг AI-аар орчуулахгүй байхыг зөвлөж байна.</li>
+      <li><b>Зураг, видео хайлт.</b> Таны хайсан үг Pexels, Pixabay руу илгээгдэнэ (монгол үгийг AI-аар англи болгоно). Хайлтын үр дүнг 24 цаг кэшэлдэг.</li>
+    </ul>
+    <h2>4. Таны төхөөрөмж дээр хадгалагдах зүйл</h2>
+    <p>Дизайн, сүүлийн тохиргоо, хэлний сонголт, дэмжлэгийн цонхны төлөв зэрэг нь хөтчийн хадгалалтад (localStorage, IndexedDB) зөвхөн таны төхөөрөмж дээр хадгалагдана. Бид cookie ашиглан таныг хянадаггүй. Хөтчийн түүхээ цэвэрлэвэл эдгээр устна.</p>
+    <h2>5. Статистик ба алдааны мэдээ</h2>
+    <p>Сайтыг сайжруулахын тулд бид нэргүй, нэгтгэсэн мэдээлэл ашигладаг: хуудас үзэлтийн тоо (Cloudflare Web Analytics — cookie-гүй), аль хэрэгслээс файл татсан, хуудсан дээр гарсан техникийн алдаа (хуудасны хаяг, хөтчийн төрөл, улс). Энэ мэдээлэл таныг хувь хүн болгон тодорхойлохгүй бөгөөд 3 хоногийн дотор автоматаар устна.</p>
+    <h2>6. IP хаяг ба хамгаалалт</h2>
+    <p>Бүх хүсэлт Cloudflare-аар дамждаг. Хэт олон хүсэлтээс хамгаалахын тулд IP хаяг тус бүрийн хүсэлтийн тоог 1 өдөр хүртэл түр тоолдог. IP хаягийг өөр зорилгоор хадгалах, бусдад дамжуулахгүй.</p>
+    <h2>7. Гуравдагч талын үйлчилгээ</h2>
+    <p>Cloudflare (сайт, хамгаалалт, AI), Pexels ба Pixabay (үнэгүй зураг, видео), jsDelivr ба GitHub (AI загварын программ), Google Fonts ба Fontshare (фонт), Microsoft Translator (тохируулсан үед). Эдгээр үйлчилгээ таны хөтчөөс шууд файл татах үед таны IP хаягийг харж болно; тэдгээрт өөрсдийн нууцлалын бодлого үйлчилнэ.</p>
+    <h2>8. Таны эрх</h2>
+    <p>Бид таны хувийн мэдээллийг хадгалдаггүй тул устгах, засах зүйл бараг байхгүй. Асуулт, хүсэлт байвал дээрх хаягаар холбогдоно уу — Монгол Улсын Хувь хүний мэдээлэл хамгаалах тухай хуулийн дагуу хариулна.</p>
+    <h2>9. Өөрчлөлт</h2>
+    <p>Энэ бодлогыг шинэчилбэл энэ хуудсанд нийтэлнэ. Сүүлд шинэчилсэн: {LEGAL_DATE}.</p>
+  </section>
+"""
+    terms = f"""
+  <section class="lp-hero app-hero lg-hero"><p class="lp-kicker">GRAPHICAN · НӨХЦӨЛ</p><h1>Үйлчилгээний нөхцөл</h1>
+    <p class="lp-lead">Graphican үнэгүй. Сайтыг ашигласнаар та доорх энгийн нөхцөлүүдийг зөвшөөрч байна.</p></section>
+  <section class="lp-sec lg-doc">
+    <h2>1. Үйлчилгээ</h2>
+    <p>Graphican бол үнэгүй, бүртгэлгүй онлайн дизайн, PDF, зургийн хэрэгслүүд юм. Бид хэрэгслүүдийг байнга сайжруулдаг бөгөөд аливаа боломжийг өөрчлөх, түр зогсоох эрхтэй. Үйлчилгээг «байгаа байдлаар нь» санал болгож байгаа тул алдаа, тасалдалгүй ажиллана гэсэн баталгаа өгөхгүй.</p>
+    <h2>2. Таны бүтээл ба файлууд</h2>
+    <p>Таны бүтээсэн дизайн, боловсруулсан файл таных. Бид түүн дээр ямар ч эрх нэхэхгүй. Та ашиглаж буй зураг, текст, лого, файлдаа өөрөө хариуцлага хүлээнэ — бусдын зохиогчийн эрх, барааны тэмдэг, хувийн нууцыг зөрчсөн эсвэл хууль бус контент бүү бүтээ.</p>
+    <h2>3. Загварууд</h2>
+    <p>Graphican-ийн загваруудыг хувийн болон арилжааны ажилдаа үнэгүй ашиглаж, засаж болно. Харин загварыг өөрийг нь (засваргүй эсвэл бага зэрэг өөрчилж) дахин худалдах, өөр загварын сан болгон тараахыг хориглоно.</p>
+    <h2>4. Үнэгүй зураг, видео, фонт</h2>
+    <p>Pexels, Pixabay-ийн зураг, видео нь тухайн сайтуудын лицензээр үнэгүй бөгөөд арилжааны ажилд ашиглаж болно. Гэхдээ тэдгээрийг засваргүйгээр худалдах, зураг дээр харагдаж буй хүн, брэнд, барааны тэмдгийг буруу утгаар ашиглахыг хориглоно — дэлгэрэнгүйг <a href="https://www.pexels.com/license/" target="_blank" rel="noopener">Pexels</a>, <a href="https://pixabay.com/service/license-summary/" target="_blank" rel="noopener">Pixabay</a>-ийн лицензээс үзнэ үү. Editor-ийн фонтууд Google Fonts, Fontshare-ийн үнэгүй лицензтэй.</p>
+    <h2>5. AI хэрэгслүүд</h2>
+    <p>AI орчуулга, хураангуй, дэвсгэр арилгах, томруулах, нүүр засах зэрэг нь алдаатай үр дүн гаргаж болно. Гэрээ, албан бичиг зэрэг чухал баримтын орчуулгыг заавал нягтална уу.</p>
+    <h2>6. Хадгалалт</h2>
+    <p>Дизайн тань зөвхөн таны хөтөч дотор хадгалагдана. Хөтчийн түүх цэвэрлэх, өөр төхөөрөмж ашиглахад алга болж болох бөгөөд бид сэргээж чадахгүй. Чухал ажлаа «Файл → .graphican хадгалах»-аар нөөцлөөрэй.</p>
+    <h2>7. Хориглох зүйл</h2>
+    <p>Сайт, API-д автоматаар (бот, скрипт) хэт олон хүсэлт илгээх, хамгаалалтыг тойрох, сайтын ажиллагааг саатуулахыг хориглоно.</p>
+    <h2>8. Хандив</h2>
+    <p>Хандив бүрэн сайн дурын бөгөөд ямар нэг бараа, үйлчилгээ худалдан авсанд тооцогдохгүй.</p>
+    <h2>9. Хариуцлагын хязгаар</h2>
+    <p>Хуулиар зөвшөөрөгдсөн хэмжээнд Graphican нь хэрэгслийг ашигласнаас үүдэн гарсан шууд бус хохирол, файл, мэдээлэл алдагдсанд хариуцлага хүлээхгүй.</p>
+    <h2>10. Хууль ба холбоо барих</h2>
+    <p>Энэ нөхцөлд Монгол Улсын хууль үйлчилнэ. Асуулт байвал: {reach}. Сүүлд шинэчилсэн: {LEGAL_DATE}.</p>
+  </section>
+"""
+    css = """<style>
+.lg-hero h1{max-width:20ch}
+.lg-doc{max-width:760px}
+.lg-doc h2{margin:34px 0 10px;font-size:20px}
+.lg-doc p,.lg-doc li{line-height:1.7;opacity:.85}
+.lg-doc ul{padding-left:20px;display:grid;gap:10px}
+.lg-doc a{color:#a497ff}
+</style>"""
+    for slug, name, title, desc, body in [
+        ("privacy", "Нууцлал", "Нууцлалын бодлого | Graphican", "Graphican бүртгэл шаарддаггүй, хувийн мэдээлэл цуглуулдаггүй, файлыг таны төхөөрөмж дээр боловсруулдаг.", privacy),
+        ("terms", "Нөхцөл", "Үйлчилгээний нөхцөл | Graphican", "Graphican-ийн үнэгүй дизайн, PDF, зургийн хэрэгслүүдийг ашиглах нөхцөл.", terms)]:
+        pg = dict(slug="__" + slug, name=name, title=title, desc=desc, faq=[], scripts=[], body=body)
+        html = render(pg, header).replace(f'/tools/__{slug}/', f'/{slug}/')
+        html = html.replace(f'<a href="/tools/">Design tools</a><span>/</span><span aria-current="page">{name}</span>', f'<span aria-current="page">{name}</span>')
+        html = html.replace("</head>", css + "\n</head>", 1)
+        simple = {"@context": "https://schema.org", "@type": "WebPage", "url": SITE + f"/{slug}/", "name": title.split(" | ")[0], "description": desc, "inLanguage": "mn", "isPartOf": {"@id": SITE + "/#website"}}
+        html = re.sub(r'<script type="application/ld\+json">.*?</script>', lambda m: ld(simple), html, count=1, flags=re.S)
+        d = os.path.join(ROOT, slug); os.makedirs(d, exist_ok=True)
+        open(os.path.join(d, "index.html"), "w", encoding="utf-8").write(html)
+
+
 def build():
     header = L.header_html()
     support_page(header)
+    legal_pages(header)
     out = []
     for fn in APPS:
         p = fn()

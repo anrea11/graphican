@@ -7,6 +7,9 @@
   "compatibility_date": "2025-09-01",
   // Workers AI — translation and summaries in the PDF editor (free daily allowance)
   "ai": { "binding": "AI" },
+  // Workers Logs: only our own console.log lines (client errors + download counts from /api/log), not every request.
+  // Dashboard → Workers & Pages → graphican → Logs. Free plan: 200k lines/day, kept 3 days.
+  "observability": { "enabled": true, "head_sampling_rate": 1, "logs": { "enabled": true, "invocation_logs": false } },
   "assets": {
     "directory": ".",
     "binding": "ASSETS",

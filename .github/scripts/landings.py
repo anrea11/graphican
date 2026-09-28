@@ -12,7 +12,7 @@ import html, json, os, re
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 SITE = "https://graphican.online"
-V = "6"  # landing.css / landing.js cache version
+V = "7"  # landing.css / landing.js cache version
 
 PDF = ".pdf,application/pdf"
 IMG = "image/*,.heic,.heif,.tif,.tiff,.webp,.avif"
@@ -395,11 +395,11 @@ def page(p, header):
 
 <footer class="lp-foot">
   <p><a href="/">Graphican</a> — брэндинг, digital design, видео. Эдгээр хэрэгслийг дизайнер Анхбаяр бүтээж, хүн бүрт үнэгүй нээлттэй болгосон.</p>
-  <p><a href="/about/#work">Ажлууд</a> · <a href="/design/">Design guide</a> · <a href="/tools/">Design tools</a> · <a href="/about/#contact">Хамтран ажиллах</a></p>
+  <p><a href="/about/#work">Ажлууд</a> · <a href="/design/">Design guide</a> · <a href="/tools/">Design tools</a> · <a href="/about/#contact">Хамтран ажиллах</a> · <a href="/support/">Дэмжих</a> · <a href="/privacy/">Нууцлал</a> · <a href="/terms/">Нөхцөл</a></p>
 </footer>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
-<script src="/assets/handoff.js?v=34"></script>
+<script src="/assets/handoff.js?v=35"></script>
 <script src="/assets/landing.js?v={V}"></script>
 </body>
 </html>

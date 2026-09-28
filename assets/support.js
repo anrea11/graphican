@@ -85,22 +85,45 @@
     el.querySelector('.gcs-go').addEventListener('click', function () { close(DAY); });
   }
   // after a download: wait a moment (the save dialog / file card appears first), then show the card
-  function done() {
+  function done(file) {
+    beacon({ t: 'dl', tool: location.pathname.split('/').filter(Boolean).slice(-1)[0] || 'home' });
+    if (file && /\.graphican$/i.test(file)) return;          // saving the project file is not a "download"
     if (shown || Date.now() < until()) return;
     clearTimeout(timer);
     load().then(function () { timer = setTimeout(show, 1200); });
   }
+  // ---- anonymous usage + error reports (see /privacy/): which tool a download came from, and JS errors ----
+  function beacon(o) {
+    try {
+      o.page = location.pathname; var body = JSON.stringify(o);
+      if (navigator.sendBeacon && navigator.sendBeacon('/api/log', new Blob([body], { type: 'text/plain' }))) return;
+      fetch('/api/log', { method: 'POST', body: body, keepalive: true, headers: { 'content-type': 'text/plain' } }).catch(function () {});
+    } catch (e) {}
+  }
+  var errs = {}, nErr = 0;
+  function reportErr(msg, src, line) {
+    msg = String(msg || '').slice(0, 300);
+    if (!msg || nErr >= 5 || errs[msg]) return;
+    if (/ResizeObserver loop|^Script error\.?$|extension:\/\/|Non-Error promise rejection/.test(msg + ' ' + (src || ''))) return;
+    if (src && src.indexOf(location.origin) !== 0 && !/cdn\.jsdelivr\.net/.test(src)) return;
+    errs[msg] = 1; nErr++;
+    beacon({ t: 'err', msg: msg, src: String(src || '').replace(location.origin, ''), line: line || 0 });
+  }
+  window.addEventListener('error', function (e) { if (e && e.message) reportErr(e.message, e.filename, e.lineno); });
+  window.addEventListener('unhandledrejection', function (e) { var r = e && e.reason; reportErr(r && (r.message || r.name) ? (r.name || 'Error') + ': ' + (r.message || '') : String(r || ''), r && r.stack ? (String(r.stack).match(/https?:\/\/[^\s)]+/) || [''])[0].replace(/:\d+:\d+$/, '') : location.href, 0); });
+  window.GCLog = beacon;
+
   window.GCSupport = { done: done, show: function () { shown = false; try { localStorage.removeItem(KEY); } catch (e) {} load().then(show); } };
 
   // programmatic downloads (a.download + a.click()) and real clicks on download links
   var ac = HTMLAnchorElement.prototype.click;
   HTMLAnchorElement.prototype.click = function () {
     var r = ac.apply(this, arguments);
-    try { if (this.hasAttribute('download')) done(); } catch (e) {}
+    try { if (this.hasAttribute('download')) done(this.getAttribute('download')); } catch (e) {}
     return r;
   };
   document.addEventListener('click', function (e) {
     var a = e.target && e.target.closest && e.target.closest('a[download]');
-    if (a && !a.closest('.gcs-bg')) done();
+    if (a && !a.closest('.gcs-bg')) done(a.getAttribute('download'));
   }, true);
 })();
