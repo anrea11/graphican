@@ -1389,7 +1389,8 @@
       '<div class="stk-bar"><span>' + esc(it.author || '') + ' · ' + (stock.src === 'pexels' ? 'Pexels' : 'Pixabay') + '</span>' +
       '<button type="button" class="btn-primary" data-v="add">' + (replaceVid ? 'Энэ видеогоор солих' : 'Дизайнд оруулах') + '</button>' +
       '<button type="button" class="btn" data-v="frame">Кадрыг зураг болгох</button>' +
-      '<a class="btn" href="' + esc(proxied(it.full || it.preview, 'graphican-' + it.id + '.mp4')) + '" download>Татах (HD)</a>' +
+      (stock.src === 'pexels' ? '<a class="btn" href="' + esc(proxied(it.full || it.preview, 'graphican-' + it.id + '.mp4')) + '" download>Татах (HD)</a>' : '') +   // Pixabay: used inside designs only, no raw-file downloads
+      (it.page ? '<a class="btn" href="' + esc(it.page) + '" target="_blank" rel="noopener">' + (stock.src === 'pexels' ? 'Pexels' : 'Pixabay') + ' дээр харах</a>' : '') +
       '<button type="button" class="btn" data-v="close" aria-label="Хаах">✕</button></div>' +
       '<p class="note">Видео дизайн дотор тоглоно. Илтгэлийг үзүүлэх үед болон PowerPoint (.pptx) файлд хөдөлгөөнтэйгөөр орно; PNG/PDF-д одоогийн кадр нь гарна.</p></div>';
     document.body.appendChild(m);

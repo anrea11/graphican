@@ -99,8 +99,8 @@ async function search(url, env, ctx) {
       items = (d.hits || []).map(h => ({ id: 'pb' + h.id, kind: type, thumb: h.webformatURL || h.previewURL, thumb2: h.previewURL, full: h.largeImageURL || h.webformatURL, full2: h.webformatURL || h.previewURL, w: h.imageWidth, h: h.imageHeight, author: h.user, page: h.pageURL, alt: h.tags }));
     }
   }
-  // Pixabay links expire in 24h, so keep its results well under that (edge 12h, browser 10 min)
-  const res = json({ src, type, page, total, items, q: qIn, qEn: q !== qIn ? q : undefined }, 200, { 'cache-control': src === 'pixabay' ? 'public, max-age=600, s-maxage=43200' : 'public, max-age=3600, s-maxage=86400' });
+  // Pixabay's API terms: identical searches are cached for 24 hours (edge 24h, browser 1h)
+  const res = json({ src, type, page, total, items, q: qIn, qEn: q !== qIn ? q : undefined }, 200, { 'cache-control': src === 'pixabay' ? 'public, max-age=3600, s-maxage=86400' : 'public, max-age=3600, s-maxage=86400' });
   ctx.waitUntil(cache.put(cacheKey, res.clone()));
   return res;
 }
