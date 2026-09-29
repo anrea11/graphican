@@ -1515,7 +1515,7 @@
       return d;
     });
   }
-  // ---------- translate (Workers AI · m2m100) ----------
+  // ---------- translate (/api/ai/translate: Microsoft Translator → Workers AI) ----------
   function translateDialog(target) {
     var sample = '';
     var first = pages.filter(function (p) { return p.src >= 0; })[0];

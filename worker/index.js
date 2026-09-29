@@ -6,6 +6,7 @@
     GET /api/stock/video?id=<pexels id>[&poster=1|&info=1]   (template videos: redirects to the HD mp4 / poster through the proxy)
   Workers AI (binding "AI" in wrangler.jsonc) for the PDF editor:
     POST /api/ai/translate  {texts:[...], source, target}  -> {texts:[...]}   (per-line edge cache → Microsoft Translator if AZURE_TRANSLATOR_KEY is set → Llama 3.3 → m2m100)
+    GET  /api/ai/ping[?az=1]  live check of Workers AI, or with az=1 of Microsoft Translator (key, region, quota)
     POST /api/i18n          {texts:[...]} -> {texts:[...]}   (site English UI: strings missing from assets/i18n-en.js, edge-cached)
     POST /api/ai/chat       {mode:'summary'|'ask', text, question, lang} -> {answer}
 */
@@ -216,9 +217,15 @@ function azKey(env) {
   const n = Object.keys(env).find(k => /AZURE|TRANSLATOR/i.test(k) && /KEY/i.test(k) && typeof env[k] === 'string' && env[k].trim());
   return n ? env[n].trim() : '';
 }
-async function azureBatch(env, lines, source, target) {
+// After an error Azure is skipped for a while (429: 1 min, 401 bad key/region: 10 min, 403 monthly quota: 30 min)
+// so a used-up free tier doesn't cost every request an extra round-trip; Workers AI covers the gap.
+const AZ_OFF = new Request('https://az.cache/off');
+const AZ_PAUSE = { 401: 600, 403: 1800, 429: 60 };
+// info (optional, for /api/ai/ping?az=1): ignores the pause and reports {status, error}
+async function azureBatch(env, lines, source, target, info) {
   const key = azKey(env);
-  if (!key) return null;
+  if (!key) { if (info) info.error = 'no_key'; return null; }
+  if (!info && await caches.default.match(AZ_OFF)) return null;
   const region = (env.AZURE_TRANSLATOR_REGION || env.AZURE_REGION || '').trim();
   const out = [];
   for (let i = 0; i < lines.length; i += 100) {            // ≤100 items and well under 50k chars per call
@@ -227,9 +234,16 @@ async function azureBatch(env, lines, source, target) {
     const h = { 'Ocp-Apim-Subscription-Key': key, 'content-type': 'application/json' };
     if (region) h['Ocp-Apim-Subscription-Region'] = region;
     const r = await fetch(u, { method: 'POST', headers: h, body: JSON.stringify(part.map(t => ({ Text: t }))) });
-    if (!r.ok) return null;                                   // 403/429 = monthly quota used up → Workers AI takes over
+    if (info) info.status = r.status;
+    if (!r.ok) {
+      const body = (await r.text().catch(() => '')).slice(0, 300);
+      console.log(JSON.stringify({ azure: r.status, region: region || 'global', from: source, to: target, chars: part.join('').length, body }));
+      if (info) info.error = body;
+      else if (AZ_PAUSE[r.status]) await caches.default.put(AZ_OFF, new Response(String(r.status), { headers: { 'cache-control': 'public, max-age=' + AZ_PAUSE[r.status] } }));
+      return null;
+    }
     const d = await r.json();
-    if (!Array.isArray(d) || d.length !== part.length) return null;
+    if (!Array.isArray(d) || d.length !== part.length) { if (info) info.error = 'bad_response'; return null; }
     d.forEach(x => out.push(String((x && x.translations && x.translations[0] && x.translations[0].text) || '')));
   }
   return out;
@@ -376,7 +390,20 @@ export default {
     if (url.pathname === '/api/stock/file') return file(url, request);
     if (url.pathname === '/api/stock/video') return video(url, env, ctx, request);
     if (url.pathname === '/api/stock/health') // names only — never values
-      return json({ pexels: !!findKey(env, 'PEXELS'), pixabay: !!findKey(env, 'PIXABAY'), names: Object.keys(env).filter(n => n !== 'ASSETS' && n !== 'AI'), ai: !!env.AI }, 200, { 'cache-control': 'no-store' });
+      return json({ pexels: !!findKey(env, 'PEXELS'), pixabay: !!findKey(env, 'PIXABAY'), azure: !!azKey(env), azureRegion: (env.AZURE_TRANSLATOR_REGION || env.AZURE_REGION || '').trim() || 'global', names: Object.keys(env).filter(n => n !== 'ASSETS' && n !== 'AI'), ai: !!env.AI }, 200, { 'cache-control': 'no-store' });
+    if (url.pathname === '/api/ai/ping' && url.searchParams.get('az')) { // live check of Microsoft Translator (key, region, quota)
+      if (await overLimit(request, 'ping', 4, 20)) return json({ error: 'rate_limit' }, 429, { 'cache-control': 'no-store' });
+      const info = {}, t0 = Date.now();
+      let r = null, r2 = null;
+      try {
+        r = await azureBatch(env, ['Good morning', 'Total amount due', 'Please sign both copies and return them by Friday.'], 'en', 'mn', info);
+        if (r) r2 = await azureBatch(env, ['Гэрээний хугацаа дууссаны дараа талууд харилцан тохиролцож сунгаж болно.', 'Нийт төлөх дүн'], 'mn', 'en', info);
+      } catch (e) { info.error = String(e && e.message || e).slice(0, 200); }
+      const paused = await caches.default.match(AZ_OFF);
+      return json({ azure: !!(r && r2), key: !!azKey(env), region: (env.AZURE_TRANSLATOR_REGION || env.AZURE_REGION || '').trim() || 'global',
+        status: info.status || 0, error: info.error || '', paused: paused ? +(await paused.text()) : 0, ms: Date.now() - t0, sample: r, back: r2 },
+        r && r2 ? 200 : 502, { 'cache-control': 'no-store' });
+    }
     if (url.pathname === '/api/ai/ping') { // quick live check of the AI binding
       if (!env.AI) return json({ ai: false }, 503, { 'cache-control': 'no-store' });
       if (await overLimit(request, 'ping', 4, 20)) return json({ error: 'rate_limit' }, 429, { 'cache-control': 'no-store' });
