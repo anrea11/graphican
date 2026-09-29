@@ -222,7 +222,7 @@
 
   var ACC = '#6d56fa';
   var PROPS = ['id', 'name', 'isFrame', 'gTransparent', 'gMask', 'gMaskR', 'gStroke', 'locked', 'selectable', 'evented', 'hasControls',
-    'lockMovementX', 'lockMovementY', 'lockScalingX', 'lockScalingY', 'lockRotation', 'hoverCursor', 'perPixelTargetFind', 'gNotes'].concat(window.GFX ? window.GFX.EXTRA : []);
+    'lockMovementX', 'lockMovementY', 'lockScalingX', 'lockScalingY', 'lockRotation', 'hoverCursor', 'perPixelTargetFind', 'gNotes', 'gKit', 'gChart', 'gTable', 'gMockup', 'gMkImg'].concat(window.GFX ? window.GFX.EXTRA : []);
   var stage = $('#stage');
   var page = null, W = 1080, H = 1350;            // page = current frame
   var exporting = false, restoring = false, guides = [], labelRects = [];
@@ -1650,7 +1650,7 @@
 
   function renderLeft() {
     var el = $('#lp-body'), h = '';
-    var wide = lpTab === 'templates' || lpTab === 'stock';
+    var wide = lpTab === 'templates' || lpTab === 'stock' || lpTab === 'kit';
     if ($('#lp').classList.contains('lp-wide') !== wide) {
       var w0 = canvas.getWidth(); $('#lp').classList.toggle('lp-wide', wide); resizeCanvas();
       var v = canvas.viewportTransform.slice(); v[4] += (canvas.getWidth() - w0) / 2; canvas.setViewportTransform(v); canvas.renderAll();
@@ -1699,6 +1699,7 @@
     }
     if (lpTab === 'templates') h = tplShell();
     if (lpTab === 'stock') h = stockPanel();
+    if (lpTab === 'kit' && window.GKit) h = window.GKit.panel();   // /slides/: charts, tables, mockups, icons (assets/slides-kit.js)
     el.innerHTML = h;
     if (lpTab === 'templates') tplRenderResults();
     if (lpTab === 'stock') { renderStock(); if (!stock.items.length && !stock.loading && !stock.err) loadStock(); }
@@ -1858,12 +1859,13 @@
     if (tab === 'adjust') { el.innerHTML = h + adjustUI(o); collapseApply(el); return; }
     if (tab === 'fx') { el.innerHTML = h + (k === 'text' ? textFxUI(o) : '') + fxUI(o) + softUI(o); collapseApply(el); return; }
     if (tab === 'anim') { el.innerHTML = h + animUI(o); collapseApply(el); return; }
+    if (o.gKit && window.GKit) h += window.GKit.rightUI(o);   // chart / table / mockup (assets/slides-kit.js)
     h += '<div class="ps"><div class="ps-h" data-col="align">' + (k === 'multi' ? 'Зэрэгцүүлэх' : 'Frame дотор зэрэгцүүлэх') + '</div>' + alignBtns() +
       (k === 'multi' ? '<div class="rowf" style="margin-top:6px"><button type="button" class="btn" style="flex:1" data-a="dist" data-v="H">' + icon('dH') + 'Хэвтээ тараах</button><button type="button" class="btn" style="flex:1" data-a="dist" data-v="V">' + icon('dV') + 'Босоо</button></div>' +
         '<div class="r2" style="margin-top:6px"><button type="button" class="btn acc" data-a="group">' + icon('group') + 'Бүлэглэх</button><button type="button" class="btn" data-b="mask" title="Текст / хэлбэр нь маск болж, зураг дотор нь харагдана (Ctrl+Alt+M)">' + icon('maskI') + 'Маск болгох</button></div>' +
         '<div class="ps-l">Хэлбэрүүдийг нэгтгэх</div><div class="seg bool-seg">' + [['union', 'bUnion', 'Нэгтгэх'], ['subtract', 'bSub', 'Хасах'], ['intersect', 'bInt', 'Огтлол'], ['exclude', 'bExc', 'Давхцал']].map(function (b) {
           return '<button type="button" data-b="bool:' + b[0] + '" title="' + b[2] + '">' + icon(b[1]) + '<span>' + b[2] + '</span></button>'; }).join('') + '</div>' : '') +
-      (k === 'group' && !o.gMaskGroup ? '<button type="button" class="btn full" style="margin-top:6px" data-a="ungroup">' + icon('group') + 'Задлах (Ctrl+Shift+G)</button>' : '') +
+      (k === 'group' && !o.gMaskGroup && !o.gKit ? '<button type="button" class="btn full" style="margin-top:6px" data-a="ungroup">' + icon('group') + 'Задлах (Ctrl+Shift+G)</button>' : '') +
       (k === 'shape' && boolable(o) && !o.isType('path') ? '<button type="button" class="btn full" style="margin-top:6px" data-b="tovec">' + icon('penTool') + 'Вектор болгох (цэгийг засах)</button>' : '') +
       (o.isType && o.isType('path') && k !== 'multi' ? '<button type="button" class="btn full' + (vedit ? ' acc' : '') + '" style="margin-top:6px" data-b="vedit">' + icon('penTool') + (vedit ? 'Цэг засахаа дуусгах' : 'Цэгүүдийг засах (давхар дарах)') + '</button>' : '') +
       '</div>';
@@ -2716,6 +2718,7 @@
   canvas.on('mouse:dblclick', function (o) {
     if (tool === 'vector') { penFinish(false); setTool('move'); return; }
     var t = o.target;
+    if (t && t.gKit && tool === 'move' && !t.locked && window.GKit) { window.GKit.edit(t); return; }
     if (vedit && t === vedit.o) { vInsertAt(t, canvas.getPointer(o.e)); return; }
     if (t && tool === 'move' && t.isType('path') && !t.locked) startVEdit(t);
   });
@@ -4700,11 +4703,13 @@
               if (typeof o.fill !== 'string' || o.fill === 'transparent' || o.gPaint || (o.stroke && o.strokeWidth > 0) || (o.gFx && o.gFx.length)) return;
               texts.push(o);
             });
+            // charts and tables (assets/slides-kit.js) go in as real PowerPoint charts / tables
+            var natives = editable && window.GKit ? kids.filter(function (o, ix) { return ix >= lastMedia && window.GKit.native(o); }) : [];
             if (!media.length) {
-              texts.forEach(function (o) { o.visible = false; });
+              texts.concat(natives).forEach(function (o) { o.visible = false; });
               var data;
               try { data = quietRender(f, mult).toDataURL('image/jpeg', 0.9); }
-              finally { texts.forEach(function (o) { o.visible = true; }); }
+              finally { texts.concat(natives).forEach(function (o) { o.visible = true; }); }
               s.addImage({ data: data, x: 0, y: 0, w: SW, h: Math.min(SH, sh) });
             } else {
               var run = [], first = true;
@@ -4715,7 +4720,7 @@
                 first = false; run = [];
               };
               kids.forEach(function (o) {
-                if (texts.indexOf(o) >= 0) return;
+                if (texts.indexOf(o) >= 0 || natives.indexOf(o) >= 0) return;
                 if (media.indexOf(o) < 0) { run.push(o); return; }
                 flush();
                 var b = boxPct(o, f);
@@ -4724,6 +4729,7 @@
               flush();
             }
             vids.forEach(function (o) { delete o._pptx; });
+            natives.forEach(function (o) { window.GKit.toPptx(pptx, s, o, f, k); });
             texts.forEach(function (o) {
               var c = o.getCenterPoint(), w = o.width * o.scaleX, h = o.height * o.scaleY, col = new fabric.Color(o.fill), pt = o.fontSize * o.scaleY * k * 72;
               // keep the exact line breaks from the canvas (no re-wrapping if PowerPoint substitutes a wider font)
@@ -4755,7 +4761,21 @@
 
   // ---------- boot ----------
 
-  window.GEditor = { canvas: canvas, frames: frames, renderFrame: renderFrame, addFrame: addFrame, useTemplate: useTemplate, setTool: setTool };
+  window.GEditor = { canvas: canvas, frames: frames, renderFrame: renderFrame, addFrame: addFrame, useTemplate: useTemplate, setTool: setTool,
+    // used by assets/slides-kit.js
+    PROPS: PROPS, place: place, commit: commit, refreshUI: refreshUI, active: active, toast: toast, loadScript: loadScript, readImage: readImage,
+    frameOf: frameOf, frameFill: frameFill, isDark: isDark, currentPair: currentPair, stack: stack, ensureFont: ensureFont, icon: icon,
+    page: function () { if (!page) addFrame(DEF_W, DEF_H); return { f: page, w: W, h: H }; },
+    // put n exactly where o was (same centre, scale, angle, stacking, animations, id)
+    swap: function (o, n) {
+      var c = o.getCenterPoint(), at = canvas.getObjects().indexOf(o);
+      PROPS.forEach(function (p) { if (o[p] != null && ['gKit', 'gChart', 'gTable', 'gMockup'].indexOf(p) < 0) n[p] = o[p]; });
+      n.set({ scaleX: o.scaleX, scaleY: o.scaleY, angle: o.angle || 0, flipX: o.flipX, flipY: o.flipY, opacity: o.opacity });
+      restoring = true; canvas.remove(o); canvas.insertAt(n, at < 0 ? canvas.getObjects().length : at); restoring = false;
+      n.setPositionByOrigin(c, 'center', 'center'); n.setCoords();
+      canvas.setActiveObject(n); canvas.requestRenderAll(); commit(); refreshUI();
+      return n;
+    } };
   window.addEventListener('resize', function () { resizeCanvas(); canvas.requestRenderAll(); });
   renderDock();
   if (PPT) pptBuildUI();
