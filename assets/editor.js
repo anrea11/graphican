@@ -1109,52 +1109,29 @@
 
   // ---------- image: AI background removal (U²-Net-P, in the browser) ----------
 
-  var ORT = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@1.30.0/dist/';
-  var rmbg = { ready: null, session: null };
-  function rmbgReady() {
-    if (rmbg.ready) return rmbg.ready;
-    rmbg.ready = (window.ort ? Promise.resolve() : loadScript(ORT + 'ort.min.js')).then(function () {
-      window.ort.env.wasm.wasmPaths = ORT; window.ort.env.wasm.numThreads = 1;
-      return window.ort.InferenceSession.create('/assets/vendor/u2netp.onnx', { executionProviders: ['wasm'], graphOptimizationLevel: 'all' });
-    }).then(function (s) { rmbg.session = s; });
-    rmbg.ready.catch(function () { rmbg.ready = null; });
-    return rmbg.ready;
-  }
-  // U²-Net-P alpha mask (320×320 canvas) for any image element
+  // model + mask clean-up + edge colour decontamination: /assets/rmbg.js (shared with /tools/bgremove/)
+  function rmbgLib() { return window.GRmbg ? Promise.resolve(window.GRmbg) : loadScript('/assets/rmbg.js?v=1').then(function () { return window.GRmbg; }); }
+  // alpha mask canvas (white, alpha = subject) for any image element — used by the cut-out window
   function aiMask(el) {
-    var S = 320;
-    return rmbgReady().then(function () {
-      var c = document.createElement('canvas'); c.width = S; c.height = S;
-      var cx = c.getContext('2d'); cx.drawImage(el, 0, 0, S, S);
-      var px = cx.getImageData(0, 0, S, S).data, n = S * S, max = 1, i, k;
-      for (i = 0; i < n * 4; i++) if ((i & 3) !== 3 && px[i] > max) max = px[i];
-      var mean = [0.485, 0.456, 0.406], std = [0.229, 0.224, 0.225], data = new Float32Array(3 * n);
-      for (i = 0; i < n; i++) for (k = 0; k < 3; k++) data[k * n + i] = (px[i * 4 + k] / max - mean[k]) / std[k];
-      var s = rmbg.session, feeds = {};
-      feeds[s.inputNames[0]] = new window.ort.Tensor('float32', data, [1, 3, S, S]);
-      return s.run(feeds).then(function (out) {
-        var m = out[s.outputNames[0]].data, lo = Infinity, hi2 = -Infinity;
-        for (i = 0; i < n; i++) { if (m[i] < lo) lo = m[i]; if (m[i] > hi2) hi2 = m[i]; }
-        var mc = document.createElement('canvas'); mc.width = S; mc.height = S;
-        var mx = mc.getContext('2d'), md = mx.createImageData(S, S);
-        for (i = 0; i < n; i++) { var a = ((m[i] - lo) / ((hi2 - lo) || 1) - 0.2) / 0.6; md.data[i * 4] = md.data[i * 4 + 1] = md.data[i * 4 + 2] = 255; md.data[i * 4 + 3] = a <= 0 ? 0 : a >= 1 ? 255 : Math.round(a * 255); }
-        mx.putImageData(md, 0, 0);
-        return mc;
-      });
+    return rmbgLib().then(function (R) { return R.alpha(el); }).then(function (al) {
+      var mc = document.createElement('canvas'); mc.width = al.w; mc.height = al.h;
+      var mx = mc.getContext('2d'), md = mx.createImageData(al.w, al.h);
+      for (var i = 0; i < al.w * al.h; i++) { var a = (al.a[i] - 0.2) / 0.6; md.data[i * 4] = md.data[i * 4 + 1] = md.data[i * 4 + 2] = 255; md.data[i * 4 + 3] = a <= 0 ? 0 : a >= 1 ? 255 : Math.round(a * 255); }
+      mx.putImageData(md, 0, 0);
+      return mc;
     });
   }
   function removeBackground(img) {
     var el = img._originalElement || img.getElement(), W0 = el.naturalWidth || el.width, H0 = el.naturalHeight || el.height;
     toast('AI дэвсгэрийг арилгаж байна… (анх удаа ~5MB загвар ачаална)');
-    return aiMask(el).then(function (mc) {
-      {
-        var o = document.createElement('canvas'); o.width = W0; o.height = H0;
-        var ox = o.getContext('2d'); ox.imageSmoothingQuality = 'high';
-        ox.drawImage(el, 0, 0, W0, H0); ox.globalCompositeOperation = 'destination-in'; ox.drawImage(mc, 0, 0, W0, H0);
+    return rmbgLib().then(function (R) {
+      return R.alpha(el).then(function (al) {
+        var o = R.cutout(el, al, 'mid', 'none');
+        if (o.width !== W0 || o.height !== H0) { var r = document.createElement('canvas'); r.width = W0; r.height = H0; r.getContext('2d').drawImage(o, 0, 0, W0, H0); o = r; }
         var outUrl = o.toDataURL('image/png');
         cutOrig[outUrl] = cutOrig[img.getSrc()] || img.getSrc();
         return outUrl;
-      }
+      });
     }).then(function (url) {
       return new Promise(function (res) {
         var keep = { width: img.width, height: img.height, cropX: img.cropX, cropY: img.cropY };
