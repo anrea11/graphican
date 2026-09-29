@@ -741,9 +741,11 @@
     kpi: '<rect x="2" y="6" width="6" height="12" rx="1.5"/><rect x="9" y="6" width="6" height="12" rx="1.5"/><rect x="16" y="6" width="6" height="12" rx="1.5"/>', pyramid: '<path d="M12 3 3 20h18z"/><path d="M8.2 10.5h7.6M5.5 15.5h13"/>' };
 
   // ================= Mongolian ornaments & nature =================
-  // Only ornaments with a fixed, traditional geometry are drawn here (not invented):
-  //   Өлзий хээ — the endless knot: 4×4 woven lattice, loops at the 4 corners and 2 on each side, over/under alternating
-  //   Алхан хээ — continuous square key band between two rules
+  // Only traditional ornaments, redrawn to the geometry of reference drawings the site owner supplied (none invented):
+  //   Өлзий хээ — endless knot: 4×4 woven lattice, loops at the corners and sides, over/under alternating;
+  //               also as a ribbon (double line), with square loops, as a plain rhombus lattice and inside a ring
+  //   Алхан хээ — «hammer» band: a row of bars, each with a stem down to a running line, between two rails
+  //   Ороолт хээ — continuous square key (meander) band
   function ulziiD(ox, oy, k, gap, diamond) {   // path in a 120×120 box, placed at (ox, oy) and scaled by k; diamond = turned 45°
     var P = [30, 50, 70, 90], g = gap == null ? 5 : gap, d = '', px = 0, c45 = Math.SQRT1_2;
     // X(x) remembers x so Y(y) can rotate the point (x, y) about the box centre
@@ -761,6 +763,33 @@
       d += 'M' + X(c[0]) + ' ' + Y(c[1]) + 'C' + X(c[2]) + ' ' + Y(c[3]) + ' ' + X(c[4]) + ' ' + Y(c[5]) + ' ' + X(c[0]) + ' ' + Y(c[1]); });
     [[30, 50, 10, 50, 10, 70, 30, 70], [90, 50, 110, 50, 110, 70, 90, 70], [50, 30, 50, 10, 70, 10, 70, 30], [50, 90, 50, 110, 70, 110, 70, 90]].forEach(function (c) {
       d += 'M' + X(c[0]) + ' ' + Y(c[1]) + 'C' + X(c[2]) + ' ' + Y(c[3]) + ' ' + X(c[4]) + ' ' + Y(c[5]) + ' ' + X(c[6]) + ' ' + Y(c[7]); });
+    return d;
+  }
+  // Өлзий with square loops (as in the rectilinear drawings): same lattice, loops made of straight segments
+  function ulziiSqD(gap) {
+    var P = [30, 50, 70, 90], g = gap == null ? 5 : gap, d = '';
+    P.forEach(function (y, i) { var x = 30, seg = []; P.forEach(function (cx, j) { if ((i + j) % 2 === 1) { seg.push([x, cx - g]); x = cx + g; } }); seg.push([x, 90]);
+      seg.forEach(function (q) { if (q[1] > q[0]) d += 'M' + q[0] + ' ' + y + 'H' + q[1]; }); });
+    P.forEach(function (x, j) { var y = 30, seg = []; P.forEach(function (cy, i) { if ((i + j) % 2 === 0) { seg.push([y, cy - g]); y = cy + g; } }); seg.push([y, 90]);
+      seg.forEach(function (q) { if (q[1] > q[0]) d += 'M' + x + ' ' + q[0] + 'V' + q[1]; }); });
+    d += 'M30 30H6V6H30V30M90 30H114V6H90V30M30 90H6V114H30V90M90 90H114V114H90V90';
+    d += 'M30 50H12V70H30M90 50H108V70H90M50 30V12H70V30M50 90V108H70V90';
+    return d;
+  }
+  // rhombus lattice (the simplest Өлзий drawing): 4 lines each way on the 45° grid
+  function ulziiNetD() {   // diamond (60,0)-(120,60)-(60,120)-(0,60): 4 lines parallel to each pair of edges → 3×3 rhombi
+    var d = '', f = function (v) { return +v.toFixed(2); };
+    [0, 1 / 3, 2 / 3, 1].forEach(function (t) {
+      d += 'M' + f(60 + 60 * t) + ' ' + f(60 * t) + 'L' + f(60 * t) + ' ' + f(60 + 60 * t);
+      d += 'M' + f(60 - 60 * t) + ' ' + f(60 * t) + 'L' + f(120 - 60 * t) + ' ' + f(60 + 60 * t);
+    });
+    return d;
+  }
+  // Алхан хээ: filled; unit 60 wide, band 58 high
+  function hammerD(n) {
+    var r = function (x, y, w, h) { return 'M' + x + ' ' + y + 'h' + w + 'v' + h + 'h' + (-w) + 'z'; }, L = n * 60;
+    var d = r(0, 0, L, 6) + r(0, 34, L, 7) + r(0, 52, L, 6);
+    for (var k = 0; k < n; k++) d += r(k * 60 + 5, 15, 50, 9) + r(k * 60 + 26, 24, 8, 10);
     return d;
   }
   function alkhanD(n, ox, oy) {   // band 48 high, unit 40 wide
@@ -816,27 +845,44 @@ var MN_ART = {
       '<path d="M0 170 Q120 140 240 162 T400 158 V220 H0Z" fill="#8bb866"/><path d="M0 196 Q160 180 400 196 V220 H0Z" fill="#5f914a"/>' +
       '<g transform="translate(120 104) scale(.62)"><path d="M20 112 Q120 38 220 112 Z" fill="#f4efe6" stroke="#6b4f3a" stroke-width="3"/><path d="M24 110 H216 V160 Q120 172 24 160 Z" fill="#fbf8f2" stroke="#6b4f3a" stroke-width="3"/><path d="M24 118 H216" stroke="#c11720" stroke-width="7"/><path d="M24 128 H216" stroke="#0c324a" stroke-width="3"/><ellipse cx="120" cy="66" rx="20" ry="7" fill="#6b4f3a"/><rect x="103" y="124" width="34" height="42" rx="2" fill="#e8742a" stroke="#6b4f3a" stroke-width="3"/></g>']
   };
-  var MN_PAT = [['ulzii', 'Өлзий хээ'], ['ulziiRow', 'Өлзий — зурвас'], ['alkhan', 'Алхан хээ — зурвас'], ['alkhanFrame', 'Алхан хээ — хүрээ']];
+  var MN_PAT = [['ulzii', 'Өлзий хээ'], ['ulziiRibbon', 'Өлзий — туузан'], ['ulziiSq', 'Өлзий — дөрвөлжин'], ['ulziiNet', 'Өлзий — тор'], ['ulziiRing', 'Дугуй өлзий'], ['ulziiRow', 'Өлзий — зурвас'],
+    ['hammer', 'Алхан хээ — зурвас'], ['hammerFrame', 'Алхан хээ — хүрээ'], ['key', 'Ороолт хээ — зурвас'], ['keyFrame', 'Ороолт хээ — хүрээ']];
   var MN_NAT = [['ger', 'Гэр'], ['gerScene', 'Гэр, уул, тал'], ['mountains', 'Уулс'], ['steppe', 'Уул тал'], ['lake', 'Нуур'], ['river', 'Гол ус'], ['larch', 'Шинэс мод'], ['pine', 'Нарс мод'], ['birch', 'Хус мод'], ['sun', 'Нар'], ['cloud', 'Үүл']];
   function mnInk() { return inkFor(null).dark ? '#f2c94c' : '#c11720'; }
   function addMnPattern(k) {
     var ed = E(), pg = ed.page(), W0 = pg.w, H0 = pg.h, col = mnInk(), o;
     var line = function (d, sw) { return new fabric.Path(d, { fill: '', stroke: col, strokeWidth: sw, strokeLineCap: 'butt', strokeLineJoin: 'miter', objectCaching: false }); };
-    if (k === 'ulzii') { o = line(ulziiD(0, 0, 1), 6); o.set({ angle: 45, name: 'Өлзий хээ' }); var s = Math.min(W0, H0) * 0.28 / 150; o.set({ scaleX: s, scaleY: s }); }
-    if (k === 'ulziiRow') {
-      var n = 9, d = ''; for (var i = 0; i < n; i++) d += ulziiD(i * 160, 0, 1, 5, true);
-      o = line(d, 6); o.set({ name: 'Өлзий — зурвас' }); var s2 = W0 * 0.8 / o.width; o.set({ scaleX: s2, scaleY: s2 });
-    }
-    if (k === 'alkhan') { var n2 = Math.round(W0 * 0.9 / 40); o = line(alkhanD(n2), 4); o.set({ name: 'Алхан хээ — зурвас', scaleX: W0 * 0.9 / (n2 * 40 + 4), scaleY: W0 * 0.9 / (n2 * 40 + 4) }); }
-    if (k === 'alkhanFrame') {
-      var m = Math.round(Math.min(W0, H0) * 0.035), sc = m / 48, nh = Math.floor((W0 - 2 * m) / (40 * sc)), nv = Math.floor((H0 - 2 * m) / (40 * sc));
-      var top = line(alkhanD(nh), 4), bot = line(alkhanD(nh), 4), lef = line(alkhanD(nv), 4), rig = line(alkhanD(nv), 4);
+    var solid = function (d) { return new fabric.Path(d, { fill: col, strokeWidth: 0, objectCaching: false }); };
+    // ribbon = a wide line with a thin line cut out of it (double-line drawing); the group cache makes the cut transparent
+    var ribbon = function (d) { return new fabric.Group([line(d, 10), new fabric.Path(d, { fill: '', stroke: '#000', strokeWidth: 3.2, globalCompositeOperation: 'destination-out', objectCaching: false })]); };
+    var fit = function (x, frac) { var s = Math.min(W0, H0) * frac / Math.max(x.width, x.height); x.set({ scaleX: s, scaleY: s }); return x; };
+    // a band repeated along the four sides of the slide
+    var frame = function (make, unit, band, name) {
+      var m = Math.round(Math.min(W0, H0) * 0.035), sc = m / band, nh = Math.floor((W0 - 2 * m) / (unit * sc)), nv = Math.floor((H0 - 2 * m) / (unit * sc));
+      var top = make(nh), bot = make(nh), lef = make(nv), rig = make(nv);
       [top, bot, lef, rig].forEach(function (x) { x.set({ scaleX: sc, scaleY: sc }); });
-      top.set({ left: (W0 - nh * 40 * sc) / 2, top: m * 0.4 }); bot.set({ left: (W0 - nh * 40 * sc) / 2, top: H0 - m * 1.4, flipY: true });
-      lef.set({ angle: 90, left: m * 1.4, top: (H0 - nv * 40 * sc) / 2 }); rig.set({ angle: -90, left: W0 - m * 1.4, top: (H0 + nv * 40 * sc) / 2 });
-      o = new fabric.Group([top, bot, lef, rig], { name: 'Алхан хээ — хүрээ' });
-      ed.place(o, { x: pg.f.left + W0 / 2, y: pg.f.top + H0 / 2 }); return;
+      top.set({ left: (W0 - nh * unit * sc) / 2, top: m * 0.4 }); bot.set({ left: (W0 - nh * unit * sc) / 2, top: H0 - m * 1.4, flipY: true });
+      lef.set({ angle: 90, left: m * 1.4, top: (H0 - nv * unit * sc) / 2 }); rig.set({ angle: -90, left: W0 - m * 1.4, top: (H0 + nv * unit * sc) / 2 });
+      var g = new fabric.Group([top, bot, lef, rig], { name: name });
+      ed.place(g, { x: pg.f.left + W0 / 2, y: pg.f.top + H0 / 2 });
+    };
+    if (k === 'ulzii') o = fit(line(ulziiD(0, 0, 1, 5, true), 6), 0.28);
+    if (k === 'ulziiRibbon') o = fit(ribbon(ulziiD(0, 0, 1, 10, true)), 0.3);
+    if (k === 'ulziiSq') o = fit(ribbon(ulziiSqD(10)), 0.3);
+    if (k === 'ulziiNet') o = fit(line(ulziiNetD(), 5), 0.26);
+    if (k === 'ulziiRing') {
+      var u = line(ulziiD(0, 0, 1, 5, true), 6);
+      var c1 = new fabric.Circle({ radius: 104, left: 60, top: 60, originX: 'center', originY: 'center', fill: '', stroke: col, strokeWidth: 8 });
+      var c2 = new fabric.Circle({ radius: 90, left: 60, top: 60, originX: 'center', originY: 'center', fill: '', stroke: col, strokeWidth: 2.5 });
+      u.set({ originX: 'center', originY: 'center', left: 60, top: 60, scaleX: 1.22, scaleY: 1.22 });
+      o = fit(new fabric.Group([c1, c2, u]), 0.32);
     }
+    if (k === 'ulziiRow') { var n = 9, d = ''; for (var i = 0; i < n; i++) d += ulziiD(i * 160, 0, 1, 5, true); o = line(d, 6); var s2 = W0 * 0.8 / o.width; o.set({ scaleX: s2, scaleY: s2 }); }
+    if (k === 'hammer') { var n3 = Math.round(W0 * 0.9 / 60); o = solid(hammerD(n3)); var s3 = W0 * 0.9 / (n3 * 60); o.set({ scaleX: s3, scaleY: s3 }); }
+    if (k === 'key') { var n2 = Math.round(W0 * 0.9 / 40); o = line(alkhanD(n2), 4); o.set({ scaleX: W0 * 0.9 / (n2 * 40 + 4), scaleY: W0 * 0.9 / (n2 * 40 + 4) }); }
+    if (k === 'hammerFrame') return frame(function (n) { return solid(hammerD(n)); }, 60, 58, 'Алхан хээ — хүрээ');
+    if (k === 'keyFrame') return frame(function (n) { return line(alkhanD(n), 4); }, 40, 48, 'Ороолт хээ — хүрээ');
+    o.set({ name: (MN_PAT.filter(function (x) { return x[0] === k; })[0] || [0, 'Хээ'])[1] });
     ed.place(o);
   }
   function addMnArt(k) {
@@ -849,11 +895,20 @@ var MN_ART = {
   }
   function svgThumb(k) { var a = MN_ART[k]; return '<svg viewBox="' + a[0] + '" preserveAspectRatio="xMidYMid meet">' + a[1] + '</svg>'; }
   function patThumb(k) {
-    if (k === 'ulzii') return '<svg viewBox="-12 -12 144 144"><g transform="rotate(45 60 60)"><path d="' + ulziiD(0, 0, 1) + '" fill="none" stroke="#c11720" stroke-width="7"/></g></svg>';
-    if (k === 'ulziiRow') return '<svg viewBox="-30 -30 500 180"><path d="' + ulziiD(0, 0, 1, 5, true) + ulziiD(160, 0, 1, 5, true) + ulziiD(320, 0, 1, 5, true) + '" fill="none" stroke="#c11720" stroke-width="7"/></svg>';
-    if (k === 'alkhan') return '<svg viewBox="-4 -12 248 72"><path d="' + alkhanD(6) + '" fill="none" stroke="#c11720" stroke-width="4"/></svg>';
-    return '<svg viewBox="0 0 120 120"><rect x="6" y="6" width="108" height="108" fill="none" stroke="#c11720" stroke-width="3"/><rect x="20" y="20" width="80" height="80" fill="none" stroke="#c11720" stroke-width="1.5"/><path d="' + alkhanD(2, 20, 0) + '" fill="none" stroke="#c11720" stroke-width="2.5" transform="translate(-2 7) scale(.3)"/></svg>';
+    var R = '#c11720', sv = function (vb, body) { return '<svg viewBox="' + vb + '" preserveAspectRatio="xMidYMid meet">' + body + '</svg>'; };
+    var rib = function (d) { return '<path d="' + d + '" fill="none" stroke="' + R + '" stroke-width="10"/><path d="' + d + '" fill="none" stroke="#f5f5f5" stroke-width="3.2"/>'; };
+    if (k === 'ulzii') return sv('-30 -30 180 180', '<path d="' + ulziiD(0, 0, 1, 5, true) + '" fill="none" stroke="' + R + '" stroke-width="7"/>');
+    if (k === 'ulziiRibbon') return sv('-32 -32 184 184', rib(ulziiD(0, 0, 1, 10, true)));
+    if (k === 'ulziiSq') return sv('-4 -4 128 128', rib(ulziiSqD(10)));
+    if (k === 'ulziiNet') return sv('-6 -6 132 132', '<path d="' + ulziiNetD() + '" fill="none" stroke="' + R + '" stroke-width="6"/>');
+    if (k === 'ulziiRing') return sv('-54 -54 228 228', '<circle cx="60" cy="60" r="104" fill="none" stroke="' + R + '" stroke-width="8"/><circle cx="60" cy="60" r="90" fill="none" stroke="' + R + '" stroke-width="2.5"/><path d="' + ulziiD(0, 0, 1, 5, true) + '" fill="none" stroke="' + R + '" stroke-width="7" transform="translate(60 60) scale(1.22) translate(-60 -60)"/>');
+    if (k === 'ulziiRow') return sv('-30 -30 500 180', '<path d="' + ulziiD(0, 0, 1, 5, true) + ulziiD(160, 0, 1, 5, true) + ulziiD(320, 0, 1, 5, true) + '" fill="none" stroke="' + R + '" stroke-width="7"/>');
+    if (k === 'hammer') return sv('0 -30 240 118', '<path d="' + hammerD(4) + '" fill="' + R + '"/>');
+    if (k === 'key') return sv('-4 -12 248 72', '<path d="' + alkhanD(6) + '" fill="none" stroke="' + R + '" stroke-width="4"/>');
+    var band = k === 'hammerFrame' ? '<path d="' + hammerD(4) + '" fill="' + R + '" transform="translate(12 10) scale(.4)"/>' : '<path d="' + alkhanD(6) + '" fill="none" stroke="' + R + '" stroke-width="4" transform="translate(12 10) scale(.4)"/>';
+    return sv('0 0 120 120', '<rect x="6" y="6" width="108" height="108" fill="none" stroke="' + R + '" stroke-width="2"/>' + band + '<rect x="12" y="36" width="96" height="72" fill="none" stroke="' + R + '" stroke-width="1" opacity=".5"/>');
   }
+
 
   function panel() {
     var h = '<div class="sec-t">Chart <span>PowerPoint-д засагдана</span></div><div class="grid3 kit-tiles">' +
