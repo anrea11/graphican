@@ -849,6 +849,23 @@
       g.set({ name: name, scaleX: s, scaleY: s }); E().place(g);
     });
   }
+  // traced ornaments (assets/mn-traced.json, vectorised from the owner's reference pictures) — loaded when the panel first opens
+  var MN_TR = null, mnTrP = null;
+  function mnTraced() {
+    if (!mnTrP) mnTrP = fetch('/assets/mn-traced.json?v=1').then(function (r) { return r.json(); }).then(function (j) { MN_TR = j.items || []; if (document.querySelector('#kit-mntr')) E().refreshUI(); }).catch(function () { mnTrP = null; });
+    return mnTrP;
+  }
+  function mnTrSection() {
+    if (!MN_TR) { mnTraced(); return '<p class="note" id="kit-mntr">Ачаалж байна…</p>'; }
+    return '<div class="grid3 kit-tiles mn-tiles" id="kit-mntr">' + MN_TR.map(function (t, i) {
+      return '<button type="button" class="tile kt" data-kit-mnt="' + i + '" title="' + esc(t.name) + '"><svg viewBox="0 0 ' + t.w + ' ' + t.h + '" preserveAspectRatio="xMidYMid meet"><path d="' + t.d + '" fill="#b3202a" fill-rule="evenodd"/></svg><span>' + esc(t.name) + '</span></button>'; }).join('') + '</div>';
+  }
+  function addMnTraced(i) {
+    var t = MN_TR && MN_TR[i]; if (!t) return;
+    var pg = E().page(), o = new fabric.Path(t.d, { fill: mnInk(), fillRule: 'evenodd', strokeWidth: 0, objectCaching: true, name: t.name });
+    var wide = t.w / t.h > 1.8, s = (wide ? pg.w * 0.7 : pg.h * 0.4) / (wide ? o.width : o.height);
+    o.set({ scaleX: s, scaleY: s }); E().place(o);
+  }
   function svgThumb(k) { var a = MN_ART[k]; return '<svg viewBox="' + a[0] + '" preserveAspectRatio="xMidYMid meet">' + a[1] + '</svg>'; }
   function patThumb(k) {
     var R = '#c11720', sv = function (vb, body) { return '<svg viewBox="' + vb + '" preserveAspectRatio="xMidYMid meet">' + body + '</svg>'; };
@@ -876,6 +893,7 @@
       '<div class="sec-t">Mockup — вэб</div><div class="grid3 kit-tiles">' + mkTiles('web') + '</div>' +
       '<div class="sec-t">Монгол хээ <span>уламжлалт</span></div><div class="grid3 kit-tiles mn-tiles">' +
       MN_PAT.map(function (x) { return '<button type="button" class="tile kt" data-kit-mnp="' + x[0] + '" title="' + x[1] + '">' + patThumb(x[0]) + '<span>' + x[1] + '</span></button>'; }).join('') + '</div>' +
+      '<div class="sec-t">Хээ угалз, уулан хээ <span>эх зургаас</span></div>' + mnTrSection() +
       '<div class="sec-t">Байгаль, гэр</div><div class="grid3 kit-tiles mn-tiles">' +
       MN_NAT.map(function (x) { return '<button type="button" class="tile kt" data-kit-mna="' + x[0] + '" title="' + x[1] + '">' + svgThumb(x[0]) + '<span>' + x[1] + '</span></button>'; }).join('') + '</div>' +
       '<div class="sec-t">Диаграм <span>текст нь засагдана</span></div><div class="grid3 kit-tiles">' +
@@ -932,6 +950,7 @@
       else if (d.kitDg) addDiagram(d.kitDg);
       else if (d.kitMnp) addMnPattern(d.kitMnp);
       else if (d.kitMna) addMnArt(d.kitMna);
+      else if (d.kitMnt) addMnTraced(+d.kitMnt);
       return;
     }
     var o = E().active(); if (!o || !o.gKit) return;
