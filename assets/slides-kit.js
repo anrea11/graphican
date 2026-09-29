@@ -852,7 +852,7 @@
   // traced ornaments (assets/mn-traced.json, vectorised from the owner's reference pictures) — loaded when the panel first opens
   var MN_TR = null, mnTrP = null;
   function mnTraced() {
-    if (!mnTrP) mnTrP = fetch('/assets/mn-traced.json?v=1').then(function (r) { return r.json(); }).then(function (j) { MN_TR = j.items || []; if (document.querySelector('#kit-mntr')) E().refreshUI(); }).catch(function () { mnTrP = null; });
+    if (!mnTrP) mnTrP = fetch('/assets/mn-traced.json?v=2').then(function (r) { return r.json(); }).then(function (j) { MN_TR = j.items || []; if (document.querySelector('#kit-mntr')) E().refreshUI(); }).catch(function () { mnTrP = null; });
     return mnTrP;
   }
   function mnTrSection() {
