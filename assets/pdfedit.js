@@ -1198,10 +1198,12 @@
     ['uk', 'Украин', 'UK'], ['pl', 'Польш', 'PL'], ['pt', 'Португал', 'PT'], ['ar', 'Араб', 'AR'], ['hi', 'Хинди', 'HI'], ['vi', 'Вьетнам', 'VI'], ['th', 'Тай', 'TH'], ['id', 'Индонез', 'ID']];
   function langName(c) { var l = LANGS.filter(function (x) { return x[0] === c; })[0]; return l ? l[1] : c; }
 
+  // PDF translation switch (see TRANSLATE_ON in worker/index.js): false hides «Орчуулах» everywhere in the editor
+  var TRANSLATE_ON = false;
   var RAIL = [
     ['edit', 'Засах'], ['convert', 'Хөрвүүлэх'], ['translate', 'Орчуулах'], ['organize', 'Хуудас'], ['sign', 'Гарын үсэг'],
     ['ai', 'AI хэрэгсэл'], ['fields', 'Талбар нэмэх'], ['share', 'Хуваалцах'], ['secure', 'Хамгаалах']
-  ];
+  ].filter(function (r) { return TRANSLATE_ON || r[0] !== 'translate'; });
   function menuItems(k) {
     if (k === 'convert') return [['word', 'doc', 'Word', '.docx — текстийг засах боломжтой'], ['excel', 'xls', 'Excel', '.xlsx — хүснэгт, тоо'], ['ppt', 'ppt', 'PowerPoint', '.pptx — хуудас бүр нэг слайд'],
       ['jpg', 'img', 'JPG зураг', 'Хуудас бүр зураг (ZIP)'], ['png', 'img', 'PNG зураг', 'Өндөр чанартай (ZIP)'], ['txt', 'txt', 'TXT', 'Зөвхөн текст'], ['more', 'more', 'Бусад', 'Word, Excel, зургийг PDF болгох →']];
@@ -1210,7 +1212,7 @@
       ['blank', 'blank', 'Хоосон хуудас нэмэх'], ['extract', 'split', 'Хуудас задлах', 'Жишээ: 1-3, 5'], ['splitall', 'zip', 'Хуудас бүрийг тусад нь', 'ZIP'],
       ['pnum', 'num', 'Хуудасны дугаар'], ['compress', 'compress', 'Хэмжээ багасгах']];
     if (k === 'sign') return [['sig', 'sign', 'Гарын үсэг зурах', 'Зурах, бичих эсвэл зургаас'], ['initials', 'initials', 'Нэрийн эхний үсэг'], ['date', 'date', 'Өнөөдрийн огноо'], ['check', 'check', '✓ тэмдэг'], ['cross', 'cross', '✗ тэмдэг']];
-    if (k === 'ai') return [['sum', 'sum', 'Хураангуйлах', 'Гол санааг товч гаргана'], ['ask', 'ask', 'PDF-ээс асуух', 'Баримтын талаар асуулт асуух'], ['tr:menu', 'translate', 'Орчуулах', 'Байршлыг хадгалж орчуулна'], ['ocr', 'ocr', 'Текст таних (OCR)', 'Скан зургийн бичгийг засагддаг болгоно']];
+    if (k === 'ai') return [['sum', 'sum', 'Хураангуйлах', 'Гол санааг товч гаргана'], ['ask', 'ask', 'PDF-ээс асуух', 'Баримтын талаар асуулт асуух']].concat(TRANSLATE_ON ? [['tr:menu', 'translate', 'Орчуулах', 'Байршлыг хадгалж орчуулна']] : [], [['ocr', 'ocr', 'Текст таних (OCR)', 'Скан зургийн бичгийг засагддаг болгоно']]);
     if (k === 'fields') return [['f:text', 'tfield', 'Текст талбар'], ['f:multi', 'mfield', 'Олон мөрт текст'], ['f:check', 'cbox', 'Сонголтын нүд'], ['f:date', 'date', 'Огнооны талбар'], ['f:sign', 'sign', 'Гарын үсгийн талбар']];
     if (k === 'share') return [['share', 'share', 'Хуваалцах…', 'Messenger, имэйл, бусад апп'], ['print', 'print', 'Хэвлэх'], ['mail', 'mail', 'Имэйлээр илгээх', 'Татаад имэйлд хавсаргана']];
     if (k === 'secure') return [['pw', 'secure', 'Нууц үгээр хамгаалах', 'AES-256 шифрлэлт'], ['unpw', 'unlock', 'Нууц үгийг арилгах'], ['wm', 'wm', 'Усан тэмдэг'], ['flat', 'wo', 'Нууцлалтай хадгалах', 'Цайруулсан мэдээллийг бүрмөсөн устгана']];
@@ -1517,6 +1519,7 @@
   }
   // ---------- translate (/api/ai/translate: Microsoft Translator → Workers AI) ----------
   function translateDialog(target) {
+    if (!TRANSLATE_ON) return toast('Орчуулга түр хаалттай байна');
     var sample = '';
     var first = pages.filter(function (p) { return p.src >= 0; })[0];
     var ready = first ? viewLines(first).then(function (ls) { sample = ls.map(function (l) { return l.text; }).join(' ').slice(0, 2000); }) : Promise.resolve();
@@ -1989,6 +1992,7 @@
   var DO_LABEL = { word: 'Word болгох', excel: 'Excel болгох', ppt: 'PowerPoint болгох', jpg: 'зураг болгох', topdf: 'PDF болгох', translate: 'орчуулах',
     merge: 'нэгтгэх', extract: 'хуудас салгах', compress: 'хэмжээ багасгах', sig: 'гарын үсэг зурах', pw: 'нууц үг тавих', unpw: 'нууц үг арилгах',
     ocr: 'текст таниулах', edit: 'засах', fill: 'бөглөх', pnum: 'хуудасны дугаар нэмэх', wm: 'усан тэмдэг нэмэх', sum: 'хураангуйлах' };
+  if (!TRANSLATE_ON) delete DO_LABEL.translate;
   pendingDo = (function () { try { var v = new URLSearchParams(location.search).get('do'); return DO_LABEL[v] ? v : null; } catch (e) { return null; } })();
   if (pendingDo) { var dt = $('#pe-drop b'); if (dt) dt.textContent = (pendingDo === 'topdf' || pendingDo === 'merge' ? 'Файлуудаа' : 'PDF-ээ') + ' оруулна уу — ' + DO_LABEL[pendingDo]; }
   runDo = function (a) {

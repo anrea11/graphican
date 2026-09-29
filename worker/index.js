@@ -172,6 +172,9 @@ async function video(url, env, ctx, request) {
 }
 
 // ---------- Workers AI ----------
+// PDF translation switch. false = /api/ai/translate answers 503 {error:'disabled'} and /tools/translate-pdf/ redirects to the PDF editor.
+// To turn it back on: set true here and in assets/pdfedit.js, and remove the translate-pdf rule from assets/style.css and assets/pdfedit.css.
+const TRANSLATE_ON = false;
 const ALLOWED = /^https?:\/\/(graphican\.online|www\.graphican\.online|[\w-]+\.[\w-]+\.workers\.dev|localhost(:\d+)?|127\.0\.0\.1(:\d+)?)$/;
 function allowed(request) {
   const o = request.headers.get('origin') || '';
@@ -385,6 +388,10 @@ export default {
       return i18n(request, env, ctx);
     }
     const url = new URL(request.url);
+    if (url.pathname.startsWith('/tools/translate-pdf')) {
+      if (!TRANSLATE_ON) return Response.redirect(new URL('/tools/pdfedit/', url).toString(), 302);
+      return env.ASSETS.fetch(request);
+    }
     if (url.pathname === '/api/log') return clientLog(request);
     if (url.pathname === '/api/stock') return search(url, env, ctx);
     if (url.pathname === '/api/stock/file') return file(url, request);
@@ -422,6 +429,7 @@ export default {
       if (request.method !== 'POST') return json({ error: 'method' }, 405);
       if (!allowed(request)) return json({ error: 'forbidden' }, 403);
       const chat = url.pathname === '/api/ai/chat';
+      if (!chat && !TRANSLATE_ON) return json({ error: 'disabled' }, 503, { 'cache-control': 'no-store' });
       if (await overLimit(request, chat ? 'chat' : 'tr', chat ? 6 : 30, chat ? 40 : 400)) return json({ error: 'rate_limit' }, 429, { 'retry-after': '60' });
       return chat ? aiChat(request, env) : aiTranslate(request, env, ctx);
     }

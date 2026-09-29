@@ -243,3 +243,6 @@ input[type=range] { flex:1; accent-color:var(--acc); min-width:0; }
   .dgrid { grid-template-columns:1fr; gap:4px; }
   .dgrid label { margin-top:4px; }
 }
+
+/* PDF translation is switched off for now (TRANSLATE_ON in worker/index.js) */
+a[href^="/tools/translate-pdf"] { display: none !important; }
