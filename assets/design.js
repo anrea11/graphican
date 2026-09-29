@@ -865,123 +865,6 @@
       s.onload = function () { res(); }; s.onerror = rej; document.head.appendChild(s);
     });
   }
-  // Real-ESRGAN (general-x4v3 + wdn-x4v3, SRVGGNetCompact) implemented directly on TF.js ops.
-  var esr = { tf: null, man: null, bins: {}, nets: {} };
-  function f16to32(u16) {
-    var out = new Float32Array(u16.length);
-    for (var i = 0; i < u16.length; i++) {
-      var h = u16[i], s = (h & 0x8000) ? -1 : 1, e = (h >> 10) & 0x1f, f = h & 0x3ff;
-      out[i] = e === 0 ? s * Math.pow(2, -14) * (f / 1024) : e === 31 ? (f ? NaN : s * Infinity) : s * Math.pow(2, e - 15) * (1 + f / 1024);
-    }
-    return out;
-  }
-  function esrReady() {
-    if (esr.ready) return esr.ready;
-    esr.ready = loadScript('/assets/vendor/tf.min.js').then(function () {
-      esr.tf = window.tf;
-      return esr.tf.ready().then(function () {
-        return Promise.all([
-          fetch('/assets/vendor/realesr/model.json').then(function (r) { return r.json(); }),
-          fetch('/assets/vendor/realesr/general.bin').then(function (r) { return r.arrayBuffer(); }),
-          fetch('/assets/vendor/realesr/wdn.bin').then(function (r) { return r.arrayBuffer(); })
-        ]);
-      });
-    }).then(function (r) {
-      esr.man = r[0];
-      esr.bins.general = f16to32(new Uint16Array(r[1]));
-      esr.bins.wdn = f16to32(new Uint16Array(r[2]));
-    });
-    return esr.ready;
-  }
-  // denoise 0..1 → blend of the two official models (same as Real-ESRGAN's "denoise strength")
-  function esrNet(denoise) {
-    var key = denoise.toFixed(2);
-    if (esr.nets[key]) return esr.nets[key];
-    Object.keys(esr.nets).forEach(function (k) { esr.nets[k].forEach(function (l) { l.w && l.w.dispose(); l.b && l.b.dispose(); l.a && l.a.dispose(); }); delete esr.nets[k]; });
-    var tf = esr.tf, g = esr.bins.general, n = esr.bins.wdn, off = 0, layers = [];
-    function take(len) {
-      var o = new Float32Array(len);
-      for (var i = 0; i < len; i++) o[i] = denoise * g[off + i] + (1 - denoise) * n[off + i];
-      off += len; return o;
-    }
-    esr.man.layers.forEach(function (L) {
-      if (L.t === 'conv') {
-        var sh = L.shape, sz = sh[0] * sh[1] * sh[2] * sh[3];
-        layers.push({ t: 'conv', w: tf.tensor4d(take(sz), sh), b: tf.tensor1d(take(sh[3])) });
-      } else {
-        layers.push({ t: 'prelu', a: tf.tensor1d(take(L.n)) });
-      }
-    });
-    esr.nets[key] = layers;
-    return layers;
-  }
-  function esrInfer(x, layers) { // x: [1,H,W,3] 0..1 → [1,4H,4W,3]
-    var tf = esr.tf;
-    return tf.tidy(function () {
-      var h = x;
-      layers.forEach(function (L) {
-        if (L.t === 'conv') h = tf.add(tf.conv2d(h, L.w, 1, 'same'), L.b);
-        else h = tf.prelu(h, L.a);
-      });
-      h = tf.depthToSpace(h, 4, 'NHWC');
-      var up = tf.image.resizeNearestNeighbor(x, [x.shape[1] * 4, x.shape[2] * 4]);
-      return tf.clipByValue(tf.add(h, up), 0, 1);
-    });
-  }
-  // tiled upscale → canvas at outScale (2 or 4)
-  function esrUpscale(srcCanvas, outScale, denoise, onProgress) {
-    var tf = esr.tf, layers = esrNet(denoise);
-    var W = srcCanvas.width, H = srcCanvas.height, T = 96, P = 8, k = outScale / 4;
-    var out = document.createElement('canvas'); out.width = W * outScale; out.height = H * outScale;
-    var octx = out.getContext('2d'); octx.imageSmoothingQuality = 'high';
-    var tileC = document.createElement('canvas');
-    var src = tf.tidy(function () { return tf.browser.fromPixels(srcCanvas).toFloat().div(255); });
-    var tiles = [];
-    for (var y = 0; y < H; y += T) for (var x = 0; x < W; x += T) tiles.push([x, y]);
-    var i = 0;
-    function step() {
-      if (i >= tiles.length) { src.dispose(); return Promise.resolve(out); }
-      var x = tiles[i][0], y = tiles[i][1];
-      var tw = Math.min(T, W - x), th = Math.min(T, H - y);
-      var x0 = Math.max(0, x - P), y0 = Math.max(0, y - P), x1 = Math.min(W, x + tw + P), y1 = Math.min(H, y + th + P);
-      var res = tf.tidy(function () {
-        var crop = src.slice([y0, x0, 0], [y1 - y0, x1 - x0, 3]).expandDims(0);
-        var o = esrInfer(crop, layers).squeeze();
-        return o.slice([(y - y0) * 4, (x - x0) * 4, 0], [th * 4, tw * 4, 3]);
-      });
-      tileC.width = tw * 4; tileC.height = th * 4;
-      return tf.browser.toPixels(res, tileC).then(function () {
-        res.dispose();
-        octx.drawImage(tileC, x * outScale, y * outScale, tw * outScale, th * outScale);
-        i++; onProgress(i / tiles.length);
-        return tf.nextFrame().then(step);
-      });
-    }
-    return step();
-  }
-
-  // light unsharp mask on the upscaled canvas (amount 0..1)
-  function sharpen(canvas, amount) {
-    if (!amount) return canvas;
-    var w = canvas.width, h = canvas.height, ctx = canvas.getContext('2d');
-    var src = ctx.getImageData(0, 0, w, h), d = src.data, out = ctx.createImageData(w, h), o = out.data;
-    var a = amount, c = 1 + 4 * a;
-    for (var y = 0; y < h; y++) {
-      for (var x = 0; x < w; x++) {
-        var i = (y * w + x) * 4;
-        var up = ((y > 0 ? y - 1 : y) * w + x) * 4, dn = ((y < h - 1 ? y + 1 : y) * w + x) * 4;
-        var lf = (y * w + (x > 0 ? x - 1 : x)) * 4, rt = (y * w + (x < w - 1 ? x + 1 : x)) * 4;
-        for (var k = 0; k < 3; k++) {
-          var v = c * d[i + k] - a * (d[up + k] + d[dn + k] + d[lf + k] + d[rt + k]);
-          o[i + k] = v < 0 ? 0 : v > 255 ? 255 : v;
-        }
-        o[i + 3] = d[i + 3];
-      }
-    }
-    ctx.putImageData(out, 0, 0);
-    return canvas;
-  }
-
   function setupUpscale() {
     var root = document.getElementById('upscale');
     if (!root) return;
@@ -1034,12 +917,18 @@
       bar.hidden = false; barI.style.width = '0%';
       st.textContent = 'AI загвар ачаалж байна…';
       var t0 = performance.now(), dn = +$('[data-opt="denoise"]').value;
-      esrReady().then(function () {
-        st.textContent = 'Сайжруулж байна… 0% (' + esr.tf.getBackend() + ')';
-        return esrUpscale(c, scale, dn, function (p) { var pc = Math.round(p * 100); barI.style.width = pc + '%'; st.textContent = 'Сайжруулж байна… ' + pc + '%'; });
+      // same engine as the Editor (assets/upscaler.js): keeps transparency, keeps going in a background tab
+      (window.GUpscale ? Promise.resolve() : loadScript('/assets/upscaler.js?v=2')).then(function () {
+        return window.GUpscale.ready();
+      }).then(function () {
+        st.textContent = 'Сайжруулж байна… 0% (' + window.GUpscale.backend() + ')';
+        return window.GUpscale.run(c, { scale: scale, denoise: dn, sharpen: amt }, function (p) { var pc = Math.round(p * 100); barI.style.width = pc + '%'; st.textContent = 'Сайжруулж байна… ' + pc + '%'; });
       }).then(function (out) {
-        resultCanvas = sharpen(out, amt);
-        after.src = resultCanvas.toDataURL('image/jpeg', .92);
+        resultCanvas = out;
+        return new Promise(function (res) { out.toBlob(res, 'image/png'); });
+      }).then(function (blob) {
+        if (after.dataset.url) URL.revokeObjectURL(after.dataset.url);
+        after.src = after.dataset.url = URL.createObjectURL(blob);
         var sec = ((performance.now() - t0) / 1000).toFixed(1);
         meta.textContent = c.width + ' × ' + c.height + ' px → ' + resultCanvas.width + ' × ' + resultCanvas.height + ' px · ' + sec + ' сек';
         st.textContent = 'Болсон! Гулсуулагчаар өмнө / дараа харьцуулаад татаж аваарай.';
@@ -1057,7 +946,12 @@
       var jpg = $('[data-opt="upfmt"]').value === 'jpg';
       var scale = $('[data-opt="upx"]').value;
       var name = (file ? file.name.replace(/\.[^.]+$/, '') : 'image') + '-upscaled-' + scale + 'x.' + (jpg ? 'jpg' : 'png');
-      resultCanvas.toBlob(function (b) { saveBlob(name, b); toast(name + ' татагдлаа'); }, jpg ? 'image/jpeg' : 'image/png', .95);
+      var outC = resultCanvas;
+      if (jpg) { // JPG has no transparency: put it on white instead of black
+        outC = document.createElement('canvas'); outC.width = resultCanvas.width; outC.height = resultCanvas.height;
+        var ox = outC.getContext('2d'); ox.fillStyle = '#ffffff'; ox.fillRect(0, 0, outC.width, outC.height); ox.drawImage(resultCanvas, 0, 0);
+      }
+      outC.toBlob(function (b) { saveBlob(name, b); toast(name + ' татагдлаа'); }, jpg ? 'image/jpeg' : 'image/png', .95);
     });
   }
 

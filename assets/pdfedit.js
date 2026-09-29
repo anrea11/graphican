@@ -100,6 +100,7 @@
 
   // ---------- state ----------
   var sources = [];   // { bytes, doc (pdf.js), name, pl (pdf-lib doc promise) }
+  var origBytes = 0;  // total size of the files the user opened (what "compress" is measured against)
   var pages = [];     // { id, src, idx, rot0, rot, view, objs, fab, el, canvas, rs, thumb }
   var zoom = 1, fitMode = true, mode = 'select', cur = null, selPages = {};
   var style = { color: '#1e1e1e', stroke: '#e5484d', width: 2, fill: '', hl: '#ffd84d', font: 'Inter', size: 14, bold: false, align: 'left', opacity: 1 };
@@ -164,6 +165,7 @@
         return pr.then(function () {
           var k = G.kind(f);
           if (k !== 'pdf') busy(true, '«' + f.name + '» → PDF болгож байна…');
+          origBytes += f.size || 0;
           return G.toPdf(f).then(function (bytes) {
             return openPdf(pdfjsLib, bytes, f.name).then(function (si) {
               var d = sources[si].doc, list = [];
@@ -1024,6 +1026,19 @@
           if (!(i in srcDocs)) srcDocs[i] = PL.PDFDocument.load(sources[i].bytes, sources[i].pw != null ? { password: sources[i].pw, updateMetadata: false } : { updateMetadata: false }).catch(function () { return null; });
           return srcDocs[i];
         }
+        // copy all pages of one source in a single copyPages call: images / fonts shared between pages are
+        // copied once (page-by-page copying duplicated them and tripled the file size)
+        var need = {}, copied = {};
+        list.forEach(function (p) { if (p.src >= 0) (need[p.src] = need[p.src] || []).push(p); });
+        function copyFor(p, sd) {
+          if (!copied[p.src]) {
+            var ps = need[p.src];
+            copied[p.src] = out.copyPages(sd, ps.map(function (x) { return x.idx; })).then(function (cp) {
+              var m = new Map(); ps.forEach(function (x, i) { m.set(x, cp[i]); }); return m;
+            });
+          }
+          return copied[p.src].then(function (m) { return m.get(p); });
+        }
         return list.reduce(function (pr, p) {
           return pr.then(function () {
             var d = dims(p);
@@ -1051,7 +1066,7 @@
             function normal() {
             var mk = p.src < 0 ? Promise.resolve(out.addPage([d.w, d.h])) :
               srcDoc(p.src).then(function (sd) {
-                if (sd) return out.copyPages(sd, [p.idx]).then(function (cp) { var pg = out.addPage(cp[0]); pg.setRotation(PL.degrees(R(p))); return pg; });
+                if (sd) return copyFor(p, sd).then(function (cpg) { var pg = out.addPage(cpg); pg.setRotation(PL.degrees(R(p))); return pg; });
                 // encrypted / unreadable by pdf-lib: keep the look by embedding a high-res render
                 return rasterPage(p).then(function (c) {
                   return G.embedCanvas(out, c).then(function (im) {
@@ -1772,7 +1787,8 @@
           };
           return step().then(function (bytes) {
             busy(false);
-            var a = r.bytes.length, b = bytes.length;
+            // compare with the file the user brought, not the (bigger) rebuilt copy
+            var a = origBytes && origBytes < r.bytes.length ? origBytes : r.bytes.length, b = bytes.length;
             if (b >= a) { toast('Энэ файл аль хэдийн жижиг байна (' + kb(a) + '). Шахах шаардлагагүй.', 5000); return; }
             saveBlob(outName('pdf', '-small'), new Blob([bytes], { type: 'application/pdf' }));
             toast(kb(a) + ' → ' + kb(b) + ' (' + Math.round((1 - b / a) * 100) + '% багассан) ✓', 5000);

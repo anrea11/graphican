@@ -4145,7 +4145,7 @@
   // ================= AI upscale inside the editor (Real-ESRGAN, in the browser) =================
   var upP = null;
   function upReady() {
-    if (!upP) upP = (window.GUpscale ? Promise.resolve() : loadScript('/assets/upscaler.js')).then(function () { return window.GUpscale.ready(); });
+    if (!upP) upP = (window.GUpscale ? Promise.resolve() : loadScript('/assets/upscaler.js?v=2')).then(function () { return window.GUpscale.ready(); });
     upP.catch(function () { upP = null; });
     return upP;
   }
