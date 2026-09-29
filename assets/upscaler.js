@@ -99,7 +99,8 @@
         res.dispose();
         octx.drawImage(tileC, x * outScale, y * outScale, tw * outScale, th * outScale);
         i++; onProgress(i / tiles.length);
-        return tf.nextFrame().then(step);
+        // requestAnimationFrame (tf.nextFrame) never fires in a background tab — the job would freeze there
+        return (document.hidden ? new Promise(function (r) { setTimeout(r, 0); }) : tf.nextFrame()).then(step);
       });
     }
     return step();
