@@ -1255,8 +1255,6 @@
 
   // ---------- AI background remover (U²-Net-P via ONNX Runtime Web, runs in the browser) ----------
 
-  var ORT_VER = '1.30.0';
-  var ORT_BASE = 'https://cdn.jsdelivr.net/npm/onnxruntime-web@' + ORT_VER + '/dist/';
 
   function bgSection(b) {
     return (
@@ -1293,73 +1291,8 @@
     );
   }
 
-  var rmbg = { session: null, ready: null };
-  function rmbgReady() {
-    if (rmbg.ready) return rmbg.ready;
-    rmbg.ready = loadScript(ORT_BASE + 'ort.min.js').then(function () {
-      var ort = window.ort;
-      ort.env.wasm.wasmPaths = ORT_BASE;
-      ort.env.wasm.numThreads = window.crossOriginIsolated ? Math.min(4, navigator.hardwareConcurrency || 1) : 1;
-      return ort.InferenceSession.create('/assets/vendor/u2netp.onnx', { executionProviders: ['wasm'], graphOptimizationLevel: 'all' });
-    }).then(function (s) { rmbg.session = s; });
-    rmbg.ready.catch(function () { rmbg.ready = null; });
-    return rmbg.ready;
-  }
-
-  // → Float32Array mask (320×320, 0..1)
-  function rmbgMask(img) {
-    var S = 320, c = document.createElement('canvas');
-    c.width = S; c.height = S;
-    var cx = c.getContext('2d');
-    cx.drawImage(img, 0, 0, S, S);
-    var px = cx.getImageData(0, 0, S, S).data, n = S * S;
-    var max = 1;
-    for (var i = 0; i < n * 4; i++) if ((i & 3) !== 3 && px[i] > max) max = px[i];
-    var mean = [0.485, 0.456, 0.406], std = [0.229, 0.224, 0.225];
-    var data = new Float32Array(3 * n);
-    for (var p = 0; p < n; p++) {
-      for (var k = 0; k < 3; k++) data[k * n + p] = (px[p * 4 + k] / max - mean[k]) / std[k];
-    }
-    var ort = window.ort, s = rmbg.session, feeds = {};
-    feeds[s.inputNames[0]] = new ort.Tensor('float32', data, [1, 3, S, S]);
-    return s.run(feeds).then(function (out) {
-      var m = out[s.outputNames[0]].data, lo = Infinity, hi = -Infinity, j;
-      for (j = 0; j < n; j++) { if (m[j] < lo) lo = m[j]; if (m[j] > hi) hi = m[j]; }
-      var r = new Float32Array(n), span = (hi - lo) || 1;
-      for (j = 0; j < n; j++) r[j] = (m[j] - lo) / span;
-      return r;
-    });
-  }
-
-  // mask → full-size cut-out canvas (optionally over a solid colour)
-  function rmbgCompose(img, mask, edge, fill) {
-    var S = 320, W = img.naturalWidth, H = img.naturalHeight;
-    var mc = document.createElement('canvas'); mc.width = S; mc.height = S;
-    var mctx = mc.getContext('2d'), md = mctx.createImageData(S, S);
-    var curve = { soft: [0.05, 0.95], mid: [0.2, 0.8], hard: [0.4, 0.6] }[edge] || [0.2, 0.8];
-    for (var i = 0; i < S * S; i++) {
-      var a = (mask[i] - curve[0]) / (curve[1] - curve[0]);
-      md.data[i * 4 + 3] = a <= 0 ? 0 : a >= 1 ? 255 : Math.round(a * 255);
-    }
-    mctx.putImageData(md, 0, 0);
-    // upscale the mask smoothly to the photo size
-    var am = document.createElement('canvas'); am.width = W; am.height = H;
-    var actx = am.getContext('2d'); actx.imageSmoothingEnabled = true; actx.imageSmoothingQuality = 'high';
-    actx.drawImage(mc, 0, 0, W, H);
-    // cut the photo with it
-    var out = document.createElement('canvas'); out.width = W; out.height = H;
-    var o = out.getContext('2d');
-    o.drawImage(img, 0, 0, W, H);
-    o.globalCompositeOperation = 'destination-in';
-    o.drawImage(am, 0, 0);
-    o.globalCompositeOperation = 'source-over';
-    if (fill && fill !== 'none') {
-      var f = document.createElement('canvas'); f.width = W; f.height = H;
-      var fx2 = f.getContext('2d'); fx2.fillStyle = fill; fx2.fillRect(0, 0, W, H); fx2.drawImage(out, 0, 0);
-      return f;
-    }
-    return out;
-  }
+  // model, mask clean-up and edge colour decontamination live in /assets/rmbg.js (shared with the Editor)
+  function rmbgLib() { return window.GRmbg ? Promise.resolve(window.GRmbg) : loadScript('/assets/rmbg.js?v=1').then(function () { return window.GRmbg; }); }
 
   function setupBgRemove() {
     var root = document.getElementById('bgremove');
@@ -1377,7 +1310,7 @@
     function fill() { return fillSel.value === 'custom' ? colorInp.value : fillSel.value; }
     function render() {
       if (!mask) return;
-      result = rmbgCompose(srcImg, mask, edgeSel.value, fill());
+      result = window.GRmbg.cutout(srcImg, mask, edgeSel.value, fill());
       after.src = result.toDataURL('image/png');
     }
     fillSel.addEventListener('change', function () { colorWrap.hidden = fillSel.value !== 'custom'; render(); });
@@ -1398,9 +1331,9 @@
       bar.hidden = false; barI.style.width = '15%';
       st.textContent = 'AI загвар ачаалж байна…';
       var t0 = performance.now();
-      rmbgReady().then(function () {
+      rmbgLib().then(function (R) { return R.ready(); }).then(function () {
         barI.style.width = '55%'; st.textContent = 'Дэвсгэрийг илрүүлж байна…';
-        return new Promise(function (r) { setTimeout(r, 30); }).then(function () { return rmbgMask(srcImg); });
+        return new Promise(function (r) { setTimeout(r, 30); }).then(function () { return window.GRmbg.alpha(srcImg); });
       }).then(function (m) {
         mask = m; render();
         barI.style.width = '100%';
@@ -1473,7 +1406,32 @@
     function $(s) { return root.querySelector(s); }
     var grid = $('.sc-grid'), st = $('[data-status="sc"]'), zipBtn = $('[data-act="sc-zip"]');
     var modeSel = $('[data-opt="scmode"]'), fmtSel = $('[data-opt="scfmt"]');
-    var file = null, srcImg = null, crops = {}, gen = 0;
+    var file = null, srcImg = null, crops = {}, gen = 0, facesP = null;
+
+    // faces (MediaPipe, assets/faces.js) — found once per photo; [] if none or the detector can't load
+    function getFaces() {
+      if (!facesP) facesP = (window.GFaces ? Promise.resolve() : loadScript('/assets/faces.js?v=1')).then(function () { return window.GFaces.detect(srcImg); }).catch(function () { return []; });
+      return facesP;
+    }
+    // keep every (big enough) face — with room for hair above and chin below — inside the crop window
+    function fitFaces(r, faces) {
+      if (!faces.length) return r;
+      var W = srcImg.naturalWidth, H = srcImg.naturalHeight, big = Math.max.apply(null, faces.map(function (f) { return f.w * f.h; }));
+      var keep = faces.filter(function (f) { return f.w * f.h >= big * 0.15; });
+      var box = function (f) { return { x0: Math.max(0, f.x - f.w * 0.25), y0: Math.max(0, f.y - f.h * 0.6), x1: Math.min(W, f.x + f.w * 1.25), y1: Math.min(H, f.y + f.h * 1.25) }; };
+      var u = keep.map(box).reduce(function (a, b) { return { x0: Math.min(a.x0, b.x0), y0: Math.min(a.y0, b.y0), x1: Math.max(a.x1, b.x1), y1: Math.max(a.y1, b.y1) }; });
+      var out = { x: r.x, y: r.y, width: r.width, height: r.height };
+      if (u.x1 - u.x0 > r.width || u.y1 - u.y0 > r.height) {   // too many / too spread: frame the largest face (eyes near the upper third)
+        var f = keep.filter(function (q) { return q.w * q.h === big; })[0], b = box(f);
+        u = { x0: (b.x0 + b.x1) / 2, x1: (b.x0 + b.x1) / 2, y0: f.y + f.h * 0.4 - r.height * 0.36, y1: f.y + f.h * 0.4 - r.height * 0.36 + Math.min(r.height, b.y1 - b.y0) };
+        out.x = u.x0 - r.width / 2; out.y = u.y0;
+      } else {
+        out.x = Math.min(Math.max(out.x, u.x1 - r.width), u.x0);
+        out.y = Math.min(Math.max(out.y, u.y1 - r.height), u.y0);
+      }
+      out.x = Math.max(0, Math.min(W - r.width, out.x)); out.y = Math.max(0, Math.min(H - r.height, out.y));
+      return out;
+    }
 
     function selected() {
       var on = Array.from(root.querySelectorAll('.sz input:checked')).map(function (i) { return i.value; });
@@ -1550,24 +1508,27 @@
       if (!sizes.length) { st.textContent = 'Дор хаяж нэг хэмжээ сонгоно уу.'; return; }
       st.textContent = 'Чухал хэсгийг олж байна…';
       var need = modeSel.value === 'crop' ? sizes.filter(function (s) { return !crops[s.id]; }) : [];
-      var chain = need.length ? loadScript('https://cdn.jsdelivr.net/npm/smartcrop@2.0.5/smartcrop.js') : Promise.resolve();
-      chain.then(function () {
+      var nFaces = 0;
+      var chain = need.length ? Promise.all([window.smartcrop ? null : loadScript('https://cdn.jsdelivr.net/npm/smartcrop@2.0.5/smartcrop.js'), getFaces()]) : Promise.resolve([null, []]);
+      chain.then(function (r) {
+        var faces = r[1] || []; nFaces = faces.length;
+        var boost = faces.map(function (f) { return { x: f.x, y: f.y, width: f.w, height: f.h, weight: 1 }; });
         return need.reduce(function (p, s) {
           return p.then(function () {
-            return window.smartcrop.crop(srcImg, { width: s.w, height: s.h, minScale: 1 }).then(function (res) { crops[s.id] = res.topCrop; });
+            return window.smartcrop.crop(srcImg, { width: s.w, height: s.h, minScale: 1, boost: boost }).then(function (res) { crops[s.id] = fitFaces(res.topCrop, faces); });
           });
         }, Promise.resolve());
       }).then(function () {
         if (my !== gen) return;
         sizes.forEach(function (s) { grid.appendChild(tile(s)); });
-        st.textContent = sizes.length + ' хэмжээ бэлэн. Тус бүрийг ↓ эсвэл бүгдийг ZIP-ээр татна.';
+        st.textContent = sizes.length + ' хэмжээ бэлэн' + (nFaces ? ' · ' + nFaces + ' нүүр олж, тайралтад багтаалаа' : '') + '. Тус бүрийг ↓ эсвэл бүгдийг ZIP-ээр татна.';
       }).catch(function (e) {
         console.error(e);
         st.textContent = 'Алдаа гарлаа. Интернэт холболтоо шалгаад дахин оролдоно уу.';
       });
     }
 
-    FLOW.socialcrop = wireImageDrop($('[data-drop="sc"]'), function (img, f) { file = f; srcImg = img; crops = {}; $('[data-flow="sc"]').hidden = true; build(); });
+    FLOW.socialcrop = wireImageDrop($('[data-drop="sc"]'), function (img, f) { file = f; srcImg = img; crops = {}; facesP = null; $('[data-flow="sc"]').hidden = true; build(); });
     root.querySelectorAll('.sz input').forEach(function (i) { i.addEventListener('change', build); });
     modeSel.addEventListener('change', build);
 
