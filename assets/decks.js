@@ -564,9 +564,10 @@
     ] }
   ];
 
-  // decks2.js (loaded first) adds the newer decks, several of them with video slides
+  // decks2.js, decks3.js, decks4.js (loaded first) add the newer decks, several of them with video slides
   DECKS = DECKS.concat(G.moreDecks || []);
-  var ORDER = ['pitch', 'travel', 'swiss', 'hotel', 'fashion', 'editorial', 'cyber', 'fine', 'report', 'dashboard', 'event', 'agency', 'resto', 'luxury', 'coffee', 'cafe', 'vpitch', 'fitness', 'brutal', 'estate', 'corporate', 'interior', 'cinema', 'realty', 'wedding', 'portfolio', 'biz', 'clinic', 'creative', 'mongolia', 'edu'];
+  // the 15 decks from the user's PowerPoint files (decks4.js) come first
+  var ORDER = ['u-minimal', 'u-navy', 'u-corporate', 'u-geometric', 'u-gold', 'u-startup', 'u-mongol', 'u-tech', 'u-editorial', 'u-eco', 'u-data', 'u-agency', 'u-pitch', 'u-health', 'u-industrial', 'pitch', 'travel', 'swiss', 'hotel', 'fashion', 'editorial', 'cyber', 'fine', 'report', 'dashboard', 'event', 'agency', 'resto', 'luxury', 'coffee', 'cafe', 'vpitch', 'fitness', 'brutal', 'estate', 'corporate', 'interior', 'cinema', 'realty', 'wedding', 'portfolio', 'biz', 'clinic', 'creative', 'mongolia', 'edu'];
   var ix = function (d) { var i = ORDER.indexOf(d.id); return i < 0 ? 99 : i; };
   DECKS.sort(function (a, b) { return ix(a) - ix(b); });
   DECKS.forEach(function (d) {
