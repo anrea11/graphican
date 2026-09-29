@@ -739,6 +739,177 @@
   };
   var DG_ICON = { process: '<path d="M2 8h5l2 4-2 4H2l2-4zM10 8h5l2 4-2 4h-5l2-4z"/><path d="M19 12h3"/>', timeline: '<path d="M2 12h20"/><circle cx="6" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="18" cy="12" r="2"/><path d="M6 6v3M12 15v3M18 6v3"/>',
     kpi: '<rect x="2" y="6" width="6" height="12" rx="1.5"/><rect x="9" y="6" width="6" height="12" rx="1.5"/><rect x="16" y="6" width="6" height="12" rx="1.5"/>', pyramid: '<path d="M12 3 3 20h18z"/><path d="M8.2 10.5h7.6M5.5 15.5h13"/>' };
+
+  // ================= Mongolian ornaments & nature =================
+  // Only traditional ornaments, redrawn to the geometry of reference drawings the site owner supplied (none invented):
+  //   Өлзий хээ — endless knot: 4×4 woven lattice, loops at the corners and sides, over/under alternating;
+  //               also as a ribbon (double line), with square loops, as a plain rhombus lattice and inside a ring
+  //   Алхан хээ — «hammer» band: a row of bars, each with a stem down to a running line, between two rails
+  //   Ороолт хээ — continuous square key (meander) band
+  function ulziiD(ox, oy, k, gap, diamond) {   // path in a 120×120 box, placed at (ox, oy) and scaled by k; diamond = turned 45°
+    var P = [30, 50, 70, 90], g = gap == null ? 5 : gap, d = '', px = 0, c45 = Math.SQRT1_2;
+    // X(x) remembers x so Y(y) can rotate the point (x, y) about the box centre
+    var X = function (v) { px = v; return diamond ? '' : (ox + v * k).toFixed(2); };
+    var Y = function (v) {
+      if (!diamond) return (oy + v * k).toFixed(2);
+      var dx = px - 60, dy = v - 60;
+      return (ox + (60 + (dx - dy) * c45) * k).toFixed(2) + ' ' + (oy + (60 + (dx + dy) * c45) * k).toFixed(2);
+    };
+    P.forEach(function (y, i) { var x = 30, seg = []; P.forEach(function (cx, j) { if ((i + j) % 2 === 1) { seg.push([x, cx - g]); x = cx + g; } }); seg.push([x, 90]);
+      seg.forEach(function (q) { if (q[1] > q[0]) d += 'M' + X(q[0]) + ' ' + Y(y) + 'L' + X(q[1]) + ' ' + Y(y); }); });
+    P.forEach(function (x, j) { var y = 30, seg = []; P.forEach(function (cy, i) { if ((i + j) % 2 === 0) { seg.push([y, cy - g]); y = cy + g; } }); seg.push([y, 90]);
+      seg.forEach(function (q) { if (q[1] > q[0]) d += 'M' + X(x) + ' ' + Y(q[0]) + 'L' + X(x) + ' ' + Y(q[1]); }); });
+    [[30, 30, -5, 30, 30, -5], [90, 30, 125, 30, 90, -5], [30, 90, -5, 90, 30, 125], [90, 90, 125, 90, 90, 125]].forEach(function (c) {
+      d += 'M' + X(c[0]) + ' ' + Y(c[1]) + 'C' + X(c[2]) + ' ' + Y(c[3]) + ' ' + X(c[4]) + ' ' + Y(c[5]) + ' ' + X(c[0]) + ' ' + Y(c[1]); });
+    [[30, 50, 10, 50, 10, 70, 30, 70], [90, 50, 110, 50, 110, 70, 90, 70], [50, 30, 50, 10, 70, 10, 70, 30], [50, 90, 50, 110, 70, 110, 70, 90]].forEach(function (c) {
+      d += 'M' + X(c[0]) + ' ' + Y(c[1]) + 'C' + X(c[2]) + ' ' + Y(c[3]) + ' ' + X(c[4]) + ' ' + Y(c[5]) + ' ' + X(c[6]) + ' ' + Y(c[7]); });
+    return d;
+  }
+  // Өлзий with square loops (as in the rectilinear drawings): same lattice, loops made of straight segments
+  function ulziiSqD(gap) {
+    var P = [30, 50, 70, 90], g = gap == null ? 5 : gap, d = '';
+    P.forEach(function (y, i) { var x = 30, seg = []; P.forEach(function (cx, j) { if ((i + j) % 2 === 1) { seg.push([x, cx - g]); x = cx + g; } }); seg.push([x, 90]);
+      seg.forEach(function (q) { if (q[1] > q[0]) d += 'M' + q[0] + ' ' + y + 'H' + q[1]; }); });
+    P.forEach(function (x, j) { var y = 30, seg = []; P.forEach(function (cy, i) { if ((i + j) % 2 === 0) { seg.push([y, cy - g]); y = cy + g; } }); seg.push([y, 90]);
+      seg.forEach(function (q) { if (q[1] > q[0]) d += 'M' + x + ' ' + q[0] + 'V' + q[1]; }); });
+    d += 'M30 30H6V6H30V30M90 30H114V6H90V30M30 90H6V114H30V90M90 90H114V114H90V90';
+    d += 'M30 50H12V70H30M90 50H108V70H90M50 30V12H70V30M50 90V108H70V90';
+    return d;
+  }
+  // rhombus lattice (the simplest Өлзий drawing): 4 lines each way on the 45° grid
+  function ulziiNetD() {   // diamond (60,0)-(120,60)-(60,120)-(0,60): 4 lines parallel to each pair of edges → 3×3 rhombi
+    var d = '', f = function (v) { return +v.toFixed(2); };
+    [0, 1 / 3, 2 / 3, 1].forEach(function (t) {
+      d += 'M' + f(60 + 60 * t) + ' ' + f(60 * t) + 'L' + f(60 * t) + ' ' + f(60 + 60 * t);
+      d += 'M' + f(60 - 60 * t) + ' ' + f(60 * t) + 'L' + f(120 - 60 * t) + ' ' + f(60 + 60 * t);
+    });
+    return d;
+  }
+  // Алхан хээ: filled; unit 60 wide, band 58 high
+  function hammerD(n) {
+    var r = function (x, y, w, h) { return 'M' + x + ' ' + y + 'h' + w + 'v' + h + 'h' + (-w) + 'z'; }, L = n * 60;
+    var d = r(0, 0, L, 6) + r(0, 34, L, 7) + r(0, 52, L, 6);
+    for (var k = 0; k < n; k++) d += r(k * 60 + 5, 15, 50, 9) + r(k * 60 + 26, 24, 8, 10);
+    return d;
+  }
+  function alkhanD(n, ox, oy) {   // band 48 high, unit 40 wide
+    ox = ox || 0; oy = oy || 0;
+    var d = 'M' + ox + ' ' + oy + 'H' + (ox + n * 40) + 'M' + ox + ' ' + (oy + 48) + 'H' + (ox + n * 40);
+    for (var k = 0; k < n; k++) { var x = ox + k * 40 + 4; d += 'M' + x + ' ' + (oy + 40) + 'V' + (oy + 8) + 'H' + (x + 28) + 'V' + (oy + 32) + 'H' + (x + 10) + 'V' + (oy + 16) + 'H' + (x + 20) + 'V' + (oy + 24) + 'M' + x + ' ' + (oy + 40) + 'H' + (x + 40); }
+    return d;
+  }
+var MN_ART = {
+    ger: ['0 0 240 180', // гэр: toono, roof, walls with band, door
+      '<path d="M20 112 Q120 38 220 112 Z" fill="#f4efe6" stroke="#6b4f3a" stroke-width="3"/>' +
+      '<path d="M24 110 H216 V160 Q120 172 24 160 Z" fill="#fbf8f2" stroke="#6b4f3a" stroke-width="3"/>' +
+      '<path d="M24 118 H216" stroke="#c11720" stroke-width="7"/><path d="M24 128 H216" stroke="#0c324a" stroke-width="3"/>' +
+      '<path d="M60 97 Q120 70 180 97" fill="none" stroke="#6b4f3a" stroke-width="2" opacity=".5"/>' +
+      '<rect x="138" y="40" width="7" height="30" fill="#6b6b6b"/><rect x="135" y="36" width="13" height="6" rx="1" fill="#4f4f4f"/><ellipse cx="120" cy="66" rx="20" ry="7" fill="#6b4f3a"/>' +
+      '<rect x="103" y="124" width="34" height="42" rx="2" fill="#e8742a" stroke="#6b4f3a" stroke-width="3"/><path d="M120 126V164M105 145H135" stroke="#c0561c" stroke-width="2"/>'],
+    mountains: ['0 0 320 160', // уулс: three layers + snow caps
+      '<path d="M0 160 L70 60 L110 100 L170 30 L240 110 L280 70 L320 120 V160Z" fill="#9db4c0"/>' +
+      '<path d="M150 55 L170 30 L190 55 L178 50 L170 58 L160 50Z" fill="#fff"/>' +
+      '<path d="M0 160 L40 115 L90 145 L150 80 L220 150 L270 105 L320 150 V160Z" fill="#5a7d95"/>' +
+      '<path d="M0 160 H320 V150 Q240 128 160 146 T0 142Z" fill="#0c324a"/>'],
+    steppe: ['0 0 320 160', // уул тал: sun, soft hills, grass line
+      '<rect width="320" height="160" fill="#fdf3dc"/><circle cx="238" cy="58" r="26" fill="#f2a93b"/>' +
+      '<path d="M0 118 Q70 70 150 104 T320 92 V160 H0Z" fill="#a9c77a"/>' +
+      '<path d="M0 136 Q90 104 190 132 T320 124 V160 H0Z" fill="#6f9e4f"/>' +
+      '<path d="M0 150 Q120 138 320 150 V160 H0Z" fill="#4b7a3a"/>'],
+    river: ['0 0 320 120', // гол ус: flowing bands
+      '<path d="M0 30 Q40 10 80 30 T160 30 T240 30 T320 30" fill="none" stroke="#7fb3d5" stroke-width="10" stroke-linecap="round"/>' +
+      '<path d="M0 60 Q40 40 80 60 T160 60 T240 60 T320 60" fill="none" stroke="#3f88c5" stroke-width="10" stroke-linecap="round"/>' +
+      '<path d="M0 90 Q40 70 80 90 T160 90 T240 90 T320 90" fill="none" stroke="#1d5a8c" stroke-width="10" stroke-linecap="round"/>'],
+    lake: ['0 0 320 160', // нуур: mountains mirrored in water
+      '<path d="M0 90 L60 40 L100 70 L160 20 L230 80 L270 50 L320 90Z" fill="#5a7d95"/><path d="M146 38 L160 20 L174 38 L160 32Z" fill="#fff"/>' +
+      '<rect y="90" width="320" height="70" fill="#9ccbe6"/><path d="M0 90 L60 130 L100 110 L160 150 L230 100 L270 120 L320 90Z" fill="#7fb3d5" opacity=".8"/>' +
+      '<path d="M40 110H90M150 125H210M240 140H290" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity=".8"/>'],
+    larch: ['0 0 120 200', // шинэс мод
+      '<rect x="56" y="150" width="8" height="42" fill="#6b4f3a"/>' +
+      '<path d="M60 10 L88 60 H72 L98 100 H78 L108 150 H12 L42 100 H22 L48 60 H32Z" fill="#3f7d4e"/>' +
+      '<path d="M60 10 L74 36 H66 L60 26Z" fill="#6fae6b"/>'],
+    pine: ['0 0 120 200', // нарс мод
+      '<rect x="55" y="150" width="10" height="44" fill="#5a3e2b"/>' +
+      '<ellipse cx="60" cy="64" rx="40" ry="50" fill="#2f5d3a"/><ellipse cx="60" cy="112" rx="50" ry="42" fill="#27502f"/><ellipse cx="46" cy="52" rx="14" ry="18" fill="#3e7a4c"/>'],
+    birch: ['0 0 120 200', // хус мод
+      '<rect x="54" y="80" width="12" height="114" fill="#f5f2ea" stroke="#9a9488" stroke-width="1"/>' +
+      '<path d="M54 110h6M60 132h6M54 156h7M59 178h7" stroke="#2b2b2b" stroke-width="3"/>' +
+      '<circle cx="60" cy="60" r="42" fill="#e9b949"/><circle cx="36" cy="80" r="26" fill="#d9a23a"/><circle cx="86" cy="78" r="28" fill="#f1c95a"/>'],
+    sun: ['0 0 160 160', // нар
+      '<circle cx="80" cy="80" r="36" fill="#f2a93b"/>' + (function () { var s = ''; for (var i = 0; i < 12; i++) { var a = i * Math.PI / 6; s += '<path d="M' + (80 + 48 * Math.cos(a)).toFixed(1) + ' ' + (80 + 48 * Math.sin(a)).toFixed(1) + 'L' + (80 + 66 * Math.cos(a)).toFixed(1) + ' ' + (80 + 66 * Math.sin(a)).toFixed(1) + '" stroke="#f2a93b" stroke-width="8" stroke-linecap="round"/>'; } return s; })()],
+    cloud: ['0 0 200 110', // үүл (энгийн)
+      '<path d="M40 96 Q10 96 12 70 Q14 48 40 50 Q46 22 76 22 Q102 22 112 44 Q124 30 146 36 Q170 44 168 66 Q192 70 188 88 Q184 98 168 96Z" fill="#ffffff" stroke="#c9d6df" stroke-width="3"/>'],
+    gerScene: ['0 0 400 220', // гэр + уул + тал
+      '<rect width="400" height="220" fill="#e8f1f7"/><circle cx="320" cy="50" r="22" fill="#f2a93b"/>' +
+      '<path d="M0 150 L80 70 L130 110 L210 40 L290 120 L340 90 L400 130 V220 H0Z" fill="#9db4c0"/><path d="M194 56 L210 40 L226 56 L210 50Z" fill="#fff"/>' +
+      '<path d="M0 170 Q120 140 240 162 T400 158 V220 H0Z" fill="#8bb866"/><path d="M0 196 Q160 180 400 196 V220 H0Z" fill="#5f914a"/>' +
+      '<g transform="translate(120 104) scale(.62)"><path d="M20 112 Q120 38 220 112 Z" fill="#f4efe6" stroke="#6b4f3a" stroke-width="3"/><path d="M24 110 H216 V160 Q120 172 24 160 Z" fill="#fbf8f2" stroke="#6b4f3a" stroke-width="3"/><path d="M24 118 H216" stroke="#c11720" stroke-width="7"/><path d="M24 128 H216" stroke="#0c324a" stroke-width="3"/><ellipse cx="120" cy="66" rx="20" ry="7" fill="#6b4f3a"/><rect x="103" y="124" width="34" height="42" rx="2" fill="#e8742a" stroke="#6b4f3a" stroke-width="3"/></g>']
+  };
+  var MN_PAT = [['ulzii', 'Өлзий хээ'], ['ulziiRibbon', 'Өлзий — туузан'], ['ulziiSq', 'Өлзий — дөрвөлжин'], ['ulziiNet', 'Өлзий — тор'], ['ulziiRing', 'Дугуй өлзий'], ['ulziiRow', 'Өлзий — зурвас'],
+    ['hammer', 'Алхан хээ — зурвас'], ['hammerFrame', 'Алхан хээ — хүрээ'], ['key', 'Ороолт хээ — зурвас'], ['keyFrame', 'Ороолт хээ — хүрээ']];
+  var MN_NAT = [['ger', 'Гэр'], ['gerScene', 'Гэр, уул, тал'], ['mountains', 'Уулс'], ['steppe', 'Уул тал'], ['lake', 'Нуур'], ['river', 'Гол ус'], ['larch', 'Шинэс мод'], ['pine', 'Нарс мод'], ['birch', 'Хус мод'], ['sun', 'Нар'], ['cloud', 'Үүл']];
+  function mnInk() { return inkFor(null).dark ? '#f2c94c' : '#c11720'; }
+  function addMnPattern(k) {
+    var ed = E(), pg = ed.page(), W0 = pg.w, H0 = pg.h, col = mnInk(), o;
+    var line = function (d, sw) { return new fabric.Path(d, { fill: '', stroke: col, strokeWidth: sw, strokeLineCap: 'butt', strokeLineJoin: 'miter', objectCaching: false }); };
+    var solid = function (d) { return new fabric.Path(d, { fill: col, strokeWidth: 0, objectCaching: false }); };
+    // ribbon = a wide line with a thin line cut out of it (double-line drawing); the group cache makes the cut transparent
+    var ribbon = function (d) { return new fabric.Group([line(d, 10), new fabric.Path(d, { fill: '', stroke: '#000', strokeWidth: 3.2, globalCompositeOperation: 'destination-out', objectCaching: false })]); };
+    var fit = function (x, frac) { var s = Math.min(W0, H0) * frac / Math.max(x.width, x.height); x.set({ scaleX: s, scaleY: s }); return x; };
+    // a band repeated along the four sides of the slide
+    var frame = function (make, unit, band, name) {
+      var m = Math.round(Math.min(W0, H0) * 0.035), sc = m / band, nh = Math.floor((W0 - 2 * m) / (unit * sc)), nv = Math.floor((H0 - 2 * m) / (unit * sc));
+      var top = make(nh), bot = make(nh), lef = make(nv), rig = make(nv);
+      [top, bot, lef, rig].forEach(function (x) { x.set({ scaleX: sc, scaleY: sc }); });
+      top.set({ left: (W0 - nh * unit * sc) / 2, top: m * 0.4 }); bot.set({ left: (W0 - nh * unit * sc) / 2, top: H0 - m * 1.4, flipY: true });
+      lef.set({ angle: 90, left: m * 1.4, top: (H0 - nv * unit * sc) / 2 }); rig.set({ angle: -90, left: W0 - m * 1.4, top: (H0 + nv * unit * sc) / 2 });
+      var g = new fabric.Group([top, bot, lef, rig], { name: name });
+      ed.place(g, { x: pg.f.left + W0 / 2, y: pg.f.top + H0 / 2 });
+    };
+    if (k === 'ulzii') o = fit(line(ulziiD(0, 0, 1, 5, true), 6), 0.28);
+    if (k === 'ulziiRibbon') o = fit(ribbon(ulziiD(0, 0, 1, 10, true)), 0.3);
+    if (k === 'ulziiSq') o = fit(ribbon(ulziiSqD(10)), 0.3);
+    if (k === 'ulziiNet') o = fit(line(ulziiNetD(), 5), 0.26);
+    if (k === 'ulziiRing') {
+      var u = line(ulziiD(0, 0, 1, 5, true), 6);
+      var c1 = new fabric.Circle({ radius: 104, left: 60, top: 60, originX: 'center', originY: 'center', fill: '', stroke: col, strokeWidth: 8 });
+      var c2 = new fabric.Circle({ radius: 90, left: 60, top: 60, originX: 'center', originY: 'center', fill: '', stroke: col, strokeWidth: 2.5 });
+      u.set({ originX: 'center', originY: 'center', left: 60, top: 60, scaleX: 1.22, scaleY: 1.22 });
+      o = fit(new fabric.Group([c1, c2, u]), 0.32);
+    }
+    if (k === 'ulziiRow') { var n = 9, d = ''; for (var i = 0; i < n; i++) d += ulziiD(i * 160, 0, 1, 5, true); o = line(d, 6); var s2 = W0 * 0.8 / o.width; o.set({ scaleX: s2, scaleY: s2 }); }
+    if (k === 'hammer') { var n3 = Math.round(W0 * 0.9 / 60); o = solid(hammerD(n3)); var s3 = W0 * 0.9 / (n3 * 60); o.set({ scaleX: s3, scaleY: s3 }); }
+    if (k === 'key') { var n2 = Math.round(W0 * 0.9 / 40); o = line(alkhanD(n2), 4); o.set({ scaleX: W0 * 0.9 / (n2 * 40 + 4), scaleY: W0 * 0.9 / (n2 * 40 + 4) }); }
+    if (k === 'hammerFrame') return frame(function (n) { return solid(hammerD(n)); }, 60, 58, 'Алхан хээ — хүрээ');
+    if (k === 'keyFrame') return frame(function (n) { return line(alkhanD(n), 4); }, 40, 48, 'Ороолт хээ — хүрээ');
+    o.set({ name: (MN_PAT.filter(function (x) { return x[0] === k; })[0] || [0, 'Хээ'])[1] });
+    ed.place(o);
+  }
+  function addMnArt(k) {
+    var a = MN_ART[k], svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="' + a[0] + '">' + a[1] + '</svg>', name = (MN_NAT.filter(function (x) { return x[0] === k; })[0] || [0, k])[1];
+    fabric.loadSVGFromString(svg, function (objs, opts) {
+      var g = fabric.util.groupSVGElements(objs, opts), pg = E().page(), vb = a[0].split(' ').map(Number);
+      var wide = vb[2] / vb[3] > 1.6, s = (wide ? pg.w * 0.6 : pg.h * 0.45) / (wide ? g.width : g.height);
+      g.set({ name: name, scaleX: s, scaleY: s }); E().place(g);
+    });
+  }
+  function svgThumb(k) { var a = MN_ART[k]; return '<svg viewBox="' + a[0] + '" preserveAspectRatio="xMidYMid meet">' + a[1] + '</svg>'; }
+  function patThumb(k) {
+    var R = '#c11720', sv = function (vb, body) { return '<svg viewBox="' + vb + '" preserveAspectRatio="xMidYMid meet">' + body + '</svg>'; };
+    var rib = function (d) { return '<path d="' + d + '" fill="none" stroke="' + R + '" stroke-width="10"/><path d="' + d + '" fill="none" stroke="#f5f5f5" stroke-width="3.2"/>'; };
+    if (k === 'ulzii') return sv('-30 -30 180 180', '<path d="' + ulziiD(0, 0, 1, 5, true) + '" fill="none" stroke="' + R + '" stroke-width="7"/>');
+    if (k === 'ulziiRibbon') return sv('-32 -32 184 184', rib(ulziiD(0, 0, 1, 10, true)));
+    if (k === 'ulziiSq') return sv('-4 -4 128 128', rib(ulziiSqD(10)));
+    if (k === 'ulziiNet') return sv('-6 -6 132 132', '<path d="' + ulziiNetD() + '" fill="none" stroke="' + R + '" stroke-width="6"/>');
+    if (k === 'ulziiRing') return sv('-54 -54 228 228', '<circle cx="60" cy="60" r="104" fill="none" stroke="' + R + '" stroke-width="8"/><circle cx="60" cy="60" r="90" fill="none" stroke="' + R + '" stroke-width="2.5"/><path d="' + ulziiD(0, 0, 1, 5, true) + '" fill="none" stroke="' + R + '" stroke-width="7" transform="translate(60 60) scale(1.22) translate(-60 -60)"/>');
+    if (k === 'ulziiRow') return sv('-30 -30 500 180', '<path d="' + ulziiD(0, 0, 1, 5, true) + ulziiD(160, 0, 1, 5, true) + ulziiD(320, 0, 1, 5, true) + '" fill="none" stroke="' + R + '" stroke-width="7"/>');
+    if (k === 'hammer') return sv('0 -30 240 118', '<path d="' + hammerD(4) + '" fill="' + R + '"/>');
+    if (k === 'key') return sv('-4 -12 248 72', '<path d="' + alkhanD(6) + '" fill="none" stroke="' + R + '" stroke-width="4"/>');
+    var band = k === 'hammerFrame' ? '<path d="' + hammerD(4) + '" fill="' + R + '" transform="translate(12 10) scale(.4)"/>' : '<path d="' + alkhanD(6) + '" fill="none" stroke="' + R + '" stroke-width="4" transform="translate(12 10) scale(.4)"/>';
+    return sv('0 0 120 120', '<rect x="6" y="6" width="108" height="108" fill="none" stroke="' + R + '" stroke-width="2"/>' + band + '<rect x="12" y="36" width="96" height="72" fill="none" stroke="' + R + '" stroke-width="1" opacity=".5"/>');
+  }
+
+
   function panel() {
     var h = '<div class="sec-t">Chart <span>PowerPoint-д засагдана</span></div><div class="grid3 kit-tiles">' +
       CHARTS.map(function (c) { return '<button type="button" class="tile kt" data-kit-chart="' + c[0] + '" title="' + c[1] + ' chart">' + tileSvg(c[2]) + '<span>' + c[1] + '</span></button>'; }).join('') + '</div>' +
@@ -747,6 +918,10 @@
       '<div class="sec-t">Mockup — төхөөрөмж</div><div class="grid3 kit-tiles">' + mkTiles('device') + '</div>' +
       '<div class="sec-t">Mockup — хэвлэмэл</div><div class="grid3 kit-tiles">' + mkTiles('print') + '</div>' +
       '<div class="sec-t">Mockup — вэб</div><div class="grid3 kit-tiles">' + mkTiles('web') + '</div>' +
+      '<div class="sec-t">Монгол хээ <span>уламжлалт</span></div><div class="grid3 kit-tiles mn-tiles">' +
+      MN_PAT.map(function (x) { return '<button type="button" class="tile kt" data-kit-mnp="' + x[0] + '" title="' + x[1] + '">' + patThumb(x[0]) + '<span>' + x[1] + '</span></button>'; }).join('') + '</div>' +
+      '<div class="sec-t">Байгаль, гэр</div><div class="grid3 kit-tiles mn-tiles">' +
+      MN_NAT.map(function (x) { return '<button type="button" class="tile kt" data-kit-mna="' + x[0] + '" title="' + x[1] + '">' + svgThumb(x[0]) + '<span>' + x[1] + '</span></button>'; }).join('') + '</div>' +
       '<div class="sec-t">Диаграм <span>текст нь засагдана</span></div><div class="grid3 kit-tiles">' +
       DIAGRAMS.map(function (d) { return '<button type="button" class="tile kt" data-kit-dg="' + d[0] + '" title="' + d[1] + ' — ' + d[2] + '">' + tileSvg(DG_ICON[d[0]]) + '<span>' + d[1] + '</span></button>'; }).join('') + '</div>' +
       '<div class="sec-t">Икон <span>' + ICONS.length + '</span></div><input class="kit-q" type="search" placeholder="Икон хайх…" data-kit-q aria-label="Икон хайх"><div class="kit-icons">' +
@@ -799,6 +974,8 @@
       else if (d.kitMock) addMockup(d.kitMock);
       else if (d.kitIcon) addIcon(+d.kitIcon);
       else if (d.kitDg) addDiagram(d.kitDg);
+      else if (d.kitMnp) addMnPattern(d.kitMnp);
+      else if (d.kitMna) addMnArt(d.kitMna);
       return;
     }
     var o = E().active(); if (!o || !o.gKit) return;
@@ -867,5 +1044,5 @@
 
   window.GKit = { panel: panel, rightUI: rightUI, edit: edit, native: native, toPptx: toPptx,
     // for tests
-    _: { buildChart: buildChart, buildTable: buildTable, buildMockup: buildMockup, sampleChart: sampleChart, sampleTable: sampleTable, modelFromGrid: modelFromGrid, MOCKS: MOCKS, ICONS: ICONS, addChart: addChart, addTable: addTable, addMockup: addMockup, addIcon: addIcon, addDiagram: addDiagram, rebuild: rebuild } };
+    _: { addMnPattern: function (k) { return addMnPattern(k); }, addMnArt: function (k) { return addMnArt(k); }, MN_NAT: MN_NAT, MN_PAT: MN_PAT, buildChart: buildChart, buildTable: buildTable, buildMockup: buildMockup, sampleChart: sampleChart, sampleTable: sampleTable, modelFromGrid: modelFromGrid, MOCKS: MOCKS, ICONS: ICONS, addChart: addChart, addTable: addTable, addMockup: addMockup, addIcon: addIcon, addDiagram: addDiagram, rebuild: rebuild } };
 })();

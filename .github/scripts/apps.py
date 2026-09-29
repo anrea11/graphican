@@ -11,6 +11,8 @@ import landings as L
 
 ROOT, SITE, e, ld = L.ROOT, L.SITE, L.e, L.ld
 V = "10"
+TPL_V = "12"      # assets/templates.js ('path' items for the decks)
+KIT_V = "4"       # assets/slides-kit.js — /slides/ only (charts, tables, mockups, Mongolian ornaments)
 
 
 def mn_fonts():
@@ -136,7 +138,7 @@ def templates_page():
                 title="Монгол сошиал пост загвар — Цагаан сар, Наадам, ажлын зар, үнэгүй | Graphican",
                 desc=f"{len(names)} үнэгүй монгол загвар: Цагаан сар, Наадам, шинэ жилийн мэндчилгээ, ажлын байрны зар, хямдрал, хоолны цэс, Facebook cover, story. Онлайн засаад PNG-ээр татна.",
                 h1="Монгол сошиал загварууд", name="Монгол сошиал загварууд", body=body, faq=faq,
-                scripts=["/assets/vendor/fabric.min.js", "/assets/editor-fx.js?v=5", f"/assets/templates.js?v={V}", f"/assets/tplgallery.js?v={V}"])
+                scripts=["/assets/vendor/fabric.min.js", "/assets/editor-fx.js?v=5", f"/assets/templates.js?v={TPL_V}", f"/assets/tplgallery.js?v={V}"])
 
 
 APPS = [font_page, color_page, templates_page]
@@ -404,7 +406,10 @@ def slides_page():
     s = s.replace('value="Нэргүй дизайн"', 'value="Нэргүй илтгэл"')
     s = s.replace('<h1 class="sr-only">Graphican Design editor — үнэгүй онлайн дизайн засварлагч</h1>', '<h1 class="sr-only">Илтгэл бэлдэх (PPT) — онлайн, үнэгүй</h1>')
     s = s.replace('<button type="button" data-file="new">Шинэ дизайн</button>', '<button type="button" data-file="new">Шинэ илтгэл</button>')
-    assert 'data-mode="ppt"' in s
+    # «Элемент» tab + its script exist only in /slides/
+    s = s.replace('data-tab="stock">Stock</button>\n', 'data-tab="stock">Stock</button>\n      <button type="button" role="tab" aria-selected="false" data-tab="kit">Элемент</button>\n', 1)
+    s = re.sub(r'(<script src="/assets/editor\.js\?v=\d+"></script>)', r'\1\n<script src="/assets/slides-kit.js?v=' + KIT_V + '"></script>', s, 1)
+    assert 'data-mode="ppt"' in s and 'data-tab="kit"' in s and 'slides-kit.js' in s
     d_ = os.path.join(ROOT, "slides"); os.makedirs(d_, exist_ok=True)
     open(os.path.join(d_, "index.html"), "w", encoding="utf-8").write(s)
 
