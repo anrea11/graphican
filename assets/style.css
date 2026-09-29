@@ -1337,3 +1337,6 @@ body::after { animation:none; inset:0; }                  /* static grain instea
 .ring-lite .rc-halo, .ring-lite .rc-light, .ring-lite .rc-sheen { display:none; }
 .ring-lite .rc-in { -webkit-box-reflect:none !important; box-shadow:0 0 0 1px rgba(164,151,255,.3); }
 .ring-lite .rc { will-change:auto; }
+
+/* PDF translation is switched off for now (TRANSLATE_ON in worker/index.js) */
+a[href^="/tools/translate-pdf"] { display: none !important; }
