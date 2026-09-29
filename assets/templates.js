@@ -921,6 +921,12 @@
         o.gCredit = 'Pexels видео';
         if (s.mask) maskIt(o, s, s.w, s.h, 1);
         if (s.angle) { o.rotate(s.angle); o.setPositionByOrigin(new F.Point(X + s.x + s.w / 2, Y + s.y + s.h / 2), 'center', 'center'); }
+      } else if (s.t === 'path') {
+        // line icon on a 24×24 grid (x, y = top-left of that grid, size = its width in px)
+        var ik = (s.size || 48) / 24;
+        o = new F.Path(s.d, { fill: s.fill || '', stroke: s.stroke || null, strokeWidth: s.sw || (s.fill ? 0 : 1.8), strokeLineCap: 'round', strokeLineJoin: 'round',
+          originX: 'center', originY: 'center', scaleX: ik, scaleY: ik, name: s.name || 'Икон' });
+        o.set({ left: X + s.x + (o.pathOffset.x) * ik, top: Y + s.y + (o.pathOffset.y) * ik });
       } else if (s.t === 'line') {
         o = new F.Line([X + s.x1, Y + s.y1, X + s.x2, Y + s.y2], { stroke: s.color || '#000000', strokeWidth: s.sw || 2, strokeLineCap: 'round', name: s.name || 'Шугам' });
       } else if (s.t === 'ph') {
