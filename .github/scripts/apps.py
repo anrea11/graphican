@@ -12,7 +12,7 @@ import landings as L
 ROOT, SITE, e, ld = L.ROOT, L.SITE, L.e, L.ld
 V = "10"
 TPL_V = "12"      # assets/templates.js ('path' items for the decks)
-KIT_V = "4"       # assets/slides-kit.js — /slides/ only (charts, tables, mockups, Mongolian ornaments)
+KIT_V = "6"       # assets/slides-kit.js — /slides/ only (charts, tables, mockups, Mongolian ornaments)
 
 
 def mn_fonts():
