@@ -28,7 +28,7 @@
   // ================= numbers =================
   function toNum(v) {
     if (typeof v === 'number') return isFinite(v) ? v : 0;
-    var s = String(v == null ? '' : v).replace(/[\s ,₮$%]/g, '').replace(/[^\d.\-eE+]/g, '');
+    var s = String(v == null ? '' : v).replace(/[−–]/g, '-').replace(/[\s ,₮$%]/g, '').replace(/[^\d.\-eE+]/g, '');
     var n = parseFloat(s); return isFinite(n) ? n : 0;
   }
   function fmt(v) {
@@ -76,7 +76,10 @@
     var T = function (s, o) { return txt(s, Object.assign({ fontFamily: font, fill: ink.ink }, o)); };
     out.push(rect(0, 0, W, H, 'rgba(0,0,0,0)'));                       // stable bounds + easy to click
     var top = 0, bottom = H, pie = m.type === 'pie' || m.type === 'donut';
-    if (m.title) { var tt = T(m.title, { fontSize: 34, fontWeight: 700, left: 0, top: 0 }); out.push(tt); top = tt.height + 18; }
+    if (m.title) {   // long titles wrap inside the chart width
+      var tt = new fabric.Textbox(String(m.title), { fontFamily: font, fill: ink.ink, fontSize: 34, fontWeight: 700, left: 0, top: 0, width: W, objectCaching: false, splitByGrapheme: !/\s/.test(m.title) });
+      out.push(tt); top = tt.height + 18;
+    }
     var series = m.series.filter(function (s) { return s; }), labels = m.labels;
     var n = labels.length;
     // legend
@@ -84,7 +87,9 @@
     if (m.legend && (pie || series.length > 1)) {
       var lx = 0, ly = 0, rows = [[]], rw = 0, parts = [];
       legendItems.forEach(function (name, i) {
-        var t = T(name, { fontSize: 22, fill: ink.muted }), w = 28 + t.width + 26;
+        var t = T(name, { fontSize: 22, fill: ink.muted });
+        if (t.width > W - 60) t.set({ scaleX: (W - 60) / t.width, scaleY: (W - 60) / t.width });
+        var w = 28 + t.width * t.scaleX + 26;
         if (rw + w > W && rows[rows.length - 1].length) { rows.push([]); rw = 0; }
         rows[rows.length - 1].push({ t: t, w: w, c: cols[i % cols.length] }); rw += w;
       });
@@ -655,6 +660,8 @@
     });
   }
   function closeDlg() { if (dlg) { dlg.remove(); dlg = null; } }
+  // Escape closes the window even when focus is outside it (e.g. after the file picker)
+  window.addEventListener('keydown', function (e) { if (dlg && e.key === 'Escape' && !dlg.contains(e.target)) closeDlg(); });
   function renderGrid(st) {
     var nc = Math.max.apply(null, st.rows.map(function (r) { return r.length; }));
     st.rows.forEach(function (r) { while (r.length < nc) r.push(''); });
@@ -703,11 +710,13 @@
   }
   function importFile(st, file) {
     var ed = E();
-    ed.loadScript('/assets/vendor/xlsx.min.js').then(function () { return file.arrayBuffer(); }).then(function (buf) {
-      var wb = window.XLSX.read(buf, { type: 'array' }), ws = wb.Sheets[wb.SheetNames[0]];
+    var text = /\.(csv|tsv|txt)$/i.test(file.name) || /^text\//.test(file.type);   // CSV as UTF-8 text (Cyrillic, − signs)
+    ed.loadScript('/assets/vendor/xlsx.min.js').then(function () { return text ? file.text() : file.arrayBuffer(); }).then(function (buf) {
+      var wb = window.XLSX.read(buf, { type: text ? 'string' : 'array' }), ws = wb.Sheets[wb.SheetNames[0]];
       var rows = window.XLSX.utils.sheet_to_json(ws, { header: 1, raw: false, defval: '' }).filter(function (r) { return r.some(function (c) { return String(c).trim(); }); });
       if (!rows.length) throw new Error('empty');
       rows = rows.slice(0, st.kind === 'chart' ? 60 : 40).map(function (r) { return r.slice(0, 16).map(function (c) { return String(c); }); });
+      if (!dlg || dlg._state !== st) return;
       st.rows = rows; renderGrid(st); preview(st); ed.toast('«' + file.name + '» — ' + rows.length + ' мөр орлоо');
     }).catch(function () { ed.toast('Файлыг уншиж чадсангүй'); });
   }
@@ -812,8 +821,6 @@
     var q = t.value.trim().toLowerCase();
     document.querySelectorAll('.kit-icons [data-kit-icon]').forEach(function (b) { b.hidden = q && b.dataset.n.indexOf(q) < 0; });
   });
-  // keep the editor's shortcuts (Delete, Ctrl+Z …) away from inputs in the right panel
-  document.addEventListener('keydown', function (e) { if (e.target.hasAttribute && (e.target.hasAttribute('data-kit-url') || e.target.hasAttribute('data-kit-q'))) e.stopPropagation(); }, true);
 
   // ================= PowerPoint =================
   function native(o) { return (o.gKit === 'chart' || o.gKit === 'table') && !o.angle && !o.skewX && !o.skewY && o.visible !== false; }
@@ -837,7 +844,7 @@
     }
     var mc = o.gChart, ink = inkFor(o, mc), cols = palOf(mc).map(hex), pie = mc.type === 'pie' || mc.type === 'donut';
     var T = pptx.ChartType || pptx.charts, type = { col: T.bar, bar: T.bar, stack: T.bar, line: T.line, area: T.area, pie: T.pie, donut: T.doughnut }[mc.type] || T.bar;
-    var series = (pie ? mc.series.slice(0, 1) : mc.series).map(function (se) { return { name: se.name, labels: mc.labels.slice(), values: mc.labels.map(function (_, i) { return toNum(se.values[i]); }) }; });
+    var series = (pie ? mc.series.slice(0, 1) : mc.series).map(function (se) { return { name: se.name, labels: mc.labels.slice(), values: mc.labels.map(function (_, i) { var v = toNum(se.values[i]); return pie ? Math.max(0, v) : v; }) }; });
     var op = Object.assign({}, box, {
       chartColors: pie ? mc.labels.map(function (_, i) { return cols[i % cols.length]; }) : cols.slice(0, Math.max(1, series.length)),
       showLegend: !!mc.legend && (pie || series.length > 1), legendPos: 'b', legendFontSize: pt(22), legendColor: hex(ink.muted), legendFontFace: fontOf(mc),

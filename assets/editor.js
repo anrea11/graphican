@@ -2571,7 +2571,7 @@
   });
   var clip = null;
   window.addEventListener('paste', function (e) {
-    if (isTyping(e) || document.querySelector('.cut-modal,.stk-modal')) return;
+    if (isTyping(e) || document.querySelector('.cut-modal,.stk-modal,.kit-modal')) return;
     // our own Ctrl+C leaves a marker on the system clipboard: then paste the copied layers, not an older image
     var txt = e.clipboardData ? e.clipboardData.getData('text/plain') : '';
     if (clip && clipMark && txt === clipMark) { e.preventDefault(); pasteClip(); return; }
@@ -2609,7 +2609,7 @@
     return (o && o.isEditing) || (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable));
   }
   window.addEventListener('keydown', function (e) {
-    if (document.querySelector('.cut-modal,.stk-modal,.mbox-wrap')) return;   // an open window owns the keyboard
+    if (document.querySelector('.cut-modal,.stk-modal,.mbox-wrap,.kit-modal')) return;   // an open window owns the keyboard
     if (e.code === 'Space' && !isTyping(e)) { if (!spaceDown) { spaceDown = true; canvas.setCursor('grab'); } e.preventDefault(); return; }
     if (isTyping(e)) { if (e.key === 'Escape') { var t = active(); if (t && t.isEditing) { t.exitEditing(); canvas.requestRenderAll(); } } return; }
     var mod = e.ctrlKey || e.metaKey, k = keyName(e), o = active();
