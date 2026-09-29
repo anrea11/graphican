@@ -739,6 +739,122 @@
   };
   var DG_ICON = { process: '<path d="M2 8h5l2 4-2 4H2l2-4zM10 8h5l2 4-2 4h-5l2-4z"/><path d="M19 12h3"/>', timeline: '<path d="M2 12h20"/><circle cx="6" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="18" cy="12" r="2"/><path d="M6 6v3M12 15v3M18 6v3"/>',
     kpi: '<rect x="2" y="6" width="6" height="12" rx="1.5"/><rect x="9" y="6" width="6" height="12" rx="1.5"/><rect x="16" y="6" width="6" height="12" rx="1.5"/>', pyramid: '<path d="M12 3 3 20h18z"/><path d="M8.2 10.5h7.6M5.5 15.5h13"/>' };
+
+  // ================= Mongolian ornaments & nature =================
+  // Only ornaments with a fixed, traditional geometry are drawn here (not invented):
+  //   Өлзий хээ — the endless knot: 4×4 woven lattice, loops at the 4 corners and 2 on each side, over/under alternating
+  //   Алхан хээ — continuous square key band between two rules
+  function ulziiD(ox, oy, k, gap, diamond) {   // path in a 120×120 box, placed at (ox, oy) and scaled by k; diamond = turned 45°
+    var P = [30, 50, 70, 90], g = gap == null ? 5 : gap, d = '', px = 0, c45 = Math.SQRT1_2;
+    // X(x) remembers x so Y(y) can rotate the point (x, y) about the box centre
+    var X = function (v) { px = v; return diamond ? '' : (ox + v * k).toFixed(2); };
+    var Y = function (v) {
+      if (!diamond) return (oy + v * k).toFixed(2);
+      var dx = px - 60, dy = v - 60;
+      return (ox + (60 + (dx - dy) * c45) * k).toFixed(2) + ' ' + (oy + (60 + (dx + dy) * c45) * k).toFixed(2);
+    };
+    P.forEach(function (y, i) { var x = 30, seg = []; P.forEach(function (cx, j) { if ((i + j) % 2 === 1) { seg.push([x, cx - g]); x = cx + g; } }); seg.push([x, 90]);
+      seg.forEach(function (q) { if (q[1] > q[0]) d += 'M' + X(q[0]) + ' ' + Y(y) + 'L' + X(q[1]) + ' ' + Y(y); }); });
+    P.forEach(function (x, j) { var y = 30, seg = []; P.forEach(function (cy, i) { if ((i + j) % 2 === 0) { seg.push([y, cy - g]); y = cy + g; } }); seg.push([y, 90]);
+      seg.forEach(function (q) { if (q[1] > q[0]) d += 'M' + X(x) + ' ' + Y(q[0]) + 'L' + X(x) + ' ' + Y(q[1]); }); });
+    [[30, 30, -5, 30, 30, -5], [90, 30, 125, 30, 90, -5], [30, 90, -5, 90, 30, 125], [90, 90, 125, 90, 90, 125]].forEach(function (c) {
+      d += 'M' + X(c[0]) + ' ' + Y(c[1]) + 'C' + X(c[2]) + ' ' + Y(c[3]) + ' ' + X(c[4]) + ' ' + Y(c[5]) + ' ' + X(c[0]) + ' ' + Y(c[1]); });
+    [[30, 50, 10, 50, 10, 70, 30, 70], [90, 50, 110, 50, 110, 70, 90, 70], [50, 30, 50, 10, 70, 10, 70, 30], [50, 90, 50, 110, 70, 110, 70, 90]].forEach(function (c) {
+      d += 'M' + X(c[0]) + ' ' + Y(c[1]) + 'C' + X(c[2]) + ' ' + Y(c[3]) + ' ' + X(c[4]) + ' ' + Y(c[5]) + ' ' + X(c[6]) + ' ' + Y(c[7]); });
+    return d;
+  }
+  function alkhanD(n, ox, oy) {   // band 48 high, unit 40 wide
+    ox = ox || 0; oy = oy || 0;
+    var d = 'M' + ox + ' ' + oy + 'H' + (ox + n * 40) + 'M' + ox + ' ' + (oy + 48) + 'H' + (ox + n * 40);
+    for (var k = 0; k < n; k++) { var x = ox + k * 40 + 4; d += 'M' + x + ' ' + (oy + 40) + 'V' + (oy + 8) + 'H' + (x + 28) + 'V' + (oy + 32) + 'H' + (x + 10) + 'V' + (oy + 16) + 'H' + (x + 20) + 'V' + (oy + 24) + 'M' + x + ' ' + (oy + 40) + 'H' + (x + 40); }
+    return d;
+  }
+var MN_ART = {
+    ger: ['0 0 240 180', // гэр: toono, roof, walls with band, door
+      '<path d="M20 112 Q120 38 220 112 Z" fill="#f4efe6" stroke="#6b4f3a" stroke-width="3"/>' +
+      '<path d="M24 110 H216 V160 Q120 172 24 160 Z" fill="#fbf8f2" stroke="#6b4f3a" stroke-width="3"/>' +
+      '<path d="M24 118 H216" stroke="#c11720" stroke-width="7"/><path d="M24 128 H216" stroke="#0c324a" stroke-width="3"/>' +
+      '<path d="M60 97 Q120 70 180 97" fill="none" stroke="#6b4f3a" stroke-width="2" opacity=".5"/>' +
+      '<rect x="138" y="40" width="7" height="30" fill="#6b6b6b"/><rect x="135" y="36" width="13" height="6" rx="1" fill="#4f4f4f"/><ellipse cx="120" cy="66" rx="20" ry="7" fill="#6b4f3a"/>' +
+      '<rect x="103" y="124" width="34" height="42" rx="2" fill="#e8742a" stroke="#6b4f3a" stroke-width="3"/><path d="M120 126V164M105 145H135" stroke="#c0561c" stroke-width="2"/>'],
+    mountains: ['0 0 320 160', // уулс: three layers + snow caps
+      '<path d="M0 160 L70 60 L110 100 L170 30 L240 110 L280 70 L320 120 V160Z" fill="#9db4c0"/>' +
+      '<path d="M150 55 L170 30 L190 55 L178 50 L170 58 L160 50Z" fill="#fff"/>' +
+      '<path d="M0 160 L40 115 L90 145 L150 80 L220 150 L270 105 L320 150 V160Z" fill="#5a7d95"/>' +
+      '<path d="M0 160 H320 V150 Q240 128 160 146 T0 142Z" fill="#0c324a"/>'],
+    steppe: ['0 0 320 160', // уул тал: sun, soft hills, grass line
+      '<rect width="320" height="160" fill="#fdf3dc"/><circle cx="238" cy="58" r="26" fill="#f2a93b"/>' +
+      '<path d="M0 118 Q70 70 150 104 T320 92 V160 H0Z" fill="#a9c77a"/>' +
+      '<path d="M0 136 Q90 104 190 132 T320 124 V160 H0Z" fill="#6f9e4f"/>' +
+      '<path d="M0 150 Q120 138 320 150 V160 H0Z" fill="#4b7a3a"/>'],
+    river: ['0 0 320 120', // гол ус: flowing bands
+      '<path d="M0 30 Q40 10 80 30 T160 30 T240 30 T320 30" fill="none" stroke="#7fb3d5" stroke-width="10" stroke-linecap="round"/>' +
+      '<path d="M0 60 Q40 40 80 60 T160 60 T240 60 T320 60" fill="none" stroke="#3f88c5" stroke-width="10" stroke-linecap="round"/>' +
+      '<path d="M0 90 Q40 70 80 90 T160 90 T240 90 T320 90" fill="none" stroke="#1d5a8c" stroke-width="10" stroke-linecap="round"/>'],
+    lake: ['0 0 320 160', // нуур: mountains mirrored in water
+      '<path d="M0 90 L60 40 L100 70 L160 20 L230 80 L270 50 L320 90Z" fill="#5a7d95"/><path d="M146 38 L160 20 L174 38 L160 32Z" fill="#fff"/>' +
+      '<rect y="90" width="320" height="70" fill="#9ccbe6"/><path d="M0 90 L60 130 L100 110 L160 150 L230 100 L270 120 L320 90Z" fill="#7fb3d5" opacity=".8"/>' +
+      '<path d="M40 110H90M150 125H210M240 140H290" stroke="#fff" stroke-width="3" stroke-linecap="round" opacity=".8"/>'],
+    larch: ['0 0 120 200', // шинэс мод
+      '<rect x="56" y="150" width="8" height="42" fill="#6b4f3a"/>' +
+      '<path d="M60 10 L88 60 H72 L98 100 H78 L108 150 H12 L42 100 H22 L48 60 H32Z" fill="#3f7d4e"/>' +
+      '<path d="M60 10 L74 36 H66 L60 26Z" fill="#6fae6b"/>'],
+    pine: ['0 0 120 200', // нарс мод
+      '<rect x="55" y="150" width="10" height="44" fill="#5a3e2b"/>' +
+      '<ellipse cx="60" cy="64" rx="40" ry="50" fill="#2f5d3a"/><ellipse cx="60" cy="112" rx="50" ry="42" fill="#27502f"/><ellipse cx="46" cy="52" rx="14" ry="18" fill="#3e7a4c"/>'],
+    birch: ['0 0 120 200', // хус мод
+      '<rect x="54" y="80" width="12" height="114" fill="#f5f2ea" stroke="#9a9488" stroke-width="1"/>' +
+      '<path d="M54 110h6M60 132h6M54 156h7M59 178h7" stroke="#2b2b2b" stroke-width="3"/>' +
+      '<circle cx="60" cy="60" r="42" fill="#e9b949"/><circle cx="36" cy="80" r="26" fill="#d9a23a"/><circle cx="86" cy="78" r="28" fill="#f1c95a"/>'],
+    sun: ['0 0 160 160', // нар
+      '<circle cx="80" cy="80" r="36" fill="#f2a93b"/>' + (function () { var s = ''; for (var i = 0; i < 12; i++) { var a = i * Math.PI / 6; s += '<path d="M' + (80 + 48 * Math.cos(a)).toFixed(1) + ' ' + (80 + 48 * Math.sin(a)).toFixed(1) + 'L' + (80 + 66 * Math.cos(a)).toFixed(1) + ' ' + (80 + 66 * Math.sin(a)).toFixed(1) + '" stroke="#f2a93b" stroke-width="8" stroke-linecap="round"/>'; } return s; })()],
+    cloud: ['0 0 200 110', // үүл (энгийн)
+      '<path d="M40 96 Q10 96 12 70 Q14 48 40 50 Q46 22 76 22 Q102 22 112 44 Q124 30 146 36 Q170 44 168 66 Q192 70 188 88 Q184 98 168 96Z" fill="#ffffff" stroke="#c9d6df" stroke-width="3"/>'],
+    gerScene: ['0 0 400 220', // гэр + уул + тал
+      '<rect width="400" height="220" fill="#e8f1f7"/><circle cx="320" cy="50" r="22" fill="#f2a93b"/>' +
+      '<path d="M0 150 L80 70 L130 110 L210 40 L290 120 L340 90 L400 130 V220 H0Z" fill="#9db4c0"/><path d="M194 56 L210 40 L226 56 L210 50Z" fill="#fff"/>' +
+      '<path d="M0 170 Q120 140 240 162 T400 158 V220 H0Z" fill="#8bb866"/><path d="M0 196 Q160 180 400 196 V220 H0Z" fill="#5f914a"/>' +
+      '<g transform="translate(120 104) scale(.62)"><path d="M20 112 Q120 38 220 112 Z" fill="#f4efe6" stroke="#6b4f3a" stroke-width="3"/><path d="M24 110 H216 V160 Q120 172 24 160 Z" fill="#fbf8f2" stroke="#6b4f3a" stroke-width="3"/><path d="M24 118 H216" stroke="#c11720" stroke-width="7"/><path d="M24 128 H216" stroke="#0c324a" stroke-width="3"/><ellipse cx="120" cy="66" rx="20" ry="7" fill="#6b4f3a"/><rect x="103" y="124" width="34" height="42" rx="2" fill="#e8742a" stroke="#6b4f3a" stroke-width="3"/></g>']
+  };
+  var MN_PAT = [['ulzii', 'Өлзий хээ'], ['ulziiRow', 'Өлзий — зурвас'], ['alkhan', 'Алхан хээ — зурвас'], ['alkhanFrame', 'Алхан хээ — хүрээ']];
+  var MN_NAT = [['ger', 'Гэр'], ['gerScene', 'Гэр, уул, тал'], ['mountains', 'Уулс'], ['steppe', 'Уул тал'], ['lake', 'Нуур'], ['river', 'Гол ус'], ['larch', 'Шинэс мод'], ['pine', 'Нарс мод'], ['birch', 'Хус мод'], ['sun', 'Нар'], ['cloud', 'Үүл']];
+  function mnInk() { return inkFor(null).dark ? '#f2c94c' : '#c11720'; }
+  function addMnPattern(k) {
+    var ed = E(), pg = ed.page(), W0 = pg.w, H0 = pg.h, col = mnInk(), o;
+    var line = function (d, sw) { return new fabric.Path(d, { fill: '', stroke: col, strokeWidth: sw, strokeLineCap: 'butt', strokeLineJoin: 'miter', objectCaching: false }); };
+    if (k === 'ulzii') { o = line(ulziiD(0, 0, 1), 6); o.set({ angle: 45, name: 'Өлзий хээ' }); var s = Math.min(W0, H0) * 0.28 / 150; o.set({ scaleX: s, scaleY: s }); }
+    if (k === 'ulziiRow') {
+      var n = 9, d = ''; for (var i = 0; i < n; i++) d += ulziiD(i * 160, 0, 1, 5, true);
+      o = line(d, 6); o.set({ name: 'Өлзий — зурвас' }); var s2 = W0 * 0.8 / o.width; o.set({ scaleX: s2, scaleY: s2 });
+    }
+    if (k === 'alkhan') { var n2 = Math.round(W0 * 0.9 / 40); o = line(alkhanD(n2), 4); o.set({ name: 'Алхан хээ — зурвас', scaleX: W0 * 0.9 / (n2 * 40 + 4), scaleY: W0 * 0.9 / (n2 * 40 + 4) }); }
+    if (k === 'alkhanFrame') {
+      var m = Math.round(Math.min(W0, H0) * 0.035), sc = m / 48, nh = Math.floor((W0 - 2 * m) / (40 * sc)), nv = Math.floor((H0 - 2 * m) / (40 * sc));
+      var top = line(alkhanD(nh), 4), bot = line(alkhanD(nh), 4), lef = line(alkhanD(nv), 4), rig = line(alkhanD(nv), 4);
+      [top, bot, lef, rig].forEach(function (x) { x.set({ scaleX: sc, scaleY: sc }); });
+      top.set({ left: (W0 - nh * 40 * sc) / 2, top: m * 0.4 }); bot.set({ left: (W0 - nh * 40 * sc) / 2, top: H0 - m * 1.4, flipY: true });
+      lef.set({ angle: 90, left: m * 1.4, top: (H0 - nv * 40 * sc) / 2 }); rig.set({ angle: -90, left: W0 - m * 1.4, top: (H0 + nv * 40 * sc) / 2 });
+      o = new fabric.Group([top, bot, lef, rig], { name: 'Алхан хээ — хүрээ' });
+      ed.place(o, { x: pg.f.left + W0 / 2, y: pg.f.top + H0 / 2 }); return;
+    }
+    ed.place(o);
+  }
+  function addMnArt(k) {
+    var a = MN_ART[k], svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="' + a[0] + '">' + a[1] + '</svg>', name = (MN_NAT.filter(function (x) { return x[0] === k; })[0] || [0, k])[1];
+    fabric.loadSVGFromString(svg, function (objs, opts) {
+      var g = fabric.util.groupSVGElements(objs, opts), pg = E().page(), vb = a[0].split(' ').map(Number);
+      var wide = vb[2] / vb[3] > 1.6, s = (wide ? pg.w * 0.6 : pg.h * 0.45) / (wide ? g.width : g.height);
+      g.set({ name: name, scaleX: s, scaleY: s }); E().place(g);
+    });
+  }
+  function svgThumb(k) { var a = MN_ART[k]; return '<svg viewBox="' + a[0] + '" preserveAspectRatio="xMidYMid meet">' + a[1] + '</svg>'; }
+  function patThumb(k) {
+    if (k === 'ulzii') return '<svg viewBox="-12 -12 144 144"><g transform="rotate(45 60 60)"><path d="' + ulziiD(0, 0, 1) + '" fill="none" stroke="#c11720" stroke-width="7"/></g></svg>';
+    if (k === 'ulziiRow') return '<svg viewBox="-30 -30 500 180"><path d="' + ulziiD(0, 0, 1, 5, true) + ulziiD(160, 0, 1, 5, true) + ulziiD(320, 0, 1, 5, true) + '" fill="none" stroke="#c11720" stroke-width="7"/></svg>';
+    if (k === 'alkhan') return '<svg viewBox="-4 -12 248 72"><path d="' + alkhanD(6) + '" fill="none" stroke="#c11720" stroke-width="4"/></svg>';
+    return '<svg viewBox="0 0 120 120"><rect x="6" y="6" width="108" height="108" fill="none" stroke="#c11720" stroke-width="3"/><rect x="20" y="20" width="80" height="80" fill="none" stroke="#c11720" stroke-width="1.5"/><path d="' + alkhanD(2, 20, 0) + '" fill="none" stroke="#c11720" stroke-width="2.5" transform="translate(-2 7) scale(.3)"/></svg>';
+  }
+
   function panel() {
     var h = '<div class="sec-t">Chart <span>PowerPoint-д засагдана</span></div><div class="grid3 kit-tiles">' +
       CHARTS.map(function (c) { return '<button type="button" class="tile kt" data-kit-chart="' + c[0] + '" title="' + c[1] + ' chart">' + tileSvg(c[2]) + '<span>' + c[1] + '</span></button>'; }).join('') + '</div>' +
@@ -747,6 +863,10 @@
       '<div class="sec-t">Mockup — төхөөрөмж</div><div class="grid3 kit-tiles">' + mkTiles('device') + '</div>' +
       '<div class="sec-t">Mockup — хэвлэмэл</div><div class="grid3 kit-tiles">' + mkTiles('print') + '</div>' +
       '<div class="sec-t">Mockup — вэб</div><div class="grid3 kit-tiles">' + mkTiles('web') + '</div>' +
+      '<div class="sec-t">Монгол хээ <span>уламжлалт</span></div><div class="grid3 kit-tiles mn-tiles">' +
+      MN_PAT.map(function (x) { return '<button type="button" class="tile kt" data-kit-mnp="' + x[0] + '" title="' + x[1] + '">' + patThumb(x[0]) + '<span>' + x[1] + '</span></button>'; }).join('') + '</div>' +
+      '<div class="sec-t">Байгаль, гэр</div><div class="grid3 kit-tiles mn-tiles">' +
+      MN_NAT.map(function (x) { return '<button type="button" class="tile kt" data-kit-mna="' + x[0] + '" title="' + x[1] + '">' + svgThumb(x[0]) + '<span>' + x[1] + '</span></button>'; }).join('') + '</div>' +
       '<div class="sec-t">Диаграм <span>текст нь засагдана</span></div><div class="grid3 kit-tiles">' +
       DIAGRAMS.map(function (d) { return '<button type="button" class="tile kt" data-kit-dg="' + d[0] + '" title="' + d[1] + ' — ' + d[2] + '">' + tileSvg(DG_ICON[d[0]]) + '<span>' + d[1] + '</span></button>'; }).join('') + '</div>' +
       '<div class="sec-t">Икон <span>' + ICONS.length + '</span></div><input class="kit-q" type="search" placeholder="Икон хайх…" data-kit-q aria-label="Икон хайх"><div class="kit-icons">' +
@@ -799,6 +919,8 @@
       else if (d.kitMock) addMockup(d.kitMock);
       else if (d.kitIcon) addIcon(+d.kitIcon);
       else if (d.kitDg) addDiagram(d.kitDg);
+      else if (d.kitMnp) addMnPattern(d.kitMnp);
+      else if (d.kitMna) addMnArt(d.kitMna);
       return;
     }
     var o = E().active(); if (!o || !o.gKit) return;
@@ -867,5 +989,5 @@
 
   window.GKit = { panel: panel, rightUI: rightUI, edit: edit, native: native, toPptx: toPptx,
     // for tests
-    _: { buildChart: buildChart, buildTable: buildTable, buildMockup: buildMockup, sampleChart: sampleChart, sampleTable: sampleTable, modelFromGrid: modelFromGrid, MOCKS: MOCKS, ICONS: ICONS, addChart: addChart, addTable: addTable, addMockup: addMockup, addIcon: addIcon, addDiagram: addDiagram, rebuild: rebuild } };
+    _: { addMnPattern: function (k) { return addMnPattern(k); }, addMnArt: function (k) { return addMnArt(k); }, MN_NAT: MN_NAT, MN_PAT: MN_PAT, buildChart: buildChart, buildTable: buildTable, buildMockup: buildMockup, sampleChart: sampleChart, sampleTable: sampleTable, modelFromGrid: modelFromGrid, MOCKS: MOCKS, ICONS: ICONS, addChart: addChart, addTable: addTable, addMockup: addMockup, addIcon: addIcon, addDiagram: addDiagram, rebuild: rebuild } };
 })();
