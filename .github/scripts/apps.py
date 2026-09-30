@@ -68,7 +68,7 @@ def font_page():
   <section class="lp-sec"><h2>Түгээмэл асуултууд</h2><div class="lp-faq">{faq_html(faq)}</div></section>
 """
     return dict(slug="mongol-font", icon="font",
-                title=f"Монгол фонт татах — Ө, Ү дэмждэг {n} кирилл фонт, үнэгүй | Graphican",
+                title=f"Монгол фонт татах — {n} кирилл фонт, Ө Ү-тэй | Graphican",
                 desc=f"Монгол хэлний Ө, Ү үсгийг бүрэн дэмждэг {n} үнэгүй кирилл фонт. Өөрийн текстээр шууд харж, харьцуулаад нэг товчоор ZIP-ээр татна. Лого, постер, вэбсайтад.",
                 h1="Монгол фонт хайгч", name="Монгол фонт хайгч", body=body, faq=faq,
                 scripts=["/assets/mnfonts-data.js?v=1", f"/assets/mnfont.js?v={V}"])
@@ -101,8 +101,8 @@ def color_page():
   <section class="lp-sec"><h2>Түгээмэл асуултууд</h2><div class="lp-faq">{faq_html(faq)}</div></section>
 """
     return dict(slug="brand-color", icon="palette",
-                title="Брэндийн өнгө сонгох — өнгөний палитр үүсгэгч, үнэгүй | Graphican",
-                desc="Салбартаа тохирсон брэндийн өнгөний палитр: технологи, хоол, санхүү, боловсрол, барилга, монгол уламжлалт өнгө. Лого, пост, вэб дээр шууд харж, HEX, CSS, PNG-ээр авна. Үнэгүй.",
+                title="Брэндийн өнгө сонгох — палитр үүсгэгч, үнэгүй | Graphican",
+                desc="Салбартаа тохирсон брэндийн өнгөний палитр: технологи, хоол, санхүү, боловсрол, монгол уламжлалт өнгө. HEX, CSS, PNG-ээр авна. Үнэгүй.",
                 h1="Брэндийн өнгө үүсгэгч", name="Брэндийн өнгө үүсгэгч", body=body, faq=faq,
                 scripts=[f"/assets/brandcolor.js?v={V}"])
 
@@ -135,7 +135,7 @@ def templates_page():
   <section class="lp-sec"><h2>Түгээмэл асуултууд</h2><div class="lp-faq">{faq_html(faq)}</div></section>
 """
     return dict(slug="templates", icon="layout",
-                title="Монгол сошиал пост загвар — Цагаан сар, Наадам, ажлын зар, үнэгүй | Graphican",
+                title="Монгол сошиал пост загвар — Цагаан сар, Наадам | Graphican",
                 desc=f"{len(names)} үнэгүй монгол загвар: Цагаан сар, Наадам, шинэ жилийн мэндчилгээ, ажлын байрны зар, хямдрал, хоолны цэс, Facebook cover, story. Онлайн засаад PNG-ээр татна.",
                 h1="Монгол сошиал загварууд", name="Монгол сошиал загварууд", body=body, faq=faq,
                 scripts=["/assets/vendor/fabric.min.js", "/assets/editor-fx.js?v=5", f"/assets/templates.js?v={TPL_V}", f"/assets/tplgallery.js?v={V}"])
@@ -147,7 +147,8 @@ APPS = [font_page, color_page, templates_page]
 def render(p, header):
     path = f"/tools/{p['slug']}/"
     url = SITE + path
-    img = SITE + "/assets/uploads/og-cover.jpg"
+    og = f"/assets/uploads/og/{p['slug']}.jpg"
+    img = SITE + (og if os.path.exists(os.path.join(ROOT, og.lstrip("/"))) else "/assets/uploads/og-cover.jpg")
     graph = {"@context": "https://schema.org", "@graph": [
         {"@type": "WebPage", "@id": url + "#page", "url": url, "name": p["title"], "description": p["desc"], "inLanguage": "mn",
          "isPartOf": {"@id": SITE + "/#website"}, "primaryImageOfPage": img,
@@ -187,14 +188,14 @@ def render(p, header):
 <script>if(location.hostname==='www.graphican.online')location.replace('https://graphican.online'+location.pathname+location.search+location.hash)</script>
 <script src="/assets/i18n.js?v=1"></script>
 <meta name="theme-color" content="#0a0a10">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2308080a'/%3E%3Ccircle cx='16' cy='16' r='7' fill='%23a497ff'/%3E%3C/svg%3E">
+<link rel="icon" href="/favicon.ico" sizes="48x48"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preload" href="/assets/fonts/web/InterTight-Bold.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/assets/fonts/web/Inter-Regular.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/assets/fonts/web/fonts.css">
 <link rel="stylesheet" href="/assets/style.css?v=36">
-<link rel="stylesheet" href="/assets/design.css?v=34">
+<link rel="stylesheet" href="/assets/design.css?v=35">
 <link rel="stylesheet" href="/assets/landing.css?v={L.V}">
 <link rel="stylesheet" href="/assets/apps.css?v={V}">
 </head>
@@ -392,8 +393,8 @@ def build():
 def slides_page():
     """/slides/ — the editor in presentation mode (same app, own document). Built from editor/index.html."""
     src = open(os.path.join(ROOT, "editor", "index.html"), encoding="utf-8").read()
-    t = "Илтгэл бэлдэх (PPT) — онлайн, үнэгүй, монгол загвартай | Graphican"
-    d = "Canva шиг илтгэл, презентацыг хөтөч дээрээ бэлд: 240 гаруй бэлэн слайд загвар, видеотой слайд, монгол фонт, үнэгүй зураг ба видео, бүтэн дэлгэцээр үзүүлэх, PowerPoint (.pptx) ба PDF татах. Бүртгэлгүй."
+    t = "Илтгэл бэлдэх (PPT) — онлайн, үнэгүй | Graphican"
+    d = "Canva шиг илтгэлээ хөтөч дээрээ бэлд: 240+ бэлэн слайд загвар, монгол фонт, chart, хүснэгт, PowerPoint (.pptx) ба PDF татах. Үнэгүй, бүртгэлгүй."
     s = src
     s = re.sub(r"<title>.*?</title>", f"<title>{t}</title>", s, 1)
     s = re.sub(r'<meta name="description" content="[^"]*">', f'<meta name="description" content="{d}">', s, 1)
@@ -401,6 +402,18 @@ def slides_page():
     s = s.replace('content="https://graphican.online/editor/"', 'content="https://graphican.online/slides/"')
     s = re.sub(r'<meta property="og:title" content="[^"]*">', f'<meta property="og:title" content="{t}">', s, 1)
     s = re.sub(r'<meta property="og:description" content="[^"]*">', f'<meta property="og:description" content="{d}">', s, 1)
+    s = re.sub(r'<meta name="twitter:title" content="[^"]*">', f'<meta name="twitter:title" content="{t}">', s, 1)
+    s = re.sub(r'<meta name="twitter:description" content="[^"]*">', f'<meta name="twitter:description" content="{d}">', s, 1)
+    s = s.replace("/assets/uploads/og/editor.jpg", "/assets/uploads/og/slides.jpg")
+    ldj = {"@context": "https://schema.org", "@graph": [
+        {"@type": "WebApplication", "name": "Graphican — Илтгэл (PPT)", "url": SITE + "/slides/", "description": d, "inLanguage": "mn",
+         "applicationCategory": "BusinessApplication", "operatingSystem": "Windows, macOS, Android, iOS", "browserRequirements": "Requires JavaScript",
+         "isAccessibleForFree": True, "offers": {"@type": "Offer", "price": "0", "priceCurrency": "MNT"},
+         "featureList": ["240+ слайд загвар", "PowerPoint (.pptx) ба PDF татах", "Засагддаг chart, хүснэгт", "Mockup, икон, монгол хээ", "Видеотой слайд", "Бүтэн дэлгэцээр үзүүлэх"],
+         "provider": {"@id": SITE + "/#org"}},
+        {"@type": "BreadcrumbList", "itemListElement": [{"@type": "ListItem", "position": 1, "name": "Graphican", "item": SITE + "/"},
+                                                       {"@type": "ListItem", "position": 2, "name": "Илтгэл (PPT)", "item": SITE + "/slides/"}]}]}
+    s = re.sub(r'<script type="application/ld\+json">.*?</script>', lambda m: ld(ldj), s, 1, flags=re.S)
     s = s.replace('<body class="ed-booting">', '<body class="ed-booting" data-mode="ppt">', 1)
     s = s.replace('<a href="/editor/" class="on">Дизайн</a><a href="/slides/">Илтгэл (PPT)</a>', '<a href="/editor/">Дизайн</a><a href="/slides/" class="on">Илтгэл (PPT)</a>')
     s = s.replace('value="Нэргүй дизайн"', 'value="Нэргүй илтгэл"')

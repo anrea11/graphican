@@ -1450,7 +1450,7 @@
   function langName(c) { var l = LANGS.filter(function (x) { return x[0] === c; })[0]; return l ? l[1] : c; }
 
   // PDF translation switch (see TRANSLATE_ON in worker/index.js): false hides «Орчуулах» everywhere in the editor
-  var TRANSLATE_ON = false;
+  var TRANSLATE_ON = false;   // switching on: also put «PDF орчуулах» back into the quick links of tools/pdfedit/index.html
   var RAIL = [
     ['edit', 'Засах'], ['convert', 'Хөрвүүлэх'], ['translate', 'Орчуулах'], ['organize', 'Хуудас'], ['sign', 'Гарын үсэг'],
     ['ai', 'AI хэрэгсэл'], ['fields', 'Талбар нэмэх'], ['share', 'Хуваалцах'], ['secure', 'Хамгаалах']

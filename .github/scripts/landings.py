@@ -25,7 +25,7 @@ FREE = ("Үнэгүй юу? Бүртгүүлэх шаардлагатай юу?"
 PHONE = ("Утаснаас ашиглаж болох уу?",
          "Болно. iPhone, Android, планшет, компьютер — ямар ч орчин үеийн хөтөч дээр ажиллана. Програм суулгах шаардлагагүй.")
 
-PAGES = [
+ALL_PAGES = [
     dict(slug="pdf-to-word", do="word", accept=PDF, short="PDF → Word",
          title="PDF-ийг Word болгох — үнэгүй онлайн хөрвүүлэгч | Graphican",
          h1="PDF-ийг Word болгох",
@@ -53,7 +53,7 @@ PAGES = [
          related=["jpg-to-pdf", "pdf-to-word", "merge-pdf", "compress-pdf"]),
 
     dict(slug="pdf-to-excel", do="excel", accept=PDF, short="PDF → Excel",
-         title="PDF-ийг Excel болгох — хүснэгт хөрвүүлэгч, үнэгүй онлайн | Graphican",
+         title="PDF-ийг Excel болгох — үнэгүй онлайн хөрвүүлэгч | Graphican",
          h1="PDF-ийг Excel болгох",
          desc="PDF доторх хүснэгт, тоо баримтыг Excel (XLSX) болгоно. Хуудас бүр тусдаа sheet болно. Үнэгүй, бүртгэлгүй, файл тань компьютерээс гарахгүй.",
          lead="Тайлан, үнийн санал, хүснэгттэй PDF-ээ Excel (.xlsx) болгоод тоогоо шууд тооцоолж, шүүж ашиглана. Мөр, баганын байрлалыг текстийн байршлаар нь таньж задална.",
@@ -88,7 +88,7 @@ PAGES = [
          related=["jpg-to-pdf", "pdf-to-ppt", "compress-pdf", "split-pdf"]),
 
     dict(slug="jpg-to-pdf", do="topdf", accept=IMG, multi=True, short="Зураг → PDF",
-         title="Зургийг PDF болгох (JPG, PNG → PDF) — үнэгүй онлайн | Graphican",
+         title="Зургийг PDF болгох (JPG → PDF) — үнэгүй | Graphican",
          h1="Зургийг PDF болгох",
          desc="JPG, PNG, HEIC (iPhone), WebP зургуудаа нэг PDF болгоно. Дарааллаа чирж сольж, хуудас эргүүлнэ. Үнэгүй, бүртгэлгүй, файл тань компьютерээс гарахгүй.",
          lead="Утсаар авсан баримт, гэрчилгээ, тооцооны хуудас зэрэг зургуудаа нэг PDF файл болгож илгээнэ. iPhone-ы HEIC зураг ч шууд нээгдэнэ.",
@@ -101,7 +101,7 @@ PAGES = [
          related=["pdf-to-jpg", "merge-pdf", "compress-pdf", "word-to-pdf"]),
 
     dict(slug="translate-pdf", do="translate", accept=PDF, short="PDF орчуулах",
-         title="PDF орчуулах — англи, орос, хятад → монгол, үнэгүй онлайн | Graphican",
+         title="PDF орчуулах — англи, орос, хятад → монгол | Graphican",
          h1="PDF орчуулах",
          desc="PDF баримтаа хиймэл оюунаар монгол, англи, орос, хятад, солонгос, япон зэрэг 20 хэл рүү орчуулна. Хэв загвар нь хадгалагдана. Үнэгүй, бүртгэлгүй.",
          lead="Англи, орос, хятад хэл дээрх гэрээ, заавар, судалгааны PDF-ээ монгол хэл рүү (эсвэл эсрэгээр) орчуулна. Орчуулга нь эх хуудсан дээрээ байрандаа орж, PDF хэвээрээ татагдана.",
@@ -114,7 +114,7 @@ PAGES = [
          related=["pdf-ocr", "pdf-to-word", "edit-pdf", "summarize-pdf"]),
 
     dict(slug="merge-pdf", do="merge", accept=ANY, multi=True, short="PDF нэгтгэх",
-         title="PDF нэгтгэх — олон PDF-ийг нэг болгох, үнэгүй онлайн | Graphican",
+         title="PDF нэгтгэх — олон PDF-ийг нэг болгох | Graphican",
          h1="PDF нэгтгэх",
          desc="Хэд хэдэн PDF, зураг, Word файлыг нэг PDF болгож нэгтгэнэ. Хуудсын дарааллыг чирж солино. Үнэгүй, бүртгэлгүй, файл тань компьютерээс гарахгүй.",
          lead="Олон PDF-ээ нэг файл болгоно. PDF-ээс гадна зураг, Word, Excel файлыг ч хамт нэгтгэнэ. Хуудас бүрийг чирж байрлуулах, эргүүлэх, устгах боломжтой.",
@@ -151,7 +151,7 @@ PAGES = [
          related=["merge-pdf", "jpg-to-pdf", "split-pdf", "protect-pdf"]),
 
     dict(slug="sign-pdf", do="sig", accept=PDF, short="Гарын үсэг",
-         title="PDF-д гарын үсэг зурах — цахим гарын үсэг, үнэгүй онлайн | Graphican",
+         title="PDF-д гарын үсэг зурах — үнэгүй онлайн | Graphican",
          h1="PDF-д гарын үсэг зурах",
          desc="Гэрээ, өргөдөл, акт зэрэг PDF дээр гарын үсгээ зурж, бичиж эсвэл зургаар оруулна. Огноо, товчилсон нэр нэмнэ. Үнэгүй, бүртгэлгүй, хэвлэх шаардлагагүй.",
          lead="Хэвлэж, гарын үсэг зураад, дахин скан хийх шаардлагагүй. Хулгана, хуруу эсвэл бичгээр гарын үсгээ үүсгээд PDF дээрээ байрлуулна.",
@@ -164,7 +164,7 @@ PAGES = [
          related=["edit-pdf", "protect-pdf", "fill-pdf", "compress-pdf"]),
 
     dict(slug="protect-pdf", do="pw", accept=PDF, short="Нууц үг тавих",
-         title="PDF-д нууц үг тавих — файлаа түгжих, үнэгүй онлайн | Graphican",
+         title="PDF-д нууц үг тавих — үнэгүй онлайн | Graphican",
          h1="PDF-д нууц үг тавих",
          desc="PDF файлаа нууц үгээр түгжиж, зөвхөн нууц үг мэдэх хүн нээдэг болгоно. Хэвлэх, хуулахыг хориглож болно. Үнэгүй, бүртгэлгүй.",
          lead="Цалингийн хуудас, гэрээ, хувийн мэдээлэлтэй PDF-ээ нууц үгээр хамгаална. Шифрлэлт таны төхөөрөмж дээр хийгддэг тул нууц үг, файл хаашаа ч илгээгдэхгүй.",
@@ -187,7 +187,7 @@ PAGES = [
          related=["protect-pdf", "merge-pdf", "edit-pdf", "compress-pdf"]),
 
     dict(slug="pdf-ocr", do="ocr", accept=PDF + "," + IMG, short="Текст таних (OCR)",
-         title="Скан PDF-ийг текст болгох (OCR) — монгол кирилл, үнэгүй | Graphican",
+         title="Скан PDF-ийг текст болгох (OCR) — үнэгүй | Graphican",
          h1="Скан PDF, зургаас текст таних (OCR)",
          desc="Скан хийсэн PDF, баримтын зургаас монгол кирилл, англи, орос бичгийг таньж хайж, хуулж болох текст болгоно. Үнэгүй, бүртгэлгүй, файл тань компьютерээс гарахгүй.",
          lead="Скан хийсэн, утсаар зураг авсан баримт дээрх бичгийг хиймэл оюунаар таниулна. PDF-д үл харагдах текстийн давхарга нэмэгдэж, Ctrl+F-ээр хайж, хуулж, Word болгож болно.",
@@ -200,27 +200,32 @@ PAGES = [
          related=["pdf-to-word", "translate-pdf", "summarize-pdf", "compress-pdf"]),
 
     dict(slug="edit-pdf", do="edit", accept=ANY, short="PDF засах",
-         title="PDF засах — PDF дээр бичих, текст өөрчлөх, үнэгүй онлайн | Graphican",
+         title="PDF засах — PDF дээр бичих, үнэгүй онлайн | Graphican",
          h1="PDF засах, PDF дээр бичих",
-         desc="PDF доторх бичгийг шууд засах, шинэ текст, зураг, тодруулга, хэлбэр нэмэх, хуудас эргүүлэх, устгах. Програм суулгахгүй, үнэгүй, бүртгэлгүй.",
+         desc="PDF доторх бичгийг шууд засах, үг хайж солих, текст, зураг, тодруулга нэмэх, хуудас эргүүлэх, устгах. Програм суулгахгүй, үнэгүй, бүртгэлгүй.",
          lead="Үсгийн алдаа засах, огноо солих, нэр нэмэх зэрэг PDF дээрх өөрчлөлтийг Word руу хөрвүүлэлгүй шууд хийнэ. Засах бичиг дээрээ дарахад л болно.",
          steps=["PDF файлаа доорх талбарт оруулах", "«Текст засах» горимд засах бичиг дээрээ дарж өөрчлөх", "«Татах» дарж засварласан PDF-ээ авна"],
-         feats=[("Бичиг засах", "Байгаа текстийг шууд өөрчилнө"), ("Нэмэх", "Текст, зураг, гарын үсэг, сум, хэлбэр, тодруулга"),
-                ("Хуудас", "Эргүүлэх, устгах, дараалал солих, нэгтгэх"), ("Буцаах", "Ctrl+Z-ээр алхам бүрийг буцаана")],
+         feats=[("Бичиг засах", "Байгаа текстийг шууд өөрчилнө — хуучин нь файлаас бүрмөсөн устна"), ("Хайх, солих", "Ctrl+F — бүх хуудаснаас үг хайж, нэг дор солино"),
+                ("Нэмэх", "Текст, зураг, гарын үсэг, сум, хэлбэр, тодруулга, доогуур зураас"), ("Хуудас", "Эргүүлэх, устгах, дараалал солих, нэгтгэх"),
+                ("Автомат хадгалалт", "Хөтөч хаагдсан ч ажил тань алга болохгүй"), ("Буцаах", "Ctrl+Z-ээр алхам бүрийг буцаана")],
          faq=[("Засахад фонт нь өөрчлөгдөх үү?", "Засварласан мөрөнд ойролцоо фонт автоматаар сонгогдоно. Фонт, хэмжээ, өнгийг баруун талын самбараас тааруулна."),
               ("PDF дээр шинээр текст бичиж болох уу?", "Болно — «Текст» (T) хэрэгслээр хүссэн газраа дарж бичнэ."),
+              ("Зассан хуучин бичиг PDF дотор үлдэх үү?", "Үгүй. Татахад засварласан болон цайруулсан хэсгийн хуучин текст файлаас бүрмөсөн устгагдана — хуулж, хайж олдохгүй."),
+              ("Нэг үгийг бүх хуудаснаас солих боломжтой юу?", "Болно — Ctrl+F дараад «⋯» → «Бүгдийг солих». Үг бүр эх фонт, хэмжээ, өнгөөрөө солигдоно."),
               ("Word, Excel файл засаж болох уу?", "Болно — файл PDF болж нээгдээд засагдана."), PRIV, PHONE, FREE],
          related=["sign-pdf", "fill-pdf", "pdf-to-word", "watermark-pdf"]),
 
     dict(slug="fill-pdf", do="fill", accept=PDF, short="Маягт бөглөх",
-         title="PDF маягт бөглөх, бөглөх талбар нэмэх — үнэгүй онлайн | Graphican",
+         title="PDF маягт бөглөх — үнэгүй онлайн | Graphican",
          h1="PDF маягт бөглөх",
-         desc="Анкет, өргөдөл зэрэг PDF маягтыг хэвлэхгүйгээр бөглөнө. Бусдаар бөглүүлэх текст, чагт, огнооны талбар нэмнэ. Үнэгүй, бүртгэлгүй.",
-         lead="Хэвлэж, бөглөөд, скан хийх шаардлагагүй. Хоосон зайн дээр текст бичиж, ✓ тэмдэг тавьж, гарын үсгээ зураад шууд илгээнэ. Мөн бусдад бөглүүлэх жинхэнэ PDF маягт үүсгэнэ.",
-         steps=["PDF маягтаа доорх талбарт оруулах", "Хоосон зай бүр дээр дарж бичих, ✓ тавих", "Бөглөсөн PDF-ээ татаж илгээнэ"],
-         feats=[("Текст, ✓ ✗", "Хүссэн газраа бичиж, тэмдэглэнэ"), ("Бөглөх талбар", "Текст, чагт, огноо, гарын үсгийн талбар"),
+         desc="Анкет, өргөдөл зэрэг PDF маягтын талбаруудыг шууд бөглөнө, гарын үсэг зурна. Бусдаар бөглүүлэх талбар нэмнэ. Үнэгүй, бүртгэлгүй.",
+         lead="Хэвлэж, бөглөөд, скан хийх шаардлагагүй. PDF-ийн бэлэн талбарууд цэнхрээр тодорч шууд бичигдэнэ. Талбаргүй маягтын хоосон зайд текст бичиж, ✓ тавьж, гарын үсгээ зураад илгээнэ.",
+         steps=["PDF маягтаа доорх талбарт оруулах", "Цэнхэр талбаруудыг бөглөх, эсвэл хоосон зайд дарж бичих, ✓ тавих", "Бөглөсөн PDF-ээ татаж илгээнэ"],
+         feats=[("Бэлэн талбар", "Текст, сонголтын нүд, радио, жагсаалтыг шууд бөглөнө"), ("Текст, ✓ ✗", "Талбаргүй газар ч бичиж, тэмдэглэнэ"),
+                ("Бөглөх талбар нэмэх", "Бусдад бөглүүлэх текст, чагт, огноо, гарын үсгийн талбар"),
                 ("Гарын үсэг", "Зурах, бичих, зургаар"), ("Нууцлал", "Хувийн мэдээлэл компьютерээс гарахгүй")],
-         faq=[("Бусдад бөглүүлэх маягт хийж болох уу?", "Болно — «Талбар нэмэх»-ээр үүсгэсэн талбарууд Adobe Reader, хөтөч дээр бөглөгддөг."), PRIV, FREE],
+         faq=[("PDF-ийн бэлэн талбарыг бөглөж болох уу?", "Болно. Файлаа нээхэд маягтын талбарууд цэнхрээр тодорно — дарж бичих, сонгох, чагтлахад л болно. Бөглөсөн утгууд татсан PDF-д бичигдэнэ."),
+              ("Бусдад бөглүүлэх маягт хийж болох уу?", "Болно — «Талбар нэмэх»-ээр үүсгэсэн талбарууд Adobe Reader, хөтөч дээр бөглөгддөг."), PRIV, FREE],
          related=["sign-pdf", "edit-pdf", "protect-pdf", "jpg-to-pdf"]),
 
     dict(slug="pdf-page-numbers", do="pnum", accept=PDF, short="Хуудасны дугаар",
@@ -235,7 +240,7 @@ PAGES = [
          related=["merge-pdf", "watermark-pdf", "edit-pdf", "split-pdf"]),
 
     dict(slug="watermark-pdf", do="wm", accept=PDF, short="Усан тэмдэг",
-         title="PDF-д усан тэмдэг (watermark) нэмэх — үнэгүй онлайн | Graphican",
+         title="PDF-д усан тэмдэг (watermark) нэмэх | Graphican",
          h1="PDF-д усан тэмдэг нэмэх",
          desc="PDF-ийн бүх хуудсанд «НООРОГ», «ДОТООД», компанийн нэр зэрэг усан тэмдэг нэмнэ. Өнгө, тунгалаг, өнцгөө тохируулна. Үнэгүй, бүртгэлгүй.",
          lead="Баримтаа хуулбарлуулахаас сэргийлж, эсвэл ноорог гэдгийг тодорхой харуулахын тулд бүх хуудсанд усан тэмдэг нэмнэ.",
@@ -246,7 +251,7 @@ PAGES = [
          related=["protect-pdf", "pdf-page-numbers", "sign-pdf", "edit-pdf"]),
 
     dict(slug="summarize-pdf", do="sum", accept=PDF, short="PDF хураангуйлах",
-         title="PDF хураангуйлах, PDF-ээс асуух — AI, үнэгүй онлайн | Graphican",
+         title="PDF хураангуйлах, PDF-ээс асуух — AI | Graphican",
          h1="PDF-ийг AI-аар хураангуйлах",
          desc="Урт PDF-ийн гол санааг хиймэл оюунаар монголоор товчилно, баримтаас асуулт асууж хариулт авна. Үнэгүй, бүртгэлгүй.",
          lead="Олон хуудастай тайлан, гэрээ, судалгааг бүгдийг унших цаг байхгүй юу? AI гол санааг нь хэдхэн мөрөөр гаргаж, «Төлбөрийн нөхцөл юу вэ?» гэх мэт асуултад баримт дээр тулгуурлан хариулна.",
@@ -259,6 +264,20 @@ PAGES = [
 ]
 
 # the older, JS-rendered tool pages that belong in the “all tools” grid too
+
+
+# PDF translation can be switched off in worker/index.js (TRANSLATE_ON); then /tools/translate-pdf/ redirects to the
+# editor, so it is left out of every link list and the sitemap (its page is still written, marked noindex).
+def _translate_on():
+    try:
+        return re.search(r"const TRANSLATE_ON = (true|false)", open(os.path.join(ROOT, "worker", "index.js"), encoding="utf-8").read()).group(1) == "true"
+    except Exception:
+        return True
+
+
+TRANSLATE_ON = _translate_on()
+PAGES = [p for p in ALL_PAGES if TRANSLATE_ON or p["slug"] != "translate-pdf"]   # pages that are live
+
 TOOL_LINKS = [("/tools/mongol-font/", "Монгол фонт хайгч"), ("/tools/brand-color/", "Брэндийн өнгө үүсгэгч"), ("/tools/templates/", "Монгол сошиал загвар"),
               ("/tools/pdfedit/", "PDF засварлагч"), ("/tools/upscale/", "Зураг томруулах (AI)"),
               ("/tools/bgremove/", "Зургийн дэвсгэр арилгах"), ("/tools/socialcrop/", "Сошиал хэмжээ рүү тайрах"),
@@ -287,7 +306,8 @@ def ld(obj):
 def page(p, header):
     path = f"/tools/{p['slug']}/"
     url = SITE + path
-    img = SITE + "/assets/uploads/og-cover.jpg"
+    og = f"/assets/uploads/og/{p['slug']}.jpg"
+    img = SITE + (og if os.path.exists(os.path.join(ROOT, og.lstrip("/"))) else "/assets/uploads/og-cover.jpg")
     graph = {"@context": "https://schema.org", "@graph": [
         {"@type": "WebPage", "@id": url + "#page", "url": url, "name": p["title"], "description": p["desc"], "inLanguage": "mn",
          "isPartOf": {"@id": SITE + "/#website"}, "primaryImageOfPage": img,
@@ -304,6 +324,7 @@ def page(p, header):
         {"@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": q, "acceptedAnswer": {"@type": "Answer", "text": strip(a)}} for q, a in p["faq"]]},
     ]}
     by = {x["slug"]: x for x in PAGES}
+    live = p in PAGES
     rel = [by[s] for s in p.get("related", []) if s in by]
     others = [x for x in PAGES if x["slug"] != p["slug"]]
     multi = p.get("multi")
@@ -322,7 +343,7 @@ def page(p, header):
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>{e(p['title'])}</title>
 <meta name="description" content="{e(p['desc'])}">
-<meta name="robots" content="index, follow, max-image-preview:large">
+<meta name="robots" content="{'index, follow, max-image-preview:large' if live else 'noindex, follow'}">
 <link rel="canonical" href="{url}">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Graphican">
@@ -339,12 +360,12 @@ def page(p, header):
 <script>if(location.hostname==='www.graphican.online')location.replace('https://graphican.online'+location.pathname+location.search+location.hash)</script>
 <script src="/assets/i18n.js?v=1"></script>
 <meta name="theme-color" content="#0a0a10">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2308080a'/%3E%3Ccircle cx='16' cy='16' r='7' fill='%23a497ff'/%3E%3C/svg%3E">
+<link rel="icon" href="/favicon.ico" sizes="48x48"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="preload" href="/assets/fonts/web/InterTight-Bold.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/assets/fonts/web/Inter-Regular.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/assets/fonts/web/fonts.css">
 <link rel="stylesheet" href="/assets/style.css?v=36">
-<link rel="stylesheet" href="/assets/design.css?v=34">
+<link rel="stylesheet" href="/assets/design.css?v=35">
 <link rel="stylesheet" href="/assets/landing.css?v={V}">
 </head>
 <body class="design-page lp-page">
@@ -408,7 +429,7 @@ def page(p, header):
 
 def build():
     header = header_html()
-    for p in PAGES:
+    for p in ALL_PAGES:
         d = os.path.join(ROOT, "tools", p["slug"])
         os.makedirs(d, exist_ok=True)
         open(os.path.join(d, "index.html"), "w", encoding="utf-8").write(page(p, header))

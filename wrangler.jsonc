@@ -13,6 +13,8 @@
   "assets": {
     "directory": ".",
     "binding": "ASSETS",
+    // unknown URLs get /404.html with a real 404 status (links to the main tools) instead of an empty response
+    "not_found_handling": "404-page",
     "run_worker_first": ["/api/*", "/tools/translate-pdf/*", "/tools/translate-pdf"]
   }
 }
