@@ -1699,6 +1699,7 @@
     }
     var t = e.target.closest('button,[data-ly]'); if (!t) return;
     var all = canvas.getObjects(), d = t.dataset;
+    if (d.kitAll || d.kitBack) return;   // opening / leaving a section of the «Элемент» tab keeps the phone drawer open
     if (d.lyLock) { var lo = all[+d.lyLock]; lockObj(lo, !lo.locked); canvas.requestRenderAll(); commit(); refreshUI(); return; }
     if (d.lyVis) { var vo = all[+d.lyVis]; vo.visible = vo.visible === false; if (vo.visible === false && active() === vo) canvas.discardActiveObject(); canvas.requestRenderAll(); commit(); refreshUI(); return; }
     if (d.ly) {
