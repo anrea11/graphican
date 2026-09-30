@@ -782,6 +782,9 @@ input[type="range"] { accent-color:var(--acc); }
 .kit-tiles.kit-strip .tile.kt { width:92px; }
 .kit-icons.kit-strip { display:flex; gap:3px; }
 .kit-icons.kit-strip button { width:34px; }
+.paint-tiles .tile.kt img { width:100%; height:52px; object-fit:contain; }
+.kit-tiles.kit-strip.paint-tiles .tile.kt { width:128px; }
+.paint-tiles.grid3 { grid-template-columns:repeat(2, 1fr); }
 .kit-back { display:flex; align-items:center; gap:6px; margin:2px 0 10px; font-size:12.5px; }
 .kit-back b { font-weight:600; }
 .kit-back span { color:var(--dim); font-size:11px; }

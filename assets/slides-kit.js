@@ -804,6 +804,20 @@
   var MN_PAT = [['ulzii', 'Өлзий хээ'], ['ulziiRibbon', 'Өлзий — туузан'], ['ulziiSq', 'Өлзий — дөрвөлжин'], ['ulziiNet', 'Өлзий — тор'], ['ulziiRing', 'Дугуй өлзий'], ['ulziiRow', 'Өлзий — зурвас'],
     ['hammer', 'Алхан хээ — зурвас'], ['hammerFrame', 'Алхан хээ — хүрээ'], ['key', 'Ороолт хээ — зурвас'], ['keyFrame', 'Ороолт хээ — хүрээ']];
   var MN_NAT = [['ger', 'Гэр'], ['gerScene', 'Гэр, уул, тал'], ['mountains', 'Уулс'], ['birch', 'Уул ус'], ['lake', 'Нуур, уул'], ['steppe', 'Тал нутаг'], ['river', 'Ус — долгион'], ['pine', 'Мод'], ['larch', 'Нарс'], ['sun', 'Нар'], ['cloud', 'Үүл']];
+  // painted gers, mountains and clouds (assets/mn-paint/<id>.json, vectorised from the owner's pictures): one flat colour per layer,
+  // so every colour can be changed in the «Өнгө» section. Each item loads only when it is added; tiles use small .webp previews.
+  var MN_PAINT = [["ger1", "Гэр — хийморьтой"], ["ger2", "Гэр — үүлтэй"], ["ger3", "Гэр — утаатай"], ["ger4", "Гэр — туг, хадаг"], ["ger5", "Гэр — тугтай"], ["mtn1", "Уул — үүлтэй"], ["mtn2", "Уул — оргил"], ["mtn3", "Уулс — нуруу"], ["mtn4", "Уулс — үүлэн"], ["mtn5", "Уул — улаан үүлтэй"], ["cl1", "Үүл — нартай"], ["cl2", "Үүл — нар жаргах"], ["sw1", "Хээт үүл — улаан"], ["sw2", "Хээт үүл — хөх"], ["sw3", "Хээт үүл — долгио"], ["sw4", "Хээт үүл — цайвар"], ["sw5", "Хээт үүл — зурвас"], ["bc1", "Үүл — сар"], ["bc2", "Үүл — их"], ["bc3", "Үүл — жижиг"], ["bc4", "Үүл — хэвтээ"], ["bc5", "Үүл — сартай"], ["bc6", "Үүл — урт"], ["bc7", "Үүл — хуйлраа"], ["bc8", "Үүл — бөөгнөрөл"], ["bc9", "Үүл — дов"], ["bc10", "Үүл — хуйлраа урт"], ["bc11", "Үүл — бяцхан"]];
+  var paintCache = {};
+  function addMnPaint(k) {
+    var go = function (j) {
+      var g = new fabric.Group(j.layers.map(function (l) { return new fabric.Path(l.d, { fill: l.c, fillRule: 'evenodd', strokeWidth: 0, objectCaching: false }); }), { name: j.name });
+      var pg = E().page(), wide = j.w / j.h > 1.6, s = (wide ? pg.w * 0.7 : pg.h * 0.5) / (wide ? g.width : g.height);
+      g.set({ scaleX: s, scaleY: s }); E().place(g);
+    };
+    if (paintCache[k]) return go(paintCache[k]);
+    fetch('/assets/mn-paint/' + k + '.json?v=1').then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(function (j) { paintCache[k] = j; go(j); }).catch(function () { E().toast('Зургийг ачаалж чадсангүй — дахин оролдоно уу'); });
+  }
   function mnInk() { return inkFor(null).dark ? '#f2c94c' : '#c11720'; }
   function addMnPattern(k) {
     var ed = E(), pg = ed.page(), W0 = pg.w, H0 = pg.h, col = mnInk(), o;
@@ -906,13 +920,14 @@
     { id: 'mnp', t: 'Монгол хээ', sub: 'уламжлалт', mn: 1, n: function () { return MN_PAT.length; }, tiles: function (l) { return MN_PAT.slice(0, l || MN_PAT.length).map(function (x) { return '<button type="button" class="tile kt" data-kit-mnp="' + x[0] + '" title="' + x[1] + '">' + patThumb(x[0]) + '<span>' + x[1] + '</span></button>'; }).join(''); } },
     { id: 'mnt', t: 'Хээ угалз, уулан хээ', sub: 'эх зургаас', mn: 1, n: function () { return MN_TR_N; }, tiles: mnTrTiles },
     { id: 'mna', t: 'Байгаль, гэр', mn: 1, n: function () { return MN_NAT.length; }, tiles: function (l) { return MN_NAT.slice(0, l || MN_NAT.length).map(function (x) { return '<button type="button" class="tile kt" data-kit-mna="' + x[0] + '" title="' + x[1] + '">' + svgThumb(x[0]) + '<span>' + x[1] + '</span></button>'; }).join(''); } },
+    { id: 'paint', t: 'Уран зураг', sub: 'өнгө нь солигдоно', paint: 1, n: function () { return MN_PAINT.length; }, tiles: function (l) { return MN_PAINT.slice(0, l || MN_PAINT.length).map(function (x) { return '<button type="button" class="tile kt" data-kit-paint="' + x[0] + '" title="' + x[1] + '"><img src="/assets/mn-paint/' + x[0] + '.webp?v=1" alt="" loading="lazy" decoding="async"><span>' + x[1] + '</span></button>'; }).join(''); } },
     { id: 'dg', t: 'Диаграм', sub: 'текст нь засагдана', n: function () { return DIAGRAMS.length; }, tiles: function (l) { return DIAGRAMS.slice(0, l || DIAGRAMS.length).map(function (d) { return '<button type="button" class="tile kt" data-kit-dg="' + d[0] + '" title="' + d[1] + ' — ' + d[2] + '">' + tileSvg(DG_ICON[d[0]]) + '<span>' + d[1] + '</span></button>'; }).join(''); } },
     { id: 'icons', t: 'Икон', icons: 1, n: function () { return ICONS.length; }, tiles: iconTiles }
   ];
   function secBody(s, lim) {
     var t = s.tiles(lim);
     if (t === null) return '<p class="note" id="kit-mntr">Ачаалж байна…</p>';
-    var cls = s.icons ? 'kit-icons' : 'kit-tiles' + (s.mn ? ' mn-tiles' : '');
+    var cls = s.icons ? 'kit-icons' : 'kit-tiles' + (s.mn ? ' mn-tiles' : '') + (s.paint ? ' paint-tiles' : '');
     return '<div class="' + cls + (lim ? ' kit-strip' : ' grid3') + '"' + (s.id === 'mnt' ? ' id="kit-mntr"' : '') + '>' + t + '</div>';
   }
   function qInput() { return '<input class="kit-q" type="search" placeholder="Икон хайх…" data-kit-q aria-label="Икон хайх" value="' + esc(kitQ) + '">'; }
@@ -985,6 +1000,7 @@
       else if (d.kitMnp) addMnPattern(d.kitMnp);
       else if (d.kitMna) addMnArt(d.kitMna);
       else if (d.kitMnt) addMnTraced(+d.kitMnt);
+      else if (d.kitPaint) addMnPaint(d.kitPaint);
       return;
     }
     var o = E().active(); if (!o || !o.gKit) return;
