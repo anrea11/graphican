@@ -91,7 +91,7 @@ svg.i { width:18px; height:18px; display:block; fill:none; stroke:currentColor; 
 .tl span:hover { outline:2px solid var(--acc); background:rgba(109,86,250,.14); }
 
 /* ---------- empty state ---------- */
-.empty { position:absolute; inset:0; overflow:auto; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:18px; padding:28px 20px 100px; }
+.empty { position:absolute; inset:0; overflow:auto; display:flex; flex-direction:column; align-items:center; justify-content:safe center; gap:18px; padding:28px 20px 100px; }
 .drop { width:min(560px, 100%); display:flex; flex-direction:column; align-items:center; gap:8px; padding:40px 24px; border:1.5px dashed var(--line2); border-radius:16px; background:var(--bg); text-align:center; cursor:pointer; transition:border-color .15s, background .15s; }
 .drop:hover, .drop.over { border-color:var(--acc); background:var(--acc-soft); }
 .drop-ic { width:56px; height:56px; display:grid; place-items:center; border-radius:14px; background:var(--acc); color:#fff; font-weight:700; letter-spacing:.04em; margin-bottom:6px; box-shadow:0 8px 24px -8px var(--acc); }
@@ -246,3 +246,45 @@ input[type=range] { flex:1; accent-color:var(--acc); min-width:0; }
 
 /* PDF translation is switched off for now (TRANSLATE_ON in worker/index.js) */
 a[href^="/tools/translate-pdf"] { display: none !important; }
+
+/* ---------- page number box, find bar, search hits ---------- */
+.pgnav { display:flex; align-items:center; gap:3px; height:30px; padding:0 6px; border:1px solid var(--line); border-radius:7px; font-size:12px; color:var(--muted); font-variant-numeric:tabular-nums; }
+.pgnav input { width:34px; height:24px; text-align:center; border:1px solid transparent; border-radius:5px; background:transparent; font-weight:600; color:var(--text); }
+.pgnav input:hover { border-color:var(--line2); }
+.pgnav input:focus { outline:none; border-color:var(--acc); background:var(--bg); }
+.pe:not(.has-doc) .pgnav, .pe:not(.has-doc) #pe-find { display:none; }
+#pe-keys { font-weight:700; font-size:14px; color:var(--muted); }
+.findbar { position:fixed; top:calc(var(--th) + 10px); right:calc(var(--pw) + 18px); z-index:55; width:min(400px, calc(100vw - 20px)); padding:6px; border-radius:12px; background:var(--bg); border:1px solid var(--line); box-shadow:var(--shadow); display:flex; flex-direction:column; gap:6px; }
+.findbar[hidden] { display:none; }
+.findbar .fr { display:flex; align-items:center; gap:4px; }
+.findbar .fx[hidden] { display:none; }
+.findbar input { flex:1; min-width:0; height:32px; padding:0 10px; border-radius:8px; border:1px solid var(--line2); background:var(--bg); font-size:13px; }
+.findbar input:focus { outline:none; border-color:var(--acc); }
+.findbar .fc { min-width:62px; text-align:center; font-size:12px; color:var(--muted); font-variant-numeric:tabular-nums; white-space:nowrap; }
+.findbar .fc.none { color:#e5484d; }
+.findbar .ib { width:30px; height:30px; font-size:18px; line-height:1; }
+.findbar .btn { height:32px; padding:0 10px; font-size:12px; }
+.fml { position:absolute; inset:0; pointer-events:none; z-index:7; }
+.fml i { position:absolute; border-radius:2px; background:rgba(255,200,0,.38); mix-blend-mode:multiply; }
+.fml i.on { background:rgba(255,140,0,.55); box-shadow:0 0 0 2px #ff8a00; }
+/* the PDF's own form fields */
+.fl { position:absolute; inset:0; pointer-events:none; z-index:6; }
+.fl .ff { position:absolute; pointer-events:auto; margin:0; padding:0 3px; border:1px solid rgba(31,111,235,.45); border-radius:2px; background:rgba(214,229,255,.55); color:#111; font-family:Inter, system-ui, sans-serif; line-height:1.15; }
+.fl textarea.ff { resize:none; padding-top:2px; }
+.fl input[type=checkbox].ff, .fl input[type=radio].ff { padding:0; accent-color:#1f6feb; cursor:pointer; }
+.fl .ff:focus { outline:none; border-color:#1f6feb; background:rgba(214,229,255,.85); box-shadow:0 0 0 2px rgba(31,111,235,.25); }
+.pg.drawing .fl .ff { pointer-events:none; }
+/* shortcuts dialog */
+.keys { display:grid; grid-template-columns:auto 1fr; gap:6px 14px; align-items:center; font-size:13px; }
+.keys kbd { justify-self:start; padding:2px 7px; border-radius:5px; border:1px solid var(--line2); border-bottom-width:2px; background:var(--bg2); font:600 11.5px/1.5 Inter, system-ui, sans-serif; white-space:nowrap; }
+/* "continue where you left off" card on the empty screen */
+.resume { width:min(560px, 100%); display:flex; align-items:center; gap:10px; padding:12px 14px; flex:none; border-radius:12px; background:var(--acc-soft); border:1px solid rgba(109,86,250,.35); }
+.resume div { flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
+.resume b { font-size:13.5px; }
+.resume small { color:var(--muted); font-size:11.5px; overflow:hidden; text-overflow:ellipsis; }
+@media (max-width:760px) {
+  .pgnav, #pe-keys { display:none; }
+  .findbar { right:10px; left:10px; width:auto; top:calc(var(--th) + 64px); }
+  .resume { flex-wrap:wrap; }
+  .resume div { flex-basis:100%; }
+}
