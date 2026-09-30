@@ -11,7 +11,7 @@ import landings as L
 
 ROOT, SITE, e, ld = L.ROOT, L.SITE, L.e, L.ld
 V = "10"
-TPL_V = "12"      # assets/templates.js ('path' items for the decks)
+TPL_V = "13"      # assets/templates.js ('path' items for the decks)
 KIT_V = "11"       # assets/slides-kit.js — «Элемент» tab in /editor/ and /slides/ (charts only in /slides/); keep editor/index.html in step
 
 
