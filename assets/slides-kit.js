@@ -849,19 +849,25 @@
       g.set({ name: name, scaleX: s, scaleY: s }); E().place(g);
     });
   }
-  // traced ornaments (assets/mn-traced.json, vectorised from the owner's reference pictures) — loaded when the panel first opens
-  var MN_TR = null, mnTrP = null;
+  // traced ornaments (assets/mn-traced.json, vectorised from the owner's reference pictures).
+  // The row preview needs only the first few (assets/mn-traced-lite.json, ~4 KB); the full file (~320 KB) loads on «Бүгдийг харах».
+  var MN_TR = null, mnTrP = null, MN_TRL = null, mnTrLP = null, MN_TR_N = 22;
   function mnTraced() {
-    if (!mnTrP) mnTrP = fetch('/assets/mn-traced.json?v=2').then(function (r) { return r.json(); }).then(function (j) { MN_TR = j.items || []; if (document.querySelector('#kit-mntr')) E().refreshUI(); }).catch(function () { mnTrP = null; });
+    if (!mnTrP) mnTrP = fetch('/assets/mn-traced.json?v=2').then(function (r) { return r.json(); }).then(function (j) { MN_TR = j.items || []; MN_TR_N = MN_TR.length; if (document.querySelector('#kit-mntr')) E().refreshUI(); }).catch(function () { mnTrP = null; });
     return mnTrP;
   }
-  function mnTrSection() {
-    if (!MN_TR) { mnTraced(); return '<p class="note" id="kit-mntr">Ачаалж байна…</p>'; }
-    return '<div class="grid3 kit-tiles mn-tiles" id="kit-mntr">' + MN_TR.map(function (t, i) {
-      return '<button type="button" class="tile kt" data-kit-mnt="' + i + '" title="' + esc(t.name) + '"><svg viewBox="0 0 ' + t.w + ' ' + t.h + '" preserveAspectRatio="xMidYMid meet"><path d="' + t.d + '" fill="#b3202a" fill-rule="evenodd"/></svg><span>' + esc(t.name) + '</span></button>'; }).join('') + '</div>';
+  function mnTracedLite() {
+    if (!mnTrLP) mnTrLP = fetch('/assets/mn-traced-lite.json?v=1').then(function (r) { return r.json(); }).then(function (j) { MN_TRL = j.items || []; MN_TR_N = j.total || MN_TR_N; if (document.querySelector('#kit-mntr')) E().refreshUI(); }).catch(function () { mnTrLP = null; });
+    return mnTrLP;
+  }
+  function mnTrTiles(lim) {
+    var list = MN_TR || (lim ? MN_TRL : null);
+    if (!list) { if (lim) mnTracedLite(); else mnTraced(); return null; }
+    return list.slice(0, lim || list.length).map(function (t, i) {
+      return '<button type="button" class="tile kt" data-kit-mnt="' + i + '" title="' + esc(t.name) + '"><svg viewBox="0 0 ' + t.w + ' ' + t.h + '" preserveAspectRatio="xMidYMid meet"><path d="' + t.d + '" fill="#b3202a" fill-rule="evenodd"/></svg><span>' + esc(t.name) + '</span></button>'; }).join('');
   }
   function addMnTraced(i) {
-    var t = MN_TR && MN_TR[i]; if (!t) return;
+    var t = (MN_TR || MN_TRL || [])[i]; if (!t) return;
     var pg = E().page(), o = new fabric.Path(t.d, { fill: mnInk(), fillRule: 'evenodd', strokeWidth: 0, objectCaching: true, name: t.name });
     var wide = t.w / t.h > 1.8, s = (wide ? pg.w * 0.7 : pg.h * 0.4) / (wide ? o.width : o.height);
     o.set({ scaleX: s, scaleY: s }); E().place(o);
@@ -883,28 +889,53 @@
   }
 
 
-  function panel() {
-    var h = '<div class="sec-t">Chart <span>PowerPoint-д засагдана</span></div><div class="grid3 kit-tiles">' +
-      CHARTS.map(function (c) { return '<button type="button" class="tile kt" data-kit-chart="' + c[0] + '" title="' + c[1] + ' chart">' + tileSvg(c[2]) + '<span>' + c[1] + '</span></button>'; }).join('') + '</div>' +
-      '<div class="sec-t">Хүснэгт <span>Excel-ээс буулгаж болно</span></div>' +
-      '<button type="button" class="btn acc full" data-kit-table="1">' + tileSvg('<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M3 14.5h18M9 4v16M15 4v16"/>') + 'Хүснэгт нэмэх</button>' +
-      '<div class="sec-t">Mockup — төхөөрөмж</div><div class="grid3 kit-tiles">' + mkTiles('device') + '</div>' +
-      '<div class="sec-t">Mockup — хэвлэмэл</div><div class="grid3 kit-tiles">' + mkTiles('print') + '</div>' +
-      '<div class="sec-t">Mockup — вэб</div><div class="grid3 kit-tiles">' + mkTiles('web') + '</div>' +
-      '<div class="sec-t">Монгол хээ <span>уламжлалт</span></div><div class="grid3 kit-tiles mn-tiles">' +
-      MN_PAT.map(function (x) { return '<button type="button" class="tile kt" data-kit-mnp="' + x[0] + '" title="' + x[1] + '">' + patThumb(x[0]) + '<span>' + x[1] + '</span></button>'; }).join('') + '</div>' +
-      '<div class="sec-t">Хээ угалз, уулан хээ <span>эх зургаас</span></div>' + mnTrSection() +
-      '<div class="sec-t">Байгаль, гэр</div><div class="grid3 kit-tiles mn-tiles">' +
-      MN_NAT.map(function (x) { return '<button type="button" class="tile kt" data-kit-mna="' + x[0] + '" title="' + x[1] + '">' + svgThumb(x[0]) + '<span>' + x[1] + '</span></button>'; }).join('') + '</div>' +
-      '<div class="sec-t">Диаграм <span>текст нь засагдана</span></div><div class="grid3 kit-tiles">' +
-      DIAGRAMS.map(function (d) { return '<button type="button" class="tile kt" data-kit-dg="' + d[0] + '" title="' + d[1] + ' — ' + d[2] + '">' + tileSvg(DG_ICON[d[0]]) + '<span>' + d[1] + '</span></button>'; }).join('') + '</div>' +
-      '<div class="sec-t">Икон <span>' + ICONS.length + '</span></div><input class="kit-q" type="search" placeholder="Икон хайх…" data-kit-q aria-label="Икон хайх"><div class="kit-icons">' +
-      ICONS.map(function (ic, i) { return '<button type="button" data-kit-icon="' + i + '" data-n="' + esc(ic[1].toLowerCase() + ' ' + ic[0]) + '" title="' + ic[1] + '"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="' + ic[2] + '"/></svg></button>'; }).join('') + '</div>' +
-      '<p class="note">Chart, хүснэгт дээр давхар дарж өгөгдлийг засна. «PowerPoint (.pptx)» татахад жинхэнэ PowerPoint chart, хүснэгт болж орно.</p>';
-    return h;
+  // The «Элемент» tab shows each section as one horizontal row of a few tiles; «Бүгдийг харах» opens the whole section.
+  // Keeps the panel light: it is rebuilt on every selection change, and the full lists hold ~1000 icons and big SVGs.
+  var kitOpen = null, kitQ = '', ROW = 6, ROW_IC = 14;
+  function mkKeys(cat) { return Object.keys(MOCKS).filter(function (k) { return MOCKS[k].cat === cat; }); }
+  function iconTiles(lim) {
+    var q = kitQ.trim().toLowerCase();
+    return ICONS.slice(0, lim || ICONS.length).map(function (ic, i) { var n = ic[1].toLowerCase() + ' ' + ic[0]; return '<button type="button" data-kit-icon="' + i + '" data-n="' + esc(n) + '" title="' + ic[1] + '"' + (!lim && q && n.indexOf(q) < 0 ? ' hidden' : '') + '><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="' + ic[2] + '"/></svg></button>'; }).join('');
   }
-  function mkTiles(cat) {
-    return Object.keys(MOCKS).filter(function (k) { return MOCKS[k].cat === cat; }).map(function (k) {
+  var SECS = [
+    { id: 'chart', t: 'Chart', sub: 'PowerPoint-д засагдана', n: function () { return CHARTS.length; }, tiles: function (l) { return CHARTS.slice(0, l || CHARTS.length).map(function (c) { return '<button type="button" class="tile kt" data-kit-chart="' + c[0] + '" title="' + c[1] + ' chart">' + tileSvg(c[2]) + '<span>' + c[1] + '</span></button>'; }).join(''); } },
+    { id: 'table', t: 'Хүснэгт', sub: 'Excel-ээс буулгаж болно', only: '<button type="button" class="btn acc full" data-kit-table="1">' + '%TBL%' + 'Хүснэгт нэмэх</button>' },
+    { id: 'device', t: 'Mockup — төхөөрөмж', n: function () { return mkKeys('device').length; }, tiles: function (l) { return mkTiles('device', l); } },
+    { id: 'print', t: 'Mockup — хэвлэмэл', n: function () { return mkKeys('print').length; }, tiles: function (l) { return mkTiles('print', l); } },
+    { id: 'web', t: 'Mockup — вэб', n: function () { return mkKeys('web').length; }, tiles: function (l) { return mkTiles('web', l); } },
+    { id: 'mnp', t: 'Монгол хээ', sub: 'уламжлалт', mn: 1, n: function () { return MN_PAT.length; }, tiles: function (l) { return MN_PAT.slice(0, l || MN_PAT.length).map(function (x) { return '<button type="button" class="tile kt" data-kit-mnp="' + x[0] + '" title="' + x[1] + '">' + patThumb(x[0]) + '<span>' + x[1] + '</span></button>'; }).join(''); } },
+    { id: 'mnt', t: 'Хээ угалз, уулан хээ', sub: 'эх зургаас', mn: 1, n: function () { return MN_TR_N; }, tiles: mnTrTiles },
+    { id: 'mna', t: 'Байгаль, гэр', mn: 1, n: function () { return MN_NAT.length; }, tiles: function (l) { return MN_NAT.slice(0, l || MN_NAT.length).map(function (x) { return '<button type="button" class="tile kt" data-kit-mna="' + x[0] + '" title="' + x[1] + '">' + svgThumb(x[0]) + '<span>' + x[1] + '</span></button>'; }).join(''); } },
+    { id: 'dg', t: 'Диаграм', sub: 'текст нь засагдана', n: function () { return DIAGRAMS.length; }, tiles: function (l) { return DIAGRAMS.slice(0, l || DIAGRAMS.length).map(function (d) { return '<button type="button" class="tile kt" data-kit-dg="' + d[0] + '" title="' + d[1] + ' — ' + d[2] + '">' + tileSvg(DG_ICON[d[0]]) + '<span>' + d[1] + '</span></button>'; }).join(''); } },
+    { id: 'icons', t: 'Икон', icons: 1, n: function () { return ICONS.length; }, tiles: iconTiles }
+  ];
+  function secBody(s, lim) {
+    var t = s.tiles(lim);
+    if (t === null) return '<p class="note" id="kit-mntr">Ачаалж байна…</p>';
+    var cls = s.icons ? 'kit-icons' : 'kit-tiles' + (s.mn ? ' mn-tiles' : '');
+    return '<div class="' + cls + (lim ? ' kit-strip' : ' grid3') + '"' + (s.id === 'mnt' ? ' id="kit-mntr"' : '') + '>' + t + '</div>';
+  }
+  function qInput() { return '<input class="kit-q" type="search" placeholder="Икон хайх…" data-kit-q aria-label="Икон хайх" value="' + esc(kitQ) + '">'; }
+  function panel() {
+    var s = kitOpen && SECS.filter(function (x) { return x.id === kitOpen; })[0];
+    if (s) {
+      return '<div class="kit-back"><button type="button" class="ib" data-kit-back="1" title="Буцах" aria-label="Буцах"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button><b>' + s.t + '</b><span>' + s.n() + '</span></div>' +
+        (s.icons ? qInput() : '') + secBody(s, 0);
+    }
+    var h = SECS.map(function (x) {
+      if (x.only) return '<div class="sec-t"><em class="kit-h">' + x.t + (x.sub ? ' <span>' + x.sub + '</span>' : '') + '</em></div>' + x.only.replace('%TBL%', tileSvg('<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M3 14.5h18M9 4v16M15 4v16"/>'));
+      var lim = x.icons ? ROW_IC : ROW, n = x.n();
+      return '<div class="sec-t"><em class="kit-h">' + x.t + (x.sub ? ' <span>' + x.sub + '</span>' : '') + '</em>' + (n > lim ? '<button type="button" class="kit-all" data-kit-all="' + x.id + '">Бүгдийг харах <span>' + n + '</span></button>' : '') + '</div>' +
+        (x.icons ? qInput() : '') + secBody(x, lim);
+    }).join('');
+    return h + '<p class="note">Chart, хүснэгт дээр давхар дарж өгөгдлийг засна. «PowerPoint (.pptx)» татахад жинхэнэ PowerPoint chart, хүснэгт болж орно.</p>';
+  }
+  function openSec(id) {
+    kitOpen = id; E().refreshUI();
+    var lp = document.getElementById('lp-body'); if (lp) lp.scrollTop = 0;
+  }
+  function mkTiles(cat, lim) {
+    return mkKeys(cat).slice(0, lim || 99).map(function (k) {
       return '<button type="button" class="tile kt" data-kit-mock="' + k + '" title="' + MOCKS[k].name + '">' + tileSvg(MK_ICON[k]) + '<span>' + MOCKS[k].name + '</span></button>'; }).join('');
   }
   function rightUI(o) {
@@ -943,7 +974,9 @@
     var b = e.target.closest('button'); if (!b) return;
     var d = b.dataset;
     if (lp) {
-      if (d.kitChart) addChart(d.kitChart);
+      if (d.kitAll) openSec(d.kitAll);
+      else if (d.kitBack) openSec(null);
+      else if (d.kitChart) addChart(d.kitChart);
       else if (d.kitTable) addTable();
       else if (d.kitMock) addMockup(d.kitMock);
       else if (d.kitIcon) addIcon(+d.kitIcon);
@@ -970,7 +1003,13 @@
   });
   document.addEventListener('input', function (e) {
     var t = e.target; if (!t.hasAttribute('data-kit-q')) return;
-    var q = t.value.trim().toLowerCase();
+    kitQ = t.value;
+    if (kitOpen !== 'icons') {   // typing in the row's search box opens the full icon list
+      openSec('icons'); var n = document.querySelector('#lp-body [data-kit-q]');
+      if (n) { n.focus(); n.setSelectionRange(n.value.length, n.value.length); }
+      return;
+    }
+    var q = kitQ.trim().toLowerCase();
     document.querySelectorAll('.kit-icons [data-kit-icon]').forEach(function (b) { b.hidden = q && b.dataset.n.indexOf(q) < 0; });
   });
 

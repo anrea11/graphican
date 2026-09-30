@@ -772,6 +772,20 @@ body[data-mode="ppt"] .lp-tabs button { flex:1 1 auto; min-width:0; padding:0 2p
 .kit-icons button:hover { background:var(--acc-soft); color:var(--acc); }
 .kit-icons svg { width:18px; height:18px; }
 .kit-ps .chk { margin-top:6px; }
+/* sections as one horizontal row; «Бүгдийг харах» opens the whole list */
+.sec-t .kit-h { font-style:normal; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.kit-all { flex:none; margin-left:8px; padding:2px 6px; border-radius:5px; font-size:11px; font-weight:600; color:var(--acc); }
+.kit-all:hover { background:var(--acc-soft); }
+.sec-t .kit-all span { color:var(--dim); font-weight:400; margin-left:2px; }
+.kit-strip { display:flex; gap:6px; overflow-x:auto; overscroll-behavior-x:contain; scroll-snap-type:x proximity; padding-bottom:6px; scrollbar-width:thin; -webkit-overflow-scrolling:touch; }
+.kit-strip > * { flex:0 0 auto; scroll-snap-align:start; }
+.kit-tiles.kit-strip .tile.kt { width:92px; }
+.kit-icons.kit-strip { display:flex; gap:3px; }
+.kit-icons.kit-strip button { width:34px; }
+.kit-back { display:flex; align-items:center; gap:6px; margin:2px 0 10px; font-size:12.5px; }
+.kit-back b { font-weight:600; }
+.kit-back span { color:var(--dim); font-size:11px; }
+.kit-back .ib svg { width:18px; height:18px; }
 .kit-seg button svg { width:15px; height:15px; fill:none; stroke:currentColor; }
 .kit-pals, .kit-stys, .kit-mk { display:flex; flex-wrap:wrap; gap:4px; }
 .kit-pals button { display:flex; padding:3px; border-radius:5px; border:1px solid var(--line2); }
