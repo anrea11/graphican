@@ -35,11 +35,13 @@
     tower: [1619660, 'Geraldine Tay'], kitchen: [6283972, 'Max Vakhtbovych'], kitchen2: [7533765, 'Max Vakhtbovych'],
     chef: [2544829, 'Rene Terp'], chef2: [8477422, 'Los Muertos Crew'], tart: [2693448, 'Anna Tukhfatullina'], dessert: [115837, 'Markus Spiske']
   };
-  function pxUrl(k, w) {
+  function pxDirect(k, w) {
     var p = PX[k]; if (!p) return '';
-    var u = 'https://images.pexels.com/photos/' + p[0] + '/' + (p[2] || 'pexels-photo-' + p[0] + '.jpeg') + '?auto=compress&cs=tinysrgb&w=' + (w || 1600);
-    return '/api/stock/file?u=' + encodeURIComponent(u);
+    return 'https://images.pexels.com/photos/' + p[0] + '/' + (p[2] || 'pexels-photo-' + p[0] + '.jpeg') + '?auto=compress&cs=tinysrgb&w=' + (w || 1600);
   }
+  function pxUrl(k, w) { var u = pxDirect(k, w); return u && '/api/stock/file?u=' + encodeURIComponent(u); }
+  // straight from Pexels' CDN (CORS, no Worker request); through our proxy only if that fails
+  function loadPhoto(k, w) { return loadImg(pxDirect(k, w)).then(function (im) { return im || loadImg(pxUrl(k, w)); }); }
   // free videos (Pexels licence). Stored by id; the Worker (/api/stock/video) resolves it to the HD file and poster.
   var VX = {
     horses: [33341536, 'Монгол адуу — дроноор'], steppe: [37984596, 'Тал нутаг, адуу'], road: [4360140, 'Тал дундах зам'], sunset: [4360141, 'Уулын жаргах нар'],
@@ -907,7 +909,7 @@
         if (el && el.naturalWidth) {
           var iw = el.naturalWidth, ih = el.naturalHeight, sc = Math.max(s.w / iw, s.h / ih), cw = s.w / sc, ch = s.h / sc;
           var fx = s.fx == null ? 0.5 : s.fx, fy = s.fy == null ? 0.5 : s.fy;
-          o = new F.Image(el, { left: X + s.x, top: Y + s.y, cropX: (iw - cw) * fx, cropY: (ih - ch) * fy, width: cw, height: ch, scaleX: sc, scaleY: sc, name: 'Зураг', strokeWidth: 0 });
+          o = new F.Image(el, { crossOrigin: 'anonymous', left: X + s.x, top: Y + s.y, cropX: (iw - cw) * fx, cropY: (ih - ch) * fy, width: cw, height: ch, scaleX: sc, scaleY: sc, name: 'Зураг', strokeWidth: 0 });
           o.gCredit = 'Pexels · ' + PX[s.key][1];
           if (s.mask) maskIt(o, s, cw, ch, sc);
         } else {
@@ -963,7 +965,7 @@
   // async: loads the template's photos (w = requested pixel width) and video posters first, then builds the objects
   function build(tp, X, Y, font, w) {
     var keys = photosOf(tp), vids = videosOf(tp), imgs = {};
-    return Promise.all(keys.map(function (k) { return loadImg(pxUrl(k, w)).then(function (im) { imgs[k] = im; }); })
+    return Promise.all(keys.map(function (k) { return loadPhoto(k, w).then(function (im) { imgs[k] = im; }); })
       .concat(vids.map(function (k) { return loadImg(vxPoster(k, w)).then(function (im) { imgs['v:' + k] = im; }); })))
       .then(function () { return objects(tp, X, Y, font, imgs); });
   }

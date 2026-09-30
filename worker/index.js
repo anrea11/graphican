@@ -133,7 +133,8 @@ async function file(url, request) {
   if (!h.get('accept-ranges') && /^video\//.test(h.get('content-type'))) h.set('accept-ranges', 'bytes');
   h.set('access-control-allow-origin', '*');
   h.set('access-control-expose-headers', 'content-length, content-range, accept-ranges');
-  h.set('cache-control', 'public, max-age=86400');
+  // photos on Pexels / Pixabay never change under the same URL: let browsers keep them a month (no repeat Worker request)
+  h.set('cache-control', /^image\//.test(h.get('content-type')) ? 'public, max-age=2592000, immutable' : 'public, max-age=86400');
   const name = url.searchParams.get('dl');
   if (name) h.set('content-disposition', `attachment; filename="${name.replace(/[^\w.\-]+/g, '_')}"`);
   return new Response(r.body, { status: r.status === 206 ? 206 : 200, headers: h });
