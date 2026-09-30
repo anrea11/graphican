@@ -1561,7 +1561,8 @@
   }
   function tplShell() {
     var cats = PPT ? [['all', 'Бүгд'], ['video', 'Видеотой']].concat(uniqTags()) : [['all', 'Бүгд'], ['photo', 'Фототой']].concat(Object.keys(window.GTPL.cats).map(function (c) { return [c, window.GTPL.cats[c]]; }));
-    return '<div class="tp-top"><label class="tp-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="tp-q" type="search" autocomplete="off" spellcheck="false" placeholder="' + (PPT ? 'Илтгэл хайх: ресторан, бизнес, аялал…' : 'Загвар хайх: кофе, наадам, хямдрал…') + '" value="' + esc(tplUI.q) + '"></label>' +
+    return (PPT ? '<button type="button" class="pptx-open" data-pptx-open="1"><b>Өөрийн PowerPoint файлаа засах</b><span>.pptx файл оруулахад слайд бүр засагдах хэлбэрээр нээгдэнэ</span></button>' : '') +
+      '<div class="tp-top"><label class="tp-search"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input id="tp-q" type="search" autocomplete="off" spellcheck="false" placeholder="' + (PPT ? 'Илтгэл хайх: ресторан, бизнес, аялал…' : 'Загвар хайх: кофе, наадам, хямдрал…') + '" value="' + esc(tplUI.q) + '"></label>' +
       '<div class="tp-chips">' + cats.map(function (c) { return '<button type="button" class="' + (tplUI.cat === c[0] ? 'on' : '') + '" data-tcat="' + c[0] + '">' + esc(c[1]) + '</button>'; }).join('') + '</div></div>' +
       '<div id="tp-res"></div>';
   }
@@ -1619,6 +1620,7 @@
   function tplRenderResults() { var r = document.getElementById('tp-res'); if (!r) return; r.innerHTML = tplResults(); tplHydrate(r); }
   $('#lp-body').addEventListener('input', function (e) { if (e.target.id === 'tp-q') { tplUI.q = e.target.value; tplUI.deck = null; tplRenderResults(); } });
   $('#lp-body').addEventListener('click', function (e) {
+    if (e.target.closest('[data-pptx-open]')) { openPptx(); return; }
     var c = e.target.closest('[data-tcat]');
     if (c) { tplUI.cat = c.dataset.tcat; tplUI.deck = null; $$('.tp-chips button').forEach(function (x) { x.classList.toggle('on', x === c); }); tplRenderResults(); $('#lp-body').scrollTop = 0; return; }
     var dv = e.target.closest('[data-deckv]');
@@ -2519,7 +2521,13 @@
       toast('Дизайн файлаар хадгалагдлаа — дараа «Файл нээх»-ээр үргэлжлүүлнэ');
     }
     if (a === 'open') { $('#ed-open').value = ''; $('#ed-open').click(); }
+    if (a === 'pptx') openPptx();
   });
+  // /slides/: open a PowerPoint file from the File menu
+  if (PPT) (function () {
+    var op = document.querySelector('#ed-file-menu [data-file="open"]');
+    if (op) op.insertAdjacentHTML('afterend', '<button type="button" data-file="pptx">PowerPoint (.pptx) нээх</button>');
+  })();
   $('#ed-open').addEventListener('change', function () {
     var f = this.files[0]; if (!f) return;
     f.text().then(function (txt) {
@@ -2576,6 +2584,8 @@
     if (!hasFiles(e)) return;
     e.preventDefault(); dragDepth = 0; $('#ed-dropzone').hidden = true;
     var at = canvas.getPointer(e);
+    var pp = Array.prototype.filter.call(e.dataTransfer.files, isPptx)[0];
+    if (pp && PPT) { importPptx(pp); return; }
     Array.prototype.forEach.call(e.dataTransfer.files, function (f) { if (/^image\//.test(f.type)) addImageBlob(f, { at: at }); });
   });
   var clip = null;
@@ -4336,6 +4346,207 @@
     Promise.all(d.slides.map(function (tp, k) { return applyTpl(tp, list[k], true); })).then(function () {
       pptGo(start); pptThumbSoon(true);
       toast('«' + d.name + '» бэлэн — текстийг давхар дарж засна, зургийг «Солих»-оор өөрчилнө');
+    });
+  }
+  // ---------- PowerPoint (.pptx) → editable slides (assets/pptx-import.js reads the file) ----------
+  // Every slide becomes a frame; text stays text (same size, colour, weight), shapes stay shapes, pictures keep
+  // their crop, tables / charts become the «Элемент» kit's editable ones, speaker notes go to the notes field.
+  // Office fonts are swapped for free look-alikes with Ө Ү (same letter widths, so line breaks stay put).
+  var PPTX_FONTS = { 'arial': 'Arimo', 'helvetica': 'Arimo', 'arial narrow': 'Arimo', 'liberation sans': 'Arimo', 'calibri': 'Carlito', 'calibri light': 'Carlito',
+    'cambria': 'Tinos', 'times new roman': 'Tinos', 'times': 'Tinos', 'liberation serif': 'Tinos', 'courier new': 'Cousine', 'consolas': 'Cousine',
+    'segoe ui': 'Open Sans', 'segoe ui light': 'Open Sans', 'segoe ui semibold': 'Open Sans', 'tahoma': 'Open Sans', 'verdana': 'Open Sans',
+    'trebuchet ms': 'Fira Sans', 'georgia': 'PT Serif', 'garamond': 'EB Garamond', 'book antiqua': 'EB Garamond', 'palatino linotype': 'EB Garamond',
+    'century gothic': 'Montserrat', 'gill sans': 'PT Sans', 'gill sans mt': 'PT Sans', 'franklin gothic book': 'Libre Franklin', 'franklin gothic medium': 'Libre Franklin',
+    'impact': 'Oswald', 'aptos': 'Inter', 'aptos display': 'Inter', 'aptos narrow': 'Inter', 'corbel': 'Open Sans', 'candara': 'Open Sans', 'constantia': 'PT Serif' };
+  function pptxFont(n) {
+    if (!n) return 'Inter';
+    var k = String(n).toLowerCase().trim();
+    if (PPTX_FONTS[k]) return PPTX_FONTS[k];
+    return FONTS[n] || MNW[n] ? n : 'Inter';   // a font we can't load → a clean sans instead of a random fallback
+  }
+  function pptxCol(c) { return c && c.hex ? mkCol(c.hex.toLowerCase(), c.a == null ? 1 : c.a) : ''; }
+  var pptxInput = null;
+  function openPptx() {
+    if (!pptxInput) {
+      pptxInput = document.createElement('input'); pptxInput.type = 'file'; pptxInput.hidden = true;
+      pptxInput.accept = '.pptx,.ppt,application/vnd.openxmlformats-officedocument.presentationml.presentation';
+      pptxInput.addEventListener('change', function () { var f = this.files[0]; this.value = ''; if (f) importPptx(f); });
+      document.body.appendChild(pptxInput);
+    }
+    pptxInput.click();
+  }
+  function isPptx(f) { return f && (/\.pptx?$/i.test(f.name || '') || /presentationml|powerpoint/.test(f.type || '')); }
+  function importPptx(file) {
+    if (/\.ppt$/i.test(file.name || '')) { toast('Хуучин .ppt файлыг PowerPoint дээр «Save As → .pptx» болгож хадгалаад оруулна уу'); return; }
+    if (userObjects().length > 0 && !confirm('«' + file.name + '» нээхэд одоогийн илтгэл солигдоно. Хадгалах бол эхлээд «Файлаар хадгалах» дарна уу. Үргэлжлүүлэх үү?')) return;
+    toast('«' + file.name + '» уншиж байна…');
+    Promise.all([window.JSZip ? 0 : loadScript('/assets/vendor/pptxgen.bundle.js'), window.GPptx ? 0 : loadScript('/assets/pptx-import.js?v=1')])
+      .then(function () { return file.arrayBuffer(); })
+      .then(function (buf) { return window.GPptx.parse(buf, file.name); })
+      .then(function (deck) { return pptxBuild(deck, file.name); })
+      .catch(function (err) { console.error(err); restoring = false; toast('PowerPoint файлыг нээж чадсангүй' + (err && /pptx/.test(err.message) ? ': ' + err.message : '') + '.'); });
+  }
+  // put o so that the centre of the PowerPoint box lands where it should, turned by the box's rotation;
+  // off = the object's own centre relative to the box centre (px, before rotation)
+  function pptxPut(o, it, f, k, off) {
+    var a = (it.rot || 0) * Math.PI / 180, dx = off ? off.x : 0, dy = off ? off.y : 0;
+    var cx = f.left + (it.x + it.w / 2) * k + dx * Math.cos(a) - dy * Math.sin(a), cy = f.top + (it.y + it.h / 2) * k + dx * Math.sin(a) + dy * Math.cos(a);
+    o.set({ angle: it.rot || 0 });
+    o.setPositionByOrigin(new fabric.Point(cx, cy), 'center', 'center'); o.setCoords();
+    return o;
+  }
+  function pptxTextbox(t, it, f, k, dark) {
+    var lines = [[]], styles = [], base = null, align = null, ls = null;
+    var px = function (pt) { return Math.max(4, r1((pt || 18) * (t.scale || 1) * 12700 * k)); };
+    t.paras.forEach(function (p, pi) {
+      if (pi > 0) lines.push([]);
+      align = align || p.align; ls = ls || p.lineSpacing;
+      var push = function (text, r) {
+        var sty = { fontSize: px(r.size), fill: pptxCol(r.color) || (dark ? '#ffffff' : '#1e1e1e'), fontWeight: r.bold ? 700 : 400, fontStyle: r.italic ? 'italic' : 'normal',
+          underline: !!r.underline, linethrough: !!r.strike, fontFamily: stack(pptxFont(r.font)) };
+        if (!base && String(text).trim()) base = sty;
+        for (var ch of String(text)) {
+          if (ch === '\n' || ch === '\v') { lines.push([]); continue; }
+          lines[lines.length - 1].push([ch, sty]);
+        }
+      };
+      var first = p.runs.filter(function (r) { return String(r.text).trim(); })[0] || p.runs[0] || {};
+      if (p.bullet) push(p.bullet + ' ', first);
+      p.runs.forEach(function (r) { push(r.caps ? String(r.text).toUpperCase() : r.text, r); });
+      if (!p.runs.length) lines[lines.length - 1].sizeHint = px((p.runs[0] || {}).size);
+    });
+    if (!base) return null;
+    var text = lines.map(function (l) { return l.map(function (c) { return c[0]; }).join(''); }).join('\n');
+    var st = {};
+    lines.forEach(function (l, li) {
+      l.forEach(function (c, ci) {
+        var d = {};
+        Object.keys(c[1]).forEach(function (key) { if (c[1][key] !== base[key]) d[key] = c[1][key]; });
+        if (Object.keys(d).length) { (st[li] = st[li] || {})[ci] = d; }
+      });
+    });
+    var ins = t.ins, iw = Math.max(20, (it.w - ins.l - ins.r) * k);
+    var tb = new fabric.Textbox(text, Object.assign({}, base, {
+      width: iw, textAlign: align || 'left', lineHeight: Math.round((ls || 1) * 106) / 100, styles: st, splitByGrapheme: false, name: it.name || 'Текст'
+    }));
+    tb.initDimensions();
+    if (t.wrap === false) {   // PowerPoint box that grows with its text: never wrap
+      var one = new fabric.Textbox(text, Object.assign({}, base, { width: 20000, styles: st, lineHeight: tb.lineHeight }));
+      one.initDimensions();
+      var need = Math.ceil(Math.max.apply(null, one._textLines.map(function (l, i) { return one.getLineWidth(i); })) + 2);
+      if (need > iw) tb.set({ width: need });
+      tb.initDimensions();
+    }
+    // vertical anchor inside the shape, horizontal offset for text wider than the box
+    var ih = (it.h - ins.t - ins.b) * k, th = tb.height, top = ins.t * k;
+    if (t.anchor === 'ctr') top += (ih - th) / 2; else if (t.anchor === 'b') top += ih - th;
+    var left = ins.l * k - (tb.width - iw) * (tb.textAlign === 'center' ? 0.5 : tb.textAlign === 'right' ? 1 : 0);
+    var off = { x: left + tb.width / 2 - it.w * k / 2, y: top + th / 2 - it.h * k / 2 };
+    return pptxPut(tb, it, f, k, off);
+  }
+  function pptxImage(deck, path) {
+    return deck.reader.image(path).then(function (blob) { return blob ? readImage(blob) : null; }).catch(function () { return null; });
+  }
+  function pptxItem(deck, it, f, k, dark) {
+    var fillC = it.fill ? pptxCol(it.fill) : '', strokeC = it.stroke ? pptxCol(it.stroke) : null, sw = it.stroke ? Math.max(0.5, r1(it.stroke.w * k)) : 0;
+    var common = { fill: fillC, stroke: strokeC, strokeWidth: strokeC ? sw : 0, strokeUniform: true, flipX: !!it.flipH, flipY: !!it.flipV, name: it.name || '' };
+    var W1 = Math.max(1, it.w * k), H1 = Math.max(1, it.h * k), out = [];
+    if (it.t === 'shape') {
+      var o = null;
+      if (it.geom === 'line') {
+        if (strokeC) {
+          var a = (it.rot || 0) * Math.PI / 180, cx = f.left + (it.x + it.w / 2) * k, cy = f.top + (it.y + it.h / 2) * k;
+          var hx = (it.flipH ? -1 : 1) * W1 / 2, hy = (it.flipV ? -1 : 1) * H1 / 2;
+          if (it.w * k < 1) hx = 0; if (it.h * k < 1) hy = 0;
+          var rx = function (x, y) { return [cx + x * Math.cos(a) - y * Math.sin(a), cy + x * Math.sin(a) + y * Math.cos(a)]; };
+          var p1 = rx(-hx, -hy), p2 = rx(hx, hy);
+          o = new fabric.Line([p1[0], p1[1], p2[0], p2[1]], { stroke: strokeC, strokeWidth: Math.max(1, sw), strokeLineCap: 'round', strokeUniform: true, name: it.name || 'Шугам' });
+          out.push(o);
+        }
+      } else if (fillC || strokeC) {
+        if (it.geom === 'ellipse') o = new fabric.Ellipse(Object.assign({ rx: W1 / 2, ry: H1 / 2 }, common));
+        else if (it.geom === 'triangle') o = new fabric.Triangle(Object.assign({ width: W1, height: H1 }, common));
+        else if (it.geom === 'path' && it.d) {
+          o = new fabric.Path(it.d, Object.assign({}, common, { scaleX: k, scaleY: k }));
+          // the path's own box may sit inside the PowerPoint box: keep its offset
+          var po = { x: (o.pathOffset.x - it.w / 2) * k * (it.flipH ? -1 : 1), y: (o.pathOffset.y - it.h / 2) * k * (it.flipV ? -1 : 1) };
+          out.push(pptxPut(o, it, f, k, po)); o = null;
+        } else o = new fabric.Rect(Object.assign({ width: W1, height: H1, rx: it.radius ? it.radius * k : 0, ry: it.radius ? it.radius * k : 0 }, common));
+        if (o) out.push(pptxPut(o, it, f, k));
+      }
+      if (it.text) { var tb = pptxTextbox(it.text, it, f, k, dark || (it.fill && isDark(it.fill.hex))); if (tb) out.push(tb); }
+      return Promise.resolve(out);
+    }
+    if (it.t === 'image') {
+      return pptxImage(deck, it.img).then(function (r) {
+        if (!r) return [];
+        return new Promise(function (res) {
+          fabric.Image.fromURL(r.url, function (img) {
+            var c = it.crop || { l: 0, t: 0, r: 0, b: 0 }, cl = Math.max(0, c.l), ct = Math.max(0, c.t), cr = Math.max(0, c.r), cb = Math.max(0, c.b);
+            var cw = Math.max(1, r.w * (1 - cl - cr)), ch = Math.max(1, r.h * (1 - ct - cb));
+            img.set({ cropX: r.w * cl, cropY: r.h * ct, width: cw, height: ch, scaleX: W1 / cw, scaleY: H1 / ch, flipX: !!it.flipH, flipY: !!it.flipV, name: it.name || 'Зураг' });
+            pptxPut(img, it, f, k);
+            if (it.clip) img.__pptxMask = it.clip === 'ellipse' ? 'oval' : 'rounded';
+            res([img]);
+          });
+        });
+      });
+    }
+    if ((it.t === 'table' || it.t === 'chart') && it.model && window.GKit && window.GKit.fromModel) {
+      return window.GKit.fromModel(it.t, it.model).then(function (g) {
+        var s = it.t === 'table' ? W1 / g.width : Math.min(W1 / g.width, H1 / g.height);
+        g.set({ scaleX: s, scaleY: s });
+        g.setPositionByOrigin(new fabric.Point(f.left + (it.x + it.w / 2) * k, f.top + it.y * k + (it.t === 'table' ? g.height * s / 2 : it.h * k / 2)), 'center', 'center');
+        g.setCoords();
+        return [g];
+      }).catch(function () { return []; });
+    }
+    return Promise.resolve([]);
+  }
+  function pptxBuild(deck, fname) {
+    var n = deck.slides.length; if (!n) { toast('Энэ файлд слайд алга'); return; }
+    var k = DEF_W / deck.w, FH = Math.round(deck.h * k);
+    var fams = {}; deck.fonts.forEach(function (x) { fams[pptxFont(x)] = 1; }); fams.Inter = 1;
+    var fontsP = Promise.all(Object.keys(fams).map(function (x) { return Promise.race([ensureFont(x), new Promise(function (r) { setTimeout(r, 5000); })]).catch(function () {}); }));
+    return fontsP.then(function () {
+      restoring = true; canvas.clear(); canvas.backgroundColor = canvasBg(); restoring = false;
+      $('#ed-name').value = String(fname || 'Илтгэл').replace(/\.pptx?$/i, '');
+      var made = [];
+      for (var i = 0; i < n; i++) {
+        var s = deck.slides[i], bgc = s.bg && s.bg.color ? s.bg.color : '#ffffff';
+        var f = addFrame(DEF_W, FH, { fill: bgc, name: 'Слайд ' + (i + 1) + (s.hidden ? ' (нуусан)' : '') });
+        if (s.notes) f.gNotes = s.notes;
+        made.push(f);
+      }
+      var total = 0;
+      return made.reduce(function (pr, f, i) {
+        return pr.then(function () {
+          var s = deck.slides[i], dark = isDark(frameFill(f));
+          if (n > 3) toast('Слайд ' + (i + 1) + ' / ' + n + ' бэлдэж байна…');
+          var jobs = [];
+          if (s.bg && s.bg.img) jobs.push(pptxImage(deck, s.bg.img).then(function (r) {
+            if (!r) return [];
+            return new Promise(function (res) { fabric.Image.fromURL(r.url, function (img) {
+              var sc = Math.max(DEF_W / img.width, FH / img.height);
+              img.set({ scaleX: sc, scaleY: sc, left: f.left + (DEF_W - img.width * sc) / 2, top: f.top + (FH - img.height * sc) / 2, name: 'Дэвсгэр зураг' });
+              img.setCoords(); res([img]);
+            }); });
+          }));
+          (s.deco || []).concat(s.items).forEach(function (it) { jobs.push(pptxItem(deck, it, f, k, dark)); });
+          return Promise.all(jobs).then(function (lists) {
+            restoring = true;
+            lists.forEach(function (l) { (l || []).forEach(function (o) { canvas.add(o); total++; if (o.__pptxMask) { try { fitMask(o, o.__pptxMask, o.__pptxMask === 'rounded' ? Math.min(o.getScaledWidth(), o.getScaledHeight()) * 0.1 : 0); } catch (e) {} delete o.__pptxMask; } }); });
+            restoring = false;
+          });
+        });
+      }, Promise.resolve()).then(function () {
+        canvas.getObjects().forEach(function (o) { if (o.isType && o.isType('textbox')) refreshText(o); });
+        pptRelayout(); pptGo(made[0]);
+        hist = []; hi = -1; pushHistory(); refreshUI(); pptThumbSoon(true);
+        var sk = {}; (deck.skipped || []).forEach(function (x) { sk[x] = (sk[x] || 0) + 1; });
+        var miss = Object.keys(sk).map(function (x) { return x + (sk[x] > 1 ? ' ×' + sk[x] : ''); }).join(', ');
+        toast('«' + $('#ed-name').value + '» — ' + n + ' слайд нээгдлээ. Текстийг давхар дарж засна.' + (miss ? ' Оруулж чадаагүй: ' + miss + '.' : ''), 7000);
+      });
     });
   }
   // slide strip (bottom)
