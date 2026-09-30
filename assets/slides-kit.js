@@ -922,13 +922,14 @@
       return '<div class="kit-back"><button type="button" class="ib" data-kit-back="1" title="Буцах" aria-label="Буцах"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg></button><b>' + s.t + '</b><span>' + s.n() + '</span></div>' +
         (s.icons ? qInput() : '') + secBody(s, 0);
     }
-    var h = SECS.map(function (x) {
+    var ppt = document.body.getAttribute('data-mode') === 'ppt';   // /editor/ gets everything except charts
+    var h = SECS.filter(function (x) { return ppt || x.id !== 'chart'; }).map(function (x) {
       if (x.only) return '<div class="sec-t"><em class="kit-h">' + x.t + (x.sub ? ' <span>' + x.sub + '</span>' : '') + '</em></div>' + x.only.replace('%TBL%', tileSvg('<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 9h18M3 14.5h18M9 4v16M15 4v16"/>'));
       var lim = x.icons ? ROW_IC : ROW, n = x.n();
       return '<div class="sec-t"><em class="kit-h">' + x.t + (x.sub ? ' <span>' + x.sub + '</span>' : '') + '</em>' + (n > lim ? '<button type="button" class="kit-all" data-kit-all="' + x.id + '">Бүгдийг харах <span>' + n + '</span></button>' : '') + '</div>' +
         (x.icons ? qInput() : '') + secBody(x, lim);
     }).join('');
-    return h + '<p class="note">Chart, хүснэгт дээр давхар дарж өгөгдлийг засна. «PowerPoint (.pptx)» татахад жинхэнэ PowerPoint chart, хүснэгт болж орно.</p>';
+    return h + (ppt ? '<p class="note">Chart, хүснэгт дээр давхар дарж өгөгдлийг засна. «PowerPoint (.pptx)» татахад жинхэнэ PowerPoint chart, хүснэгт болж орно.</p>' : '<p class="note">Хүснэгт дээр давхар дарж өгөгдлийг засна.</p>');
   }
   function openSec(id) {
     kitOpen = id; E().refreshUI();

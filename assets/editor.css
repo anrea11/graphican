@@ -759,7 +759,7 @@ input[type="range"] { accent-color:var(--acc); }
 .ed-savetip .btn { background:transparent; color:#e5e0f2; border-color:rgba(255,255,255,.18); }
 
 /* ---------- slide kit (/slides/ «Элемент»): charts, tables, mockups, icons — assets/slides-kit.js ---------- */
-body[data-mode="ppt"] .lp-tabs button { flex:1 1 auto; min-width:0; padding:0 2px; font-size:10px; letter-spacing:-.1px; white-space:nowrap; }
+.lp-tabs button { flex:1 1 auto; min-width:0; padding:0 2px; font-size:10px; letter-spacing:-.1px; white-space:nowrap; }
 .kit-tiles .tile.kt { aspect-ratio:auto; min-height:64px; padding:8px 2px 6px; gap:4px; align-content:center; color:var(--v3); }
 .kit-tiles .tile.kt svg { width:24px; height:24px; fill:none; }
 .kit-tiles .tile.kt span { font-size:10px; line-height:1.2; color:var(--muted); text-align:center; }

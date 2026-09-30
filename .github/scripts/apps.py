@@ -12,7 +12,7 @@ import landings as L
 ROOT, SITE, e, ld = L.ROOT, L.SITE, L.e, L.ld
 V = "10"
 TPL_V = "12"      # assets/templates.js ('path' items for the decks)
-KIT_V = "8"       # assets/slides-kit.js — /slides/ only (charts, tables, mockups, Mongolian ornaments)
+KIT_V = "9"       # assets/slides-kit.js — «Элемент» tab in /editor/ and /slides/ (charts only in /slides/); keep editor/index.html in step
 
 
 def mn_fonts():
@@ -406,9 +406,12 @@ def slides_page():
     s = s.replace('value="Нэргүй дизайн"', 'value="Нэргүй илтгэл"')
     s = s.replace('<h1 class="sr-only">Graphican Design editor — үнэгүй онлайн дизайн засварлагч</h1>', '<h1 class="sr-only">Илтгэл бэлдэх (PPT) — онлайн, үнэгүй</h1>')
     s = s.replace('<button type="button" data-file="new">Шинэ дизайн</button>', '<button type="button" data-file="new">Шинэ илтгэл</button>')
-    # «Элемент» tab + its script exist only in /slides/
-    s = s.replace('data-tab="stock">Stock</button>\n', 'data-tab="stock">Stock</button>\n      <button type="button" role="tab" aria-selected="false" data-tab="kit">Элемент</button>\n', 1)
-    s = re.sub(r'(<script src="/assets/editor\.js\?v=\d+"></script>)', r'\1\n<script src="/assets/slides-kit.js?v=' + KIT_V + '"></script>', s, 1)
+    # «Элемент» tab + its script come from editor/index.html (added here too in case an older copy lacks them)
+    if 'data-tab="kit"' not in s:
+        s = s.replace('data-tab="stock">Stock</button>\n', 'data-tab="stock">Stock</button>\n      <button type="button" role="tab" aria-selected="false" data-tab="kit">Элемент</button>\n', 1)
+    if 'slides-kit.js' not in s:
+        s = re.sub(r'(<script src="/assets/editor\.js\?v=\d+"></script>)', r'\1\n<script src="/assets/slides-kit.js?v=' + KIT_V + '"></script>', s, 1)
+    s = re.sub(r'slides-kit\.js\?v=\d+', 'slides-kit.js?v=' + KIT_V, s)
     assert 'data-mode="ppt"' in s and 'data-tab="kit"' in s and 'slides-kit.js' in s
     d_ = os.path.join(ROOT, "slides"); os.makedirs(d_, exist_ok=True)
     open(os.path.join(d_, "index.html"), "w", encoding="utf-8").write(s)
