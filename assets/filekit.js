@@ -53,7 +53,8 @@
     var k = family + (bold ? 'B' : 'R');
     if (!doc.__gfonts[k]) {
       if (!doc.__fk) { doc.registerFontkit(window.fontkit); doc.__fk = 1; }
-      doc.__gfonts[k] = fontData(family, bold).then(function (b) { return doc.embedFont(b, { subset: false }); });
+      // ligatures off: an "fi" glyph would copy / search out of the PDF as a wrong letter
+      doc.__gfonts[k] = fontData(family, bold).then(function (b) { return doc.embedFont(b, { subset: false, features: { liga: false, clig: false, dlig: false, calt: false } }); });
     }
     return doc.__gfonts[k];
   }

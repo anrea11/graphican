@@ -7,6 +7,14 @@
   'use strict';
 
   var G = window.GFile;
+  // a page's Fabric canvas is disposed when it scrolls far away; late redraw requests (fonts loading…) must not touch it
+  [fabric.StaticCanvas.prototype, fabric.Canvas.prototype].forEach(function (P) {
+    ['requestRenderAll', 'renderAll'].forEach(function (k) {
+      if (!Object.prototype.hasOwnProperty.call(P, k)) return;
+      var f0 = P[k];
+      P[k] = function () { return this.contextContainer ? f0.apply(this, arguments) : this; };
+    });
+  });
   var $ = function (s, r) { return (r || document).querySelector(s); };
   var root = $('#pe'), view = $('#pe-view'), pagesEl = $('#pe-pages'), thumbsEl = $('#pe-thumbs'), propsEl = $('#pe-props');
   var dpr = Math.min(window.devicePixelRatio || 1, 2.5);
@@ -65,7 +73,10 @@
     sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
     moon: '<path d="M20 14.5A8 8 0 019.5 4 8 8 0 1020 14.5z"/>',
     front: '<rect x="8" y="8" width="12" height="12" rx="1" fill="currentColor" fill-opacity=".25"/><path d="M4 16V4h12"/>',
-    back: '<rect x="4" y="4" width="12" height="12" rx="1"/><path d="M20 8v12H8"/>'
+    back: '<rect x="4" y="4" width="12" height="12" rx="1"/><path d="M20 8v12H8"/>',
+    find: '<circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/>',
+    ul: '<path d="M7 4v7a5 5 0 0010 0V4"/><path d="M5 20h14"/>',
+    st: '<path d="M16.5 7.5c0-1.7-2-3-4.5-3s-4.5 1.3-4.5 3c0 4.5 9 3 9 7.5 0 1.7-2 3-4.5 3s-4.5-1.3-4.5-3"/><path d="M4 12h16"/>'
   };
   function ic(n) { return '<svg class="i" viewBox="0 0 24 24" aria-hidden="true">' + I[n] + '</svg>'; }
 
@@ -103,7 +114,7 @@
   var origBytes = 0;  // total size of the files the user opened (what "compress" is measured against)
   var pages = [];     // { id, src, idx, rot0, rot, view, objs, fab, el, canvas, rs, thumb }
   var zoom = 1, fitMode = true, mode = 'select', cur = null, selPages = {};
-  var style = { color: '#1e1e1e', stroke: '#e5484d', width: 2, fill: '', hl: '#ffd84d', font: 'Inter', size: 14, bold: false, align: 'left', opacity: 1 };
+  var style = { color: '#1e1e1e', stroke: '#e5484d', width: 2, fill: '', hl: '#ffd84d', ul: '#1f6feb', st: '#e5484d', font: 'Inter', size: 14, bold: false, align: 'left', opacity: 1 };
   var PROPS = ['data', 'selectable', 'evented', 'lockScalingFlip', 'strokeUniform'];
   var docName = '';
   var FONT_LIST = G.FONTS;
@@ -113,7 +124,7 @@
   var hist = [], hi = -1, quiet = 0, histT;
   function objsOf(p) { return p.fab ? p.fab.toJSON(PROPS).objects : (p.objs || []); }
   function snapshot() {
-    return pages.map(function (p) { return { id: p.id, src: p.src, idx: p.idx, rot0: p.rot0, rot: p.rot, view: p.view, objs: objsOf(p) }; });
+    return pages.map(function (p) { return { id: p.id, src: p.src, idx: p.idx, rot0: p.rot0, rot: p.rot, view: p.view, objs: objsOf(p), fv: p.fv ? Object.assign({}, p.fv) : null }; });
   }
   function commit(now) {
     if (quiet) return;
@@ -121,7 +132,7 @@
     var go = function () {
       hist = hist.slice(0, hi + 1); hist.push(snapshot());
       if (hist.length > 40) hist.shift();
-      hi = hist.length - 1; histUi();
+      hi = hist.length - 1; histUi(); autosave();
     };
     if (now) go(); else histT = setTimeout(go, 180);
   }
@@ -142,9 +153,12 @@
       }
       return mkPage(s.src, s.idx, s.rot0, s.view, s.rot, s.objs, s.id);
     });
+    pages.forEach(function (p, k) { p.fv = snap[k].fv ? Object.assign({}, snap[k].fv) : {}; });
     Object.keys(old).forEach(function (id) { if (!pages.some(function (p) { return p.id === id; })) dropPage(old[id]); });
     quiet--;
     layoutPages(); renderThumbs(); props();
+    pages.forEach(function (p) { if (p.vis) formLayer(p); });
+    if (!fb.hidden && find.q) runFind(true);
   }
   function undo() { if (hi > 0) { hi--; restore(hist[hi]); histUi(); } }
   function redo() { if (hi < hist.length - 1) { hi++; restore(hist[hi]); histUi(); } }
@@ -193,14 +207,22 @@
   }
   function openPdf(pdfjsLib, bytes, name) {
     var task = pdfjsLib.getDocument({ data: bytes.slice(), isEvalSupported: false });
-    var usedPw = null;
+    var usedPw = null, cancel = null;
     task.onPassword = function (cb, reason) {
-      var pw = window.prompt((reason === 2 ? 'Нууц үг буруу байна. ' : '') + '«' + name + '» нууц үгтэй байна. Нууц үгээ оруулна уу:');
-      if (pw == null) { task.destroy(); return; }
-      usedPw = pw; cb(pw);
+      var ok = false;
+      busy(false);
+      dialog('Нууц үгтэй файл', '<p class="note">' + (reason === 2 ? '<b>Нууц үг буруу байна.</b> ' : '') + '«' + esc(name) + '» файлыг нээхэд нууц үг хэрэгтэй.</p>' +
+        '<input class="dinp" type="password" name="pw" autocomplete="current-password" aria-label="Нууц үг">',
+        [{ label: 'Болих' }, { label: 'Нээх', primary: true, fn: function (m) { var pw = val(m, '[name=pw]'); if (!pw) return false; ok = true; usedPw = pw; busy(true, 'Файлыг уншиж байна…'); cb(pw); } }],
+        function (m) { m.querySelector('[name=pw]').addEventListener('keydown', function (e) { if (e.key === 'Enter') m.querySelector('[data-db="1"]').click(); }); },
+        function () { if (!ok && cancel) cancel(); });
     };
-    return task.promise.then(function (doc) {
+    return new Promise(function (res, rej) {
+      cancel = function () { task.destroy(); rej(new Error('Нууц үг оруулаагүй тул «' + name + '»-ийг нээсэнгүй')); };
+      task.promise.then(res, rej);
+    }).then(function (doc) {
       sources.push({ bytes: bytes, doc: doc, name: name, pw: usedPw });
+      asSaveSource(sources.length - 1);
       return sources.length - 1;
     });
   }
@@ -219,7 +241,7 @@
     ents.forEach(function (en) {
       var p = pageById(en.target.dataset.id); if (!p) return;
       p.vis = en.isIntersecting;
-      if (en.isIntersecting) { renderPage(p); ensureFab(p); if (mode === 'edit') textLayer(p); }
+      if (en.isIntersecting) { renderPage(p); ensureFab(p); if (mode === 'edit') textLayer(p); if (!p.el.querySelector('.fl')) formLayer(p); }
     });
   }, { root: view, rootMargin: '900px 0px' });
   var farIo = new IntersectionObserver(function (ents) {
@@ -243,6 +265,7 @@
         p.el.style.width = W + 'px'; p.el.style.height = H + 'px';
         if (p.fab) sizeFab(p);
         if (p.vis && mode === 'edit') textLayer(p);
+        if (p.annots && p.annots.length) formLayer(p);
       }
       if (p.vis) { renderPage(p); ensureFab(p); }
       p.el.querySelector('.pn').textContent = (i + 1) + ' / ' + n;
@@ -254,7 +277,8 @@
     $('#pe-count').textContent = n + ' хуудас';
     $('#pe-zoom').textContent = Math.round(zoom * 100) + '%';
     if (!n) { root.classList.remove('has-doc'); $('#pe-save').disabled = true; }
-    updateCur();
+    updateCur(); pgUi();
+    if (fb && !fb.hidden && find.q) { clearTimeout(find.lt); find.lt = setTimeout(function () { runFind(true); }, 120); }
   }
   function dropPage(p) {
     if (p.fab) disposeFab(p);
@@ -330,6 +354,8 @@
       if (mode === 'text') { addText(p, pt.x, pt.y); setMode('select'); return; }
       var o, base = { left: pt.x, top: pt.y, width: 1, height: 1, strokeUniform: true };
       if (mode === 'hl') o = new fabric.Rect(Object.assign(base, { fill: style.hl, opacity: 0.45, globalCompositeOperation: 'multiply', data: { k: 'hl' } }));
+      else if (mode === 'ul' || mode === 'st') o = new fabric.Rect(Object.assign(base, { fill: style[mode], opacity: 0.2, data: { k: mode } }));
+      if (/^(hl|ul|st)$/.test(mode)) pageItems(p);   // the words under the drag are needed on release
       else if (mode === 'wo') o = new fabric.Rect(Object.assign(base, { fill: '#ffffff', data: { k: 'wo' } }));
       else if (mode === 'rect') o = new fabric.Rect(Object.assign(base, { fill: style.fill || 'transparent', stroke: style.stroke, strokeWidth: style.width, data: { k: 'shape' } }));
       else if (mode === 'ellipse') o = new fabric.Ellipse(Object.assign(base, { rx: 0.5, ry: 0.5, fill: style.fill || 'transparent', stroke: style.stroke, strokeWidth: style.width, data: { k: 'shape' } }));
@@ -357,6 +383,7 @@
     f.on('mouse:up', function () {
       if (!drag) return;
       var o = drag.o; drag = null;
+      if (o.data && /^(hl|ul|st)$/.test(o.data.k)) { markRelease(p, f, o); return; }
       var tiny = o.type === 'line' ? Math.hypot(o.x2 - o.x1, o.y2 - o.y1) < 4 : (o.width * o.scaleX < 3 || o.height * o.scaleY < 3) && (o.rx == null || o.rx < 2);
       if (tiny) {
         quiet++; f.remove(o); quiet--;
@@ -532,33 +559,42 @@
       : /arial|helvetica|roboto|calibri|segoe|liberation|dejavu|mono|courier/.test(all) ? 'Roboto' : 'Inter';
     return { font: f, bold: /bold|black|heavy|semibold|demi|,b\b|-b\b/.test(all) };
   }
-  function editItem(p, it, i, g, st) {
-    var f = ensureFab(p); if (!f) return;
-    p.done[i] = 1;
+  // cover one run of PDF text and put an editable copy (same font, size, colour, place) on top
+  function placeEdit(p, it, i, g, st, str) {
+    var f = ensureFab(p); if (!f) return Promise.resolve(null);
+    str = String(str).normalize ? String(str).normalize('NFKC') : String(str);
+    p.done = p.done || {}; p.done[i] = 1;
     var col = sampleColors(p, g), gf = guessFont(p, it, st), pair = uid();
     // cover box in the text's own frame: from ascender to descender, a little padding all round
     var a0 = g.ang * Math.PI / 180, up = g.base - g.top + g.fs * 0.12, padX = 1.5;
     var tl = { x: g.x - padX * Math.cos(a0) + up * Math.sin(a0), y: g.base - padX * Math.sin(a0) - up * Math.cos(a0) };
     var cover = new fabric.Rect({ left: tl.x, top: tl.y, width: g.w + 2 * padX + g.fs * 0.1, height: g.h + g.fs * 0.24, fill: col.bg, angle: g.ang, data: { k: 'wo', auto: 1, pair: pair } });
-    G.screenFont(gf.font, gf.bold).then(function () {
+    return G.screenFont(gf.font, gf.bold).then(function () {
       var fs = Math.round(g.fs * 10) / 10;
-      var t = textObj(it.str, { fontFamily: 'G' + gf.font, fontWeight: gf.bold ? 'bold' : 'normal', fontSize: fs, fill: col.ink, textAlign: 'left', angle: g.ang, data: { k: 'txt', pair: pair } });
+      var t = textObj(str, { fontFamily: 'G' + gf.font, fontWeight: gf.bold ? 'bold' : 'normal', fontSize: fs, fill: col.ink, textAlign: 'left', angle: g.ang, data: { k: 'txt', pair: pair } });
       // place so the baseline matches the original: fabric baseline = top + fs·1.13·(1 − 0.222)
       var off = fs * t._fontSizeMult * (1 - t._fontSizeFraction), a = g.ang * Math.PI / 180;
       t.set({ left: g.x + off * Math.sin(a), top: g.base - off * Math.cos(a) });
-      quiet++; prepObj(cover); f.add(cover); quiet--;
-      addObj(p, t);
-      t.enterEditing(); t.selectAll(); f.requestRenderAll();
+      if (p.fab !== f) return null;
+      quiet++; prepObj(cover); f.add(cover); cover.sendToBack(); prepObj(t); f.add(t); quiet--;
+      return t;
+    });
+  }
+  function editItem(p, it, i, g, st) {
+    placeEdit(p, it, i, g, st, it.str).then(function (t) {
+      if (!t) return;
+      var f = p.fab; clearOtherSelections(p);
+      t.setCoords(); f.setActiveObject(t); t.enterEditing(); t.selectAll(); f.requestRenderAll(); commit(true); props();
     });
   }
 
   // ---------- modes ----------
   var TOOLS = [
-    ['select', 'Сонгох', 'V'], ['edit', 'Текст засах', 'E'], ['text', 'Текст', 'T'], ['hl', 'Тодруулах', 'H'], ['draw', 'Зурах', 'D'], '|',
+    ['select', 'Сонгох', 'V'], ['edit', 'Текст засах', 'E'], ['text', 'Текст', 'T'], ['hl', 'Тодруулах', 'H'], ['ul', 'Доогуур зураас', 'U'], ['st', 'Дундуур зураас', 'K'], ['draw', 'Зурах', 'D'], '|',
     ['rect', 'Тэгш өнц.', 'R'], ['ellipse', 'Эллипс', 'O'], ['arrow', 'Сум', 'A'], ['line', 'Шугам', 'L'], ['wo', 'Цайруулах', 'W'], '|',
     ['image', 'Зураг', ''], ['sign', 'Гарын үсэг', ''], ['check', '✓ Тэмдэг', ''], ['cross', '✗ Тэмдэг', ''], ['date', 'Огноо', '']
   ];
-  var ICON = { select: 'select', edit: 'edit', text: 'text', hl: 'hl', draw: 'draw', rect: 'rect', ellipse: 'ellipse', arrow: 'arrow', line: 'line', wo: 'wo', image: 'image', sign: 'sign', check: 'check', cross: 'cross', date: 'date' };
+  var ICON = { select: 'select', edit: 'edit', text: 'text', hl: 'hl', ul: 'ul', st: 'st', draw: 'draw', rect: 'rect', ellipse: 'ellipse', arrow: 'arrow', line: 'line', wo: 'wo', image: 'image', sign: 'sign', check: 'check', cross: 'cross', date: 'date' };
   function dockUi() {
     $('#pe-dock').innerHTML = TOOLS.map(function (t) {
       if (t === '|') return '<span class="sep"></span>';
@@ -580,7 +616,7 @@
   }
   function applyMode(p) {
     var f = p.fab; if (!f) return;
-    var create = /^(text|hl|wo|rect|ellipse|line|arrow)$/.test(mode);
+    var create = /^(text|hl|ul|st|wo|rect|ellipse|line|arrow)$/.test(mode);
     f.isDrawingMode = mode === 'draw';
     if (f.isDrawingMode) {
       f.freeDrawingBrush = new fabric.PencilBrush(f);
@@ -628,7 +664,7 @@
       } else if (k === 'hl') {
         h += '<div class="sec"><div class="sec-t">Тодруулга</div>' + swatches('fill', SW_HL, o.fill) + '</div>';
       } else if (k === 'wo') {
-        h += '<div class="sec"><div class="sec-t">Цайруулга</div><p class="note">Доорх агуулгыг далдална. Өнгийг хуудасны дэвсгэртэй тааруулж болно.</p>' + swatches('fill', ['#ffffff', '#f5f5f5', '#000000'], o.fill) + '</div>';
+        h += '<div class="sec"><div class="sec-t">Цайруулга</div><p class="note">Доорх агуулгыг далдална. Доорх <b>текст</b> татахад файлаас бүрмөсөн устгагдана. Өнгийг хуудасны дэвсгэртэй тааруулж болно.</p>' + swatches('fill', ['#ffffff', '#f5f5f5', '#000000'], o.fill) + '</div>';
       } else if (o.type === 'image') {
         h += '<div class="sec"><div class="sec-t">' + (k === 'sig' ? 'Гарын үсэг' : 'Зураг') + '</div>' + range('opacity', 0.1, 1, 0.05, o.opacity, 'Тунгалаг') + '</div>';
       } else {
@@ -646,13 +682,14 @@
           '<div class="row"><label>Хэмжээ</label><input type="number" data-s="size" min="4" max="400" step="0.5" value="' + style.size + '"></div>' +
           swatches('s-color', SW_TEXT, style.color) + '</div>';
       }
-      if (mode === 'hl') h += '<div class="sec"><div class="sec-t">Тодруулагч</div>' + swatches('s-hl', SW_HL, style.hl) + '<p class="note">Тодруулах мөрөө чирж будна.</p></div>';
+      if (mode === 'hl') h += '<div class="sec"><div class="sec-t">Тодруулагч</div>' + swatches('s-hl', SW_HL, style.hl) + '<p class="note">Үг дээр дарах эсвэл мөрөө чирэхэд бичгийн яг хэмжээгээр тодруулна.</p></div>';
+      if (mode === 'ul' || mode === 'st') h += '<div class="sec"><div class="sec-t">' + (mode === 'ul' ? 'Доогуур зураас' : 'Дундуур зураас') + '</div>' + swatches('s-' + mode, SW_STROKE, style[mode]) + '<p class="note">Үг дээр дарах эсвэл мөрөө чирнэ. Зураас бичгийн мөрөнд автоматаар тааралдана.</p></div>';
       if (/^(draw|rect|ellipse|line|arrow)$/.test(mode)) h += '<div class="sec"><div class="sec-t">Үзэг</div>' + swatches('s-stroke', SW_STROKE, style.stroke) + range('s-width', 0.5, 16, 0.5, style.width, 'Зузаан') + '</div>';
-      if (mode === 'wo') h += '<div class="sec"><div class="sec-t">Цайруулах</div><p class="note">Нуух хэсгээ чирж цагаан хайрцгаар далдална. Дээр нь шинэ текст бичиж болно.</p></div>';
+      if (mode === 'wo') h += '<div class="sec"><div class="sec-t">Цайруулах</div><p class="note">Нуух хэсгээ чирж цагаан хайрцгаар далдална. Доорх текст татсан PDF-ээс бүрмөсөн устгагдана — хуулж, хайж олдохгүй. Дээр нь шинэ текст бичиж болно.</p></div>';
       h += '<div class="sec"><div class="sec-t">Зөвлөгөө</div><p class="note">' +
         (mode === 'edit' ? 'Тасархай хүрээтэй бичгийг дарахад тэр хэсэг арилж, <b>ижил фонт, хэмжээ, өнгөөр</b> засах боломжтой текст болно.' :
           '<b>Текст засах</b> — PDF доторх бичгийг шууд засна.<br><b>Текст</b> — дурын газар дарж бичнэ.<br>Хуудсыг зүүн самбараас эргүүлж, устгаж, чирж дараалал сольно.') +
-        '</p><p class="note kbd">Ctrl+Z буцаах · Delete устгах · Ctrl+D хувилах</p></div>';
+        '</p><p class="note kbd">Ctrl+F хайх · Ctrl+Z буцаах · Delete устгах · Ctrl+D хувилах · ? бүх товчлол</p></div>';
       if (isMob() && (mode === 'select' || mode === 'edit')) propsEl.classList.add('idle');
     }
     propsEl.innerHTML = h;
@@ -686,6 +723,8 @@
   function applyStyle(key, v) {
     if (key === 's-color') style.color = v;
     else if (key === 's-hl') style.hl = v;
+    else if (key === 's-ul') style.ul = v;
+    else if (key === 's-st') style.st = v;
     else if (key === 's-stroke') style.stroke = v;
     else if (key === 's-width') style.width = +v;
     else if (key === 'font') style.font = v;
@@ -843,7 +882,7 @@
     if (op === 'rotL' || op === 'rotR') {
       var dir = op === 'rotR' ? 1 : -1;
       quiet++;
-      t.forEach(function (p) { rotateObjs(p, dir); p.rot = (p.rot + dir * 90 + 360) % 360; p.rs = 0; p.text = null; p.done = {}; if (p.fab) { p.objs = p.fab.toJSON(PROPS).objects; disposeFab(p); } });
+      t.forEach(function (p) { rotateObjs(p, dir); p.rot = (p.rot + dir * 90 + 360) % 360; p.rs = 0; p.text = null; p.done = {}; p.__items = null; if (p.fab) { p.objs = p.fab.toJSON(PROPS).objects; disposeFab(p); } });
       quiet--;
     } else if (op === 'del') {
       if (t.length >= pages.length) return toast('Сүүлийн хуудсыг устгах боломжгүй');
@@ -932,7 +971,7 @@
     if (cur === p) return;
     cur = p;
     pages.forEach(function (q) { if (q.el) q.el.classList.toggle('cur', q === p); });
-    markThumbs();
+    markThumbs(); pgUi();
   }
   var curT;
   function updateCur() {
@@ -1004,6 +1043,8 @@
   window.addEventListener('resize', function () { clearTimeout(rzT); rzT = setTimeout(function () { if (fitMode && pages.length) setZoom(fitZoom(), true); }, 150); });
 
   // ---------- export ----------
+  var lastMissing = [];
+  function missingNote() { return lastMissing.length ? ' Анхаар: «' + lastMissing.slice(0, 8).join(' ') + '» тэмдэгт фонтод байхгүй тул «?» болсон.' : ''; }
   function download(list, extract, flat) {
     list = list || pages;
     if (!list.length) return;
@@ -1014,7 +1055,7 @@
       busy(false);
       var n = ($('#pe-name').value.trim() || docName || 'document').replace(/[\\/:*?"<>|]+/g, '-');
       saveBlob(n + (extract ? '-хуудас' : '') + '.pdf', new Blob([bytes], { type: 'application/pdf' }));
-      toast(extract ? list.length + ' хуудсыг тусад нь татлаа' : flat ? 'Нууцлалтай PDF татагдлаа ✓' : 'PDF татагдлаа ✓');
+      toast((extract ? list.length + ' хуудсыг тусад нь татлаа' : flat ? 'Нууцлалтай PDF татагдлаа ✓' : 'PDF татагдлаа ✓') + missingNote(), lastMissing.length ? 7000 : 2600);
     }).catch(function (e) { busy(false); console.error(e); toast('PDF үүсгэж чадсангүй: ' + (e && e.message || e), 6000); });
   }
   function buildPdf(list, flat) {
@@ -1057,7 +1098,7 @@
                   ctx.setTransform(1, 0, 0, 1, 0, 0);
                   return G.embedCanvas(out, c).then(function (im) {
                     var pg = out.addPage([d.w, d.h]); pg.drawImage(im, { x: 0, y: 0, width: d.w, height: d.h }); pg.__flat = true;
-                    return drawObjs(PL, out, pg, p, true).then(function () { return drawOcr(PL, out, pg, p); });
+                    return drawObjs(PL, out, pg, p, true).then(function () { return drawOcr(PL, out, pg, p); }).then(function () { return fillFields(PL, out, pg, p); });
                   });
                 });
               }).then(function (done) { return done === null ? normal() : done; });
@@ -1066,7 +1107,7 @@
             function normal() {
             var mk = p.src < 0 ? Promise.resolve(out.addPage([d.w, d.h])) :
               srcDoc(p.src).then(function (sd) {
-                if (sd) return copyFor(p, sd).then(function (cpg) { var pg = out.addPage(cpg); pg.setRotation(PL.degrees(R(p))); return pg; });
+                if (sd) return copyFor(p, sd).then(function (cpg) { var pg = out.addPage(cpg); pg.setRotation(PL.degrees(R(p))); return scrubPage(PL, out, pg, p).then(function () { return pg; }); });
                 // encrypted / unreadable by pdf-lib: keep the look by embedding a high-res render
                 return rasterPage(p).then(function (c) {
                   return G.embedCanvas(out, c).then(function (im) {
@@ -1074,10 +1115,11 @@
                   });
                 });
               });
-            return mk.then(function (pg) { return drawObjs(PL, out, pg, p).then(function () { return drawOcr(PL, out, pg, p); }); });
+            return mk.then(function (pg) { return drawObjs(PL, out, pg, p).then(function () { return drawOcr(PL, out, pg, p); }).then(function () { return fillFields(PL, out, pg, p); }); });
             }
           });
         }, Promise.resolve()).then(function () {
+          lastMissing = out.__missing ? Array.from(out.__missing) : [];
           if (!out.__hasFields) return out.save();
           // form fields: Cyrillic-capable appearance font
           return G.embedFont(out, 'Inter', false).then(function (font) { try { out.getForm().updateFieldAppearances(font); } catch (e) {} return out.save(); });
@@ -1089,13 +1131,207 @@
     return sources[p.src].doc.getPage(p.idx + 1).then(function (pg) {
       var vp = pg.getViewport({ scale: 2.5, rotation: R(p) }), c = document.createElement('canvas');
       c.width = Math.ceil(vp.width); c.height = Math.ceil(vp.height);
-      return pg.render({ canvasContext: c.getContext('2d'), viewport: vp }).promise.then(function () { return c; });
+      return pg.render({ canvasContext: c.getContext('2d'), viewport: vp, annotationMode: 1 }).promise.then(function () { return c; });
     });
   }
   function liveObjs(p) {
     if (p.fab) return Promise.resolve(p.fab.getObjects());
     return new Promise(function (res) { fabric.util.enlivenObjects(p.objs || [], res); }).then(function (list) {
       return Promise.all(list.map(function (o) { return o.type === 'i-text' ? G.screenFont(famOf(o), isBold(o)).then(function () { o.initDimensions(); return o; }) : o; }));
+    });
+  }
+  // ---------- real removal of covered text (Acrobat "edit text" / redaction) ----------
+  // Text under a whiteout or an edited-text cover is taken out of the page's content stream, so the
+  // saved PDF can't reveal it by copying, searching or deleting the cover. Every glyph whose centre is
+  // inside a cover becomes an equal TJ gap, so the rest of the line keeps its exact place. Fonts we can't
+  // measure (Type3, non-Identity CMaps) and text inside form XObjects are left alone (still covered).
+  function coverRects(objs) {
+    return objs.filter(function (o) { return o.data && o.data.k === 'wo'; }).map(function (o) {
+      return { m: inv(o.calcTransformMatrix()), hw: o.width / 2, hh: o.height / 2 };
+    });
+  }
+  function inRects(rs, x, y) {
+    for (var i = 0; i < rs.length; i++) { var q = ap(rs[i].m, x, y); if (Math.abs(q.x) <= rs[i].hw && Math.abs(q.y) <= rs[i].hh) return true; }
+    return false;
+  }
+  function latin1(b) { var s = ''; for (var i = 0; i < b.length; i += 8192) s += String.fromCharCode.apply(null, b.subarray(i, i + 8192)); return s; }
+  function bytesOf(s) { var b = new Uint8Array(s.length); for (var i = 0; i < s.length; i++) b[i] = s.charCodeAt(i) & 255; return b; }
+  // glyph widths (1/1000 em) of a page font, or null when they can't be known exactly
+  function fontInfo(PL, ctx, fd) {
+    var N = PL.PDFName.of;
+    var get = function (d, k) { var v = d && d.get(N(k)); return v ? ctx.lookup(v) : undefined; };
+    var num = function (v) { return v && v.asNumber ? v.asNumber() : null; };
+    var sub = String(get(fd, 'Subtype') || '');
+    if (sub === '/Type0') {
+      if (String(get(fd, 'Encoding') || '') !== '/Identity-H') return null;
+      var df = get(fd, 'DescendantFonts'), cf = df && df.size && df.size() ? ctx.lookup(df.get(0)) : null;
+      if (!cf) return null;
+      var dw = num(get(cf, 'DW')); if (dw == null) dw = 1000;
+      var W = {}, wa = get(cf, 'W');
+      if (wa && wa.size) {
+        var i = 0, n = wa.size();
+        while (i < n) {
+          var c0 = num(ctx.lookup(wa.get(i))), nx = ctx.lookup(wa.get(i + 1));
+          if (c0 == null || !nx) break;
+          if (nx.size) { for (var j = 0; j < nx.size(); j++) W[c0 + j] = num(ctx.lookup(nx.get(j))); i += 2; }
+          else { var c1 = num(nx), w = num(ctx.lookup(wa.get(i + 2))); if (c1 == null || c1 - c0 > 65535) break; for (var c = c0; c <= c1; c++) W[c] = w; i += 3; }
+        }
+      }
+      return { two: true, w: function (c) { return W[c] != null ? W[c] : dw; } };
+    }
+    if (sub === '/Type3') return null;
+    var fc = num(get(fd, 'FirstChar')), ws = get(fd, 'Widths');
+    if (ws && ws.size && fc != null) {
+      var arr = []; for (var k = 0; k < ws.size(); k++) arr.push(num(ctx.lookup(ws.get(k))) || 0);
+      var mw = num(get(get(fd, 'FontDescriptor'), 'MissingWidth')) || 0;
+      return { two: false, w: function (c) { var v = arr[c - fc]; return v == null ? mw : v; } };
+    }
+    // the standard 14 fonts carry no widths: take them from pdf-lib's built-in metrics (exact for ASCII)
+    var base = String(get(fd, 'BaseFont') || '').replace(/^\//, '');
+    if (PL.isStandardFont && PL.isStandardFont(base) && PL.StandardFontEmbedder) {
+      try {
+        var emb = PL.StandardFontEmbedder.for(base);
+        return { two: false, w: function (c) { if (c < 32 || c > 126) return 500; try { return emb.widthOfTextAtSize(String.fromCharCode(c), 1000); } catch (e) { return 500; } } };
+      } catch (e) {}
+    }
+    return null;
+  }
+  // rewrite one content stream (latin1 string); returns the new stream or null when nothing was covered
+  function scrubStream(src, fontOf, hit) {
+    var i = 0, L = src.length, WS = ' \t\r\n\f\0', DL = '()<>[]{}/%', tokStart = 0;
+    var out = [], last = 0, changed = false;
+    var st = { ctm: [1, 0, 0, 1, 0, 0], Tc: 0, Tw: 0, Th: 1, TL: 0, font: null, fs: 0, rise: 0 }, gstack = [], Tm = null, Tlm = null, lost = false;
+    function skipWs() {
+      while (i < L) {
+        var c = src[i];
+        if (WS.indexOf(c) >= 0) i++;
+        else if (c === '%') { while (i < L && src[i] !== '\n' && src[i] !== '\r') i++; }
+        else break;
+      }
+    }
+    function lit() {
+      var depth = 1, s = ''; i++;
+      while (i < L && depth) {
+        var c = src[i++];
+        if (c === '\\') {
+          var n = src[i++];
+          if (n === 'n') s += '\n'; else if (n === 'r') s += '\r'; else if (n === 't') s += '\t'; else if (n === 'b') s += '\b'; else if (n === 'f') s += '\f';
+          else if (n >= '0' && n <= '7') { var o = n; while (o.length < 3 && src[i] >= '0' && src[i] <= '7') o += src[i++]; s += String.fromCharCode(parseInt(o, 8) & 255); }
+          else if (n === '\r') { if (src[i] === '\n') i++; }
+          else if (n !== '\n') s += n;
+        } else if (c === '(') { depth++; s += c; }
+        else if (c === ')') { depth--; if (depth) s += c; }
+        else s += c;
+      }
+      return { s: s };
+    }
+    function hexStr() {
+      i++; var h = '';
+      while (i < L && src[i] !== '>') { var c = src[i++]; if (/[0-9a-fA-F]/.test(c)) h += c; }
+      i++; if (h.length % 2) h += '0';
+      var s = ''; for (var k = 0; k < h.length; k += 2) s += String.fromCharCode(parseInt(h.substr(k, 2), 16));
+      return { s: s };
+    }
+    function tok() {
+      skipWs(); if (i >= L) return null;
+      tokStart = i;
+      var c = src[i];
+      if (c === '(') return lit();
+      if (c === '<') { if (src[i + 1] === '<') { i += 2; return { d: '<<' }; } return hexStr(); }
+      if (c === '>') { i += src[i + 1] === '>' ? 2 : 1; return { d: '>>' }; }
+      if (c === '[' || c === ']' || c === '{' || c === '}' || c === ')') { i++; return { d: c }; }
+      if (c === '/') { var s0 = ++i; while (i < L && WS.indexOf(src[i]) < 0 && DL.indexOf(src[i]) < 0) i++; return { n: src.slice(s0, i) }; }
+      var s1 = i; while (i < L && WS.indexOf(src[i]) < 0 && DL.indexOf(src[i]) < 0) i++;
+      var w = src.slice(s1, i);
+      if (/^[+-]?(\d+\.?\d*|\.\d+)$/.test(w)) return { v: parseFloat(w) };
+      if (w === 'true' || w === 'false' || w === 'null') return { k: w };
+      return { op: w };
+    }
+    function fmt(n) { var s = (Math.round(n * 1000) / 1000).toFixed(3).replace(/\.?0+$/, ''); return s === '-0' ? '0' : s; }
+    function hx(s) { var h = ''; for (var k = 0; k < s.length; k++) h += ('0' + s.charCodeAt(k).toString(16)).slice(-2); return h; }
+    function moveLine(tx, ty) { Tlm = mul(Tlm || [1, 0, 0, 1, 0, 0], [1, 0, 0, 1, tx, ty]); Tm = Tlm.slice(); lost = false; }
+    function show(items, opStart, opEnd, prefix) {
+      if (!Tm) return;
+      var fi = st.font;
+      if (!fi || lost || !st.fs || !st.Th) { lost = true; return; } // can't measure → don't touch the rest of this line
+      var M = mul(st.ctm, Tm), x = 0, fs = st.fs, th = st.Th, parts = [], buf = '', gap = null, any = false;
+      var flush = function () { if (buf) { if (gap !== null) { parts.push(fmt(gap)); gap = null; } parts.push('<' + hx(buf) + '>'); buf = ''; } };
+      var addGap = function (n) { if (buf) flush(); gap = (gap || 0) + n; };
+      items.forEach(function (it) {
+        if (typeof it === 'number') { addGap(it); x -= it / 1000 * fs * th; return; }
+        if (!it || it.s == null) return;
+        var s = it.s, step = fi.two ? 2 : 1;
+        for (var k = 0; k + step <= s.length; k += step) {
+          var code = fi.two ? (s.charCodeAt(k) << 8) | s.charCodeAt(k + 1) : s.charCodeAt(k);
+          var w0 = (fi.w(code) || 0) / 1000, adv = (w0 * fs + st.Tc + (!fi.two && code === 32 ? st.Tw : 0)) * th;
+          var c = ap(M, x + w0 * fs * th / 2, st.rise + fs * 0.3);
+          if (hit(c.x, c.y)) { addGap(-adv * 1000 / (fs * th)); any = true; }
+          else { if (gap !== null) { parts.push(fmt(gap)); gap = null; } buf += s.substr(k, step); }
+          x += adv;
+        }
+      });
+      flush(); if (gap !== null) parts.push(fmt(gap));
+      Tm = mul(Tm, [1, 0, 0, 1, x, 0]);
+      if (!any) return;
+      out.push(src.slice(last, opStart), prefix + '[' + parts.join(' ') + '] TJ'); last = opEnd; changed = true;
+    }
+    var args = [], nest = [], argStart = -1;
+    for (;;) {
+      var t = tok(); if (!t) break;
+      if (t.op === undefined) {
+        if (!nest.length && !args.length && argStart < 0) argStart = tokStart;
+        if (t.d === '[' || t.d === '<<') { nest.push(args); args = []; continue; }
+        if (t.d === ']' || t.d === '>>') { var inner = args; args = nest.pop() || []; args.push(t.d === ']' ? { a: inner } : { dict: 1 }); continue; }
+        args.push(t.v !== undefined ? t.v : t); continue;
+      }
+      if (nest.length) { args.push(t); continue; }
+      var op = t.op, a = args, os = argStart >= 0 ? argStart : tokStart, oe = i;
+      args = []; argStart = -1;
+      if (op === 'BI') { // inline image: skip its binary data
+        var id = src.indexOf('ID', i); if (id < 0) break;
+        var k2 = id + 3;
+        for (;;) { var e2 = src.indexOf('EI', k2); if (e2 < 0) { i = L; break; } if (WS.indexOf(src[e2 - 1]) >= 0 && (e2 + 2 >= L || WS.indexOf(src[e2 + 2]) >= 0)) { i = e2 + 2; break; } k2 = e2 + 2; }
+        continue;
+      }
+      var n = function (j) { return typeof a[j] === 'number' ? a[j] : 0; };
+      switch (op) {
+        case 'q': gstack.push({ ctm: st.ctm, Tc: st.Tc, Tw: st.Tw, Th: st.Th, TL: st.TL, font: st.font, fs: st.fs, rise: st.rise }); break;
+        case 'Q': if (gstack.length) st = Object.assign(st, gstack.pop()); break;
+        case 'cm': if (a.length >= 6) st.ctm = mul(st.ctm, [n(0), n(1), n(2), n(3), n(4), n(5)]); break;
+        case 'BT': Tm = [1, 0, 0, 1, 0, 0]; Tlm = Tm.slice(); lost = false; break;
+        case 'ET': Tm = Tlm = null; break;
+        case 'Td': moveLine(n(0), n(1)); break;
+        case 'TD': st.TL = -n(1); moveLine(n(0), n(1)); break;
+        case 'Tm': if (a.length >= 6) { Tlm = [n(0), n(1), n(2), n(3), n(4), n(5)]; Tm = Tlm.slice(); lost = false; } break;
+        case 'T*': moveLine(0, -st.TL); break;
+        case 'Tc': st.Tc = n(0); break;
+        case 'Tw': st.Tw = n(0); break;
+        case 'Tz': st.Th = n(0) / 100; break;
+        case 'TL': st.TL = n(0); break;
+        case 'Ts': st.rise = n(0); break;
+        case 'Tf': st.font = a[0] && a[0].n != null ? fontOf(a[0].n) : null; st.fs = n(1); break;
+        case 'Tj': show([a[0]], os, oe, ''); break;
+        case 'TJ': show(a[0] && a[0].a ? a[0].a : [], os, oe, ''); break;
+        case "'": moveLine(0, -st.TL); show([a[0]], os, oe, 'T* '); break;
+        case '"': st.Tw = n(0); st.Tc = n(1); moveLine(0, -st.TL); show([a[2]], os, oe, fmt(n(0)) + ' Tw ' + fmt(n(1)) + ' Tc T* '); break;
+      }
+    }
+    return changed ? out.join('') + src.slice(last) : null;
+  }
+  function scrubPage(PL, out, pg, p) {
+    return liveObjs(p).then(function (objs) {
+      var rs = coverRects(objs); if (!rs.length) return;
+      try {
+        var ctx = out.context, N = PL.PDFName.of, node = pg.node, cref = node.get(N('Contents'));
+        if (!cref) return;
+        var c = ctx.lookup(cref), list = c instanceof PL.PDFArray ? c.asArray().map(function (r) { return ctx.lookup(r); }) : [c];
+        var src = list.map(function (s) { return latin1(s instanceof PL.PDFRawStream ? PL.decodePDFRawStream(s).decode() : s.getContents()); }).join('\n');
+        var res = node.Resources(), fonts = res && res.lookup(N('Font')), cache = {};
+        var fontOf = function (name) { if (!(name in cache)) { var fd = fonts && fonts.lookup(N(name)); cache[name] = fd ? fontInfo(PL, ctx, fd) : null; } return cache[name]; };
+        var P2V = vpT(p.view, R(p), 1);
+        var res2 = scrubStream(src, fontOf, function (x, y) { var v = ap(P2V, x, y); return inRects(rs, v.x, v.y); });
+        if (res2 != null) node.set(N('Contents'), ctx.register(ctx.flateStream(bytesOf(res2))));
+      } catch (e) { console.warn('scrub', e); }
     });
   }
   function drawObjs(PL, out, pg, p, skipWo) {
@@ -1137,7 +1373,7 @@
         for (var i = 0; i < lines.length; i++) {
           var hl = o.getHeightOfLine(i), base = y + hl / o.lineHeight * (1 - o._fontSizeFraction);
           var str = lines[i].join(''), s2 = '';
-          for (var ch of str) { var cp = ch.codePointAt(0); s2 += cs.has(cp) || cp < 32 ? ch : '?'; }
+          for (var ch of str) { var cp = ch.codePointAt(0); if (cs.has(cp) || cp < 32) s2 += ch; else { s2 += '?'; if (!/\s/.test(ch)) (out.__missing = out.__missing || new Set()).add(ch); } }
           if (s2.trim()) {
             var pl2 = placement(V2P, m, -o.width / 2 + o._getLineLeftOffset(i), base);
             pg.drawText(s2, { x: pl2.x, y: pl2.y, size: o.fontSize * o.scaleY, font: font, color: col, opacity: op, rotate: PL.degrees(pl2.rot) });
@@ -1291,12 +1527,13 @@
   }
 
   // ---------- generic dialog ----------
-  function dialog(title, body, buttons, onOpen) {
+  function dialog(title, body, buttons, onOpen, onClose) {
     var m = document.createElement('div'); m.className = 'modal';
     m.innerHTML = '<div class="mbox dlg" role="dialog" aria-modal="true" aria-label="' + esc(title) + '"><h2>' + esc(title) + '</h2><div class="dlg-b">' + body + '</div>' +
       '<div class="mrow dlg-f"><span class="grow"></span>' + (buttons || []).map(function (b, i) { return '<button type="button" class="' + (b.primary ? 'btn-primary' : 'btn') + '" data-db="' + i + '">' + esc(b.label) + '</button>'; }).join('') + '</div></div>';
     document.body.appendChild(m);
-    function close() { m.remove(); document.removeEventListener('keydown', onKey); }
+    var closed = false;
+    function close() { if (closed) return; closed = true; m.remove(); document.removeEventListener('keydown', onKey); if (onClose) onClose(); }
     function onKey(e) { if (e.key === 'Escape') close(); }
     document.addEventListener('keydown', onKey);
     m.addEventListener('click', function (e) {
@@ -1327,7 +1564,7 @@
       var vp = pg.getViewport({ scale: s }), c = document.createElement('canvas');
       c.width = Math.ceil(vp.width); c.height = Math.ceil(vp.height);
       var x = c.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, c.width, c.height);
-      return pg.render({ canvasContext: x, viewport: vp }).promise.then(function () { return { c: c, w: vp0.width, h: vp0.height }; });
+      return pg.render({ canvasContext: x, viewport: vp, annotationMode: 1 }).promise.then(function () { return { c: c, w: vp0.width, h: vp0.height }; });
     });
   }
   // text lines of a pdf.js page in display coordinates (top → bottom), each with its items
@@ -1718,11 +1955,15 @@
   // invisible, selectable text for OCR'd pages (makes scans searchable)
   function drawOcr(PL, out, pg, p) {
     if (!p.ocr || !p.ocr.length) return Promise.resolve();
-    return G.embedFont(out, 'Inter', false).then(function (font) {
+    var rs = [], P2V = vpT(p.view, R(p), 1);
+    return liveObjs(p).then(function (objs) { rs = coverRects(objs); return G.embedFont(out, 'Inter', false); }).then(function (font) {
       var cs = charSet(font);
       p.ocr.forEach(function (it) {
         var t = it.transform, s = ''; for (var ch of it.str) { var cp = ch.codePointAt(0); s += cs.has(cp) ? ch : ' '; }
         if (!s.trim()) return;
+        // recognised words under a whiteout / edited text are left out, like the page's own text
+        var mid = ap(P2V, t[4] + (it.width || 0) / 2, t[5] + Math.hypot(t[2], t[3]) * 0.3);
+        if (rs.length && inRects(rs, mid.x, mid.y)) return;
         var size = Math.hypot(t[2], t[3]) || 10, x = t[4], y = t[5];
         if (pg.__flat) { var v = ap(vpT(p.view, R(p), 1), x, y), d = dims(p); x = v.x; y = d.h - v.y; }
         var w0 = font.widthOfTextAtSize(s, size), k = w0 > 0 ? Math.min(3, Math.max(0.3, it.width / w0)) : 1;
@@ -1910,6 +2151,468 @@
       } }]);
   }
 
+  // ---------- text of a page (pdf.js text + OCR) with view-space geometry ----------
+  function pageItems(p) {
+    if (p.src < 0 && !(p.ocr && p.ocr.length)) return Promise.resolve([]);
+    var tcP = p.src < 0 ? Promise.resolve(null) : p.text ? Promise.resolve(p.text)
+      : sources[p.src].doc.getPage(p.idx + 1).then(function (pg) { p.pdfPage = pg; return pg.getTextContent(); }).then(function (tc) { p.text = tc; return tc; });
+    return tcP.then(function (tc) {
+      if (p.__items && p.__itemsKey === tc && p.__itemsOcr === p.ocr && p.__itemsRot === R(p)) return p.__items;
+      var M = vpT(p.view, R(p), 1);
+      p.__items = allItems(p, tc).map(function (it, i) {
+        var st = it.fontName === 'ocr' ? OCR_STYLE : tc && tc.styles[it.fontName];
+        return { it: it, i: i, st: st, g: geomOf(M, it, st) };
+      });
+      p.__itemsKey = tc; p.__itemsOcr = p.ocr; p.__itemsRot = R(p);
+      return p.__items;
+    }).catch(function () { return []; });
+  }
+
+  // x offset (view units) of character k inside a text run: pdf.js gives only the run's total width,
+  // so the split follows the glyph proportions of a similar font (sans / serif / mono) instead of equal steps
+  var mctx = document.createElement('canvas').getContext('2d');
+  function charX(str, k, g, st) {
+    if (k <= 0) return 0; if (k >= str.length) return g.w;
+    mctx.font = '100px ' + ((st && st.fontFamily) || 'sans-serif');
+    var all = mctx.measureText(str).width;
+    return all > 0 ? g.w * mctx.measureText(str.slice(0, k)).width / all : g.w * k / str.length;
+  }
+  function charAt(str, x, g, st) { // index of the character under view-x
+    var lo = 0, hi = str.length;
+    while (lo < hi) { var mid = (lo + hi) >> 1; if (g.x + charX(str, mid + 1, g, st) <= x) lo = mid + 1; else hi = mid; }
+    return Math.min(str.length - 1, lo);
+  }
+
+  // ---------- text markup: highlight / underline / strike-out snap to the words (like Acrobat) ----------
+  function wordBoxes(p, box, click) {
+    return pageItems(p).then(function (list) {
+      var hits = [];
+      list.forEach(function (e) {
+        var g = e.g, str = e.it.str || '', n = str.length;
+        if (!n || !str.trim() || Math.abs(g.ang) > 0.5 || (p.done && p.done[e.i])) return;
+        var a, b, st = e.st;
+        if (click) {
+          if (box.x < g.x || box.x > g.x + g.w || box.y < g.top || box.y > g.top + g.h) return;
+          a = b = charAt(str, box.x, g, st);
+          if (/\s/.test(str[a])) return;
+          while (a > 0 && !/\s/.test(str[a - 1])) a--;
+          while (b < n - 1 && !/\s/.test(str[b + 1])) b++;
+          b++;
+        } else {
+          var ov = Math.min(g.top + g.h, box.y + box.h) - Math.max(g.top, box.y);
+          if (ov < Math.min(g.h, box.h) * 0.35) return;
+          // characters count when at least ~⅓ of them is inside the drag
+          a = box.x <= g.x ? 0 : charAt(str, box.x, g, st); if (g.x + charX(str, a + 1, g, st) - box.x < (charX(str, a + 1, g, st) - charX(str, a, g, st)) * 0.35) a++;
+          b = box.x + box.w >= g.x + g.w ? n : charAt(str, box.x + box.w, g, st) + 1; if (box.x + box.w - (g.x + charX(str, b - 1, g, st)) < (charX(str, b, g, st) - charX(str, b - 1, g, st)) * 0.35) b--;
+          while (a < b && /\s/.test(str[a])) a++;
+          while (b > a && /\s/.test(str[b - 1])) b--;
+          if (b <= a) return;
+        }
+        var xa = charX(str, a, g, st);
+        hits.push({ x: g.x + xa, top: g.top, w: charX(str, b, g, st) - xa, h: g.h, base: g.base, fs: g.fs });
+      });
+      hits.sort(function (u, v) { return u.top - v.top || u.x - v.x; });
+      var out = [];
+      hits.forEach(function (h) {
+        var l = out[out.length - 1];
+        if (l && Math.abs(l.top - h.top) < h.h * 0.4 && h.x - (l.x + l.w) < h.h * 0.9) {
+          var r = Math.max(l.x + l.w, h.x + h.w); l.x = Math.min(l.x, h.x); l.w = r - l.x;
+        } else out.push(Object.assign({}, h));
+      });
+      return click ? out.slice(0, 1) : out;
+    });
+  }
+  function markObj(kind, b) {
+    if (kind === 'hl') return new fabric.Rect({ left: b.x - 0.5, top: b.top, width: b.w + 1, height: b.h, fill: style.hl, opacity: 0.45, globalCompositeOperation: 'multiply', strokeUniform: true, data: { k: 'hl' } });
+    var y = kind === 'ul' ? b.base + b.fs * 0.12 : b.base - b.fs * 0.3, sw = Math.max(0.8, Math.round(b.fs * 0.07 * 10) / 10);
+    return new fabric.Line([b.x, y, b.x + b.w, y], { stroke: style[kind], strokeWidth: sw, strokeLineCap: 'butt', strokeUniform: true, data: { k: 'shape', mk: kind } });
+  }
+  function markRelease(p, f, o) {
+    var kind = o.data.k, w = o.width * o.scaleX, h = o.height * o.scaleY, click = w < 3 && h < 3;
+    var box = { x: o.left, y: o.top, w: w, h: h };
+    quiet++; f.remove(o); quiet--;
+    wordBoxes(p, box, click).then(function (bs) {
+      var made;
+      if (bs.length) made = bs.map(function (b) { return markObj(kind, b); });
+      else if (kind === 'hl') { // no text here (scan, drawing): a plain highlight box
+        if (click) o.set({ width: 120, height: 16, left: o.left - 2, top: o.top - 8 });
+        o.set({ opacity: 0.45 }); made = [o];
+      } else { toast('Энд текст олдсонгүй — ' + (kind === 'ul' ? 'доогуур' : 'дундуур') + ' зурах үгээ дарж эсвэл чирж сонгоно уу', 3000); return; }
+      quiet++; made.forEach(function (m) { prepObj(m); f.add(m); m.setCoords(); }); quiet--;
+      clearOtherSelections(p);
+      f.setActiveObject(made.length > 1 ? new fabric.ActiveSelection(made, { canvas: f }) : made[0]);
+      f.requestRenderAll(); commit(true); props();
+    });
+  }
+
+  // ---------- find & replace (Ctrl+F) ----------
+  var fb = document.createElement('div');
+  fb.className = 'findbar'; fb.hidden = true; fb.setAttribute('role', 'search');
+  fb.innerHTML = '<div class="fr"><input class="fq" type="search" placeholder="Баримтаас хайх…" aria-label="Хайх үг" spellcheck="false"><span class="fc" aria-live="polite"></span>' +
+    '<button type="button" class="ib" data-f="prev" title="Өмнөх (Shift+Enter)" aria-label="Өмнөх">‹</button><button type="button" class="ib" data-f="next" title="Дараах (Enter)" aria-label="Дараах">›</button>' +
+    '<button type="button" class="ib" data-f="more" title="Солих, бүгдийг тодруулах" aria-label="Солих">⋯</button><button type="button" class="ib" data-f="close" title="Хаах (Esc)" aria-label="Хаах">✕</button></div>' +
+    '<div class="fr fx" hidden><input class="frp" placeholder="Юугаар солих…" aria-label="Солих үг" spellcheck="false"><button type="button" class="btn sm" data-f="rep">Бүгдийг солих</button><button type="button" class="btn sm" data-f="hlall">Бүгдийг тодруулах</button></div>';
+  document.body.appendChild(fb);
+  var find = { q: '', res: [], at: -1, tok: 0, t: 0 };
+  function matchIn(str, q, g, p, res, st) {
+    var low = String(str || ''); low = (low.normalize ? low.normalize('NFKC') : low).toLowerCase();
+    var n = low.length; if (!n) return;
+    for (var k = low.indexOf(q); k >= 0; k = low.indexOf(q, k + q.length)) {
+      var rot = Math.abs(g.ang || 0) > 0.5, x0 = rot ? 0 : charX(low, k, g, st), x1 = rot ? g.w : charX(low, k + q.length, g, st);
+      res.push({ p: p, x: g.x + x0, top: g.top, w: Math.max(2, x1 - x0), h: g.h, base: g.base, ang: g.ang || 0 });
+    }
+  }
+  function runFind(keep) {
+    var q = find.q.trim().toLowerCase(), tok = ++find.tok, res = [], old = find.res[find.at];
+    if (!q) { find.res = []; find.at = -1; findUi(); drawMarks(); return Promise.resolve(); }
+    findUi(true);
+    return pages.reduce(function (pr, p) {
+      return pr.then(function () {
+        if (tok !== find.tok) return;
+        return pageItems(p).then(function (list) {
+          list.forEach(function (e) { if (!(p.done && p.done[e.i])) matchIn(e.it.str, q, e.g, p, res, e.st); });
+          // text added or edited in the editor is searchable too
+          objsOf(p).forEach(function (o) {
+            if ((o.type !== 'i-text' && o.type !== 'textbox') || !o.text || o.angle) return;
+            var lines = String(o.text).split('\n'), lh = o.height * (o.scaleY || 1) / lines.length, mx = Math.max.apply(null, lines.map(function (l) { return l.length; })) || 1;
+            lines.forEach(function (ln, k) { matchIn(ln, q, { x: o.left, top: o.top + k * lh, w: o.width * (o.scaleX || 1) * ln.length / mx, h: lh, base: o.top + (k + 0.8) * lh, ang: 0 }, p, res); });
+          });
+        });
+      });
+    }, Promise.resolve()).then(function () {
+      if (tok !== find.tok) return;
+      find.res = res;
+      var at = -1;
+      if (keep && old) at = res.findIndex(function (r) { return r.p === old.p && Math.abs(r.x - old.x) < 1 && Math.abs(r.top - old.top) < 1; });
+      if (at < 0 && res.length) { var ci = cur ? pages.indexOf(cur) : 0; at = res.findIndex(function (r) { return pages.indexOf(r.p) >= ci; }); if (at < 0) at = 0; }
+      find.at = at; findUi(); drawMarks();
+      if (!keep && at >= 0) gotoHit(at);
+    });
+  }
+  function findUi(searching) {
+    var c = fb.querySelector('.fc'), n = find.res.length;
+    c.textContent = !find.q.trim() ? '' : searching ? 'Хайж байна…' : n ? (find.at + 1) + ' / ' + n : 'Олдсонгүй';
+    c.classList.toggle('none', !searching && !!find.q.trim() && !n);
+  }
+  function drawMarks() {
+    pages.forEach(function (p) { var old = p.el && p.el.querySelector('.fml'); if (old) old.remove(); });
+    if (fb.hidden || !find.res.length) return;
+    var by = new Map();
+    find.res.forEach(function (r, k) { if (!by.has(r.p)) by.set(r.p, []); by.get(r.p).push([r, k]); });
+    by.forEach(function (list, p) {
+      if (!p.el) return;
+      var l = document.createElement('div'); l.className = 'fml';
+      l.innerHTML = list.map(function (e) {
+        var r = e[0];
+        return '<i' + (e[1] === find.at ? ' class="on"' : '') + ' style="left:' + (r.x * zoom) + 'px;top:' + (r.top * zoom) + 'px;width:' + (r.w * zoom) + 'px;height:' + (r.h * zoom) + 'px' +
+          (Math.abs(r.ang) > 0.5 ? ';transform-origin:0 ' + ((r.base - r.top) * zoom) + 'px;transform:rotate(' + r.ang + 'deg)' : '') + '"></i>';
+      }).join('');
+      p.el.appendChild(l);
+    });
+  }
+  function gotoHit(k) {
+    var n = find.res.length; if (!n) return;
+    find.at = ((k % n) + n) % n;
+    var r = find.res[find.at], el = r.p.el;
+    setCur(r.p); findUi(); drawMarks();
+    if (el) {
+      var top = el.offsetTop + r.top * zoom, left = el.offsetLeft + r.x * zoom;
+      if (top < view.scrollTop + 40 || top > view.scrollTop + view.clientHeight - 80) view.scrollTop = top - view.clientHeight * 0.35;
+      if (left < view.scrollLeft || left > view.scrollLeft + view.clientWidth - 40) view.scrollLeft = Math.max(0, left - view.clientWidth / 2);
+    }
+  }
+  function openFind() {
+    if (!pages.length) return toast('Эхлээд PDF-ээ нээнэ үү');
+    fb.hidden = false;
+    var inp = fb.querySelector('.fq'); inp.focus(); inp.select();
+    if (find.q) runFind(true);
+  }
+  function closeFind() { fb.hidden = true; find.tok++; drawMarks(); }
+  function highlightAll() {
+    var list = find.res.filter(function (r) { return Math.abs(r.ang) <= 0.5; });
+    if (!list.length) return toast('Эхлээд хайх үгээ бичнэ үү');
+    quiet++;
+    list.forEach(function (r) {
+      var o = markObj('hl', { x: r.x, top: r.top, w: r.w, h: r.h });
+      if (r.p.fab) { prepObj(o); r.p.fab.add(o); } else r.p.objs = (r.p.objs || []).concat([o.toObject(PROPS)]);
+    });
+    quiet--;
+    pages.forEach(function (p) { if (p.fab) p.fab.requestRenderAll(); });
+    commit(true); toast(list.length + ' газар тодрууллаа');
+  }
+  function replaceAll() {
+    var q = find.q.trim(), rep = fb.querySelector('.frp').value;
+    if (!q) return toast('Эхлээд хайх үгээ бичнэ үү');
+    finishEdits();
+    var src = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), rx = new RegExp(src, 'gi'), has = new RegExp(src, 'i'), n = 0;
+    busy(true, 'Сольж байна…');
+    return pages.reduce(function (pr, p) {
+      return pr.then(function () {
+        return pageItems(p).then(function (list) {
+          var norm = function (x) { x = String(x || ''); return x.normalize ? x.normalize('NFKC') : x; };
+          var todo = list.filter(function (e) { return !(p.done && p.done[e.i]) && has.test(norm(e.it.str)); });
+          if (!todo.length || !ensureFab(p)) return;
+          return todo.reduce(function (pr2, e) {
+            return pr2.then(function () { var t0 = norm(e.it.str); n += (t0.match(rx) || []).length; return placeEdit(p, e.it, e.i, e.g, e.st, t0.replace(rx, rep)); });
+          }, Promise.resolve());
+        });
+      });
+    }, Promise.resolve()).then(function () {
+      // text typed in the editor earlier
+      pages.forEach(function (p) {
+        var fix = function (o) { if ((o.type === 'i-text' || o.type === 'textbox') && has.test(o.text || '')) { n += (o.text.match(rx) || []).length; return o.text.replace(rx, rep); } return null; };
+        if (p.fab) p.fab.getObjects().forEach(function (o) { var t = fix(o); if (t !== null) { o.set('text', t); o.initDimensions(); o.setCoords(); } });
+        else (p.objs || []).forEach(function (o) { var t = fix(o); if (t !== null) o.text = t; });
+        if (p.fab) p.fab.requestRenderAll();
+      });
+      busy(false); commit(true);
+      if (mode === 'edit') pages.forEach(function (p) { if (p.vis) textLayer(p); });
+      toast(n ? n + ' газар «' + rep + '» болгож солилоо' : 'Олдсонгүй');
+      runFind(true);
+    }).catch(function (e) { busy(false); toast('Сольж чадсангүй: ' + (e && e.message || e)); });
+  }
+  fb.addEventListener('input', function (e) {
+    if (!e.target.classList.contains('fq')) return;
+    clearTimeout(find.t); find.q = e.target.value;
+    find.t = setTimeout(function () { runFind(); }, 220);
+  });
+  fb.addEventListener('keydown', function (e) {
+    e.stopPropagation();
+    if (e.key === 'Escape') { e.preventDefault(); closeFind(); return; }
+    if (e.key === 'Enter' && e.target.classList.contains('fq')) {
+      e.preventDefault();
+      if (find.q !== e.target.value) { clearTimeout(find.t); find.q = e.target.value; runFind(); return; }
+      gotoHit(find.at + (e.shiftKey ? -1 : 1));
+    }
+    if (e.key === 'Enter' && e.target.classList.contains('frp')) { e.preventDefault(); replaceAll(); }
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') { e.preventDefault(); fb.querySelector('.fq').select(); }
+  });
+  fb.addEventListener('click', function (e) {
+    var b = e.target.closest('[data-f]'); if (!b) return;
+    var a = b.dataset.f;
+    if (a === 'next') gotoHit(find.at + 1);
+    else if (a === 'prev') gotoHit(find.at - 1);
+    else if (a === 'close') closeFind();
+    else if (a === 'more') { var x = fb.querySelector('.fx'); x.hidden = !x.hidden; if (!x.hidden) fb.querySelector('.frp').focus(); }
+    else if (a === 'rep') replaceAll();
+    else if (a === 'hlall') highlightAll();
+  });
+
+  // ---------- page navigation ----------
+  function pgUi() {
+    var inp = $('#pe-pgi'); if (!inp) return;
+    if (document.activeElement !== inp) inp.value = cur ? pages.indexOf(cur) + 1 : 1;
+    $('#pe-pgn').textContent = '/ ' + pages.length;
+  }
+  function gotoPage(n) {
+    var p = pages[Math.max(0, Math.min(pages.length - 1, n))]; if (!p || !p.el) return;
+    view.scrollTop = p.el.offsetTop - 12; setCur(p); pgUi();
+  }
+  $('#pe-pgi').addEventListener('keydown', function (e) {
+    e.stopPropagation();
+    if (e.key === 'Enter') { var n = parseInt(this.value, 10); if (n > 0) gotoPage(n - 1); this.blur(); }
+    if (e.key === 'Escape') { this.blur(); pgUi(); }
+  });
+  $('#pe-pgi').addEventListener('focus', function () { this.select(); });
+  $('#pe-pgi').addEventListener('blur', pgUi);
+  function shortcutsDialog() {
+    var K = [['Ctrl+F', 'Хайх, солих'], ['Enter / Shift+Enter', 'Дараагийн / өмнөх олдоц'], ['Ctrl+S', 'PDF татах'], ['Ctrl+P', 'Хэвлэх'], ['Ctrl+Z / Ctrl+Y', 'Буцаах / дахин хийх'],
+      ['Ctrl + / Ctrl − / Ctrl 0', 'Томруулах / жижигрүүлэх / өргөнд тааруулах'], ['PageDown / PageUp', 'Дараагийн / өмнөх хуудас'], ['Home / End', 'Эхний / сүүлийн хуудас'],
+      ['V', 'Сонгох'], ['E', 'Текст засах'], ['T', 'Текст нэмэх'], ['H', 'Тодруулах'], ['U', 'Доогуур зураас'], ['K', 'Дундуур зураас'], ['D', 'Гараар зурах'],
+      ['R / O', 'Тэгш өнцөгт / эллипс'], ['A / L', 'Сум / шугам'], ['W', 'Цайруулах'], ['Delete', 'Сонгосныг устгах'], ['Ctrl+D', 'Хувилах'], ['Сум товч (+Shift)', 'Сонгосныг 1 (10) pt зөөх'], ['Esc', 'Сонголт цуцлах']];
+    dialog('Товчлолууд', '<div class="keys">' + K.map(function (k) { return '<kbd>' + esc(k[0]) + '</kbd><span>' + esc(k[1]) + '</span>'; }).join('') + '</div>', [{ label: 'Ойлголоо', primary: true }]);
+  }
+
+  // ---------- filling the PDF's own form fields (Acrobat "Fill & Sign") ----------
+  // pdf.js draws form fields only through an HTML layer, so they get real inputs on top of the page.
+  // Changed values are written into the saved PDF as text / marks, in place of the old field.
+  function formLayer(p) {
+    if (!p || p.src < 0 || !p.el) return;
+    var getA = p.annots ? Promise.resolve(p.annots) : sources[p.src].doc.getPage(p.idx + 1).then(function (pg) { return pg.getAnnotations({ intent: 'display' }); }).then(function (a) {
+      p.annots = (a || []).filter(function (x) { return x.annotationType === 20 && x.fieldName && !x.hidden && !x.pushButton && /^(Tx|Btn|Ch)$/.test(x.fieldType || '') && !(x.fieldType === 'Btn' && !x.checkBox && !x.radioButton); });
+      return p.annots;
+    }).catch(function () { p.annots = []; return []; });
+    getA.then(function (list) {
+      if (!p.el) return;
+      var old = p.el.querySelector('.fl'); if (old) old.remove();
+      if (!list.length) return;
+      var M = vpT(p.view, R(p), 1), fl = document.createElement('div'); fl.className = 'fl';
+      p.fv = p.fv || {};
+      list.forEach(function (a) {
+        var r = a.rect, c1 = ap(M, r[0], r[1]), c2 = ap(M, r[2], r[3]);
+        var x = Math.min(c1.x, c2.x), y = Math.min(c1.y, c2.y), w = Math.abs(c2.x - c1.x), h = Math.abs(c2.y - c1.y);
+        var key = a.fieldName, v = key in p.fv ? p.fv[key] : a.fieldValue, el;
+        if (a.fieldType === 'Tx') {
+          el = document.createElement(a.multiLine ? 'textarea' : 'input');
+          el.value = v == null ? '' : Array.isArray(v) ? v.join(', ') : String(v);
+          el.style.fontSize = Math.max(6, Math.min(a.multiLine ? 12 : h * 0.62, 14)) * zoom + 'px';
+          if (a.maxLen) el.maxLength = a.maxLen;
+          if (a.textAlignment === 1) el.style.textAlign = 'center'; else if (a.textAlignment === 2) el.style.textAlign = 'right';
+        } else if (a.fieldType === 'Btn') {
+          el = document.createElement('input'); el.type = a.radioButton ? 'radio' : 'checkbox';
+          if (a.radioButton) { el.name = 'rb-' + p.id + '-' + key; el.checked = v != null && v === a.buttonValue; }
+          else el.checked = v != null && v !== 'Off' && v !== false && v !== '';
+        } else {
+          el = document.createElement('select');
+          var cur0 = Array.isArray(v) ? v[0] : v;
+          el.innerHTML = '<option value=""></option>' + (a.options || []).map(function (o) { return '<option value="' + esc(o.exportValue) + '"' + (o.exportValue === cur0 || o.displayValue === cur0 ? ' selected' : '') + '>' + esc(o.displayValue) + '</option>'; }).join('');
+          el.style.fontSize = Math.max(6, Math.min(h * 0.6, 13)) * zoom + 'px';
+        }
+        el.className = 'ff'; el.dataset.key = key;
+        el.style.left = x * zoom + 'px'; el.style.top = y * zoom + 'px'; el.style.width = w * zoom + 'px'; el.style.height = h * zoom + 'px';
+        el.title = a.alternativeText || key;
+        if (a.readOnly) el.disabled = true;
+        var save = function () {
+          if (a.fieldType === 'Btn') { if (a.radioButton) { if (el.checked) p.fv[key] = a.buttonValue; } else p.fv[key] = el.checked ? (a.exportValue || 'Yes') : 'Off'; }
+          else p.fv[key] = el.value;
+          commit();
+        };
+        el.addEventListener(a.fieldType === 'Tx' ? 'input' : 'change', save);
+        fl.appendChild(el);
+      });
+      p.el.appendChild(fl);
+    });
+  }
+  // write changed field values into the output page and drop the old widgets of those fields
+  function fillFields(PL, out, pg, p) {
+    var fv = p.fv || {}, keys = Object.keys(fv), list = (p.annots || []).filter(function (a) { return keys.indexOf(a.fieldName) >= 0; });
+    if (!list.length) return Promise.resolve();
+    var d = dims(p), P2V = vpT(p.view, R(p), 1), V2P = pg.__flat ? [1, 0, 0, -1, 0, d.h] : inv(P2V), W = mul(V2P, P2V);
+    var rot = Math.atan2(W[1], W[0]) * 180 / Math.PI;
+    return G.embedFont(out, 'Inter', false).then(function (font) {
+      var cs = charSet(font), ink = PL.rgb(0.07, 0.07, 0.1);
+      var clean = function (s) { var o = ''; for (var ch of String(s)) { var cp = ch.codePointAt(0); o += cs.has(cp) || cp < 32 ? ch : '?'; } return o; };
+      var col = function (c) { return c && c.length >= 3 ? PL.rgb(c[0] / 255, c[1] / 255, c[2] / 255) : null; };
+      list.forEach(function (a) {
+        var v = fv[a.fieldName], r = a.rect, x0 = Math.min(r[0], r[2]), y0 = Math.min(r[1], r[3]), w = Math.abs(r[2] - r[0]), h = Math.abs(r[3] - r[1]);
+        var at = function (x, y) { return ap(W, x, y); };
+        // keep the look of the field: its background and border are drawn back as plain page graphics
+        var bg = col(a.backgroundColor), bc = col(a.borderColor), bw = a.borderStyle && a.borderStyle.width != null ? a.borderStyle.width : 1;
+        if (bg || (bc && bw > 0)) {
+          if (a.radioButton) { var cc = at(x0 + w / 2, y0 + h / 2); pg.drawCircle({ x: cc.x, y: cc.y, size: Math.min(w, h) / 2 - bw / 2, color: bg || undefined, borderColor: bc && bw > 0 ? bc : undefined, borderWidth: bc ? bw : 0 }); }
+          else { var o0 = at(x0, y0); pg.drawRectangle({ x: o0.x, y: o0.y, width: w, height: h, rotate: PL.degrees(rot), color: bg || undefined, borderColor: bc && bw > 0 ? bc : undefined, borderWidth: bc ? bw : 0 }); }
+        }
+        if (a.fieldType === 'Btn') {
+          var on = a.radioButton ? v === a.buttonValue : v != null && v !== 'Off';
+          if (!on) return;
+          if (a.radioButton) { var c = at(x0 + w / 2, y0 + h / 2); pg.drawCircle({ x: c.x, y: c.y, size: Math.min(w, h) * 0.26, color: ink }); return; }
+          var t = Math.max(1, Math.min(w, h) * 0.12), p1 = at(x0 + w * 0.2, y0 + h * 0.52), p2 = at(x0 + w * 0.42, y0 + h * 0.26), p3 = at(x0 + w * 0.82, y0 + h * 0.8);
+          pg.drawLine({ start: p1, end: p2, thickness: t, color: ink, lineCap: PL.LineCapStyle.Round });
+          pg.drawLine({ start: p2, end: p3, thickness: t, color: ink, lineCap: PL.LineCapStyle.Round });
+          return;
+        }
+        var txt = a.fieldType === 'Ch' ? ((a.options || []).filter(function (o) { return o.exportValue === v; }).map(function (o) { return o.displayValue; })[0] || v || '') : (v || '');
+        txt = clean(txt); if (!String(txt).trim()) return;
+        var size = a.defaultAppearanceData && a.defaultAppearanceData.fontSize > 0 ? a.defaultAppearanceData.fontSize : Math.min(12, h * 0.62), pad = 2;
+        var lines;
+        if (a.multiLine) {
+          lines = [];
+          String(txt).split('\n').forEach(function (para) {
+            var words = para.split(' '), line = '';
+            words.forEach(function (wd) { var tr = line ? line + ' ' + wd : wd; if (font.widthOfTextAtSize(tr, size) > w - 2 * pad && line) { lines.push(line); line = wd; } else line = tr; });
+            lines.push(line);
+          });
+        } else {
+          lines = [String(txt).replace(/\n/g, ' ')];
+          while (size > 4 && font.widthOfTextAtSize(lines[0], size) > w - 2 * pad) size -= 0.5;
+        }
+        lines.forEach(function (ln, k) {
+          var lw = font.widthOfTextAtSize(ln, size), lx = a.textAlignment === 1 ? x0 + (w - lw) / 2 : a.textAlignment === 2 ? x0 + w - pad - lw : x0 + pad;
+          var ly = a.multiLine ? y0 + h - pad - size * (k + 0.9) : y0 + (h - size * 0.7) / 2;
+          if (ly < y0 - size) return;
+          var q = at(lx, ly);
+          pg.drawText(ln, { x: q.x, y: q.y, size: size, font: font, color: ink, rotate: PL.degrees(rot) });
+        });
+      });
+      // remove the old interactive widgets of the filled fields (they would sit on top of the new text)
+      try {
+        var N = PL.PDFName.of, ctx = out.context, annots = pg.node.Annots();
+        if (annots && annots.size) {
+          var gone = list.map(function (a) { return a.rect; });
+          for (var i = annots.size() - 1; i >= 0; i--) {
+            var ad = ctx.lookup(annots.get(i)), rc = ad && ad.lookup && ad.lookup(N('Rect'));
+            if (!rc || !rc.asArray || String(ad.get(N('Subtype'))) !== '/Widget') continue;
+            var rv = rc.asArray().map(function (n) { return n.asNumber ? n.asNumber() : 0; });
+            if (gone.some(function (g) { return Math.abs(Math.min(g[0], g[2]) - Math.min(rv[0], rv[2])) < 0.6 && Math.abs(Math.min(g[1], g[3]) - Math.min(rv[1], rv[3])) < 0.6 && Math.abs(Math.max(g[0], g[2]) - Math.max(rv[0], rv[2])) < 0.6; })) annots.remove(i);
+          }
+        }
+      } catch (e) { console.warn('fields', e); }
+    });
+  }
+
+  // ---------- autosave: the open work survives a closed tab, a crash or a dead battery ----------
+  // Kept only in this browser (IndexedDB), never uploaded. Offered back on the empty screen.
+  var AS = { db: null, q: Promise.resolve(), t: 0, off: !window.indexedDB, live: false };
+  function asDb() {
+    if (!AS.db) AS.db = new Promise(function (res, rej) {
+      var r = indexedDB.open('gc-pdfedit', 1);
+      r.onupgradeneeded = function () { r.result.createObjectStore('kv'); };
+      r.onsuccess = function () { res(r.result); }; r.onerror = function () { rej(r.error); };
+    });
+    return AS.db;
+  }
+  function asOp(fn) {
+    if (AS.off) return Promise.resolve(null);
+    AS.q = AS.q.then(function () { return asDb().then(function (db) { return new Promise(function (res, rej) { var tx = db.transaction('kv', 'readwrite'), st = tx.objectStore('kv'), out = fn(st); tx.oncomplete = function () { res(out && out.result); }; tx.onerror = tx.onabort = function () { rej(tx.error); }; }); }); })
+      .catch(function (e) { console.warn('autosave', e); if (e && /quota/i.test(e.name + e.message)) AS.off = true; return null; });
+    return AS.q;
+  }
+  function asStart() { // a new document replaces the saved one
+    if (AS.live) return;
+    AS.live = true; hideResume();
+    asOp(function (st) { st.clear(); });
+  }
+  function asSaveSource(i) {
+    asStart();
+    var s = sources[i]; asOp(function (st) { st.put({ bytes: s.bytes, name: s.name }, 'src:' + i); });
+  }
+  function autosaveNow() {
+    if (!AS.live || AS.off || !pages.length) return;
+    var state = { v: 1, ts: Date.now(), name: $('#pe-name').value.trim() || docName, n: pages.length, srcs: sources.length, snap: snapshot() };
+    asOp(function (st) { st.put(state, 'state'); });
+  }
+  function autosave() {
+    if (!AS.live || AS.off) return;
+    clearTimeout(AS.t); AS.t = setTimeout(autosaveNow, 900);
+  }
+  function hideResume() { var r = $('#pe-resume'); if (r) r.remove(); }
+  function ago(ts) { var m = Math.round((Date.now() - ts) / 60000); return m < 1 ? 'дөнгөж сая' : m < 60 ? m + ' минутын өмнө' : m < 1440 ? Math.round(m / 60) + ' цагийн өмнө' : Math.round(m / 1440) + ' өдрийн өмнө'; }
+  function offerResume() {
+    if (AS.off) return;
+    asOp(function (st) { return st.get('state'); }).then(function (state) {
+      if (!state || !state.snap || !state.snap.length || pages.length || AS.live) return;
+      if (Date.now() - state.ts > 14 * 864e5) { asOp(function (st) { st.clear(); }); return; }
+      var box = document.createElement('div'); box.className = 'resume'; box.id = 'pe-resume';
+      box.innerHTML = '<div><b>Өмнөх ажлаа үргэлжлүүлэх үү?</b><small>«' + esc(state.name || 'Баримт') + '» · ' + state.n + ' хуудас · ' + ago(state.ts) + ' · зөвхөн энэ төхөөрөмжид хадгалагдсан</small></div>' +
+        '<button type="button" class="btn-primary" data-rs="go">Үргэлжлүүлэх</button><button type="button" class="btn" data-rs="drop">Устгах</button>';
+      var em = $('#pe-empty'); em.insertBefore(box, em.firstChild);
+      box.addEventListener('click', function (e) {
+        var b = e.target.closest('[data-rs]'); if (!b) return;
+        if (b.dataset.rs === 'drop') { hideResume(); asOp(function (st) { st.clear(); }); return; }
+        resumeWork(state);
+      });
+    });
+  }
+  function resumeWork(state) {
+    hideResume(); busy(true, 'Өмнөх ажлыг сэргээж байна…');
+    var got = [];
+    for (var i = 0; i < state.srcs; i++) (function (k) { got.push(asOp(function (st) { return st.get('src:' + k); })); })(i);
+    Promise.all(got).then(function (srcs) {
+      if (srcs.some(function (x) { return !x; })) throw new Error('Хадгалсан файл бүрэн биш байна');
+      return G.pdfjs().then(function (pj) {
+        return srcs.reduce(function (pr, s) { return pr.then(function () { return openPdf(pj, s.bytes, s.name); }); }, Promise.resolve());
+      }).then(function () {
+        AS.live = true;
+        origBytes = srcs.reduce(function (a, s) { return a + (s.bytes.byteLength || s.bytes.length || 0); }, 0);
+        pages = []; restore(state.snap);
+        root.classList.add('has-doc'); $('#pe-save').disabled = false; setName(state.name || 'Баримт');
+        zoom = fitZoom(); fitMode = true; layoutPages(); renderThumbs(); props();
+        hist = [snapshot()]; hi = 0; histUi();
+        busy(false); toast('Өмнөх ажил сэргээгдлээ ✓');
+      });
+    }).catch(function (e) { busy(false); console.error(e); toast('Сэргээж чадсангүй: ' + (e && e.message || e), 5000); });
+  }
+
   // ---------- wiring ----------
   $('#pe-types').innerHTML = G.LABEL.split(' · ').map(function (t) { return '<span>' + esc(t) + '</span>'; }).join('');
   var fileIn = $('#pe-file'); fileIn.accept = G.ACCEPT;
@@ -1924,6 +2627,7 @@
     if (f) { if (!G.isImage(f)) return toast('Зураг сонгоно уу (PNG, JPG, WebP, HEIC, SVG…)'); addImageFile(f, tag); }
   });
   $('#pe-blank').addEventListener('click', function () {
+    asStart();
     pages.push(blankPage()); root.classList.add('has-doc'); $('#pe-save').disabled = false;
     if (!docName) setName('Шинэ баримт');
     zoom = fitZoom(); layoutPages(); renderThumbs(); commit(true); props();
@@ -1942,7 +2646,10 @@
     else download(targets(), true);
   });
   document.addEventListener('click', function (e) { if (!saveMenu.hidden && !saveMenu.contains(e.target)) saveMenu.hidden = true; });
-  $('#pe-undo').innerHTML = ic('undo'); $('#pe-redo').innerHTML = ic('redo');
+  $('#pe-undo').innerHTML = ic('undo'); $('#pe-redo').innerHTML = ic('redo'); $('#pe-find').innerHTML = ic('find');
+  $('#pe-find').addEventListener('click', function () { if (fb.hidden) openFind(); else closeFind(); });
+  $('#pe-keys').addEventListener('click', shortcutsDialog);
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'hidden' && AS.live) { clearTimeout(AS.t); AS.t = 0; autosaveNow(); } });
   $('#pe-undo').addEventListener('click', undo); $('#pe-redo').addEventListener('click', redo);
   $('#pe-dock').addEventListener('click', function (e) { var b = e.target.closest('[data-tool]'); if (b) setMode(b.dataset.tool === mode && mode !== 'select' ? 'select' : b.dataset.tool); });
   $('#pe-side-btn').addEventListener('click', function () { $('#pe-side').classList.toggle('open'); });
@@ -1974,18 +2681,26 @@
 
   // keyboard
   document.addEventListener('keydown', function (e) {
-    var t = e.target, typing = /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || t.isContentEditable;
+    var t = e.target, typing = (/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) && !/^(checkbox|radio|range|button)$/.test(t.type)) || t.isContentEditable;
     var a = active(), editing = a && a.o.isEditing;
     var mod = e.ctrlKey || e.metaKey;
     if (mod && e.key.toLowerCase() === 'z' && !typing && !editing) { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
     if (mod && e.key.toLowerCase() === 'y' && !typing && !editing) { e.preventDefault(); redo(); return; }
     if (mod && e.key.toLowerCase() === 's') { e.preventDefault(); if (pages.length) download(pages); return; }
+    if (mod && e.key.toLowerCase() === 'f' && !editing) { e.preventDefault(); openFind(); return; }
+    if (mod && e.key.toLowerCase() === 'p' && pages.length) { e.preventDefault(); printPdf(); return; }
+    if (mod && !e.altKey && pages.length && (e.key === '=' || e.key === '+' || e.key === '-' || e.key === '0')) {
+      e.preventDefault(); if (e.key === '0') setZoom(fitZoom(), true); else setZoom(zoom * (e.key === '-' ? 1 / 1.2 : 1.2)); return;
+    }
     if (typing || editing || !pages.length) return;
+    if (e.key === 'PageDown' || e.key === 'PageUp') { e.preventDefault(); gotoPage((cur ? pages.indexOf(cur) : 0) + (e.key === 'PageDown' ? 1 : -1)); return; }
+    if ((e.key === 'Home' || e.key === 'End') && !a) { e.preventDefault(); gotoPage(e.key === 'Home' ? 0 : pages.length - 1); return; }
+    if (e.key === '?') { e.preventDefault(); shortcutsDialog(); return; }
     if ((e.key === 'Delete' || e.key === 'Backspace') && a) { e.preventDefault(); objAction('del'); return; }
     if (mod && e.key.toLowerCase() === 'd' && a) { e.preventDefault(); objAction('dup'); return; }
     if (e.key === 'Escape') { if (a) { a.f.discardActiveObject(); a.f.requestRenderAll(); props(); } setMode('select'); return; }
     if (mod || e.altKey) return;
-    var map = { v: 'select', e: 'edit', t: 'text', h: 'hl', d: 'draw', r: 'rect', o: 'ellipse', a: 'arrow', l: 'line', w: 'wo' };
+    var map = { v: 'select', e: 'edit', t: 'text', h: 'hl', u: 'ul', k: 'st', d: 'draw', r: 'rect', o: 'ellipse', a: 'arrow', l: 'line', w: 'wo' };
     if (map[e.key.toLowerCase()]) setMode(map[e.key.toLowerCase()]);
     if (a && /^Arrow/.test(e.key)) {
       e.preventDefault(); var st = e.shiftKey ? 10 : 1, o = a.o;
@@ -1997,7 +2712,7 @@
   view.addEventListener('mousedown', function (e) { if (e.target === view || e.target === pagesEl) pages.forEach(function (p) { if (p.fab && p.fab.getActiveObject()) { p.fab.discardActiveObject(); p.fab.requestRenderAll(); } }); });
   window.addEventListener('beforeunload', function (e) { if (hi > 0) { e.preventDefault(); e.returnValue = ''; } });
 
-  dockUi(); pgToolsUi(); railUi();
+  dockUi(); pgToolsUi(); railUi(); offerResume();
   $('#pe-rail').addEventListener('click', function (e) { var b = e.target.closest('[data-rail]'); if (b) openRail(b.dataset.rail, b); });
   // a PDF / image sent from another Graphican tool opens here
   function asFile(blob, name) { var f; try { f = new File([blob], name || 'document.pdf', { type: blob.type }); } catch (e) { f = blob; f.name = name; } return f; }
@@ -2013,7 +2728,7 @@
   if (pendingDo) { var dt = $('#pe-drop b'); if (dt) dt.textContent = (pendingDo === 'topdf' || pendingDo === 'merge' ? 'Файлуудаа' : 'PDF-ээ') + ' оруулна уу — ' + DO_LABEL[pendingDo]; }
   runDo = function (a) {
     if (a === 'edit') { setMode('edit'); toast('Засах бичиг дээрээ дарна уу', 4000); return; }
-    if (a === 'fill') { setMode('text'); toast('Бөглөх газраа дарж бичнэ үү. Гарын үсэг, ✓ — зүүн талын «Гарын үсэг» цэснээс', 5000); return; }
+    if (a === 'fill') { setMode('select'); toast('Цэнхэр талбаруудыг шууд бөглөнө. Талбаргүй бол «Текст» хэрэгслээр дарж бичнэ. Гарын үсэг, ✓ — «Гарын үсэг» цэснээс', 6000); return; }
     if (a === 'merge') { toast('Хуудсуудыг чирж дарааллыг тааруулаад «Татах» дарна уу. Файл нэмэх бол энд чирж оруулна.', 6000); return; }
     if (a === 'topdf') { toast('PDF бэлэн — хүсвэл засаад «Татах» дарна уу', 5000); return; }
     if (a === 'translate') return translateDialog(null);
