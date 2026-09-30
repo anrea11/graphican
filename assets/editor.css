@@ -831,3 +831,9 @@ input[type="range"] { accent-color:var(--acc); }
 .kit-opts .ps-l { margin:4px 0 0; }
 @media (max-width:760px) { .kit-main { grid-template-columns:1fr; } .kit-right { order:-1; } .kit-grid-wrap { max-height:34vh; } }
 .mn-tiles .tile.kt svg { width:100%; height:40px; }
+
+/* /slides/: open your own PowerPoint (templates panel) */
+.pptx-open { display:flex; flex-direction:column; align-items:flex-start; gap:3px; width:100%; margin:0 0 12px; padding:12px 14px; border-radius:10px; border:1.5px dashed var(--acc); background:var(--acc-soft); text-align:left; }
+.pptx-open b { font-size:13px; font-weight:600; color:var(--acc); }
+.pptx-open span { font-size:11px; line-height:1.4; color:var(--muted); }
+.pptx-open:hover { filter:brightness(1.05); }

@@ -1074,6 +1074,8 @@
   }
 
   window.GKit = { panel: panel, rightUI: rightUI, edit: edit, native: native, toPptx: toPptx,
+    // chart / table from a data model (PowerPoint import): Promise<group> at the kit's own size, ready to scale
+    fromModel: function (kind, m) { m = clone(m); if (kind === 'table') m.fs = m.fs || 26; m.font = m.font || fontOf(m); return afterFont(m).then(function () { return kind === 'chart' ? makeChart(m, null) : makeTable(m); }); },
     // for tests
     _: { addMnPattern: function (k) { return addMnPattern(k); }, addMnArt: function (k) { return addMnArt(k); }, MN_NAT: MN_NAT, MN_PAT: MN_PAT, buildChart: buildChart, buildTable: buildTable, buildMockup: buildMockup, sampleChart: sampleChart, sampleTable: sampleTable, modelFromGrid: modelFromGrid, MOCKS: MOCKS, ICONS: ICONS, addChart: addChart, addTable: addTable, addMockup: addMockup, addIcon: addIcon, addDiagram: addDiagram, rebuild: rebuild } };
 })();
