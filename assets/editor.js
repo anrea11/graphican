@@ -1779,6 +1779,31 @@
       '<label class="nf op"><input data-p="' + p + 'Op" value="' + Math.round(pc.a * 100) + '" inputmode="decimal"><span class="unit">%</span></label>' +
       (rm ? '<button type="button" class="ib rm" data-a="' + rm + '" title="Хасах">' + icon('minus') + '</button>' : '') + '</div>';
   }
+  // colours inside a group (ornaments, imported SVG art): each distinct colour gets one editable row
+  var gcKeys = [];
+  function colKey(c) { var pc = parseCol(c); return pc.hex + '/' + Math.round(pc.a * 100); }
+  function eachLeafPaint(o, fn) {
+    if (o.getObjects) { o.getObjects().forEach(function (x) { eachLeafPaint(x, fn); }); return; }
+    if (o.globalCompositeOperation === 'destination-out' || o.isType('image')) return; // cut-out helpers carry no visible colour
+    ['fill', 'stroke'].forEach(function (pr) {
+      var c = o[pr];
+      if (typeof c !== 'string' || !c || c === 'transparent' || (pr === 'stroke' && !(o.strokeWidth > 0))) return;
+      // an open outline (e.g. lattice lines in SVG art) has no visible fill even though SVG gives it black
+      if (pr === 'fill' && o.isType('path') && o.stroke && o.strokeWidth > 0 && !(o.path || []).some(function (q) { return q[0] === 'Z' || q[0] === 'z'; })) return;
+      fn(o, pr, c);
+    });
+  }
+  function groupColors(o) {
+    var seen = {}, out = [];
+    eachLeafPaint(o, function (x, pr, c) { var k = colKey(c); if (!seen[k]) { seen[k] = 1; out.push([k, c]); } });
+    return out;
+  }
+  function dirtyAll(o) { o.set('dirty', true); if (o.getObjects) o.getObjects().forEach(dirtyAll); }
+  function groupColorUI(o) {
+    var cols = groupColors(o).slice(0, 16); gcKeys = cols.map(function (c) { return c[0]; });
+    if (!cols.length) return '';
+    return '<div class="ps"><div class="ps-h" data-col="gcol">Өнгө</div>' + cols.map(function (c, i) { return (i ? '<div style="margin-top:6px">' : '<div>') + colorRow('gc' + i, c[1]) + '</div>'; }).join('') + '</div>';
+  }
   function seg(items, cur, attr) {
     return '<div class="seg">' + items.map(function (it) {
       return '<button type="button" data-a="' + attr + '" data-v="' + it[0] + '" title="' + it[2] + '"' + (it[0] === cur ? ' class="on"' : '') + '>' + icon(it[1]) + '</button>';
@@ -1890,8 +1915,9 @@
     }
     if (k === 'video') h += videoUI(o);
     // fill
-    var closedPath = o.isType && o.isType('path') && (o.gPen ? o.gPen.closed : (o.path || []).some(function (c) { return c[0] === 'Z' || c[0] === 'z'; }));
+    var closedPath = o.isType && o.isType('path') && (o.gPen ? o.gPen.closed : (o.path || []).some(function (c) { return c[0] === 'Z' || c[0] === 'z'; }) || (typeof o.fill === 'string' && !!o.fill && o.fill !== 'transparent'));
     if (k === 'shape' || k === 'text' || closedPath) h += '<div class="ps"><div class="ps-h" data-col="fill">Fill' + (o.fill ? '' : '<span class="acts"><button type="button" class="ib" data-a="addfill" title="Нэмэх">' + icon('plus') + '</button></span>') + '</div>' + (o.fill ? paintUI('fill', o) : '') + '</div>';
+    if (k === 'group' && !o.gMaskGroup && !o.gKit) h += groupColorUI(o);
     // stroke
     if (k !== 'multi' && k !== 'group') {
       var hasStroke = !!o.stroke && (o.strokeWidth > 0 || k === 'line');
@@ -1983,6 +2009,11 @@
     if (p === 'curve' && n !== null) eachSel(function (x) { if (x.isType('textbox')) setCurve(x, n); });
     if (p === 'tbg') eachSel(function (x) { x.set('textBackgroundColor', v ? '#e7e3fd' : ''); });
     if (/^tbgc/.test(p)) eachSel(function (x) { x.set('textBackgroundColor', colorFrom(p, 'tbgc', v, x.textBackgroundColor)); });
+    if (/^gc\d+/.test(p) && o.getObjects) {
+      var gi = +p.match(/^gc(\d+)/)[1], gb = 'gc' + gi, gold = gcKeys[gi], gnew = null;
+      if (gold) eachLeafPaint(o, function (x, pr, cc) { if (colKey(cc) === gold) { var nc = colorFrom(p, gb, v, cc); x.set(pr, nc); if (pr === 'fill') x.gPaint = null; else x.gPaintS = null; gnew = nc; } });
+      if (gnew) { gcKeys[gi] = colKey(gnew); dirtyAll(o); }
+    }
     if (p === 'mask') { if (!extraMask(o, v)) fitMask(o, v === 'none' ? null : v); }
     if (o.type === 'gvideo') {
       if (p === 'vfx' || p === 'vfy') o.set(p === 'vfx' ? 'gFX' : 'gFY', clamp(n, 0, 100) / 100).set('dirty', true);
