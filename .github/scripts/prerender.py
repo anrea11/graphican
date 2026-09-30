@@ -11,7 +11,7 @@ Runs automatically on every content change via .github/workflows/prerender.yml,
 so edits made in /admin stay SEO-friendly. Safe to run locally: python3 .github/scripts/prerender.py
 """
 import sys
-import html, json, os, re, datetime
+import hashlib, html, json, os, re, datetime
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 SITE = "https://graphican.online"
@@ -22,6 +22,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import landings  # noqa: E402  (search landing pages for the free tools)
 import apps  # noqa: E402  (font finder, brand colours, templates)
 import home_page  # noqa: E402  (tools-first home page)
+import og  # noqa: E402  (per-page share images)
 LANDING_LINKS = " · ".join(['<a href="/tools/mongol-font/">Монгол фонт хайгч</a>', '<a href="/tools/brand-color/">Брэндийн өнгө үүсгэгч</a>', '<a href="/tools/templates/">Монгол сошиал загвар</a>']
                            + [f'<a href="/tools/{x["slug"]}/">{x["h1"]}</a>' for x in landings.PAGES])
 
@@ -79,7 +80,7 @@ def home():
     }
     org = {
         "@type": "ProfessionalService", "@id": SITE + "/#org",
-        "name": "Graphican", "url": SITE, "logo": absu("/assets/uploads/anhbayar-hero-2.webp"),
+        "name": "Graphican", "url": SITE, "logo": {"@type": "ImageObject", "url": absu("/assets/uploads/logo.png"), "width": 512, "height": 512},
         "image": og_img, "description": desc, "founder": {"@id": SITE + "/#person"},
         "areaServed": {"@type": "Country", "name": "Mongolia"},
         "address": {"@type": "PostalAddress", "addressLocality": "Ulaanbaatar", "addressCountry": "MN"},
@@ -238,6 +239,58 @@ TOOL_KEYS = (("upscale", "/tools/upscale/"), ("pdfedit", "/tools/pdfedit/"), ("b
              ("socialcrop", "/tools/socialcrop/"), ("tools", "/tools/pdf/"), ("editor", "/editor/"))
 
 
+# visible FAQ on each tool page (+ FAQPage structured data) — answers must match what the tool really does
+TOOL_FAQ = {
+    "upscale": [
+        ("Зургийг хэд дахин томруулж болох вэ?", "2 эсвэл 4 дахин. Хиймэл оюун (Real-ESRGAN) зургийн нарийн хэсгийг сэргээж, ирмэгийг тодруулна. Үр дүн хамгийн ихдээ ойролцоогоор 4800 px болно."),
+        ("Ямар зураг хамгийн сайн томрох вэ?", "Лого, бүтээгдэхүүний зураг, хуучин эсвэл жижиг хэмжээтэй зураг. Хэт бүдэг, хөдөлгөөнтэй зурагт сайжрал бага байж болно."),
+        ("Зураг минь хаашаа илгээгдэх үү?", "Үгүй. AI загвар таны хөтөч дээр ажилладаг тул зураг компьютер, утаснаас тань гарахгүй."),
+        ("Үнэгүй юу? Усан тэмдэг тавих уу?", "Бүрэн үнэгүй, бүртгэлгүй, усан тэмдэггүй."),
+    ],
+    "bgremove": [
+        ("Дэвсгэр арилгасан зургийг ямар форматаар авах вэ?", "Тунгалаг дэвсгэртэй PNG-ээр, эсвэл сонгосон өнгөтэй шинэ дэвсгэртэйгээр татна."),
+        ("Ямар зурагт тохирох вэ?", "Бүтээгдэхүүн, хөрөг, амьтан, лого, паспорт ба үнэмлэхний зураг. Үсний ирмэг, нарийн хэсгийг AI өөрөө ялгана."),
+        ("Зураг минь серверт хадгалагдах уу?", "Үгүй. Хиймэл оюун таны хөтөч дээр ажилладаг тул зураг төхөөрөмжөөс тань гарахгүй."),
+        ("Үнэгүй юу?", "Бүрэн үнэгүй, бүртгэлгүй, усан тэмдэггүй, тоо хязгааргүй."),
+    ],
+    "socialcrop": [
+        ("Ямар хэмжээнүүд рүү тайрах вэ?", "Instagram пост (1080×1350), квадрат (1080×1080), Story / Reels (1080×1920), Facebook пост (1200×630), Facebook cover, YouTube thumbnail (1280×720), LinkedIn, X (Twitter)."),
+        ("Хүний нүүр тайрагдчихгүй юу?", "Үгүй. Нүүр илрүүлэгч болон зургийн чухал хэсгийг олох алгоритм тайралтыг тэр хэсэг рүү төвлөрүүлнэ. Хүсвэл тайралтыг гараар ч засна."),
+        ("Бүх хэмжээг нэг дор татаж болох уу?", "Болно — сонгосон бүх хэмжээ нэг ZIP файлд орно."),
+        ("Үнэгүй юу? Зураг минь хаашаа илгээгдэх үү?", "Бүрэн үнэгүй, бүртгэлгүй. Зураг таны хөтөч дээр боловсруулагдаж, хаашаа ч илгээгдэхгүй."),
+    ],
+    "tools": [
+        ("PDF-ийг ямар зураг болгож болох вэ?", "Хуудас бүрийг PNG, JPG эсвэл WebP болгоно. Нягтралаа сонгож, бүгдийг нэг ZIP-ээр татна."),
+        ("Ямар файлуудыг PDF болгож болох вэ?", "Word (DOCX), Excel (XLSX, CSV), TXT, Markdown, HTML болон JPG, PNG, HEIC, WebP, TIFF зураг. Олон файлыг нэг PDF болгож нэгтгэнэ."),
+        ("Монгол кирилл үсэг эвдрэх үү?", "Үгүй. Ө, Ү-тэй бүх кирилл үсэг зөв харагдах фонтоор хөрвүүлнэ."),
+        ("Файл минь аюулгүй юу?", "Хөрвүүлэлт таны хөтөч дээр хийгддэг тул файл компьютерээс тань гарахгүй."),
+    ],
+    "pdfedit": [
+        ("PDF доторх бичгийг яаж засах вэ?", "«Текст засах» (E) горимд засах бичиг дээрээ дарахад ижил фонт, хэмжээ, өнгөөр засагдана. Татахад хуучин бичиг файлаас бүрмөсөн устгагдана."),
+        ("Нэг үгийг бүх хуудаснаас хайж солих боломжтой юу?", "Болно — Ctrl+F дараад хайж, «⋯» → «Бүгдийг солих» эсвэл «Бүгдийг тодруулах»."),
+        ("PDF маягт бөглөж болох уу?", "Болно. PDF-ийн бэлэн талбарууд цэнхрээр тодорч шууд бөглөгдөнө. Гарын үсэг, огноо, ✓ тэмдэг нэмнэ."),
+        ("Хөтөч хаагдвал ажил алга болох уу?", "Үгүй. Засвар тань энэ төхөөрөмжид автоматаар хадгалагдаж, дахин нээхэд «Үргэлжлүүлэх» гэж санал болгоно."),
+        ("Файл минь аюулгүй юу?", "Засвар бүхэлдээ таны хөтөч дээр хийгддэг, файл хаашаа ч илгээгдэхгүй."),
+    ],
+}
+
+
+def faq_ld(items):
+    return {"@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": q, "acceptedAnswer": {"@type": "Answer", "text": a}} for q, a in items]}
+
+
+def faq_html(items):
+    # the tool app keeps this block (.seo-faq) and shows it under the tool, so the FAQ markup stays visible
+    return ('<section class="seo-faq"><h2>Түгээмэл асуултууд</h2>'
+            + "".join(f'<details><summary>{e(q)}</summary><p>{e(a)}</p></details>' for q, a in items) + '</section>')
+
+
+def og_for(key):
+    # per-page share image made by og.py (falls back to the site cover)
+    rel = f"/assets/uploads/og/{key}.jpg"
+    return absu(rel) if os.path.exists(os.path.join(ROOT, rel.lstrip("/"))) else absu("/assets/uploads/og-cover.jpg")
+
+
 def tool_app(s, path):
     return {"@type": "WebApplication", "name": s.get("title", "").rstrip("."), "description": s.get("description", ""), "url": SITE + path,
             "applicationCategory": "DesignApplication", "operatingSystem": "Any",
@@ -248,7 +301,7 @@ def tools_page(d):
     th = d.get("tools_hero", {})
     title = th.get("seo_title") or "Design tools — Graphican"
     desc = th.get("seo_description") or th.get("text") or ""
-    img = absu("/assets/uploads/og-cover.jpg")
+    img = og_for("tools-hub")
     apps = [tool_app(d.get(k) or {}, p) for k, p in TOOL_KEYS if (d.get(k) or {}).get("title")]
     page = {"@context": "https://schema.org", "@graph": [web_page("/tools/", "Design tools", title, desc, img)] + apps}
     head = page_head("/tools/", title, desc, img, page)
@@ -268,69 +321,70 @@ def tools_page(d):
         name = s.get("title", "").rstrip(".")
         t = s.get("seo_title") or f"{name} — үнэгүй онлайн | Graphican Design tools"
         sd = s.get("seo_description") or s.get("description", "")
+        img = og_for(key)
         crumbs = web_page(path, name, t, sd, img)
         crumbs["breadcrumb"]["itemListElement"] = [
             {"@type": "ListItem", "position": 1, "name": "Graphican", "item": SITE + "/"},
             {"@type": "ListItem", "position": 2, "name": "Design tools", "item": SITE + "/tools/"},
             {"@type": "ListItem", "position": 3, "name": name, "item": SITE + path}]
-        page = {"@context": "https://schema.org", "@graph": [crumbs, tool_app(s, path)]}
+        faq = TOOL_FAQ.get(key, [])
+        page = {"@context": "https://schema.org", "@graph": [crumbs, tool_app(s, path)] + ([faq_ld(faq)] if faq else [])}
         others = " · ".join(f'<a href="{p}">{e((d.get(k) or {}).get("title", "").rstrip("."))}</a>' for k, p in TOOL_KEYS if k != key and (d.get(k) or {}).get("title"))
         body = ['<div class="seo-static">', f'<h1>{e(s.get("seo_h1") or name)}</h1>', f'<p>{e(s.get("description"))}</p>',
-                f'<p><a href="/tools/">Design tools</a> · {others}</p>', f'<p>{LANDING_LINKS}</p></div>']
+                faq_html(faq) if faq else '', f'<p><a href="/tools/">Design tools</a> · {others}</p>', f'<p>{LANDING_LINKS}</p></div>']
         write_page(os.path.join(path.strip("/"), "index.html"), page_head(path, t, sd, img, page), body)
 
 
 # ------------------------------------------------------------------ sitemap
+# <lastmod> is the day a page's HTML last really changed (content hash kept in lastmod.json), not the day the bot ran —
+# search engines ignore lastmod when every URL claims "today" on every run.
+LASTMOD = os.path.join(os.path.dirname(os.path.abspath(__file__)), "lastmod.json")
+
+
+def lastmods(paths):
+    try:
+        old = json.load(open(LASTMOD, encoding="utf-8"))
+    except Exception:
+        old = {}
+    out = {}
+    for path in paths:
+        f = os.path.join(ROOT, path.strip("/"), "index.html") if path != "/" else os.path.join(ROOT, "index.html")
+        try:
+            h = hashlib.sha1(open(f, "rb").read()).hexdigest()[:16]
+        except OSError:
+            h = ""
+        prev = old.get(path) or {}
+        out[path] = {"h": h, "d": prev.get("d") if prev.get("h") == h and prev.get("d") else TODAY}
+    json.dump(out, open(LASTMOD, "w", encoding="utf-8"), ensure_ascii=False, indent=1, sort_keys=True)
+    return {k: v["d"] for k, v in out.items()}
+
+
 def sitemap(projects, dd):
     imgs = []
     for p in projects:
         for src in [p.get("image")] + [g.get("image") for g in p.get("gallery", [])]:
             if src and src not in [x[0] for x in imgs]:
                 imgs.append((src, p.get("name")))
-    home_imgs = "".join(f"\n    <image:image><image:loc>{e(absu(s))}</image:loc></image:image>" for s, _ in imgs[:1000])
     guide_img = absu((dd.get("guide") or {}).get("image") or "/assets/uploads/design-guide.webp")
-    tool_urls = "".join(f"\n  <url>\n    <loc>{SITE}{p}</loc>\n    <lastmod>{TODAY}</lastmod>\n    <priority>0.7</priority>\n  </url>"
-                        for k, p in TOOL_KEYS if k != "editor")
-    tool_urls += "".join(f"\n  <url>\n    <loc>{SITE}/tools/{x['slug']}/</loc>\n    <lastmod>{TODAY}</lastmod>\n    <priority>0.8</priority>\n  </url>"
-                         for x in landings.PAGES)
-    tool_urls += "".join(f"\n  <url>\n    <loc>{SITE}/tools/{sl}/</loc>\n    <lastmod>{TODAY}</lastmod>\n    <priority>0.9</priority>\n  </url>"
-                         for sl in ("mongol-font", "brand-color", "templates"))
-    tool_urls += "".join(f"\n  <url>\n    <loc>{SITE}/{sl}/</loc>\n    <lastmod>{TODAY}</lastmod>\n    <priority>0.3</priority>\n  </url>" for sl in ("support", "privacy", "terms"))
-    tool_urls += f"\n  <url>\n    <loc>{SITE}/slides/</loc>\n    <lastmod>{TODAY}</lastmod>\n    <priority>0.9</priority>\n  </url>"
-    xml = f"""<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
-  <url>
-    <loc>{SITE}/</loc>
-    <lastmod>{TODAY}</lastmod>
-    <priority>1.0</priority>
-  </url>
-  <url>
-    <loc>{SITE}/about/</loc>
-    <lastmod>{TODAY}</lastmod>
-    <priority>0.9</priority>{home_imgs}
-  </url>
-  <url>
-    <loc>{SITE}/design/</loc>
-    <lastmod>{TODAY}</lastmod>
-    <priority>0.8</priority>
-    <image:image><image:loc>{e(guide_img)}</image:loc></image:image>
-  </url>
-  <url>
-    <loc>{SITE}/tools/</loc>
-    <lastmod>{TODAY}</lastmod>
-    <priority>0.8</priority>
-  </url>{tool_urls}
-  <url>
-    <loc>{SITE}/editor/</loc>
-    <lastmod>{TODAY}</lastmod>
-    <priority>0.6</priority>
-  </url>
-</urlset>
-"""
+    # (path, priority, images)
+    urls = [("/", "1.0", []), ("/about/", "0.9", [absu(s) for s, _ in imgs[:1000]]), ("/design/", "0.8", [guide_img]), ("/tools/", "0.8", [])]
+    urls += [(p, "0.7", []) for k, p in TOOL_KEYS if k != "editor"]
+    urls += [(f"/tools/{x['slug']}/", "0.8", []) for x in landings.PAGES]   # live pages only (translate-pdf drops out while it is off)
+    urls += [(f"/tools/{sl}/", "0.9", []) for sl in ("mongol-font", "brand-color", "templates")]
+    urls += [(f"/{sl}/", "0.3", []) for sl in ("support", "privacy", "terms")]
+    urls += [("/slides/", "0.9", []), ("/editor/", "0.6", [])]
+    lm = lastmods([u for u, _, _ in urls])
+    body = "".join(
+        f"\n  <url>\n    <loc>{SITE}{u}</loc>\n    <lastmod>{lm[u]}</lastmod>\n    <priority>{pr}</priority>"
+        + "".join(f"\n    <image:image><image:loc>{e(i)}</image:loc></image:image>" for i in im) + "\n  </url>"
+        for u, pr, im in urls)
+    xml = ('<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" '
+           'xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">' + body + "\n</urlset>\n")
     open(os.path.join(ROOT, "sitemap.xml"), "w", encoding="utf-8").write(xml)
 
 
 if __name__ == "__main__":
+    og.build()            # per-page share images (before the pages that link them)
     _, projects = home()   # the portfolio → /about/
     home_page.build()      # tools hub → /
     dd = design()

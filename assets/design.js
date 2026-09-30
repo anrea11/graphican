@@ -1759,7 +1759,10 @@
         document.title = sd.seo_title || (String(sd.title || toolInfo(TOOL).name).replace(/\.$/, '') + ' — Design tools | Graphican');
         var mt = document.querySelector('meta[name="description"]');
         if (mt && (sd.seo_description || sd.description)) mt.setAttribute('content', sd.seo_description || sd.description);
-        app.innerHTML = toolCrumb(TOOL) + tv.view(d) + otherTools(TOOL) + footer();
+        // the page's own FAQ (written by the SEO prerender) stays on the page, under the tool
+        var faqEl = app.querySelector('.seo-faq');
+        var faq = faqEl ? '<section class="sec tool-faq reveal"><div class="sec-meta"><span>ТҮГЭЭМЭЛ АСУУЛТ</span><span>FAQ +</span></div>' + faqEl.innerHTML.replace(/<h2>[\s\S]*?<\/h2>/, '') + '</section>' : '';
+        app.innerHTML = toolCrumb(TOOL) + tv.view(d) + faq + otherTools(TOOL) + footer();
         enhance();
         tv.setup();
         receiveHandoff();

@@ -67,6 +67,7 @@ TILES = [
     ("summarize-pdf", "AI хураангуй", "d", "ai"), ("pdf-ocr", "Текст таних", "d", "o"), ("protect-pdf", "Нууц үг", "e", "l"),
     ("unlock-pdf", "Түгжээ тайлах", "e", "u"), ("/tools/pdf/", "Хөрвүүлэгч", "a", "cv"),
 ]
+TILES = [t for t in TILES if L.TRANSLATE_ON or t[0] != "translate-pdf"]
 
 
 def build():
@@ -74,8 +75,8 @@ def build():
     hm = d.get("home") or {}
     hero, about, contact = d.get("hero", {}), d.get("about", {}), d.get("contact", {})
     title = hm.get("seo_title") or "Graphican — Үнэгүй онлайн PDF, зураг, дизайн хэрэгслүүд"
-    desc = hm.get("seo_description") or ("PDF засах, Word болгох, орчуулах, зураг томруулах, дэвсгэр арилгах, монгол фонт, брэндийн өнгө, "
-                                        "Цагаан сар, Наадмын загвар — бүгд үнэгүй, бүртгэлгүй, монгол хэлээр. Файл тань компьютерээс гарахгүй.")
+    desc = hm.get("seo_description") or ("PDF засах, Word болгох, зураг томруулах, дэвсгэр арилгах, монгол фонт, Цагаан сар, Наадмын загвар — "
+                                        "бүгд үнэгүй, бүртгэлгүй, монгол хэлээр.")
     img = SITE + "/assets/uploads/og-cover.jpg"
     portrait = about.get("photo") or hero.get("portrait") or ""
     logos = [c for c in (d.get("clients") or {}).get("items", []) if c.get("logo")]
@@ -91,7 +92,7 @@ def build():
         {"@type": "WebPage", "@id": SITE + "/#page", "url": SITE + "/", "name": title, "description": desc, "inLanguage": "mn", "isPartOf": {"@id": SITE + "/#website"}},
         {"@type": "ItemList", "name": "Үнэгүй дизайн, PDF хэрэгслүүд", "itemListElement": [
             {"@type": "ListItem", "position": i + 1, "url": SITE + u, "name": n} for i, (n, u) in enumerate(tools_ld)]},
-        {"@type": "Organization", "@id": SITE + "/#org", "name": "Graphican", "url": SITE + "/", "logo": SITE + "/assets/uploads/anhbayar-hero-2.webp",
+        {"@type": "Organization", "@id": SITE + "/#org", "name": "Graphican", "url": SITE + "/", "logo": {"@type": "ImageObject", "url": SITE + "/assets/uploads/logo.png", "width": 512, "height": 512},
          "sameAs": [s["url"] for s in socials]},
     ]}
 
@@ -101,6 +102,7 @@ def build():
     email, phone = contact.get("email", ""), contact.get("phone", "")
     soc_h = " · ".join(f'<a href="{e(s["url"])}" target="_blank" rel="noopener me">{e(s.get("name") or "Link")}</a>' for s in socials)
 
+    TR_LINK = '<a href="/tools/translate-pdf/">Орчуулах</a>' if L.TRANSLATE_ON else ""   # PDF translation can be switched off
     body = f"""
 <div id="hero-slot"><section class="hero hero-v2 hm-hero-ph" aria-hidden="true"></section></div>
 
@@ -245,7 +247,7 @@ def build():
 
 <footer class="hm-foot">
   <div class="hm-fcols">
-    <div><b>PDF</b><a href="/tools/pdfedit/">PDF засварлагч</a><a href="/tools/pdf-to-word/">PDF → Word</a><a href="/tools/merge-pdf/">PDF нэгтгэх</a><a href="/tools/compress-pdf/">Шахах</a><a href="/tools/translate-pdf/">Орчуулах</a></div>
+    <div><b>PDF</b><a href="/tools/pdfedit/">PDF засварлагч</a><a href="/tools/pdf-to-word/">PDF → Word</a><a href="/tools/merge-pdf/">PDF нэгтгэх</a><a href="/tools/compress-pdf/">Шахах</a>{TR_LINK}</div>
     <div><b>Зураг</b><a href="/tools/upscale/">AI томруулах</a><a href="/tools/bgremove/">Дэвсгэр арилгах</a><a href="/tools/socialcrop/">Сошиал хэмжээ</a><a href="/tools/pdf/">PDF ⇄ зураг</a></div>
     <div><b>Дизайн</b><a href="/editor/">Design editor</a><a href="/slides/">Илтгэл (PPT)</a><a href="/tools/templates/">Монгол загвар</a><a href="/tools/mongol-font/">Монгол фонт</a><a href="/tools/brand-color/">Брэндийн өнгө</a></div>
     <div><b>Graphican</b><a href="/about/">Хамтран ажиллах</a><a href="/about/#work">Ажлууд</a><a href="/support/">Дэмжих</a><a href="/privacy/">Нууцлал</a><a href="/terms/">Нөхцөл</a>{f'<a href="mailto:{e(email)}">{e(email)}</a>' if email else ''}{f'<a href="tel:+976{e(phone)}">{e(phone)}</a>' if phone else ''}</div>
@@ -277,12 +279,12 @@ def build():
 <script>(function(){{var h=location.hash;if(location.hostname==='www.graphican.online'){{location.replace('https://graphican.online'+location.pathname+location.search+h);return}}if(/^#(work|reels|services|about|contact|project\\/)/.test(h))location.replace('/about/'+h)}})()</script>
 <script src="/assets/i18n.js?v=1"></script>
 <meta name="theme-color" content="#0a0a10">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%2308080a'/%3E%3Ccircle cx='16' cy='16' r='7' fill='%23a497ff'/%3E%3C/svg%3E">
+<link rel="icon" href="/favicon.ico" sizes="48x48"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="preload" href="/assets/fonts/web/InterTight-Bold.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/assets/fonts/web/Inter-Regular.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/assets/fonts/web/fonts.css">
 <link rel="stylesheet" href="/assets/style.css?v=36">
-<link rel="stylesheet" href="/assets/design.css?v=34">
+<link rel="stylesheet" href="/assets/design.css?v=35">
 <link rel="stylesheet" href="/assets/home.css?v={V}">
 </head>
 <body class="home-page">
