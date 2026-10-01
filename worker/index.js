@@ -59,6 +59,8 @@ async function search(url, env, ctx) {
   const d = await alt.json(); d.fallback = want;
   return json(d, 200, { 'cache-control': 'no-store' });
 }
+// Pixabay's profile pages live at /users/<name>-<id>/
+const pbUser = h => h.user && h.user_id ? `https://pixabay.com/users/${encodeURIComponent(h.user)}-${h.user_id}/` : '';
 async function searchFrom(src, url, env, ctx) {
   const type = ['photo', 'vector', 'video'].includes(url.searchParams.get('type')) ? url.searchParams.get('type') : 'photo';
   const qIn = (url.searchParams.get('q') || '').trim().slice(0, 100);
@@ -68,7 +70,7 @@ async function searchFrom(src, url, env, ctx) {
   if (!key) return json({ error: 'no_key', src }, 503);
 
   // 24h edge cache (Pixabay's API terms ask for caching; also keeps us well under rate limits)
-  const cacheKey = new Request(`https://stock.cache/v2/${src}/${type}/${page}/${encodeURIComponent(q.toLowerCase())}`);
+  const cacheKey = new Request(`https://stock.cache/v3/${src}/${type}/${page}/${encodeURIComponent(q.toLowerCase())}`);
   const cache = caches.default;
   const hit = await cache.match(cacheKey);
   if (hit) return hit;
@@ -87,10 +89,10 @@ async function searchFrom(src, url, env, ctx) {
         const files = (v.video_files || []).filter(f => f.file_type === 'video/mp4').sort((a, b) => (a.width || 0) - (b.width || 0));
         const hd = files.find(f => (f.width || 0) >= 1280) || files[files.length - 1] || {};
         const sm = files.find(f => (f.width || 0) >= 540) || files[0] || {};
-        return { id: 'px' + v.id, kind: 'video', thumb: v.image, preview: sm.link, full: hd.link, w: v.width, h: v.height, dur: v.duration, author: v.user && v.user.name, page: v.url };
+        return { id: 'px' + v.id, kind: 'video', thumb: v.image, preview: sm.link, full: hd.link, w: v.width, h: v.height, dur: v.duration, author: v.user && v.user.name, authorUrl: v.user && v.user.url, page: v.url };
       });
     } else {
-      items = (d.photos || []).map(p => ({ id: 'px' + p.id, kind: 'photo', thumb: p.src.medium, full: p.src.large2x || p.src.original, w: p.width, h: p.height, author: p.photographer, page: p.url, alt: p.alt }));
+      items = (d.photos || []).map(p => ({ id: 'px' + p.id, kind: 'photo', thumb: p.src.medium, full: p.src.large2x || p.src.original, w: p.width, h: p.height, author: p.photographer, authorUrl: p.photographer_url, page: p.url, alt: p.alt }));
     }
   } else {
     const isVid = type === 'video';
@@ -106,11 +108,11 @@ async function searchFrom(src, url, env, ctx) {
       items = (d.hits || []).map(h => {
         const v = h.videos || {}, med = v.medium || v.small || {}, sm = v.small || v.tiny || med;
         const thumb = med.thumbnail || sm.thumbnail || (v.tiny && v.tiny.thumbnail) || (h.picture_id ? `https://i.vimeocdn.com/video/${h.picture_id}_640x360.jpg` : '');
-        return { id: 'pb' + h.id, kind: 'video', thumb, preview: sm.url || med.url, full: (v.large && v.large.url) || med.url || sm.url, w: med.width, h: med.height, dur: h.duration, author: h.user, page: h.pageURL };
+        return { id: 'pb' + h.id, kind: 'video', thumb, preview: sm.url || med.url, full: (v.large && v.large.url) || med.url || sm.url, w: med.width, h: med.height, dur: h.duration, author: h.user, authorUrl: pbUser(h), page: h.pageURL };
       });
     } else {
       // webformat/large links (pixabay.com/get/…) expire after 24h — previewURL (cdn) is the permanent fallback
-      items = (d.hits || []).map(h => ({ id: 'pb' + h.id, kind: type, thumb: h.webformatURL || h.previewURL, thumb2: h.previewURL, full: h.largeImageURL || h.webformatURL, full2: h.webformatURL || h.previewURL, w: h.imageWidth, h: h.imageHeight, author: h.user, page: h.pageURL, alt: h.tags }));
+      items = (d.hits || []).map(h => ({ id: 'pb' + h.id, kind: type, thumb: h.webformatURL || h.previewURL, thumb2: h.previewURL, full: h.largeImageURL || h.webformatURL, full2: h.webformatURL || h.previewURL, w: h.imageWidth, h: h.imageHeight, author: h.user, authorUrl: pbUser(h), page: h.pageURL, alt: h.tags }));
     }
   }
   // Pixabay's API terms: identical searches are cached for 24 hours (edge 24h, browser 1h)
