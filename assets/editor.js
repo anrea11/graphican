@@ -1554,7 +1554,7 @@
   }
   function swRow(list) { return '<div class="sw-row">' + list.map(function (c) { return '<button type="button" class="sw" data-color="' + esc(c) + '" style="background:' + esc(c) + '" title="' + esc(c) + '"></button>'; }).join('') + '</div>'; }
   // ---------- templates panel (Canva-style: search, categories, recent, big previews) ----------
-  var tplUI = { q: '', cat: 'all', deck: null };
+  var tplUI = { q: '', cat: 'all', deck: null, pdeck: null };
   function recentGet(k) { try { return JSON.parse(localStorage.getItem(k) || '[]') || []; } catch (e) { return []; } }
   function recentAdd(k, id) { var r = recentGet(k).filter(function (x) { return x !== id; }); r.unshift(id); try { localStorage.setItem(k, JSON.stringify(r.slice(0, 8))); } catch (e) {} }
   var RK = PPT ? 'gc-recent-deck' : 'gc-recent-tpl';
@@ -1567,6 +1567,21 @@
     var c = d.slides[0];
     return '<button type="button" class="tc deckc" data-deckv="' + d.id + '" title="' + esc(d.name) + '"><span class="tc-img" data-cover="' + c.id + '" style="aspect-ratio:16/9;background-color:' + c.bg + '"></span>' + (d.video ? '<i class="tc-vid">Видео</i>' : '') + '<b class="tc-t">' + esc(d.name) + '</b><span class="tc-m">' + d.slides.length + ' слайд</span></button>';
   }
+  // PowerPoint-based decks (assets/pptx-tpl.js): a ready .pptx per deck, opened through the same importer as the user's own files
+  function pxDecks() { return window.GPPTX_TPL || []; }
+  function pxThumb(d, k) { return '/assets/pptx-tpl/' + d.id + '/' + k + '.webp?v=' + (d.v || 1); }
+  function pxCard(d) {
+    return '<button type="button" class="tc deckc" data-pdeckv="' + d.id + '" title="' + esc(d.name) + '"><span class="tc-img on" style="aspect-ratio:16/9;background-color:' + d.bg + '"><img class="tc-pimg" src="' + pxThumb(d, 1) + '" alt="" loading="lazy" decoding="async"></span>' +
+      '<b class="tc-t">' + esc(d.name) + '</b><span class="tc-m">' + d.n + ' слайд · PowerPoint</span></button>';
+  }
+  function usePxDeck(id) {
+    var d = pxDecks().filter(function (x) { return x.id === id; })[0]; if (!d) return;
+    recentAdd('gc-recent-deck', 'px:' + id);
+    toast('«' + d.name + '» ачаалж байна…');
+    fetch('/assets/pptx-tpl/' + d.id + '.pptx?v=' + (d.v || 1)).then(function (r) { if (!r.ok) throw new Error('http ' + r.status); return r.blob(); })
+      .then(function (b) { importPptx(new File([b], d.name + '.pptx', { type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' })); })
+      .catch(function () { toast('Загварыг ачаалж чадсангүй — сүлжээгээ шалгаад дахин оролдоно уу'); });
+  }
   function tplShell() {
     var cats = PPT ? [['all', 'Бүгд'], ['video', 'Видеотой']].concat(uniqTags()) : [['all', 'Бүгд'], ['photo', 'Фототой']].concat(Object.keys(window.GTPL.cats).map(function (c) { return [c, window.GTPL.cats[c]]; }));
     return (PPT ? '<button type="button" class="pptx-open" data-pptx-open="1"><b>Өөрийн PowerPoint файлаа засах</b><span>.pptx файл оруулахад слайд бүр засагдах хэлбэрээр нээгдэнэ</span></button>' : '') +
@@ -1574,11 +1589,23 @@
       '<div class="tp-chips">' + cats.map(function (c) { return '<button type="button" class="' + (tplUI.cat === c[0] ? 'on' : '') + '" data-tcat="' + c[0] + '">' + esc(c[1]) + '</button>'; }).join('') + '</div></div>' +
       '<div id="tp-res"></div>';
   }
-  function uniqTags() { var seen = {}, out = []; (window.GTPL.decks || []).forEach(function (d) { if (d.tag && !seen[d.tag]) { seen[d.tag] = 1; out.push([d.tag, d.tag]); } }); return out; }
+  function uniqTags() { var seen = {}, out = []; (window.GTPL.decks || []).concat(pxDecks()).forEach(function (d) { if (d.tag && !seen[d.tag]) { seen[d.tag] = 1; out.push([d.tag, d.tag]); } }); return out; }
   function tplResults() {
     var q = norm(tplUI.q).trim(), h = '';
     if (PPT) {
       var decks = window.GTPL.decks || [];
+      if (tplUI.pdeck) {
+        var pd = pxDecks().filter(function (x) { return x.id === tplUI.pdeck; })[0];
+        if (pd) {
+          var th = []; for (var k = 1; k <= pd.n; k++) th.push('<button type="button" class="tc" data-pdeck-use="' + pd.id + '" title="Слайд ' + k + '"><span class="tc-img on" style="aspect-ratio:16/9;background-color:' + pd.bg + '"><img class="tc-pimg" src="' + pxThumb(pd, k) + '" alt="Слайд ' + k + '" loading="lazy" decoding="async"></span></button>');
+          tplUI.pdeck = null;
+          return '<button type="button" class="tp-back" data-deckv="">‹ Бүх загвар</button><div class="tp-dh"><b>' + esc(pd.name) + '</b><span>' + pd.n + ' слайд · 16:9 · PowerPoint загвар</span></div>' +
+            '<button type="button" class="tp-apply" data-pdeck-use="' + pd.id + '">Бүх ' + pd.n + ' слайдыг ашиглах</button>' +
+            '<p class="note" style="margin:-4px 0 10px">Одоогийн илтгэлийн оронд нээгдэнэ. Текст, зураг, хэлбэр бүгд засагдана.</p>' +
+            '<div class="tc-grid g2">' + th.join('') + '</div>';
+        }
+        tplUI.pdeck = null;
+      }
       if (tplUI.deck) {
         var d = decks.filter(function (x) { return x.id === tplUI.deck; })[0];
         if (d) return '<button type="button" class="tp-back" data-deckv="">‹ Бүх загвар</button><div class="tp-dh"><b>' + esc(d.name) + '</b><span>' + d.slides.length + ' слайд · 16:9 · 1920×1080</span></div>' +
@@ -1587,12 +1614,17 @@
         tplUI.deck = null;
       }
       var list = decks.filter(function (d) { return (tplUI.cat === 'all' || d.tag === tplUI.cat || (tplUI.cat === 'video' && d.video)) && (tplMatch(d, q, d.tag) || d.slides.some(function (s) { return tplMatch(s, q); })); });
+      var plist = tplUI.cat === 'video' ? [] : pxDecks().filter(function (d) { return (tplUI.cat === 'all' || d.tag === tplUI.cat) && tplMatch(d, q, d.tag + ' powerpoint pptx'); });
       if (!q && tplUI.cat === 'all') {
-        var rec = recentGet(RK).map(function (id) { return decks.filter(function (x) { return x.id === id; })[0]; }).filter(Boolean).slice(0, 4);
-        if (rec.length) h += '<div class="tp-h">Сүүлд ашигласан</div><div class="tc-grid g2">' + rec.map(deckCard).join('') + '</div>';
+        var rec = recentGet(RK).map(function (id) { return /^px:/.test(id) ? pxDecks().filter(function (x) { return 'px:' + x.id === id; }).map(function (x) { return { px: x }; })[0] : decks.filter(function (x) { return x.id === id; })[0]; }).filter(Boolean).slice(0, 4);
+        if (rec.length) h += '<div class="tp-h">Сүүлд ашигласан</div><div class="tc-grid g2">' + rec.map(function (d) { return d.px ? pxCard(d.px) : deckCard(d); }).join('') + '</div>';
+        if (plist.length) h += '<div class="tp-h">PowerPoint загварууд <span>' + plist.length + '</span></div><div class="tc-grid g2">' + plist.map(pxCard).join('') + '</div>';
         h += '<div class="tp-h">Танд зориулсан загварууд</div>';
-      } else h += '<div class="tp-h">' + list.length + ' илтгэл</div>';
-      h += list.length ? '<div class="tc-grid g2">' + list.map(deckCard).join('') + '</div>' : '<p class="tp-empty">Олдсонгүй — өөр үгээр хайгаад үзээрэй</p>';
+      } else {
+        h += '<div class="tp-h">' + (list.length + plist.length) + ' илтгэл</div>';
+        if (plist.length) h += '<div class="tc-grid g2">' + plist.map(pxCard).join('') + '</div>' + (list.length ? '<div style="height:8px"></div>' : '');
+      }
+      h += list.length ? '<div class="tc-grid g2">' + list.map(deckCard).join('') + '</div>' : (plist.length ? '' : '<p class="tp-empty">Олдсонгүй — өөр үгээр хайгаад үзээрэй</p>');
       if (q) {
         var sl = []; decks.forEach(function (d) { d.slides.forEach(function (s) { if (tplMatch(s, q, d.name)) sl.push(s); }); });
         if (sl.length) h += '<div class="tp-h">Слайдууд</div><div class="tc-grid g2">' + sl.slice(0, 24).map(function (t) { return tcard(t, 'data-slide="' + t.id + '"'); }).join('') + '</div>';
@@ -1631,6 +1663,10 @@
     if (e.target.closest('[data-pptx-open]')) { openPptx(); return; }
     var c = e.target.closest('[data-tcat]');
     if (c) { tplUI.cat = c.dataset.tcat; tplUI.deck = null; $$('.tp-chips button').forEach(function (x) { x.classList.toggle('on', x === c); }); tplRenderResults(); $('#lp-body').scrollTop = 0; return; }
+    var pu = e.target.closest('[data-pdeck-use]');
+    if (pu) { usePxDeck(pu.dataset.pdeckUse); return; }
+    var pv = e.target.closest('[data-pdeckv]');
+    if (pv) { tplUI.pdeck = pv.dataset.pdeckv; tplRenderResults(); $('#lp-body').scrollTop = 0; return; }
     var dv = e.target.closest('[data-deckv]');
     if (dv) { tplUI.deck = dv.dataset.deckv || null; tplRenderResults(); $('#lp-body').scrollTop = 0; }
   }, true);
