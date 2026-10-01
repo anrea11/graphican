@@ -418,7 +418,7 @@
   }
 
   var GUIDE_CHIPS = '<a href="#fonts">Фонт</a><a href="#colors">Өнгө</a><a class="hot" href="#kit">Нэг товшилтоор татах ↓</a><a class="brand" href="#guide"><span class="dp-orb" aria-hidden="true"></span>Graphican брэнд гайд</a><a href="/tools/">Design tools →</a>';
-  var TOOLS_CHIPS = '<a class="hot" href="/tools/upscale/">AI томруулагч ✦</a><a href="/tools/bgremove/">Дэвсгэр арилгагч</a><a href="/tools/socialcrop/">Сошиал тайрагч</a><a href="/tools/pdfedit/">PDF засварлагч</a><a href="/tools/pdf/">PDF хөрвүүлэгч</a><a href="/editor/">Засварлагч ↗</a><a class="brand" href="/design/"><span class="dp-orb" aria-hidden="true"></span>Design guide →</a>';
+  var TOOLS_CHIPS = '<a class="hot" href="/tools/upscale/">AI томруулагч ✦</a><a href="/tools/bgremove/">Дэвсгэр арилгагч</a><a href="/tools/socialcrop/">Сошиал тайрагч</a><a href="/video/">Видео засварлагч</a><a href="/tools/pdfedit/">PDF засварлагч</a><a href="/tools/pdf/">PDF хөрвүүлэгч</a><a href="/editor/">Засварлагч ↗</a><a class="brand" href="/design/"><span class="dp-orb" aria-hidden="true"></span>Design guide →</a>';
 
   function hero(h, page) {
     var tools = page === 'tools';
@@ -690,6 +690,9 @@
     { id: 'editor', badge: 'Aa', name: 'Засварлагч', what: 'Текст, зураг, хэлбэр нэмж постер, сошиал пост бүтээнэ.',
       when: 'Бэлэн зурган дээр текст, лого нэмж пост хийх', href: '/editor/',
       steps: ['Хэмжээгээ сонгоно', 'Текст, зураг, хэлбэр нэмнэ', 'PNG, JPG, PDF-ээр татна'] },
+    { id: 'video', badge: '▶', name: 'Видео засварлагч', what: 'Reels, Story, TikTok, YouTube видео: тайрах, хуваах, монгол текст, хөгжим, шилжилт, хурд.',
+      when: 'Бараа, үйлчилгээ, арга хэмжээний богино видео хийх', href: '/video/', go: 'Нээх ↗',
+      steps: ['Хэмжээгээ сонгоно (босоо, хэвтээ, квадрат, 4:3 эсвэл өөрийн)', 'Видео, зураг, хөгжмөө нэмж тайрна, текст бичнэ', 'MP4-өөр татна'] },
     { id: 'mongol-font', badge: 'Өү', name: 'Монгол фонт хайгч', what: 'Ө, Ү үсгийг бүрэн дэмждэг 178 фонтыг өөрийн текстээр шууд харьцуулна.',
       when: 'Лого, постерт монгол бичиг эвдрэхгүй фонт сонгох', href: '/tools/mongol-font/', go: 'Нээх →' },
     { id: 'brand-color', badge: '◐', name: 'Брэндийн өнгө', what: 'Салбартаа тохирсон 5 өнгийн палитр — лого, пост, вэб дээр шууд харна.',

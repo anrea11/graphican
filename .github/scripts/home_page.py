@@ -8,7 +8,7 @@ import json, os
 import landings as L
 
 ROOT, SITE, e, ld = L.ROOT, L.SITE, L.e, L.ld
-V = "6"
+V = "7"
 
 ICON = {
     "pdf": '<path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5"/><path d="m9 17 1-3 5-5 2 2-5 5z" fill="currentColor"/>',
@@ -84,7 +84,7 @@ def build():
     stats = about.get("stats") or hero.get("stats") or []
 
     tools_ld = [("PDF засварлагч", "/tools/pdfedit/"), ("Дизайн засварлагч", "/editor/"), ("AI зураг томруулагч", "/tools/upscale/"),
-                ("Дэвсгэр арилгагч", "/tools/bgremove/"), ("Сошиал хэмжээ рүү тайрагч", "/tools/socialcrop/"), ("Монгол фонт хайгч", "/tools/mongol-font/"),
+                ("Дэвсгэр арилгагч", "/tools/bgremove/"), ("Сошиал хэмжээ рүү тайрагч", "/tools/socialcrop/"), ("Видео засварлагч", "/video/"), ("Монгол фонт хайгч", "/tools/mongol-font/"),
                 ("Брэндийн өнгө үүсгэгч", "/tools/brand-color/"), ("Монгол сошиал загварууд", "/tools/templates/"), ("PDF хөрвүүлэгч", "/tools/pdf/")] + \
                [(x["h1"], f"/tools/{x['slug']}/") for x in L.PAGES]
     graph = {"@context": "https://schema.org", "@graph": [
@@ -218,6 +218,9 @@ def build():
       <a class="hm-card img" href="/tools/socialcrop/">
         <span class="hm-shot crop"><img src="{e(thumb('/assets/uploads/novanest-dining-table.webp'))}" alt="" loading="lazy"><i class="f1"></i><i class="f2"></i><i class="f3"></i></span>
         <span class="hm-row"><b>Сошиал хэмжээ</b><i>→</i></span></a>
+      <a class="hm-card img" href="/video/">
+        <span class="hm-shot vid" aria-hidden="true"><i class="ph"></i><i class="bar"><b></b><b></b><b></b></i><em>▶ Reels · Story</em></span>
+        <span class="hm-row"><b>Видео засварлагч</b><i>→</i></span></a>
     </div>
   </section>
 
@@ -248,7 +251,7 @@ def build():
 <footer class="hm-foot">
   <div class="hm-fcols">
     <div><b>PDF</b><a href="/tools/pdfedit/">PDF засварлагч</a><a href="/tools/pdf-to-word/">PDF → Word</a><a href="/tools/merge-pdf/">PDF нэгтгэх</a><a href="/tools/compress-pdf/">Шахах</a>{TR_LINK}</div>
-    <div><b>Зураг</b><a href="/tools/upscale/">AI томруулах</a><a href="/tools/bgremove/">Дэвсгэр арилгах</a><a href="/tools/socialcrop/">Сошиал хэмжээ</a><a href="/tools/pdf/">PDF ⇄ зураг</a></div>
+    <div><b>Зураг</b><a href="/tools/upscale/">AI томруулах</a><a href="/tools/bgremove/">Дэвсгэр арилгах</a><a href="/tools/socialcrop/">Сошиал хэмжээ</a><a href="/video/">Видео засварлагч</a><a href="/tools/pdf/">PDF ⇄ зураг</a></div>
     <div><b>Дизайн</b><a href="/editor/">Design editor</a><a href="/slides/">Илтгэл (PPT)</a><a href="/tools/templates/">Монгол загвар</a><a href="/tools/mongol-font/">Монгол фонт</a><a href="/tools/brand-color/">Брэндийн өнгө</a></div>
     <div><b>Graphican</b><a href="/about/">Хамтран ажиллах</a><a href="/about/#work">Ажлууд</a><a href="/support/">Дэмжих</a><a href="/privacy/">Нууцлал</a><a href="/terms/">Нөхцөл</a>{f'<a href="mailto:{e(email)}">{e(email)}</a>' if email else ''}{f'<a href="tel:+976{e(phone)}">{e(phone)}</a>' if phone else ''}</div>
   </div>
