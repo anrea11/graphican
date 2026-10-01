@@ -1320,13 +1320,21 @@
     if (stock.err) { el.innerHTML = '<p class="note">' + (stock.err === 'rate_limit' ? 'Хайлт хэт олон удаа хийгдлээ — хэдэн секунд хүлээгээд дахин оролдоно уу.' : 'Ачаалж чадсангүй.') + '</p><button type="button" class="btn full" data-stk-retry="1">Дахин оролдох</button>'; return; }
     var qn = stock.qEn ? '<p class="note stk-qen">«' + esc(stock.q) + '» → <b>' + esc(stock.qEn) + '</b> гэж хайлаа</p>' : '';
     if (!stock.items.length) { el.innerHTML = stock.loading ? '<p class="note">Хайж байна…</p>' : qn + '<p class="note">Юу ч олдсонгүй. Өөр үгээр хайгаад үзээрэй' + (stock.src === 'pixabay' ? ' эсвэл Pexels-ийг сонгоно уу' : '') + '.</p>'; return; }
+    var site = stock.src === 'pexels' ? 'Pexels' : 'Pixabay', home = stock.src === 'pexels' ? 'https://www.pexels.com' : 'https://pixabay.com';
+    var ext = ' target="_blank" rel="noopener"';
     el.innerHTML = qn + '<div class="stk-grid">' + stock.items.map(function (it, i) {
-      return '<button type="button" class="stk-it' + (it.kind === 'video' ? ' vid' : '') + '" data-stock="' + i + '" title="' + esc((it.alt || '') + ' — ' + (it.author || '')) + '" style="aspect-ratio:' + (it.w && it.h ? Math.max(.6, Math.min(1.8, it.w / it.h)) : 1) + '">' +
+      // credit sits beside the tile button (links can't live inside a <button>); shown on hover, always on touch screens
+      var who = it.author ? (it.authorUrl ? '<a href="' + esc(it.authorUrl) + '"' + ext + '>' + esc(it.author) + '</a>' : esc(it.author)) : '';
+      return '<div class="stk-cell" style="aspect-ratio:' + (it.w && it.h ? Math.max(.6, Math.min(1.8, it.w / it.h)) : 1) + '">' +
+        '<button type="button" class="stk-it' + (it.kind === 'video' ? ' vid' : '') + '" data-stock="' + i + '" aria-label="' + esc((it.alt || (it.kind === 'video' ? 'Видео' : 'Зураг')) + (it.author ? ' — ' + it.author : '')) + '">' +
         '<img src="' + esc(/pixabay\.com\/get\//.test(it.thumb || '') ? proxied(it.thumb) : it.thumb) + '"' + (it.thumb2 ? ' data-fb="' + esc(it.thumb2) + '"' : '') + ' alt="' + esc(it.alt || it.author || '') + '" loading="lazy" referrerpolicy="no-referrer">' +
-        (it.kind === 'video' ? '<span class="stk-dur">▶ ' + (it.dur ? Math.round(it.dur) + 'с' : '') + '</span>' : '') + '</button>';
+        (it.kind === 'video' ? '<span class="stk-dur">▶ ' + (it.dur ? Math.round(it.dur) + 'с' : '') + '</span>' : '') + '</button>' +
+        (who ? '<div class="stk-by">' + (it.kind === 'video' ? 'Video' : 'Photo') + ' by ' + who + (stock.src === 'pexels' ? ' on ' : ' from ') + '<a href="' + esc(it.page || home) + '"' + ext + '>' + site + '</a></div>' : '') +
+        '</div>';
     }).join('') + '</div>' +
       (stock.items.length < stock.total ? '<button type="button" class="btn full" data-stk-more="1" style="margin-top:8px">' + (stock.loading ? 'Ачаалж байна…' : 'Цааш үзэх') + '</button>' : '') +
-      '<p class="note stk-credit">Зураг, видео: <a href="' + (stock.src === 'pexels' ? 'https://www.pexels.com' : 'https://pixabay.com') + '" target="_blank" rel="noopener">' + (stock.src === 'pexels' ? 'Pexels' : 'Pixabay') + '</a> — арилжааны ажилд ч үнэгүй, заавал нэр дурдах шаардлагагүй. Зураг дээр дарахад canvas-д орно.</p>';
+      '<p class="note stk-credit">' + (stock.src === 'pexels' ? 'Photos provided by <a href="https://www.pexels.com"' + ext + '>Pexels</a>' : 'Images from <a href="https://pixabay.com"' + ext + '>Pixabay</a>') +
+      ' — арилжааны ажилд ч үнэгүй. Зураг дээр дарахад canvas-д орно; зурагчны нэр дээр дарвал профайл нь шинэ табд нээгдэнэ.</p>';
   }
   var stockTok = 0;
   function loadStock(more) {
@@ -1352,7 +1360,7 @@
   // a stock thumbnail that fails (expired Pixabay link…) falls back to the permanent small preview
   document.addEventListener('error', function (e) {
     var im = e.target; if (!im || im.tagName !== 'IMG' || !im.closest || !im.closest('.stk-it')) return;
-    if (im.dataset.fb) { var fb = im.dataset.fb; delete im.dataset.fb; im.src = fb; } else im.closest('.stk-it').classList.add('broken');
+    if (im.dataset.fb) { var fb = im.dataset.fb; delete im.dataset.fb; im.src = fb; } else im.closest('.stk-cell').classList.add('broken');
   }, true);
   function proxied(u, dl) { return '/api/stock/file?u=' + encodeURIComponent(u) + (dl ? '&dl=' + encodeURIComponent(dl) : ''); }
   function useStock(it) {
@@ -1368,7 +1376,7 @@
     m.className = 'stk-modal';
     m.innerHTML = '<div class="stk-box" role="dialog" aria-modal="true" aria-label="Видео">' +
       '<video src="' + esc(proxied(it.preview || it.full)) + '" crossorigin="anonymous" controls autoplay muted loop playsinline></video>' +
-      '<div class="stk-bar"><span>' + esc(it.author || '') + ' · ' + (stock.src === 'pexels' ? 'Pexels' : 'Pixabay') + '</span>' +
+      '<div class="stk-bar"><span>Video by ' + (it.authorUrl ? '<a href="' + esc(it.authorUrl) + '" target="_blank" rel="noopener">' + esc(it.author || '') + '</a>' : esc(it.author || '')) + (stock.src === 'pexels' ? ' on Pexels' : ' from Pixabay') + '</span>' +
       '<button type="button" class="btn-primary" data-v="add">' + (replaceVid ? 'Энэ видеогоор солих' : 'Дизайнд оруулах') + '</button>' +
       '<button type="button" class="btn" data-v="frame">Кадрыг зураг болгох</button>' +
       (stock.src === 'pexels' ? '<a class="btn" href="' + esc(proxied(it.full || it.preview, 'graphican-' + it.id + '.mp4')) + '" download>Татах (HD)</a>' : '') +   // Pixabay: used inside designs only, no raw-file downloads
