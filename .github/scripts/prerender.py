@@ -372,7 +372,7 @@ def sitemap(projects, dd):
     urls += [(f"/tools/{x['slug']}/", "0.8", []) for x in landings.PAGES]   # live pages only (translate-pdf drops out while it is off)
     urls += [(f"/tools/{sl}/", "0.9", []) for sl in ("mongol-font", "brand-color", "templates")]
     urls += [(f"/{sl}/", "0.3", []) for sl in ("support", "privacy", "terms")]
-    urls += [("/slides/", "0.9", []), ("/editor/", "0.6", [])]
+    urls += [("/slides/", "0.9", []), ("/video/", "0.9", []), ("/editor/", "0.6", [])]
     lm = lastmods([u for u, _, _ in urls])
     body = "".join(
         f"\n  <url>\n    <loc>{SITE}{u}</loc>\n    <lastmod>{lm[u]}</lastmod>\n    <priority>{pr}</priority>"
