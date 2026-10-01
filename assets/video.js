@@ -15,7 +15,10 @@
     { id: '1x1', name: 'Квадрат', sub: 'Instagram пост', w: 1080, h: 1080 },
     { id: '4x3', name: '4:3', sub: 'Танилцуулга, сонгодог', w: 1440, h: 1080 }
   ];
-  var FONTS = ['Inter', 'Montserrat', 'Roboto', 'Oswald', 'Nunito', 'Rubik', 'Comfortaa', 'Lora', 'Playfair Display', 'Unbounded'];
+  // all with Ө Ү; weights = what Google has (asking for a missing weight makes the whole CSS request fail)
+  var FW = { 'Inter': [400, 700, 800], 'Montserrat': [400, 700, 800], 'Roboto': [400, 700, 800], 'Oswald': [400, 700], 'Nunito': [400, 700, 800], 'Rubik': [400, 700, 800],
+    'Comfortaa': [400, 700], 'Lora': [400, 700], 'Cormorant Garamond': [400, 700], 'Caveat': [400, 700], 'Lobster': [400], 'Pacifico': [400], 'Kurale': [400], 'Bad Script': [400] };
+  var FONTS = Object.keys(FW);
   var STYLES = [['plain', 'Энгийн'], ['outline', 'Хүрээтэй'], ['box', 'Шошго'], ['shadow', 'Сүүдэр'], ['glow', 'Гэрэлтэх']];
   var COLORS = ['#ffffff', '#000000', '#ffe600', '#ff3b5c', '#7b64ff', '#22c55e', '#38bdf8', '#ff8a00'];
   var ANIMS = [['none', 'Байхгүй'], ['pop', 'Үсрэх'], ['fade', 'Бүдгэрэх'], ['slide', 'Доороос'], ['type', 'Бичигдэх']];
@@ -79,13 +82,19 @@
   var fontP = {};
   function loadFont(f) {
     if (fontP[f]) return fontP[f];
+    // the stylesheet must be parsed before document.fonts.load — otherwise load() resolves at once and nothing downloads
+    var sheet = Promise.resolve();
     if (f !== 'Inter') {
       var l = document.createElement('link'); l.rel = 'stylesheet';
-      l.href = 'https://fonts.googleapis.com/css2?family=' + f.replace(/ /g, '+') + ':wght@400;700;800&display=swap';
+      l.href = 'https://fonts.googleapis.com/css2?family=' + f.replace(/ /g, '+') + (FW[f] && FW[f].length > 1 ? ':wght@' + FW[f].join(';') : '') + '&display=swap';
+      sheet = new Promise(function (res) { l.onload = l.onerror = res; setTimeout(res, 6000); });
       document.head.appendChild(l);
     }
-    fontP[f] = new Promise(function (res) { setTimeout(res, 5000); (document.fonts ? Promise.all([document.fonts.load('700 40px "' + f + '"', 'АаӨөҮү'), document.fonts.load('800 40px "' + f + '"', 'АаӨөҮү')]) : Promise.resolve()).then(res, res); })
-      .then(function () { draw(); });
+    var top = (FW[f] || [400]).slice(-1)[0];
+    fontP[f] = sheet.then(function () {
+      if (!document.fonts) return;
+      return Promise.race([document.fonts.load(top + ' 40px "' + f + '"', 'АаӨөҮүAa'), new Promise(function (r) { setTimeout(r, 6000); })]);
+    }).catch(function () {}).then(function () { draw(); });
     return fontP[f];
   }
 
@@ -164,7 +173,8 @@
   }
   function textStyle(x) {
     var s = Math.min(P.w, P.h) * x.size;
-    return { px: s, font: (x.weight || 800) + ' ' + s + 'px "' + x.font + '", "Inter", sans-serif' };
+    var w = Math.min(x.weight || 800, (FW[x.font] || [800]).slice(-1)[0]);
+    return { px: s, font: w + ' ' + s + 'px "' + x.font + '", "Inter", sans-serif' };
   }
   function wrap(ctx, text, max) {
     var out = [];

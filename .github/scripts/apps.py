@@ -415,7 +415,7 @@ def slides_page():
                                                        {"@type": "ListItem", "position": 2, "name": "Илтгэл (PPT)", "item": SITE + "/slides/"}]}]}
     s = re.sub(r'<script type="application/ld\+json">.*?</script>', lambda m: ld(ldj), s, 1, flags=re.S)
     s = s.replace('<body class="ed-booting">', '<body class="ed-booting" data-mode="ppt">', 1)
-    s = s.replace('<a href="/editor/" class="on">Дизайн</a><a href="/slides/">Илтгэл (PPT)</a>', '<a href="/editor/">Дизайн</a><a href="/slides/" class="on">Илтгэл (PPT)</a>')
+    s = s.replace('<a href="/editor/" class="on">Дизайн</a><a href="/slides/">Илтгэл</a>', '<a href="/editor/">Дизайн</a><a href="/slides/" class="on">Илтгэл</a>')
     s = s.replace('value="Нэргүй дизайн"', 'value="Нэргүй илтгэл"')
     s = s.replace('<h1 class="sr-only">Graphican Design editor — үнэгүй онлайн дизайн засварлагч</h1>', '<h1 class="sr-only">Илтгэл бэлдэх (PPT) — онлайн, үнэгүй</h1>')
     s = s.replace('<button type="button" data-file="new">Шинэ дизайн</button>', '<button type="button" data-file="new">Шинэ илтгэл</button>')

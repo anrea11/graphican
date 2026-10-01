@@ -141,32 +141,35 @@
     if (ws.length === 1 && ws[0] === 400 && !m.it) return '';
     return m.it ? ':ital,wght@' + ws.map(function (w) { return '0,' + w; }).concat(['1,' + (ws.indexOf(400) >= 0 ? 400 : ws[0])]).join(';') : ':wght@' + ws.join(';');
   }
-  function ensureFont(name) {
-    var family = fam(name), f = FONTS[name] || {};
-    if (fontReady[family]) return fontReady[family];
+  // weight given → only that face is downloaded (3 small files instead of 6); no weight → regular + bold, as before
+  var fontSheet = {};
+  function ensureFont(name, weight) {
+    var family = fam(name), f = FONTS[name] || {}, key = family + '@' + (weight || '');
+    if (fontReady[key]) return fontReady[key];
+    if (weight && fontReady[family + '@']) return fontReady[family + '@'];
     // the stylesheet must be parsed before document.fonts.load, otherwise load() resolves at once with nothing
-    var sheet = Promise.resolve();
-    if (!f.local && !fontLinks[family]) {
-      fontLinks[family] = 1;
-      var l = document.createElement('link'); l.rel = 'stylesheet';
-      l.href = f.fs ? 'https://api.fontshare.com/v2/css?f[]=' + f.fs + '@400,500,700&display=swap'
-        : 'https://fonts.googleapis.com/css2?family=' + family.replace(/ /g, '+') + gAxes(family) + '&display=swap';
-      sheet = new Promise(function (res) { l.onload = l.onerror = res; setTimeout(res, 6000); });
-      document.head.appendChild(l);
+    if (!fontSheet[family]) {
+      fontSheet[family] = Promise.resolve();
+      if (!f.local && !fontLinks[family]) {
+        fontLinks[family] = 1;
+        var l = document.createElement('link'); l.rel = 'stylesheet';
+        l.href = f.fs ? 'https://api.fontshare.com/v2/css?f[]=' + f.fs + '@400,500,700&display=swap'
+          : 'https://fonts.googleapis.com/css2?family=' + family.replace(/ /g, '+') + gAxes(family) + '&display=swap';
+        fontSheet[family] = new Promise(function (res) { l.onload = l.onerror = res; setTimeout(res, 6000); });
+        document.head.appendChild(l);
+      }
     }
-    fontReady[family] = sheet.then(function () {
-      return Promise.all([
-        document.fonts.load('400 40px "' + family + '"', 'АаӨөҮүBb'),
-        document.fonts.load('700 40px "' + family + '"', 'АаӨөҮүBb')
-      ]);
+    fontReady[key] = fontSheet[family].then(function () {
+      var ws = weight ? [weight] : [400, 700];
+      return Promise.all(ws.map(function (w) { return document.fonts.load(w + ' 40px "' + family + '"', 'АаӨөҮүBb'); }));
     }).catch(function () {}).then(function () { return family; });
-    return fontReady[family];
+    return fontReady[key];
   }
   // a weight / italic that isn't loaded yet renders with the fallback — load that exact face, then re-measure
   function loadFace(o) {
     if (!o || !o.fontFamily || !document.fonts) return;
     var fam = primary(o.fontFamily);
-    ensureFont(fam).then(function () {
+    ensureFont(fam, +o.fontWeight || (o.fontWeight === 'bold' ? 700 : 400)).then(function () {
       return document.fonts.load((o.fontStyle === 'italic' ? 'italic ' : '') + (o.fontWeight || 400) + ' 40px "' + fam + '"', 'АаӨөҮүBb');
     }).catch(function () {}).then(function () { refreshText(o); });
   }
@@ -178,6 +181,105 @@
     if (obj.gCurve) { setCurve(obj, obj.gCurve); canvas.requestRenderAll(); return; }
     obj.initDimensions(); obj.setCoords(); canvas.requestRenderAll();
   }
+
+  // ---------- font picker: every font shown in its own face ----------
+  // Previews use Google Fonts' text= subsets (only the glyphs of the name + «Аа Өө Үү», a few KB) registered under an alias, so they
+  // never clash with the full font. Pointing at a row starts loading the full face, so a click applies it with little or no wait.
+  var FCAT = { s: 'Энгийн', r: 'Сериф', d: 'Гоёл', h: 'Гар бичмэл', m: 'Код' };
+  var FEAT = ['Montserrat', 'Cormorant Garamond', 'Caveat', 'Oswald', 'Lobster', 'Comfortaa', 'Lora', 'Kurale', 'Pacifico', 'Rubik', 'Yeseva One', 'Press Start 2P',
+    'Inter', 'Cormorant', 'Bad Script', 'Exo 2', 'Prata', 'Rubik Bubbles', 'Manrope', 'Forum', 'Pangolin', 'Tektur', 'Merriweather', 'Oi', 'Nunito', 'Alice',
+    'Shantell Sans', 'Play', 'Viaoda Libre', 'Rubik Glitch', 'Raleway', 'PT Serif', 'Handjet', 'Golos Text', 'Orelega One', 'Kablammo', 'Philosopher', 'Rubik Iso', 'Marmelad', 'Rubik Wet Paint'];
+  var MNCAT = {}; (window.MN_FONTS || []).forEach(function (f) { MNCAT[f[0]] = f[1]; });
+  var fpk = null, fpkTab = 'feat', fpkQ = '', pvP = {}, fpkIO = null, fpkHover = 0;
+  function fontCat(n) { return MNCAT[fam(n)] || (FONTS[n] && FONTS[n].fs ? 'd' : 's'); }
+  function curTextWeight() { var w = 400; eachSel(function (x) { if (x.isType && x.isType('textbox')) w = +x.fontWeight || (x.fontWeight === 'bold' ? 700 : 400); }); return w; }
+  function previewFont(n) {
+    if (pvP[n]) return pvP[n];
+    var f = FONTS[n] || {}, g = fam(n);
+    if (f.local || f.fs) return (pvP[n] = ensureFont(n).then(function () { return '"' + g + '"'; }));
+    var ws = (MNW[g] && MNW[g].w) || [400], w = ws.indexOf(400) >= 0 ? 400 : ws[0];
+    var txt = Array.from(new Set(Array.from(n + 'АаӨөҮү'))).join(''), alias = 'gcpv-' + g.replace(/[^A-Za-z0-9]/g, '');
+    pvP[n] = fetch('https://fonts.googleapis.com/css2?family=' + g.replace(/ /g, '+') + ':wght@' + w + '&text=' + encodeURIComponent(txt))
+      .then(function (r) { if (!r.ok) throw new Error(r.status); return r.text(); })
+      .then(function (css) { var m = css.match(/src:\s*url\(([^)]+)\)/); if (!m) throw new Error('css'); return new FontFace(alias, 'url(' + m[1] + ')', { weight: String(w) }).load(); })
+      .then(function (ff) { document.fonts.add(ff); return '"' + alias + '"'; })
+      .catch(function () { delete pvP[n]; return null; });
+    return pvP[n];
+  }
+  function fpkList() {
+    var q = norm(fpkQ).trim(), names = Object.keys(FONTS), cur = primary((active() || {}).fontFamily || '');
+    var list = fpkTab === 'feat' && !q ? FEAT.filter(function (n) { return FONTS[n] && FONTS[n].mn; })
+      : names.filter(function (n) { return fpkTab === 'all' || fpkTab === 'feat' || (fpkTab === 'lat' ? !FONTS[n].mn : FONTS[n].mn && fontCat(n) === fpkTab); });
+    if (q) list = list.filter(function (n) { return norm(n).indexOf(q) >= 0 || norm(FCAT[fontCat(n)] || '').indexOf(q) >= 0; });
+    if (fpkTab !== 'feat' || q) list.sort(function (a, b) { return (FONTS[b].mn ? 1 : 0) - (FONTS[a].mn ? 1 : 0) || a.localeCompare(b); });
+    return list.map(function (n) {
+      return '<button type="button" class="fr' + (fam(n) === cur ? ' on' : '') + '" data-font="' + esc(n) + '"><span class="fr-n">' + esc(n) + '</span><span class="fr-s">Аа Өө Үү</span>' +
+        '<i class="fr-c">' + (FONTS[n].mn ? FCAT[fontCat(n)] || '' : 'Ө Ү-гүй') + '</i></button>';
+    }).join('') || '<p class="fpk-empty">Олдсонгүй</p>';
+  }
+  function fpkRender() {
+    if (!fpk) return;
+    var box = fpk.querySelector('.fpk-list'); box.innerHTML = fpkList(); box.scrollTop = 0;
+    if (fpkIO) fpkIO.disconnect();
+    fpkIO = 'IntersectionObserver' in window ? new IntersectionObserver(function (es) {
+      es.forEach(function (e) { if (e.isIntersecting) { fpkIO.unobserve(e.target); paintRow(e.target); } });
+    }, { root: box, rootMargin: '200px 0px' }) : null;
+    box.querySelectorAll('.fr').forEach(function (b) { if (fpkIO) fpkIO.observe(b); else paintRow(b); });
+    fpk.querySelectorAll('[data-ftab]').forEach(function (b) { b.classList.toggle('on', b.dataset.ftab === fpkTab); });
+  }
+  function paintRow(b) {
+    previewFont(b.dataset.font).then(function (ff) {
+      if (!ff) { b.classList.add('nopv'); return; }
+      b.querySelector('.fr-n').style.fontFamily = ff + ', Inter, sans-serif'; b.querySelector('.fr-s').style.fontFamily = ff + ', Inter, sans-serif'; b.classList.add('pv');
+    });
+  }
+  function openFontPicker(btn) {
+    closeFontPicker();
+    fpk = document.createElement('div'); fpk.className = 'fpk'; fpk.setAttribute('role', 'dialog'); fpk.setAttribute('aria-label', 'Фонт сонгох');
+    var tabs = [['feat', 'Онцлох'], ['all', 'Бүгд'], ['s', 'Энгийн'], ['r', 'Сериф'], ['d', 'Гоёл'], ['h', 'Гар бичмэл'], ['m', 'Код'], ['lat', 'Ө Ү-гүй']];
+    fpk.innerHTML = '<div class="fpk-h"><input type="search" class="fpk-q" placeholder="Фонт хайх…" value="' + esc(fpkQ) + '" aria-label="Фонт хайх"><button type="button" class="ib" data-fpk-close aria-label="Хаах">✕</button></div>' +
+      '<div class="fpk-tabs">' + tabs.map(function (t) { return '<button type="button" data-ftab="' + t[0] + '">' + t[1] + '</button>'; }).join('') + '</div>' +
+      '<div class="fpk-list"></div><p class="fpk-note">Ө, Ү-г бүрэн дэмждэг ' + Object.keys(FONTS).filter(function (n) { return FONTS[n].mn; }).length + ' фонт · заагч аваачихад ачаалж эхэлнэ</p>';
+    document.body.appendChild(fpk);
+    var r = btn.getBoundingClientRect(), mob = window.innerWidth < 760;
+    if (mob) fpk.classList.add('mob');
+    else {
+      var H = Math.min(600, window.innerHeight - 16), L = r.left - 330;
+      fpk.style.height = H + 'px'; fpk.style.left = Math.max(8, L) + 'px'; fpk.style.top = clamp(r.top - 80, 8, window.innerHeight - H - 8) + 'px';
+    }
+    fpkRender();
+    var q = fpk.querySelector('.fpk-q');
+    if (!mob) setTimeout(function () { q.focus(); }, 30);
+    q.addEventListener('input', function () { fpkQ = q.value; fpkRender(); });
+    fpk.addEventListener('click', function (e) {
+      if (e.target.closest('[data-fpk-close]')) return closeFontPicker();
+      var t = e.target.closest('[data-ftab]'); if (t) { fpkTab = t.dataset.ftab; fpkRender(); return; }
+      var row = e.target.closest('[data-font]'); if (row) applyFont(row.dataset.font, row);
+    });
+    // start downloading the real face as soon as a row is pointed at / touched
+    fpk.addEventListener('pointerover', function (e) {
+      var row = e.target.closest('[data-font]'); if (!row) return;
+      clearTimeout(fpkHover); fpkHover = setTimeout(function () { ensureFont(row.dataset.font, curTextWeight()); }, 90);
+    });
+    fpk.addEventListener('pointerdown', function (e) { var row = e.target.closest('[data-font]'); if (row) ensureFont(row.dataset.font, curTextWeight()); });
+    setTimeout(function () { document.addEventListener('pointerdown', fpkOutside, true); }, 0);
+  }
+  function fpkOutside(e) { if (fpk && !fpk.contains(e.target) && !e.target.closest('[data-fpick]')) closeFontPicker(); }
+  function closeFontPicker() { if (fpk) { fpk.remove(); fpk = null; if (fpkIO) fpkIO.disconnect(); document.removeEventListener('pointerdown', fpkOutside, true); } }
+  function applyFont(n, row) {
+    var w = curTextWeight(), t0 = Date.now();
+    if (row) row.classList.add('busy');
+    ensureFont(n, w).then(function () {
+      if (row) row.classList.remove('busy');
+      eachSel(function (x) { if (x.isType('textbox')) { x.set('fontFamily', stack(n)); refreshText(x); loadFace(x); } });
+      commit();
+      if (fpk) { fpk.querySelectorAll('.fr.on').forEach(function (b) { b.classList.remove('on'); }); if (row) row.classList.add('on'); }
+      var b = $('#rp-body [data-fpick]'); if (b) { b.style.fontFamily = stack(n); b.querySelector('span').textContent = n; }
+      if (Date.now() - t0 > 4000) toast('Сүлжээ удаан байна — фонт ачааллаа');
+    });
+  }
+  document.addEventListener('click', function (e) { var b = e.target.closest('[data-fpick]'); if (!b) return; if (fpk) closeFontPicker(); else openFontPicker(b); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && fpk) { e.stopPropagation(); closeFontPicker(); } }, true);
 
   // ---------- Design guide data ----------
 
@@ -1943,7 +2045,7 @@
       var curF = primary(o.fontFamily), match = fnames.filter(function (n) { return fam(n) === curF; })[0];
       var styleOn = +o.fontWeight >= 600 || o.fontWeight === 'bold' ? 'b' : o.fontStyle === 'italic' ? 'i' : o.underline ? 'u' : o.linethrough ? 's' : '';
       h += '<div class="ps"><div class="ps-h" data-col="text">Текст</div>' +
-        sel('font', (match ? [] : [[curF, curF]]).concat(fnames.map(function (n) { return [n, n + (FONTS[n].mn ? '  · Ө Ү ✓' : FONTS[n].cyr ? '  · кирилл, Ө Ү-гүй' : '')]; })), match || curF) +
+        '<button type="button" class="fpick" data-fpick="1" title="Фонт сонгох" style="font-family:' + esc(stack(match || curF)) + '"><span>' + esc(match || curF) + '</span><svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>' +
         '<div class="r2" style="margin-top:6px">' + sel('weight', WEIGHTS, o.fontWeight === 'bold' ? 700 : o.fontWeight === 'normal' ? 400 : +o.fontWeight) + nf('px', 'size', Math.round(o.fontSize * (o.scaleY || 1)), { title: 'Үсгийн хэмжээ' }) + '</div>' +
         '<div class="r2" style="margin-top:6px">' + nf('↕', 'lh', Math.round((o.lineHeight || 1.16) * 100), { unit: '%', title: 'Мөр хоорондын зай' }) + nf('↔', 'ls', Math.round(o.charSpacing || 0), { title: 'Үсэг хоорондын зай' }) + '</div>' +
         '<div class="rowf" style="margin-top:6px">' + seg([['left', 'tL', 'Зүүн'], ['center', 'tC', 'Голлуулах'], ['right', 'tR', 'Баруун'], ['justify', 'tJ', 'Тэгшлэх']], o.textAlign, 'talign') +
@@ -2044,7 +2146,7 @@
       if (kindOf(o) === 'image' || kindOf(o) === 'video') fitMask(o, n > 0 ? 'rounded' : null, n);
     }
     if (p === 'blend') eachSel(function (x) { x.set('globalCompositeOperation', v); });
-    if (p === 'font') { ensureFont(v).then(function () { eachSel(function (x) { if (x.isType('textbox')) { x.set('fontFamily', stack(v)); refreshText(x); loadFace(x); } }); commit(); }); return; }
+    if (p === 'font') { ensureFont(v, curTextWeight()).then(function () { eachSel(function (x) { if (x.isType('textbox')) { x.set('fontFamily', stack(v)); refreshText(x); loadFace(x); } }); commit(); }); return; }
     var tx = function (fn) { eachSel(function (x) { if (x.isType('textbox')) { fn(x); x.initDimensions(); } }); };
     if (p === 'weight') tx(function (x) { x.set('fontWeight', +v); loadFace(x); });
     if (p === 'size' && n > 0) tx(function (x) { x.set('fontSize', n / (x.scaleY || 1)); });
