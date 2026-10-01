@@ -425,6 +425,8 @@ def slides_page():
     if 'slides-kit.js' not in s:
         s = re.sub(r'(<script src="/assets/editor\.js\?v=\d+"></script>)', r'\1\n<script src="/assets/slides-kit.js?v=' + KIT_V + '"></script>', s, 1)
     s = re.sub(r'slides-kit\.js\?v=\d+', 'slides-kit.js?v=' + KIT_V, s)
+    if 'decks-imported.js' not in s:
+        s = re.sub(r'(<script src="/assets/decks\.js\?v=\d+"></script>)', r'\1\n<script src="/assets/decks-imported.js?v=1"></script>', s, 1)
     assert 'data-mode="ppt"' in s and 'data-tab="kit"' in s and 'slides-kit.js' in s
     d_ = os.path.join(ROOT, "slides"); os.makedirs(d_, exist_ok=True)
     open(os.path.join(d_, "index.html"), "w", encoding="utf-8").write(s)

@@ -1257,6 +1257,7 @@
   // real mini previews for the templates panel (drawn once with the same code, then cached as images)
   var tplThumbs = {}, thumbQueue = Promise.resolve();
   function tplThumb(t) {
+    if (t.preview) return Promise.resolve(t.preview);
     if (tplThumbs[t.id]) return tplThumbs[t.id];
     return (tplThumbs[t.id] = thumbQueue = thumbQueue.then(function () {
       return Promise.all(t.fonts.map(function (f) { return ensureFont(f).catch(function () {}); }));
@@ -1288,8 +1289,10 @@
     if (!quiet) { fitFrame(f); selectFrame(f); refreshUI(); }
     if (!quiet && tp.photos && tp.photos.length) toast('«' + tp.name + '» — зураг ачаалж байна…');
     var X = f.left, Y = f.top;
-    return (window.GTPL.build ? window.GTPL.build(tp, X, Y, stack, 1600) : Promise.resolve(window.GTPL.objects(tp, X, Y, stack))).then(function (made) {
+    return (tp.pptxModel ? buildPptxTemplate(tp, X, Y) : (window.GTPL.build ? window.GTPL.build(tp, X, Y, stack, 1600) : Promise.resolve(window.GTPL.objects(tp, X, Y, stack)))).then(function (made) {
       if (frames().indexOf(f) < 0) return;   // frame deleted while photos loaded
+      if (tp.notes) f.gNotes = tp.notes;
+      if (tp.pptxModel && tp.pptxBg) f.set({fill:tp.pptxBg});
       var dx = f.left - X, dy = f.top - Y;
       if (dx || dy) made.forEach(function (o) { o.set({ left: o.left + dx, top: o.top + dy }); });
       tp.fonts.forEach(function (fn) { ensureFont(fn).then(function () { made.forEach(refreshText); }); });
@@ -1629,7 +1632,7 @@
         var sl = []; decks.forEach(function (d) { d.slides.forEach(function (s) { if (tplMatch(s, q, d.name)) sl.push(s); }); });
         if (sl.length) h += '<div class="tp-h">Слайдууд</div><div class="tc-grid g2">' + sl.slice(0, 24).map(function (t) { return tcard(t, 'data-slide="' + t.id + '"'); }).join('') + '</div>';
       }
-      return h + '<p class="note">Зургууд — Pexels (үнэгүй, арилжааны зорилгоор ашиглаж болно).</p>';
+      return h + '<p class="note">Загварууд: Graphican, 24Slides, SlidesCarnival. Монголчилсон загваруудын тоон мэдээлэл нь жишээ өгөгдөл.</p>';
     }
     var all = TEMPLATES.slice().sort(function (a, b) { return (b.photos && b.photos.length ? 1 : 0) - (a.photos && a.photos.length ? 1 : 0); });
     var hits = all.filter(function (t) { return (tplUI.cat === 'all' || t.cat === tplUI.cat || (tplUI.cat === 'photo' && t.photos && t.photos.length)) && tplMatch(t, q, window.GTPL.cats[t.cat]); });
@@ -4546,6 +4549,44 @@
       }).catch(function () { return []; });
     }
     return Promise.resolve([]);
+  }
+  // A saved PPTX model fills only the requested template frame. It reuses the same
+  // native text, image, table and chart importer as personal .pptx uploads.
+  var pptxTemplateModels = {};
+  function templateModel(url) {
+    if (!pptxTemplateModels[url]) pptxTemplateModels[url] = fetch(url).then(function (r) {
+      if (!r.ok) throw new Error('Template ' + r.status); return r.json();
+    }).then(function (deck) {
+      deck.reader = { image: function (path) {
+        var asset = deck.images[path]; if (!asset) return Promise.resolve(null);
+        return fetch(asset).then(function (r) { if (!r.ok) throw new Error('Image ' + r.status); return r.blob(); });
+      } };
+      return deck;
+    }).catch(function (err) { delete pptxTemplateModels[url]; throw err; });
+    return pptxTemplateModels[url];
+  }
+  function buildPptxTemplate(tp, X, Y) {
+    return Promise.all([templateModel(tp.pptxModel)].concat(tp.fonts.map(function (fn) { return ensureFont(fn); }))).then(function (loaded) {
+      var deck = loaded[0], s = deck.slides[tp.pptxSlide];
+      if (!s) throw new Error('Template slide missing');
+      tp.notes = s.notes || '';
+      var k = tp.w / deck.w, f = {left:X, top:Y}, bg = s.bg && s.bg.color || tp.bg;
+      tp.pptxBg = bg;
+      var jobs = [];
+      if (s.bg && s.bg.img) jobs.push(pptxImage(deck, s.bg.img).then(function (r) {
+        if (!r) return [];
+        return new Promise(function (resolve) { fabric.Image.fromURL(r.url, function (img) {
+          var scale = Math.max(tp.w / img.width, tp.h / img.height);
+          img.set({scaleX:scale, scaleY:scale, left:X+(tp.w-img.width*scale)/2, top:Y+(tp.h-img.height*scale)/2, name:'Дэвсгэр зураг'}); resolve([img]);
+        }); });
+      }));
+      (s.deco || []).concat(s.items).forEach(function (it) { jobs.push(pptxItem(deck, it, f, k, isDark(bg))); });
+      return Promise.all(jobs).then(function (lists) {
+        var objects = [].concat.apply([], lists);
+        objects.forEach(function (o) { if (o.__pptxMask) { fitMask(o, o.__pptxMask, o.__pptxMask === 'rounded' ? Math.min(o.getScaledWidth(), o.getScaledHeight()) * 0.1 : 0); delete o.__pptxMask; } });
+        return objects;
+      });
+    });
   }
   function pptxBuild(deck, fname) {
     var n = deck.slides.length; if (!n) { toast('Энэ файлд слайд алга'); return; }
