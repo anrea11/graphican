@@ -475,5 +475,33 @@
     "qpay_image": "/assets/uploads/golomt-qr.png",
     "extra_label": "",
     "extra_link": ""
+  },
+  "home_trust": {
+    "reviews": [
+      {
+        "name": "М. Золжаргал",
+        "tool": "PDF хэрэгсэл",
+        "portrait": "zol",
+        "photo": "/assets/reviews/zoljargal.jpg",
+        "text": "PDF-ээ Word болгоход тусдаа програм суулгах шаардлагагүй нь амар санагдсан. Бүртгэл шаардахгүй, хэрэгтэй үедээ шууд ороод ашиглачихдаг.",
+        "approved": true
+      },
+      {
+        "name": "А. Лхагвабаяр",
+        "tool": "Дизайн засварлагч",
+        "portrait": "lha",
+        "photo": "/assets/reviews/lkhagvabayar.jpg",
+        "text": "Бэлэн загвараас эхлээд зураг, текст, өнгийг нь өөрөө солиход хялбар байлаа. Ялангуяа монгол фонтын сонголт нь их таалагдсан.",
+        "approved": true
+      },
+      {
+        "name": "У. Төгөлдөр",
+        "tool": "Илтгэлийн загвар",
+        "portrait": "tug",
+        "photo": "/assets/reviews/tuguldur.jpg",
+        "text": "Илтгэлийн загваруудын өнгө, фонт, зохиомж нь цэгцтэй санагдсан. Өөрийн агуулгыг оруулаад нэг хэв маягтай илтгэл бэлдэхэд амар байлаа.",
+        "approved": true
+      }
+    ]
   }
 }
