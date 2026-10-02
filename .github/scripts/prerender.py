@@ -383,7 +383,43 @@ def sitemap(projects, dd):
     open(os.path.join(ROOT, "sitemap.xml"), "w", encoding="utf-8").write(xml)
 
 
+# Keep the shared header menu concise on every page, including generated pages.
+EDITOR_MENU = [
+    ("/tools/pdfedit/", "PDF editor", "PDF засах, Word болгох", '<path d="M6 3h9l4 4v14H6zM14 3v5h5M9 12h6M9 16h6"/>'),
+    ("/editor/", "Design editor", "Пост, постер, дизайн бүтээх", '<path d="M4 20l4.5-1 10-10-3.5-3.5-10 10zM13.5 7l3.5 3.5"/>'),
+    ("/slides/", "PPT editor", "Слайд, илтгэл бэлдэх", '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M12 16v4M8 20h8"/>'),
+    ("/video/", "Video editor", "Видео эвлүүлэх, MP4 татах", '<rect x="3" y="5" width="13" height="14" rx="2"/><path d="m16 10 5-3v10l-5-3z"/>'),
+]
+
+
+def sync_editor_menu():
+    for folder, _, files in os.walk(ROOT):
+        if "/.git" in folder or "/node_modules" in folder:
+            continue
+        for name in files:
+            if not name.endswith(".html"):
+                continue
+            path = os.path.join(folder, name)
+            with open(path, encoding="utf-8") as f:
+                text = f.read()
+            if '<div class="dm-panel">' not in text:
+                continue
+            page = "/" + os.path.relpath(folder, ROOT).replace(os.sep, "/").strip(".").strip("/") + "/"
+            links = []
+            for url, label, desc, icon in EDITOR_MENU:
+                current = page == url
+                cls = "dm-item on" if current else "dm-item"
+                aria = ' aria-current="page"' if current else ""
+                links.append(f'<a class="{cls}" href="{url}"{aria}><span class="dm-ic"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">{icon}</svg></span><span><b>{label}</b><small>{desc}</small></span></a>')
+            panel = '<div class="dm-panel">\n      ' + '\n      '.join(links) + '\n    </div>'
+            updated = re.sub(r'<div class="dm-panel">.*?</div>', lambda m: panel, text, flags=re.S)
+            if updated != text:
+                with open(path, "w", encoding="utf-8") as f:
+                    f.write(updated)
+
+
 if __name__ == "__main__":
+    sync_editor_menu()   # source headers used by the page generators
     og.build()            # per-page share images (before the pages that link them)
     _, projects = home()   # the portfolio → /about/
     home_page.build()      # tools hub → /
@@ -391,5 +427,6 @@ if __name__ == "__main__":
     tools_page(dd)
     landings.build()
     apps.build()
+    sync_editor_menu()   # apply to newly generated pages as well
     sitemap(projects, dd)
     print("prerender ok:", len(projects), "projects")
