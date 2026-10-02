@@ -6,6 +6,8 @@
   "main": "worker/index.js",
   "compatibility_date": "2025-09-01",
   // Workers AI — translation and summaries in the PDF editor (free daily allowance)
+  "durable_objects": { "bindings": [{ "name": "DOWNLOADS", "class_name": "DownloadCounter" }] },
+  "migrations": [{ "tag": "downloads-v1", "new_sqlite_classes": ["DownloadCounter"] }],
   "ai": { "binding": "AI" },
   // Workers Logs: only our own console.log lines (client errors + download counts from /api/log), not every request.
   // Dashboard → Workers & Pages → graphican → Logs. Free plan: 200k lines/day, kept 3 days.

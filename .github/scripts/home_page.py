@@ -4,11 +4,11 @@ Tools-first home page (/). Fully static, visible HTML: one "drop any file" box t
 what to do with it, then the tools grouped as PDF · Зураг · Дизайн, and a short band that leads
 to the collaboration page (/about/). The portfolio lives on /about/ (rendered by app.js).
 """
-import json, os
+import json, os, re
 import landings as L
 
 ROOT, SITE, e, ld = L.ROOT, L.SITE, L.e, L.ld
-V = "7"
+V = "8"
 
 ICON = {
     "pdf": '<path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5"/><path d="m9 17 1-3 5-5 2 2-5 5z" fill="currentColor"/>',
@@ -102,6 +102,12 @@ def build():
     email, phone = contact.get("email", ""), contact.get("phone", "")
     soc_h = " · ".join(f'<a href="{e(s["url"])}" target="_blank" rel="noopener me">{e(s.get("name") or "Link")}</a>' for s in socials)
 
+    case_cards = "".join(
+        f'<article class="ht-case"><a href="/about/#project/{i + 1}-{re.sub(r"[^a-z0-9]+", "-", x["name"].lower()).strip("-")}"><img src="{e(thumb(x["image"]))}" alt="{e(x["name"])} — хийсэн ажлын жишээ" loading="lazy" decoding="async"><div><span>{e(x.get("type", ""))}</span><h3>{e(x["name"])}</h3><p>{e(x.get("description", ""))}</p><b>Ажлыг үзэх →</b></div></a></article>'
+        for i, x in enumerate((d.get("work", {}).get("projects", []) or [])[:3]) if x.get("image"))
+    reviews = (d.get("home_trust") or {}).get("reviews") or []
+    review_cards = "".join(f'<figure class="ht-review"><blockquote>{e(x["text"])}</blockquote><figcaption>{e(x["name"])}</figcaption></figure>' for x in reviews if x.get("approved") is True and x.get("text") and x.get("name"))
+    review_content = ('<div class="ht-reviews">' + review_cards + '</div>') if review_cards else '<p class="ht-review-empty">Та Graphican ашиглаж үзсэн үү? Юу бүтээснээ, аль хэрэгсэл танд тусалсныг хуваалцаарай.</p>'
     TR_LINK = '<a href="/tools/translate-pdf/">Орчуулах</a>' if L.TRANSLATE_ON else ""   # PDF translation can be switched off
     body = f"""
 <div id="hero-slot"><section class="hero hero-v2 hm-hero-ph" aria-hidden="true"></section></div>
@@ -112,6 +118,12 @@ def build():
     <h1>Дизайн хэрэгслүүд</h1>
     <p class="hm-lead">PDF · зураг · дизайн — бүгд үнэгүй, бүртгэлгүй.</p>
     <nav class="hm-jump"><a href="#editor">Design editor</a><a href="#ppt">Илтгэл</a><a href="#pdf">PDF</a><a href="#image">Зураг</a><a href="#design">Дизайн</a></nav>
+  </section>
+
+  <section class="ht-stats" aria-label="Graphican-ийн хэрэглээ">
+    <div><span class="ht-live">Хэрэглээний тоо</span><strong id="ht-downloads">—</strong><span>бүртгэгдсэн таталт</span></div>
+    <p id="ht-stat-note" aria-live="polite">Таталтын тоог ачаалж байна…</p>
+    <div class="ht-assurances"><span>Үнэгүй</span><span>Бүртгэл шаардахгүй</span><span>Монгол хэлээр</span></div>
   </section>
 
   <section class="hm-sec hm-editor" id="editor">
@@ -242,6 +254,15 @@ def build():
     </div>
   </section>
 
+  <section class="hm-sec" id="cases">
+    <div class="hm-head"><div><p class="hm-kicker">GRAPHICAN · АЖЛУУД</p><h2>Хийсэн ажлын жишээнүүд</h2></div><a href="/about/#work">Бүх ажлыг үзэх →</a></div>
+    <p class="hm-lead">Брэнд, бүтээгдэхүүн, арга хэмжээний төслүүдээс.</p>
+    <div class="ht-cases">{case_cards}</div>
+  </section>
+  <section class="hm-sec" id="reviews">
+    <div class="ht-feedback"><div><p class="hm-kicker">ТАНЫ ТУРШЛАГА</p><h2>Хэрэглэгчдийн сэтгэгдэл</h2>{review_content}<p class="ht-review-note">Сэтгэгдлийг таны зөвшөөрөлтэйгөөр нийтэлнэ.</p></div><a class="hm-btn ghost" href="mailto:{e(email)}?subject=Graphican%20-%20Сэтгэгдэл">Сэтгэгдлээ хуваалцах →</a></div>
+  </section>
+
   <section class="hm-collab" id="collab">
     <div><p class="hm-kicker">GRAPHICAN</p><h2>Мэргэжлийн дизайн хэрэгтэй юу?</h2><p>Лого · брэнд айдентити · сошиал дизайн · видео</p></div>
     <div class="hm-btns"><a class="hm-btn" href="/about/">Хамтран ажиллах <i>→</i></a><a class="hm-btn ghost" href="/about/#work">Ажлууд</a></div>
@@ -296,6 +317,7 @@ def build():
 {body}
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <script src="/assets/app.js?v=38"></script>
+<script src="/assets/home-trust.js?v=1" defer></script>
 </body>
 </html>
 """

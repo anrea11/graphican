@@ -85,9 +85,12 @@
     el.querySelector('.gcs-go').addEventListener('click', function () { close(DAY); });
   }
   // after a download: wait a moment (the save dialog / file card appears first), then show the card
+  var lastDownload = 0;
   function done(file) {
+    if (file && /\.graphican$/i.test(file)) return;
+    if (Date.now() - lastDownload < 500) return;
+    lastDownload = Date.now();
     beacon({ t: 'dl', tool: location.pathname.split('/').filter(Boolean).slice(-1)[0] || 'home' });
-    if (file && /\.graphican$/i.test(file)) return;          // saving the project file is not a "download"
     if (shown || Date.now() < until()) return;
     clearTimeout(timer);
     load().then(function () { timer = setTimeout(show, 1200); });

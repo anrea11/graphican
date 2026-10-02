@@ -369,11 +369,15 @@ async function i18n(request, env, ctx) {
 }
 
 // anonymous client events → Workers Logs (no storage of our own): {t:'err'|'dl', page, msg?, src?, line?}
-async function clientLog(request) {
+async function clientLog(request, env, ctx) {
   if (request.method !== 'POST' || !allowed(request)) return new Response(null, { status: 204 });
   if (await overLimit(request, 'log', 20, 300)) return new Response(null, { status: 204 });
   let b = {};
   try { const t = await request.text(); if (t.length > 4000) return new Response(null, { status: 204 }); b = JSON.parse(t || '{}'); } catch (e) { return new Response(null, { status: 204 }); }
+  if (b.t === 'dl' && /^\/(?:editor|slides|design|video|tools(?:\/[a-z0-9-]+)?)(?:\/)?$/.test(b.page || '') && env.DOWNLOADS) {
+    const counter = env.DOWNLOADS.get(env.DOWNLOADS.idFromName('public-downloads'));
+    ctx.waitUntil(counter.fetch('https://counter/increment', { method: 'POST' }).catch(() => console.log('download_counter_unavailable')));
+  }
   const cut = (v, n) => String(v == null ? '' : v).slice(0, n);
   const ua = request.headers.get('user-agent') || '';
   const dev = /iPhone|iPad/.test(ua) ? 'ios' : /Android/.test(ua) ? 'android' : /Mac OS/.test(ua) ? 'mac' : /Windows/.test(ua) ? 'windows' : 'other';
@@ -395,7 +399,17 @@ export default {
       if (!TRANSLATE_ON) return Response.redirect(new URL('/tools/pdfedit/', url).toString(), 302);
       return env.ASSETS.fetch(request);
     }
-    if (url.pathname === '/api/log') return clientLog(request);
+    if (url.pathname === '/api/log') return clientLog(request, env, ctx);
+    if (url.pathname === '/api/stats') {
+      if (request.method !== 'GET') return json({ error: 'method' }, 405);
+      if (!env.DOWNLOADS) return json({ error: 'unavailable' }, 503, { 'cache-control': 'no-store' });
+      try {
+        const counter = env.DOWNLOADS.get(env.DOWNLOADS.idFromName('public-downloads'));
+        const response = await counter.fetch('https://counter/stats');
+        if (!response.ok) throw new Error('counter');
+        return json(await response.json(), 200, { 'cache-control': 'public, max-age=60' });
+      } catch (e) { return json({ error: 'unavailable' }, 503, { 'cache-control': 'no-store' }); }
+    }
     if (url.pathname === '/api/stock') return search(url, env, ctx);
     if (url.pathname === '/api/stock/file') return file(url, request);
     if (url.pathname === '/api/stock/video') return video(url, env, ctx, request);
@@ -440,3 +454,22 @@ export default {
     return env.ASSETS.fetch(request);
   }
 };
+
+// One aggregate only; no personal data or file contents.
+export class DownloadCounter {
+  constructor(state) { this.state = state; }
+  async fetch(request) {
+    const path = new URL(request.url).pathname;
+    if (path === '/increment' && request.method === 'POST') {
+      await this.state.storage.transaction(async tx => {
+        const downloads = await tx.get('downloads') || 0;
+        await tx.put('downloads', downloads + 1);
+      });
+      return new Response(null, { status: 204 });
+    }
+    if (path === '/stats' && request.method === 'GET') {
+      return Response.json({ downloads: await this.state.storage.get('downloads') || 0, since: '2026-10-02' });
+    }
+    return new Response(null, { status: 404 });
+  }
+}
