@@ -306,3 +306,4 @@ button:disabled { opacity:.35; cursor:default; }
   .vtl-tracks { bottom:auto; }
   .vtl-tracks span { padding-left:2px; }
 }
+@media (min-width:1024px) { .ptabs { flex-wrap:wrap; } .ptabs .tb { flex:1 0 22%; } }
