@@ -312,3 +312,5 @@ button:disabled { opacity:.35; cursor:default; }
 .kfbtn.on { background:var(--acc); color:#fff; }
 .it .bdot { position:absolute; top:3px; width:4px; height:4px; margin-left:-2px; border-radius:50%; background:#ffe600; z-index:2; pointer-events:none; box-shadow:0 0 0 1px rgba(0,0,0,.4); }
 #v-dkr[hidden] { display:none; }
+#v-xmp4[hidden] { display:none; }
+img.xvid { object-fit:contain; }

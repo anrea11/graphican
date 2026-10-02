@@ -236,7 +236,70 @@
   var blurC = document.createElement('canvas'), blurX = blurC.getContext('2d');
   var keyC = document.createElement('canvas'), keyX = keyC.getContext('2d', { willReadFrequently: true });
   var fxC = document.createElement('canvas'), fxX = fxC.getContext('2d');
-  var HAS_FILTER = 'filter' in blurX;
+  // canvas filter support: really test it (Safari has the property but may ignore it) — otherwise filters are done on pixels
+  var HAS_FILTER = (function () {
+    try { var c = document.createElement('canvas'); c.width = c.height = 2; var x = c.getContext('2d'); x.filter = 'invert(1)'; x.fillStyle = '#000'; x.fillRect(0, 0, 2, 2); return x.getImageData(0, 0, 1, 1).data[0] > 200; } catch (e) { return false; }
+  })();
+  if (/[?&]nofilter\b/.test(location.search)) HAS_FILTER = false;     // test switch
+  // CSS filter functions as one colour matrix (+ blur steps), applied to a canvas's pixels
+  function cssMat(fn, v) {
+    var a = 1 - v;
+    if (fn === 'grayscale') return [0.2126 + 0.7874 * a, 0.7152 - 0.7152 * a, 0.0722 - 0.0722 * a, 0, 0.2126 - 0.2126 * a, 0.7152 + 0.2848 * a, 0.0722 - 0.0722 * a, 0, 0.2126 - 0.2126 * a, 0.7152 - 0.7152 * a, 0.0722 + 0.9278 * a, 0];
+    if (fn === 'sepia') return [0.393 + 0.607 * a, 0.769 - 0.769 * a, 0.189 - 0.189 * a, 0, 0.349 - 0.349 * a, 0.686 + 0.314 * a, 0.168 - 0.168 * a, 0, 0.272 - 0.272 * a, 0.534 - 0.534 * a, 0.131 + 0.869 * a, 0];
+    if (fn === 'saturate') return [0.213 + 0.787 * v, 0.715 - 0.715 * v, 0.072 - 0.072 * v, 0, 0.213 - 0.213 * v, 0.715 + 0.285 * v, 0.072 - 0.072 * v, 0, 0.213 - 0.213 * v, 0.715 - 0.715 * v, 0.072 + 0.928 * v, 0];
+    if (fn === 'hue-rotate') { var r = v * Math.PI / 180, cs = Math.cos(r), sn = Math.sin(r); return [0.213 + cs * 0.787 - sn * 0.213, 0.715 - cs * 0.715 - sn * 0.715, 0.072 - cs * 0.072 + sn * 0.928, 0, 0.213 - cs * 0.213 + sn * 0.143, 0.715 + cs * 0.285 + sn * 0.140, 0.072 - cs * 0.072 - sn * 0.283, 0, 0.213 - cs * 0.213 - sn * 0.787, 0.715 - cs * 0.715 + sn * 0.715, 0.072 + cs * 0.928 + sn * 0.072, 0]; }
+    if (fn === 'brightness') return [v, 0, 0, 0, 0, v, 0, 0, 0, 0, v, 0];
+    if (fn === 'contrast') { var o = 0.5 * (1 - v); return [v, 0, 0, o, 0, v, 0, o, 0, 0, v, o]; }
+    if (fn === 'invert') { var k = 1 - 2 * v; return [k, 0, 0, v, 0, k, 0, v, 0, 0, k, v]; }
+    return null;
+  }
+  function matMul(b, a) {   // b after a
+    var o = []; for (var r = 0; r < 3; r++) { for (var c = 0; c < 3; c++) o[r * 4 + c] = b[r * 4] * a[c] + b[r * 4 + 1] * a[4 + c] + b[r * 4 + 2] * a[8 + c]; o[r * 4 + 3] = b[r * 4] * a[3] + b[r * 4 + 1] * a[7] + b[r * 4 + 2] * a[11] + b[r * 4 + 3]; }
+    return o;
+  }
+  var bC = document.createElement('canvas'), bX = bC.getContext('2d');
+  function pixFilter(cnv, f) {
+    if (!f || f === 'none') return;
+    var steps = [], M = null, re = /([a-z-]+)\(([-\d.]+)(px|deg|%)?\)/g, mm;
+    while ((mm = re.exec(f))) {
+      var fn = mm[1], v = parseFloat(mm[2]); if (mm[3] === '%') v /= 100;
+      if (fn === 'blur') { if (M) { steps.push(M); M = null; } if (v > 0.3) steps.push(v); continue; }
+      var m = cssMat(fn, v); if (m) M = M ? matMul(m, M) : m;
+    }
+    if (M) steps.push(M);
+    var x = cnv.getContext('2d'), w = cnv.width, h = cnv.height;
+    steps.forEach(function (st) {
+      if (typeof st === 'number') {
+        // blur ≈ down- and up-scaling twice
+        var k = Math.max(0.02, 1 / (1 + st * 0.6)), bw = Math.max(1, Math.round(w * k)), bh = Math.max(1, Math.round(h * k));
+        if (bC.width !== bw || bC.height !== bh) { bC.width = bw; bC.height = bh; }
+        bX.clearRect(0, 0, bw, bh); bX.imageSmoothingEnabled = true; bX.drawImage(cnv, 0, 0, bw, bh);
+        x.save(); x.setTransform(1, 0, 0, 1, 0, 0); x.globalCompositeOperation = 'copy'; x.imageSmoothingEnabled = true; x.drawImage(bC, 0, 0, w, h); x.restore();
+        return;
+      }
+      var id = x.getImageData(0, 0, w, h), d = id.data, n = d.length;
+      var a0 = st[0], a1 = st[1], a2 = st[2], a3 = st[3] * 255, b0 = st[4], b1 = st[5], b2 = st[6], b3 = st[7] * 255, c0 = st[8], c1 = st[9], c2 = st[10], c3 = st[11] * 255;
+      for (var i = 0; i < n; i += 4) {
+        if (!d[i + 3]) continue;
+        var r = d[i], g = d[i + 1], b = d[i + 2];
+        d[i] = a0 * r + a1 * g + a2 * b + a3; d[i + 1] = b0 * r + b1 * g + b2 * b + b3; d[i + 2] = c0 * r + c1 * g + c2 * b + c3;
+      }
+      x.putImageData(id, 0, 0);
+    });
+  }
+  // draw with a filter: the real canvas filter where it works, else into a scratch canvas, filter its pixels, draw it back
+  var scratch = {};
+  function filtered(ctx, f, fn) {
+    if (!f || f === 'none') { fn(ctx); return; }
+    if (HAS_FILTER) { var pf = ctx.filter; ctx.filter = f; fn(ctx); ctx.filter = pf || 'none'; return; }
+    var key = ctx.canvas === cv ? 'p' : 'x', S = scratch[key] || (scratch[key] = (function () { var c = document.createElement('canvas'); return { c: c, x: c.getContext('2d', { willReadFrequently: true }) }; })());
+    if (S.c.width !== ctx.canvas.width || S.c.height !== ctx.canvas.height) { S.c.width = ctx.canvas.width; S.c.height = ctx.canvas.height; }
+    S.x.setTransform(1, 0, 0, 1, 0, 0); S.x.clearRect(0, 0, S.c.width, S.c.height);
+    S.x.setTransform(ctx.getTransform()); S.x.globalAlpha = 1; S.x.globalCompositeOperation = 'source-over';
+    fn(S.x);
+    pixFilter(S.c, f);
+    ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(S.c, 0, 0); ctx.restore();
+  }
   var lastBox = {};       // text / overlay id → { cx, cy, w, h, rot } in project px (hit-testing + the selection box)
   function ease(p) { return 1 - Math.pow(1 - p, 3); }
   function backOut(p) { var b = 1.70158, q = p - 1; return 1 + (b + 1) * q * q * q + b * q * q; }
@@ -309,7 +372,7 @@
     if (c.flip) ctx.scale(-1, 1);
     if (c.cut) {
       var pc = personCut(m.el, sw, sh);
-      if (pc && c.cutBg === 'blur') { ctx.save(); if (HAS_FILTER) ctx.filter = 'blur(' + Math.round(18 * W / 1080) + 'px) brightness(.85)'; ctx.drawImage(m.el, -dw / 2, -dh / 2, dw, dh); ctx.restore(); }
+      if (pc && c.cutBg === 'blur') filtered(ctx, 'blur(' + Math.round(18 * W / 1080) + 'px) brightness(.85)', function (x2) { x2.drawImage(m.el, -dw / 2, -dh / 2, dw, dh); });
       ctx.drawImage(pc || m.el, -dw / 2, -dh / 2, dw, dh);
     } else ctx.drawImage(m.el, -dw / 2, -dh / 2, dw, dh);
     ctx.restore();
@@ -321,9 +384,8 @@
     ctx.save();
     var str = c.fstr == null ? 100 : c.fstr, full = filterOf(c, W), base = str < 100 && c.filter && c.filter !== 'none' ? filterOf(c, W, true) : full;
     function withAdd(f) { f = (f === 'none' ? '' : f) + (tf ? ' ' + tf : ''); return f.trim() || 'none'; }
-    if (HAS_FILTER) ctx.filter = withAdd(base);
-    drawMedia(ctx, c, W, H, real);
-    if (base !== full) { ctx.save(); ctx.globalAlpha *= str / 100; if (HAS_FILTER) ctx.filter = withAdd(full); drawMedia(ctx, c, W, H, real); ctx.restore(); }
+    filtered(ctx, withAdd(base), function (x2) { drawMedia(x2, c, W, H, real); });
+    if (base !== full) { ctx.save(); ctx.globalAlpha *= str / 100; filtered(ctx, withAdd(full), function (x2) { drawMedia(x2, c, W, H, real); }); ctx.restore(); }
     ctx.filter = 'none';
     drawTone(ctx, c.adj, W, H, real);
     ctx.restore();
@@ -460,7 +522,7 @@
       }
       ctx.restore(); return;
     }
-    if (fx === 'glow') { copyFrame(ctx); ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalCompositeOperation = 'screen'; ctx.globalAlpha = Math.min(0.9, 0.45 * A); if (HAS_FILTER) ctx.filter = 'blur(' + Math.round(w * 0.012) + 'px) brightness(1.1)'; ctx.drawImage(fxC, 0, 0); ctx.restore(); return; }
+    if (fx === 'glow') { copyFrame(ctx); ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalCompositeOperation = 'screen'; ctx.globalAlpha = Math.min(0.9, 0.45 * A); filtered(ctx, 'blur(' + Math.round(w * 0.012) + 'px) brightness(1.1)', function (x2) { x2.drawImage(fxC, 0, 0); }); ctx.restore(); return; }
     if (fx === 'mirror') { ctx.save(); ctx.setTransform(-1, 0, 0, 1, w, 0); ctx.drawImage(cvv, 0, 0, Math.ceil(w / 2), h, 0, 0, Math.ceil(w / 2), h); ctx.restore(); return; }
     if (fx === 'grid' || fx === 'split3') {
       copyFrame(ctx); ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
@@ -754,8 +816,7 @@
     if (o.shape === 'round' || o.shape === 'circle') { ctx.beginPath(); if (o.shape === 'circle') ctx.arc(0, 0, w / 2, 0, Math.PI * 2); else roundRect(ctx, -w / 2, -h / 2, w, h, Math.min(w, h) * 0.12); ctx.clip(); }
     var wh = srcWH(m, el), sw = wh[0], sh = wh[1]; if (!sw || !sh) { ctx.restore(); return; }
     var k = Math.max(w / sw, h / sh), src = o.cut ? (personCut(el, sw, sh) || el) : o.chroma && o.chroma.on ? keyed(el, sw, sh, o.chroma) : el;
-    var f = filterOf(o); if (HAS_FILTER && f !== 'none') ctx.filter = f;
-    ctx.drawImage(src, -sw * k / 2, -sh * k / 2, sw * k, sh * k);
+    filtered(ctx, filterOf(o), function (x2) { x2.drawImage(src, -sw * k / 2, -sh * k / 2, sw * k, sh * k); });
     ctx.restore();
   }
   // one frame at time t, in project pixels scaled by k
@@ -779,8 +840,7 @@
       ctx.fillStyle = P.bg; ctx.fillRect(0, 0, P.w, P.h);
       ctx.save(); var add = [];
       E.forEach(function (e) { var f = fxPre(ctx, e, t, P.w, P.h); if (f) add.push(f); });
-      if (HAS_FILTER && add.length) ctx.filter = add.join(' ');
-      ctx.drawImage(L.c, 0, 0, P.w, P.h); ctx.restore();
+      filtered(ctx, add.join(' '), function (x2) { x2.drawImage(L.c, 0, 0, P.w, P.h); }); ctx.restore();
       E.forEach(function (e) { postFx(ctx, e.fx, fxTime(e, t), fxAmt(e), P.w, P.h, e.col || FX_COL[e.fx] || null); });
     }
     ovOrder().forEach(function (o) { if (t >= o.start && t < o.end) drawOver(ctx, o, t, still); });
@@ -1832,9 +1892,9 @@
         return '<div class="agrp"><b>' + g[0] + '</b>' + rows.map(function (a) { var v = o.adj[a[0]] || 0; return '<label class="lbl">' + a[1] + '</label><div class="rowv"><input type="range" data-adj="' + a[0] + '" min="' + a[2] + '" max="' + a[3] + '" value="' + v + '"><b>' + v + '</b></div>'; }).join('') + '</div>';
       }).join('') +
       '<div class="opts" style="margin-top:14px"><button type="button" class="opt" id="v-adr">Анхны байдал</button>' + (isC ? '<button type="button" class="opt" id="v-adall">Бүх клипт хэрэглэх</button>' : '') + '</div>' +
-      (HAS_FILTER ? '' : '<p class="note">Энэ хөтөч шүүлтүүрийг харуулж чадахгүй байна — Chrome, Edge, Firefox дээр ажиллана.</p>'), commit);
+      '', commit);
     var base = thumbOf(o, isC);
-    s.querySelectorAll('[data-fl]').forEach(function (b, i) { var x = b.querySelector('canvas').getContext('2d'); if (FILTERS[i][2] && HAS_FILTER) x.filter = FILTERS[i][2]; x.drawImage(base, 0, 0); });
+    s.querySelectorAll('[data-fl]').forEach(function (b, i) { var cn = b.querySelector('canvas'), x = cn.getContext('2d'); if (FILTERS[i][2] && HAS_FILTER) x.filter = FILTERS[i][2]; x.drawImage(base, 0, 0); if (FILTERS[i][2] && !HAS_FILTER) pixFilter(cn, FILTERS[i][2]); });
     onOpt(s, 'fl', function (v) { o.filter = v; draw(); });
     var fsl = s.querySelector('#v-fs'); if (fsl) fsl.addEventListener('input', function () { o.fstr = +fsl.value; s.querySelector('#v-fsv').textContent = fsl.value + '%'; draw(); });
     s.addEventListener('input', function (e) { var r = e.target.closest('[data-adj]'); if (!r) return; o.adj[r.dataset.adj] = +r.value; r.nextElementSibling.textContent = r.value; draw(); });
@@ -2321,14 +2381,15 @@
 
   // ---------- export (WebCodecs → MP4) ----------
   function even(n) { n = Math.round(n); return n - n % 2; }
-  function pickVideo(W, H) {
-    var big = W * H > 2228224, list = (big ? ['avc1.640033', 'avc1.4d0033'] : ['avc1.640028', 'avc1.4d0028', 'avc1.42e028', 'avc1.640033']).map(function (c) { return [c, 'avc']; })
-      .concat([['vp09.00.40.08', 'vp9'], ['av01.0.08M.08', 'av1']]);
-    var br = Math.round(clamp(W * H * FPS * 0.13, 2e6, 24e6));
+  function pickVideo(W, H, fps) {
+    fps = fps || 30;
+    var px = W * H, list = (px > 2228224 ? (px * fps > 2.5e8 ? ['avc1.640034', 'avc1.640033'] : ['avc1.640033', 'avc1.640034', 'avc1.4d0033']) : fps > 30 ? ['avc1.64002a', 'avc1.640032', 'avc1.4d002a', 'avc1.640028'] : ['avc1.640028', 'avc1.4d0028', 'avc1.42e028', 'avc1.640033']).map(function (c) { return [c, 'avc']; })
+      .concat([['vp09.00.' + (px > 2228224 ? '51' : '40') + '.08', 'vp9'], ['av01.0.' + (px > 2228224 ? '12' : '08') + 'M.08', 'av1']]);
+    var br = Math.round(clamp(px * fps * 0.12, 2e6, px > 2228224 ? 60e6 : 30e6));
     return list.reduce(function (p, c) {
       return p.then(function (got) {
         if (got) return got;
-        var cfg = { codec: c[0], width: W, height: H, bitrate: br, framerate: FPS };
+        var cfg = { codec: c[0], width: W, height: H, bitrate: br, framerate: fps };
         if (c[1] === 'avc') cfg.avc = { format: 'avc' };
         return VideoEncoder.isConfigSupported(cfg).then(function (r) { return r.supported ? { cfg: cfg, mux: c[1] } : null; }).catch(function () { return null; });
       });
@@ -2557,7 +2618,7 @@
   }
   // frames for export: play the source muted and take each presented frame (requestVideoFrameCallback) — ~4× faster than
   // seeking every frame; falls back to seeking where rVFC is missing or the video drifted
-  var RVFC = 'requestVideoFrameCallback' in HTMLVideoElement.prototype, xPlay = [];
+  var RVFC = 'requestVideoFrameCallback' in HTMLVideoElement.prototype, xPlay = [], XF = 30, turbo = 1, xRestarts = 0;
   function watch(v) {
     if (v._w) return; v._w = 1; v._mt = -1;
     var cb = function (now, md) { v._mt = md.mediaTime; v.requestVideoFrameCallback(cb); };
@@ -2568,12 +2629,12 @@
   function frameAt(v, speed, target, dur) {
     if (!RVFC) return seekV(v, target);
     watch(v); v.muted = true;
-    var tol = 0.5 / FPS * speed;
+    var tol = 0.5 / XF * speed;
     var restart = xPlay.indexOf(v) < 0 || v.paused || v.ended || v._mt > target + 0.12 * speed || v._mt < target - 0.6 * speed;
     var go = restart ? (function () {
-      v.pause(); if (xPlay.indexOf(v) < 0) xPlay.push(v);
-      return seekV(v, target).then(function () { v._mt = v.currentTime; v.playbackRate = speed; var pr = v.play(); return pr ? pr.catch(function () {}) : null; });
-    })() : (Math.abs(v.playbackRate - speed) > 0.01 ? (v.playbackRate = speed, Promise.resolve()) : Promise.resolve());
+      v.pause(); if (xPlay.indexOf(v) < 0) xPlay.push(v); else xRestarts++;
+      return seekV(v, target).then(function () { v._mt = v.currentTime; v.playbackRate = clamp(speed * turbo, 0.0625, 16); var pr = v.play(); return pr ? pr.catch(function () {}) : null; });
+    })() : (Math.abs(v.playbackRate - clamp(speed * turbo, 0.0625, 16)) > 0.01 ? (v.playbackRate = clamp(speed * turbo, 0.0625, 16), Promise.resolve()) : Promise.resolve());
     return go.then(function () {
       if (v._mt >= target - tol) return;
       return new Promise(function (res) {
@@ -2606,47 +2667,67 @@
     if (!total()) return toast('Эхлээд видео, зураг эсвэл текст нэмнэ үү');
     pause();
     var seen = {}, credits = P.audios.map(function (a) { return a.credit; }).filter(function (c) { if (!c || seen[c]) return false; seen[c] = 1; return true; }).map(function (c) { return 'Хөгжим: ' + c; }).join('\n');
+    var sh = Math.min(P.w, P.h), k4 = 2160 / sh, w4 = even(P.w * k4), h4 = even(P.h * k4);
+    var X = { fmt: 'mp4', res: 'full', fps: 30, turbo: true };
     var s = sheet('Видео татах',
       '<label class="lbl">Файлын нэр</label><input type="text" id="v-xname" value="' + esc(P.name) + '" spellcheck="false">' +
-      '<label class="lbl">Чанар</label>' + opts([['1', 'Бүрэн (' + P.w + '×' + P.h + ')'], ['720', 'Хурдан (720p)']], '1', 'q') +
-      '<p class="note">Урт: ' + fmt(total()) + ' · 30 кадр/сек · MP4. Видео зөвхөн энэ төхөөрөмж дээр бэлтгэгдэнэ — дуустал энэ хуудсыг хаалгүй байгаарай.</p>' +
+      '<label class="lbl">Формат</label>' + opts([['mp4', 'MP4 видео'], ['gif', 'GIF (дуугүй)']], 'mp4', 'xf') +
+      '<div id="v-xmp4"><label class="lbl">Чанар</label>' + opts([['720', '720p'], ['full', 'Бүрэн (' + P.w + '×' + P.h + ')']].concat(sh < 2160 ? [['4k', '4K (' + w4 + '×' + h4 + ')']] : []), 'full', 'xr') +
+      '<label class="lbl">Кадр / сек</label>' + opts([['30', '30'], ['60', '60 (зөөлөн)']], '30', 'xfps') +
+      '<label class="chk" style="margin-top:10px"><input type="checkbox" id="v-xturbo" checked> Хурдан бэлтгэх (видеог 2× хурдаар уншина)</label></div>' +
+      '<p class="note" id="v-xnote"></p>' +
       (credits ? '<label class="lbl">Хөгжмийн эх сурвалж — нийтлэлийнхээ тайлбарт хуулж тавина уу</label><textarea id="v-xcred" readonly style="min-height:64px;font-size:13px">' + esc(credits) + '</textarea><button type="button" class="btn-g" id="v-xcopy" style="margin-top:8px">Хуулах</button>' : '') +
-      '<div id="v-xout"><button type="button" class="btn-x" id="v-xgo" style="width:100%;margin-top:14px;height:46px">' + ico('dl') + 'MP4 бэлтгэх</button></div>',
+      '<div id="v-xout"><button type="button" class="btn-x" id="v-xgo" style="width:100%;margin-top:14px;height:46px">' + ico('dl') + '<span>MP4 бэлтгэх</span></button></div>',
       function () { if (exporting) exporting.cancel = true; });
-    var q = '1'; onOpt(s, 'q', function (v) { q = v; });
+    function note() {
+      s.querySelector('#v-xmp4').hidden = X.fmt !== 'mp4';
+      s.querySelector('#v-xnote').textContent = X.fmt === 'gif' ? 'GIF: 480 пиксел хүртэл, 12 кадр/сек, эхний 20 секунд, дуугүй. Стикер, богино хөдөлгөөнд тохиромжтой.'
+        : 'Урт: ' + fmt(total()) + ' · ' + X.fps + ' кадр/сек · MP4.' + (X.res === '4k' ? ' 4K удаан бэлтгэгдэж, том файл гарна.' : '') + ' Видео зөвхөн энэ төхөөрөмж дээр бэлтгэгдэнэ — дуустал хуудсыг хаалгүй байгаарай.';
+      var g = s.querySelector('#v-xgo span'); if (g) g.textContent = X.fmt === 'gif' ? 'GIF бэлтгэх' : 'MP4 бэлтгэх';
+    }
+    onOpt(s, 'xf', function (v) { X.fmt = v; note(); }); onOpt(s, 'xr', function (v) { X.res = v; note(); }); onOpt(s, 'xfps', function (v) { X.fps = +v; note(); });
+    s.querySelector('#v-xturbo').addEventListener('change', function () { X.turbo = this.checked; });
     var cp = s.querySelector('#v-xcopy'); if (cp) cp.addEventListener('click', function () { var ta = s.querySelector('#v-xcred'); ta.select(); (navigator.clipboard ? navigator.clipboard.writeText(ta.value) : Promise.reject()).catch(function () { document.execCommand('copy'); }); toast('Хууллаа'); });
     s.querySelector('#v-xname').addEventListener('change', function () { P.name = this.value.trim() || 'Нэргүй видео'; nameIn.value = P.name; save(); });
-    s.querySelector('#v-xgo').addEventListener('click', function () { runExport(s, q === '720' ? 720 : 0); });
+    s.querySelector('#v-xgo').addEventListener('click', function () { if (X.fmt === 'gif') runGif(s); else runExport(s, X); });
+    note();
   }
-  function runExport(s, cap) {
+  // export: X = { res: '720' | 'full' | '4k', fps: 30 | 60, turbo } (an old caller may pass 720 / 0)
+  function runExport(s, X) {
+    if (typeof X !== 'object') X = { res: X === 720 ? '720' : 'full', fps: 30, turbo: true };
     var out = s.querySelector('#v-xout');
     if (!window.VideoEncoder || !window.VideoFrame || !window.Mp4Muxer) { out.innerHTML = '<p class="note" style="color:#fca5a5">Энэ хөтөч видео бэлтгэхийг дэмжихгүй байна. Chrome, Edge эсвэл Safari-ийн шинэ хувилбараар оролдоно уу.</p>'; return; }
-    var k = cap ? Math.min(1, cap / Math.min(P.w, P.h)) : 1, W = even(P.w * k), H = even(P.h * k), D = total(), N = Math.max(1, Math.round(D * FPS));
+    var sh = Math.min(P.w, P.h), k = X.res === '720' ? Math.min(1, 720 / sh) : X.res === '4k' ? 2160 / sh : 1;
+    var W = even(P.w * k), H = even(P.h * k), D = total();
+    XF = X.fps || 30; turbo = X.turbo && XF <= 30 && W * H <= 2.3e6 ? 2 : 1; xRestarts = 0;
+    var N = Math.max(1, Math.round(D * XF));
     out.innerHTML = '<div class="xprog"><i id="v-xbar"></i></div><p class="note" id="v-xst">Бэлтгэж байна…</p><button type="button" class="btn-g" id="v-xcancel" style="width:100%;margin-top:10px">Цуцлах</button>';
     var bar = s.querySelector('#v-xbar'), st = s.querySelector('#v-xst'), job = exporting = { cancel: false };
     s.querySelector('#v-xcancel').addEventListener('click', function () { job.cancel = true; });
     var cvs = document.createElement('canvas'); cvs.width = W; cvs.height = H; var ctx = cvs.getContext('2d', { alpha: false });
     var muxer, venc, aenc, err = null, t0 = performance.now();
     function prog(p, msg) { bar.style.width = Math.round(p * 100) + '%'; if (msg) st.textContent = msg; }
-    Promise.all([pickVideo(W, H), pickAudio(), Promise.all(P.texts.map(function (x) { return loadFont(x.font); })), mixAudio(D)]).then(function (r) {
+    Promise.all([pickVideo(W, H, XF), pickAudio(), Promise.all(P.texts.map(function (x) { return loadFont(x.font); })), mixAudio(D)]).then(function (r) {
       var vc = r[0], ac = r[1], abuf = r[3];
-      if (!vc) throw new Error('Энэ хөтөч MP4 видео кодлох боломжгүй байна.');
+      if (!vc) throw new Error(X.res === '4k' ? 'Энэ хөтөч 4K видео кодлох боломжгүй байна — «Бүрэн» чанараар оролдоно уу.' : 'Энэ хөтөч MP4 видео кодлох боломжгүй байна.');
       if (abuf && !ac) toast('Энэ хөтөч дуу кодлохгүй тул видео дуугүй гарна');
       muxer = new Mp4Muxer.Muxer({ target: new Mp4Muxer.ArrayBufferTarget(), fastStart: 'in-memory', firstTimestampBehavior: 'offset',
-        video: { codec: vc.mux, width: W, height: H, frameRate: FPS }, audio: abuf && ac ? { codec: ac.mux, numberOfChannels: 2, sampleRate: 48000 } : undefined });
+        video: { codec: vc.mux, width: W, height: H, frameRate: XF }, audio: abuf && ac ? { codec: ac.mux, numberOfChannels: 2, sampleRate: 48000 } : undefined });
       venc = new VideoEncoder({ output: function (ch, meta) { muxer.addVideoChunk(ch, meta); }, error: function (e) { err = e; } });
       venc.configure(vc.cfg);
       allEls().forEach(function (el) { el.pause(); });
-      var i = 0;
+      var i = 0, lastR = 0;
       function frame() {
         if (job.cancel) throw new Error('cancel');
         if (err) throw err;
         if (i >= N) { xStop(); return venc.flush(); }
-        var t = i / FPS;
+        var t = i / XF;
         return framesAt(t).then(function () {
           renderFrame(ctx, W / P.w, t);
-          var vf = new VideoFrame(cvs, { timestamp: Math.round(i * 1e6 / FPS), duration: Math.round(1e6 / FPS) });
-          venc.encode(vf, { keyFrame: i % (FPS * 2) === 0 }); vf.close(); i++;
+          var vf = new VideoFrame(cvs, { timestamp: Math.round(i * 1e6 / XF), duration: Math.round(1e6 / XF) });
+          venc.encode(vf, { keyFrame: i % (XF * 2) === 0 }); vf.close(); i++;
+          // the 2× reading falls back to 1× when the video keeps running ahead (slow encoding)
+          if (i % 30 === 0) { if (turbo > 1 && xRestarts - lastR > 2) { turbo = 1; } lastR = xRestarts; }
           if (i % 6 === 0) {
             var el = (performance.now() - t0) / 1000, left = el / i * (N - i);
             prog(i / N * 0.9, 'Кадр ' + i + ' / ' + N + (i > 30 ? ' · ~' + Math.max(1, Math.round(left)) + ' сек үлдлээ' : ''));
@@ -2672,22 +2753,96 @@
     }).then(function () {
       if (err) throw err;
       muxer.finalize();
-      var blob = new Blob([muxer.target.buffer], { type: 'video/mp4' }), url = URL.createObjectURL(blob), fname = (P.name || 'video').replace(/[\\/:*?"<>|]+/g, '_') + '.mp4';
-      exporting = null; prog(1);
-      var canShare = false;
-      try { canShare = !!(navigator.canShare && navigator.canShare({ files: [new File([blob], fname, { type: 'video/mp4' })] })); } catch (e) {}
-      out.innerHTML = '<video class="xvid" src="' + url + '" controls playsinline></video><div class="xbtns"><a class="btn-x" href="' + url + '" download="' + esc(fname) + '">' + ico('dl') + 'Татах (' + (blob.size / 1048576).toFixed(1) + ' MB)</a>' +
-        (canShare ? '<button type="button" class="btn-g" id="v-share">Хуваалцах / Хадгалах</button>' : '') + '</div><p class="note">Бэлтгэсэн хугацаа: ' + Math.round((performance.now() - t0) / 1000) + ' сек.</p>';
-      var sh = out.querySelector('#v-share');
-      if (sh) sh.addEventListener('click', function () { navigator.share({ files: [new File([blob], fname, { type: 'video/mp4' })], title: P.name }).catch(function () {}); });
+      XF = 30; turbo = 1;
+      showResult(s, new Blob([muxer.target.buffer], { type: 'video/mp4' }), '.mp4', t0);
     }).catch(function (e) {
-      exporting = null; xStop();
+      exporting = null; xStop(); XF = 30; turbo = 1;
       try { if (venc && venc.state !== 'closed') venc.close(); if (aenc && aenc.state !== 'closed') aenc.close(); } catch (er) {}
-      if (e && e.message === 'cancel') { out.innerHTML = '<p class="note">Цуцаллаа.</p><button type="button" class="btn-x" id="v-xgo2" style="width:100%;margin-top:10px">Дахин эхлүүлэх</button>'; }
-      else out.innerHTML = '<p class="note" style="color:#fca5a5">Видео бэлтгэж чадсангүй: ' + esc((e && e.message) || e) + '</p><button type="button" class="btn-x" id="v-xgo2" style="width:100%;margin-top:10px">Дахин оролдох</button>';
-      var b = out.querySelector('#v-xgo2'); if (b) b.addEventListener('click', function () { runExport(s, cap); });
-      seek(T);
+      failed(s, e, function () { runExport(s, X); });
     });
+  }
+  function showResult(s, blob, ext, t0) {
+    var out = s.querySelector('#v-xout'), url = URL.createObjectURL(blob), fname = (P.name || 'video').replace(/[\\/:*?"<>|]+/g, '_') + ext, type = blob.type;
+    exporting = null;
+    var canShare = false;
+    try { canShare = !!(navigator.canShare && navigator.canShare({ files: [new File([blob], fname, { type: type })] })); } catch (e) {}
+    out.innerHTML = (ext === '.gif' ? '<img class="xvid" src="' + url + '" alt="">' : '<video class="xvid" src="' + url + '" controls playsinline></video>') +
+      '<div class="xbtns"><a class="btn-x" href="' + url + '" download="' + esc(fname) + '">' + ico('dl') + 'Татах (' + (blob.size / 1048576).toFixed(1) + ' MB)</a>' +
+      (canShare ? '<button type="button" class="btn-g" id="v-share">Хуваалцах / Хадгалах</button>' : '') + '</div><p class="note">Бэлтгэсэн хугацаа: ' + Math.round((performance.now() - t0) / 1000) + ' сек.</p>';
+    var shb = out.querySelector('#v-share');
+    if (shb) shb.addEventListener('click', function () { navigator.share({ files: [new File([blob], fname, { type: type })], title: P.name }).catch(function () {}); });
+  }
+  function failed(s, e, retry) {
+    var out = s.querySelector('#v-xout');
+    if (e && e.message === 'cancel') out.innerHTML = '<p class="note">Цуцаллаа.</p><button type="button" class="btn-x" id="v-xgo2" style="width:100%;margin-top:10px">Дахин эхлүүлэх</button>';
+    else out.innerHTML = '<p class="note" style="color:#fca5a5">Бэлтгэж чадсангүй: ' + esc((e && e.message) || e) + '</p><button type="button" class="btn-x" id="v-xgo2" style="width:100%;margin-top:10px">Дахин оролдох</button>';
+    var b = out.querySelector('#v-xgo2'); if (b) b.addEventListener('click', retry);
+    exporting = null; seek(T);
+  }
+  // ---------- GIF: 6×6×6 colour cube with ordered dithering, LZW, looping ----------
+  var BAYER = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5];
+  function gifIndex(d, w, h, out) {
+    for (var y = 0, i = 0; y < h; y++) for (var x = 0; x < w; x++, i++) {
+      var o = i * 4, t = (BAYER[(y & 3) * 4 + (x & 3)] / 16 - 0.5) * 51;
+      var r = Math.min(5, Math.max(0, Math.round((d[o] + t) / 51))), g = Math.min(5, Math.max(0, Math.round((d[o + 1] + t) / 51))), b = Math.min(5, Math.max(0, Math.round((d[o + 2] + t) / 51)));
+      out[i] = r * 36 + g * 6 + b;
+    }
+  }
+  function lzw(px, push) {
+    var MIN = 8, CLR = 256, EOI = 257, size = MIN + 1, next = 258, dict = new Map(), cur = 0, bits = 0, buf = [];
+    function emit(c) { cur |= c << bits; bits += size; while (bits >= 8) { buf.push(cur & 255); cur >>>= 8; bits -= 8; if (buf.length === 255) { push(255); for (var j = 0; j < 255; j++) push(buf[j]); buf = []; } } }
+    emit(CLR);
+    var pre = px[0];
+    for (var i = 1; i < px.length; i++) {
+      var k = px[i], key = pre * 4096 + k, v = dict.get(key);
+      if (v !== undefined) { pre = v; continue; }
+      emit(pre);
+      if (next < 4096) { dict.set(key, next++); if (next > (1 << size) && size < 12) size++; }
+      else { emit(CLR); dict.clear(); next = 258; size = MIN + 1; }
+      pre = k;
+    }
+    emit(pre); emit(EOI);
+    if (bits > 0) buf.push(cur & 255);
+    if (buf.length) { push(buf.length); for (var j = 0; j < buf.length; j++) push(buf[j]); }
+    push(0);
+  }
+  function runGif(s) {
+    var out = s.querySelector('#v-xout'), k = Math.min(1, 480 / Math.max(P.w, P.h)), W = even(P.w * k), H = even(P.h * k), D = Math.min(total(), 20), GF = 12, N = Math.max(1, Math.round(D * GF));
+    out.innerHTML = '<div class="xprog"><i id="v-xbar"></i></div><p class="note" id="v-xst">Бэлтгэж байна…</p><button type="button" class="btn-g" id="v-xcancel" style="width:100%;margin-top:10px">Цуцлах</button>';
+    var bar = s.querySelector('#v-xbar'), st = s.querySelector('#v-xst'), job = exporting = { cancel: false }, t0 = performance.now();
+    s.querySelector('#v-xcancel').addEventListener('click', function () { job.cancel = true; });
+    var cvs = document.createElement('canvas'); cvs.width = W; cvs.height = H; var ctx = cvs.getContext('2d', { alpha: false, willReadFrequently: true });
+    var bytes = [], idx = new Uint8Array(W * H);
+    function push(b) { bytes.push(b); }
+    function w16(v) { push(v & 255); push((v >> 8) & 255); }
+    'GIF89a'.split('').forEach(function (c) { push(c.charCodeAt(0)); });
+    w16(W); w16(H); push(0xF7); push(0); push(0);
+    for (var c = 0; c < 256; c++) { if (c < 216) { push(Math.floor(c / 36) * 51); push(Math.floor(c / 6) % 6 * 51); push(c % 6 * 51); } else { push(0); push(0); push(0); } }
+    [0x21, 0xFF, 11].concat('NETSCAPE2.0'.split('').map(function (q) { return q.charCodeAt(0); }), [3, 1, 0, 0, 0]).forEach(push);
+    XF = GF; turbo = 1;
+    allEls().forEach(function (el) { el.pause(); });
+    Promise.all(P.texts.map(function (x) { return loadFont(x.font); })).then(function () {
+      var i = 0;
+      function frame() {
+        if (job.cancel) throw new Error('cancel');
+        if (i >= N) { xStop(); return; }
+        var t = i / GF;
+        return framesAt(t).then(function () {
+          renderFrame(ctx, W / P.w, t);
+          gifIndex(ctx.getImageData(0, 0, W, H).data, W, H, idx);
+          var dl = Math.round(100 / GF);
+          [0x21, 0xF9, 4, 0, dl & 255, dl >> 8, 0, 0, 0x2C, 0, 0, 0, 0].forEach(push); w16(W); w16(H); push(0); push(8);
+          lzw(idx, push); i++;
+          if (i % 3 === 0) prog(i / N);
+          return new Promise(function (r) { setTimeout(r, 0); }).then(frame);
+        });
+      }
+      function prog(p) { bar.style.width = Math.round(p * 100) + '%'; st.textContent = 'Кадр ' + i + ' / ' + N; }
+      return frame();
+    }).then(function () {
+      push(0x3B); XF = 30;
+      showResult(s, new Blob([new Uint8Array(bytes)], { type: 'image/gif' }), '.gif', t0);
+    }).catch(function (e) { xStop(); XF = 30; failed(s, e, function () { runGif(s); }); });
   }
 
   // ---------- start screen ----------
