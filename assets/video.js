@@ -23,13 +23,16 @@
   var COLORS = ['#ffffff', '#000000', '#ffe600', '#ff3b5c', '#7b64ff', '#22c55e', '#38bdf8', '#ff8a00'];
   var ANIMS = [['none', 'Байхгүй'], ['pop', 'Үсрэх'], ['fade', 'Бүдгэрэх'], ['slide', 'Доороос'], ['type', 'Бичигдэх']];
   var TRANS = [['none', 'Байхгүй'], ['fade', 'Бүдгэрэх'], ['flash', 'Гялбаа'], ['zoom', 'Томрох'], ['slide', 'Гулсах'], ['blur', 'Бүдэг']];
-  var SPEEDS = [0.25, 0.5, 0.75, 1, 1.5, 2, 3, 5];
   // colour presets = canvas filter strings (warmth, vignette and the sliders are added on top in filterOf / drawTone)
   var FILTERS = [['none', 'Байхгүй', ''], ['vivid', 'Тод', 'saturate(1.45) contrast(1.08)'], ['warm', 'Дулаан', 'sepia(.22) saturate(1.3) hue-rotate(-6deg)'],
     ['cool', 'Сэрүүн', 'saturate(1.05) hue-rotate(10deg) brightness(1.04)'], ['bw', 'Хар цагаан', 'grayscale(1) contrast(1.1)'], ['vintage', 'Хуучин', 'sepia(.45) contrast(.92) brightness(1.05) saturate(.85)'],
     ['film', 'Кино', 'contrast(1.15) saturate(.8) brightness(.96)'], ['fade', 'Бүдэг', 'contrast(.84) brightness(1.1) saturate(.75)'], ['drama', 'Драм', 'contrast(1.35) saturate(1.15) brightness(.9)'],
     ['dream', 'Зүүд', 'brightness(1.12) saturate(1.25) contrast(.9)'], ['noir', 'Нуар', 'grayscale(1) contrast(1.55) brightness(.85)'], ['sunset', 'Нар жаргах', 'sepia(.35) saturate(1.6) hue-rotate(-16deg) contrast(1.05)']];
-  var FXS = [['none', 'Байхгүй'], ['shake', 'Чичиргээ'], ['pulse', 'Цохилт'], ['flash', 'Анивчих'], ['glitch', 'Глитч'], ['rgb', 'RGB салах'], ['vhs', 'VHS'], ['bwflash', 'Хар цагаан анивчих']];
+  var FXCATS = [['Хөдөлгөөн', [['shake', 'Чичиргээ'], ['pulse', 'Цохилт'], ['zoomp', 'Томрох цохилт'], ['swing', 'Савлах'], ['spin', 'Эргэлдэх']]],
+    ['Гэрэл', [['flash', 'Анивчих'], ['strobe', 'Стробо'], ['leak', 'Гэрлийн туяа'], ['glow', 'Гэрэлтэх'], ['sparkle', 'Од гялалзах'], ['snow', 'Цас']]],
+    ['Ретро', [['vhs', 'VHS'], ['oldfilm', 'Хуучин кино'], ['grain', 'Ширхэг'], ['glitch', 'Глитч'], ['rgb', 'RGB салах']]],
+    ['Өнгө', [['bwflash', 'Хар цагаан анивчих'], ['fadebw', 'Өнгө алдах'], ['rainbow', 'Солонго'], ['duotone', 'Хоёр өнгө'], ['invert', 'Урвуу']]],
+    ['Дэлгэц', [['mirror', 'Толин'], ['grid', '4 дэлгэц'], ['split3', '3 дэлгэц'], ['pixel', 'Пиксел'], ['cinema', 'Кино хүрээ'], ['frame', 'Цагаан хүрээ'], ['blurpulse', 'Бүдэгрэх']]]];
   var MOTIONS = [['none', 'Хөдөлгөөнгүй'], ['in', 'Томрох'], ['out', 'Холдох'], ['left', 'Зүүн тийш'], ['right', 'Баруун тийш'], ['up', 'Дээш']];
   var OANIMS = [['none', 'Байхгүй'], ['fade', 'Бүдгэрэх'], ['pop', 'Үсрэх'], ['slide', 'Доороос'], ['zoom', 'Томрох'], ['spin', 'Эргэх']];
   var TPRESETS = [
@@ -46,11 +49,39 @@
   var media = {};          // id → { id, kind, file, url, el, dur, w, h, strip, wave, audio (AudioBuffer|null|undefined) }
   var sel = null;          // { k: 'clip'|'text'|'audio'|'over', id }
   var T = 0, playing = false, pps = 70, hist = [], hi = -1, started = false;
-  function blank(w, h) { return { name: 'Нэргүй видео', w: w, h: h, bg: '#000000', clips: [], texts: [], audios: [], overlays: [] }; }
+  function blank(w, h) { return { name: 'Нэргүй видео', w: w, h: h, bg: '#000000', clips: [], texts: [], audios: [], overlays: [], markers: [] }; }
   function uid() { return Math.random().toString(36).slice(2, 10); }
   function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
-  function clipLen(c) { return Math.max(0.05, (c.out - c.in) / c.speed); }
+  // speed ramps: speed multiplier over the clip's source (0…1); the clip's output time ↔ source time goes through a table
+  var RAMPS = [['none', 'Байхгүй', null], ['montage', 'Монтаж', [[0, 1.6], [0.35, 1.6], [0.5, 0.4], [0.65, 1.6], [1, 1.6]]],
+    ['hero', 'Баатар', [[0, 1], [0.35, 1], [0.45, 0.25], [0.6, 0.25], [0.7, 1], [1, 1]]], ['bullet', 'Сум', [[0, 2.5], [0.42, 2.5], [0.5, 0.15], [0.58, 2.5], [1, 2.5]]],
+    ['jump', 'Үсрэлт', [[0, 0.6], [0.2, 0.6], [0.25, 3], [0.45, 3], [0.5, 0.6], [0.7, 0.6], [0.75, 3], [1, 3]]], ['flashin', 'Хурдан эхлэх', [[0, 4], [0.3, 1], [1, 1]]],
+    ['flashout', 'Хурдан дуусах', [[0, 1], [0.7, 1], [1, 4]]], ['slowmid', 'Дунд нь удаан', [[0, 1.5], [0.5, 0.45], [1, 1.5]]]];
+  var rampCache = {};
+  function rampPts(c) { if (!c.ramp || c.ramp === 'none') return null; var r = RAMPS.filter(function (x) { return x[0] === c.ramp; })[0]; return r && r[2]; }
+  function curveAt(pts, p) {
+    for (var i = 1; i < pts.length; i++) if (p <= pts[i][0]) { var a = pts[i - 1], b = pts[i], f = (p - a[0]) / ((b[0] - a[0]) || 1); return a[1] + (b[1] - a[1]) * f; }
+    return pts[pts.length - 1][1];
+  }
+  function rampTab(c) {
+    var key = c.ramp + '|' + c.in + '|' + c.out + '|' + c.speed, t = rampCache[c.id];
+    if (t && t.key === key) return t;
+    var pts = rampPts(c), N = 240, ts = new Float64Array(N + 1), sl = c.out - c.in;
+    for (var i = 0; i < N; i++) ts[i + 1] = ts[i] + sl / N / (c.speed * curveAt(pts, (i + 0.5) / N));
+    return (rampCache[c.id] = { key: key, ts: ts, L: ts[N], N: N });
+  }
+  function clipLen(c) { return Math.max(0.05, rampPts(c) ? rampTab(c).L : (c.out - c.in) / c.speed); }
+  // source time shown at `local` seconds into the clip, and the playback rate there
+  function srcAt(c, local) {
+    if (!rampPts(c)) return c.in + local * c.speed;
+    var t = rampTab(c), ts = t.ts, lo = 0, hi2 = t.N;
+    if (local <= 0) return c.in; if (local >= t.L) return c.out;
+    while (hi2 - lo > 1) { var mid = (lo + hi2) >> 1; if (ts[mid] <= local) lo = mid; else hi2 = mid; }
+    return c.in + (c.out - c.in) * (lo + (local - ts[lo]) / ((ts[lo + 1] - ts[lo]) || 1)) / t.N;
+  }
+  function rateAt(c, local) { var pts = rampPts(c); if (!pts) return c.speed; return c.speed * curveAt(pts, (srcAt(c, local) - c.in) / ((c.out - c.in) || 1)); }
+  function avgSpeed(c) { return (c.out - c.in) / clipLen(c); }
   function clipsTotal() { return P.clips.reduce(function (s, c) { return s + clipLen(c); }, 0); }
   function total() {
     var t = clipsTotal();
@@ -87,7 +118,8 @@
     left: '<path d="M14 7l-5 5 5 5"/><path d="M20 12H9"/>', right: '<path d="M10 7l5 5-5 5"/><path d="M4 12h11"/>', edit: '<path d="M4 20h4L19 9l-4-4L4 16z"/>',
     play: '<path d="M7 4.5v15l13-7.5z"/>', pause: '<path d="M7 4h4v16H7zM13 4h4v16h-4z"/>', undo: '<path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/>',
     redo: '<path d="M15 14l5-5-5-5"/><path d="M20 9H9a5 5 0 0 0 0 10h3"/>', dl: '<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>', color: '<circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18z" fill="currentColor"/>',
-    replace: '<path d="M4 7h13l-3-3M20 17H7l3 3"/>', start: '<path d="M6 4v16M18 12L9 18V6z"/>',
+    replace: '<path d="M4 7h13l-3-3M20 17H7l3 3"/>', minus: '<path d="M5 12h14"/>', fitw: '<path d="M3 12h18M7 8l-4 4 4 4M17 8l4 4-4 4"/>',
+    mark: '<path d="M6 21V4h11l-2 4 2 4H6"/>', magnet: '<path d="M6 3v8a6 6 0 0 0 12 0V3"/><path d="M6 7h4M14 7h4"/><path d="M10 3v8a2 2 0 0 0 4 0V3"/>', start: '<path d="M6 4v16M18 12L9 18V6z"/>',
     stock: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/>',
     sticker: '<circle cx="12" cy="12" r="9"/><path d="M8.5 14.5a4.5 4.5 0 0 0 7 0"/><path d="M9 9.5h.01M15 9.5h.01"/>',
     layer: '<rect x="3" y="3" width="13" height="13" rx="2"/><rect x="8" y="8" width="13" height="13" rx="2"/>',
@@ -137,11 +169,21 @@
     '<div class="vstage" id="v-stage"><canvas id="v-cv"></canvas><div class="guide v" id="g-v"></div><div class="guide h" id="g-h"></div>' +
     '<div class="selbox" id="v-sel" hidden><i class="tl" data-hd="s"></i><i class="tr" data-hd="s"></i><i class="bl" data-hd="s"></i><i class="br" data-hd="s"></i><i class="rot" data-hd="r"></i></div>' +
     '<div class="vempty" id="v-empty"><b>Видео, зургаа нэмээд эхлээрэй</b><span>Файлууд тань серверт очихгүй — зөвхөн энэ төхөөрөмж дээр засагдана</span><button class="btn-x" type="button" data-a="add">' + ico('plus') + 'Видео, зураг нэмэх</button></div></div>' +
-    '<div class="vtr"><span class="time" id="v-time"></span><span class="grow"></span>' +
-    '<button class="ib" id="v-undo" type="button" title="Буцаах (Ctrl+Z)" aria-label="Буцаах">' + ico('undo') + '</button>' +
+    '<div class="vtr"><div class="tgrp">' +
+    '<button class="ib" id="v-tsplit" type="button" data-a="split" title="Хуваах (S)" aria-label="Хуваах">' + ico('split') + '</button>' +
+    '<button class="ib" id="v-tdel" type="button" data-a="del" title="Устгах (Delete)" aria-label="Устгах">' + ico('del') + '</button>' +
+    '<button class="ib dk" id="v-tdup" type="button" data-a="dup" title="Хувилах (Ctrl+D)" aria-label="Хувилах">' + ico('dup') + '</button>' +
+    '<button class="ib dk" id="v-tfreeze" type="button" data-a="freeze" title="Кадр царцаах" aria-label="Кадр царцаах">' + ico('freeze') + '</button>' +
+    '<span class="sep dk"></span><button class="ib dk" id="v-tmark" type="button" data-a="mark" title="Тэмдэг тавих / арилгах (M)" aria-label="Тэмдэг">' + ico('mark') + '</button>' +
+    '<button class="ib tog" id="v-tsnap" type="button" data-a="snapt" title="Соронз: ирмэг, шугам, тэмдэгт наалдах (N)" aria-label="Соронз">' + ico('magnet') + '</button></div>' +
+    '<span class="time" id="v-time"></span>' +
+    '<div class="tmid"><button class="ib" id="v-undo" type="button" title="Буцаах (Ctrl+Z)" aria-label="Буцаах">' + ico('undo') + '</button>' +
     '<button class="play" id="v-play" type="button" aria-label="Тоглуулах">' + ico('play') + '</button>' +
-    '<button class="ib" id="v-redo" type="button" title="Дахин хийх (Ctrl+Y)" aria-label="Дахин хийх">' + ico('redo') + '</button>' +
-    '<span class="grow"></span><span class="zl">Timeline</span><input class="zoom" id="v-zoom" type="range" min="20" max="240" value="70" aria-label="Timeline томруулах" title="Timeline томруулах"></div></div>' +
+    '<button class="ib" id="v-redo" type="button" title="Дахин хийх (Ctrl+Y)" aria-label="Дахин хийх">' + ico('redo') + '</button></div>' +
+    '<div class="tzoom"><button class="ib" id="v-zout" type="button" title="Жижигрүүлэх (−)" aria-label="Жижигрүүлэх">' + ico('minus') + '</button>' +
+    '<input class="zoom" id="v-zoom" type="range" min="20" max="240" value="70" aria-label="Timeline томруулах" title="Timeline томруулах">' +
+    '<button class="ib" id="v-zin" type="button" title="Томруулах (+)" aria-label="Томруулах">' + ico('plus') + '</button>' +
+    '<button class="ib" id="v-zfit" type="button" title="Бүхлээр харах" aria-label="Бүхлээр харах">' + ico('fitw') + '</button></div></div></div>' +
     '<aside class="vpanel" id="v-panel"><div class="ph"><b id="v-ptitle"></b><small id="v-psub"></small></div><div class="ptools" id="v-ptools"></div><div id="v-pbody"></div></aside></div>' +
     '<div class="vtl"><div class="vtl-tracks" aria-hidden="true"><span class="k-v">' + ico('fit') + 'Видео, зураг</span><span class="k-o">' + ico('layer') + 'Давхар</span><span class="k-t">' + ico('text') + 'Текст</span><span class="k-a">' + ico('music') + 'Дуу, хөгжим</span></div><div class="vtl-scroll" id="v-scroll"><div class="vtl-inner" id="v-tl"></div></div><div class="vtl-head"></div></div>' +
     '<nav class="vtb" id="v-tb" aria-label="Хэрэгсэл"></nav>';
@@ -176,26 +218,42 @@
   function backOut(p) { var b = 1.70158, q = p - 1; return 1 + (b + 1) * q * q * q + b * q * q; }
   function srcWH(m, el) { el = el || m.el; return m.kind === 'video' ? [el.videoWidth || m.w, el.videoHeight || m.h] : [m.w, m.h]; }
   function motionOf(c) { return c.motion === true ? 'in' : c.motion || 'none'; }
-  // colour preset + sliders → one ctx.filter string
-  function filterOf(o) {
-    var f = '', pr = FILTERS.filter(function (x) { return x[0] === o.filter; })[0], a = o.adj;
+  // colour preset (+ optional strength) + sliders → one ctx.filter string; W = frame width for the blur radius
+  function filterOf(o, W, noPreset) {
+    var f = '', pr = noPreset ? null : FILTERS.filter(function (x) { return x[0] === o.filter; })[0], a = o.adj;
     if (pr && pr[2]) f += pr[2];
     if (a) {
       if (a.br) f += ' brightness(' + (1 + a.br / 200).toFixed(3) + ')';
       if (a.ct) f += ' contrast(' + (1 + a.ct / 200).toFixed(3) + ')';
       if (a.sat) f += ' saturate(' + (1 + a.sat / 100).toFixed(3) + ')';
       if (a.hue) f += ' hue-rotate(' + Math.round(a.hue * 1.8) + 'deg)';
+      if (a.blur) f += ' blur(' + (a.blur / 100 * 14 * (W || P.w) / 1080).toFixed(2) + 'px)';
     }
     return f.trim() || 'none';
   }
-  // warmth (a soft-light tint) and vignette, drawn over the frame
-  function drawTone(ctx, a, W, H) {
+  // noise tiles for film grain (made once)
+  var noiseT = null;
+  function noise() {
+    if (noiseT) return noiseT;
+    noiseT = [0, 1, 2, 3].map(function () {
+      var c = document.createElement('canvas'); c.width = c.height = 160; var x = c.getContext('2d'), d = x.createImageData(160, 160);
+      for (var i = 0; i < d.data.length; i += 4) { var v = Math.random() * 255; d.data[i] = d.data[i + 1] = d.data[i + 2] = v; d.data[i + 3] = 255; }
+      x.putImageData(d, 0, 0); return c;
+    });
+    return noiseT;
+  }
+  function grainOver(ctx, W, H, alpha, t) {
+    var n = noise()[Math.floor(t * 24) % 4], pat = ctx.createPattern(n, 'repeat');
+    ctx.save(); ctx.globalCompositeOperation = 'overlay'; ctx.globalAlpha = alpha; ctx.fillStyle = pat;
+    ctx.translate(-((t * 997) % 160), -((t * 613) % 160)); ctx.fillRect(0, 0, W + 160, H + 160); ctx.restore();
+  }
+  // warmth / tint (soft-light washes), faded blacks, grain and vignette, drawn over the frame
+  function drawTone(ctx, a, W, H, t) {
     if (!a) return;
-    if (a.warm) {
-      ctx.save(); ctx.globalCompositeOperation = 'soft-light';
-      ctx.fillStyle = a.warm > 0 ? 'rgba(255,140,30,' + (a.warm / 130).toFixed(3) + ')' : 'rgba(40,120,255,' + (-a.warm / 130).toFixed(3) + ')';
-      ctx.fillRect(0, 0, W, H); ctx.restore();
-    }
+    if (a.warm) { ctx.save(); ctx.globalCompositeOperation = 'soft-light'; ctx.fillStyle = a.warm > 0 ? 'rgba(255,140,30,' + (a.warm / 130).toFixed(3) + ')' : 'rgba(40,120,255,' + (-a.warm / 130).toFixed(3) + ')'; ctx.fillRect(0, 0, W, H); ctx.restore(); }
+    if (a.tint) { ctx.save(); ctx.globalCompositeOperation = 'soft-light'; ctx.fillStyle = a.tint > 0 ? 'rgba(255,40,200,' + (a.tint / 150).toFixed(3) + ')' : 'rgba(40,255,90,' + (-a.tint / 150).toFixed(3) + ')'; ctx.fillRect(0, 0, W, H); ctx.restore(); }
+    if (a.fade) { ctx.save(); ctx.globalCompositeOperation = 'lighten'; ctx.fillStyle = 'rgba(70,70,70,' + (a.fade / 100).toFixed(3) + ')'; ctx.fillRect(0, 0, W, H); ctx.restore(); }
+    if (a.grain) grainOver(ctx, W, H, a.grain / 120, t || 0);
     if (a.vig) {
       var r = Math.hypot(W, H) / 2, g = ctx.createRadialGradient(W / 2, H / 2, r * (0.75 - a.vig / 300), W / 2, H / 2, r);
       g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,' + Math.min(0.95, a.vig / 105).toFixed(3) + ')');
@@ -228,63 +286,129 @@
     ctx.drawImage(m.el, -dw / 2, -dh / 2, dw, dh);
     ctx.restore();
   }
+  function zoomAt(ctx, W, H, z) { ctx.translate(W / 2, H / 2); ctx.scale(z, z); ctx.translate(-W / 2, -H / 2); }
   function drawClip(ctx, at, W, H) {
-    var c = at.c, lt = at.local, fx = c.fx || 'none', p = c.tr && c.tr !== 'none' ? clamp(lt / TR, 0, 1) : 1, tf = '';
+    var c = at.c, lt = at.local, fx = c.fx || 'none', A = (c.fxAmt == null ? 50 : c.fxAmt) / 50, p = c.tr && c.tr !== 'none' ? clamp(lt / TR, 0, 1) : 1, tf = '', L = clipLen(c);
     ctx.save();
     if (p < 1) {
       var e = ease(p);
       if (c.tr === 'fade') ctx.globalAlpha = e;
-      else if (c.tr === 'zoom') { var z = 1 + 0.25 * (1 - e); ctx.translate(W / 2, H / 2); ctx.scale(z, z); ctx.translate(-W / 2, -H / 2); ctx.globalAlpha = Math.min(1, p * 2); }
+      else if (c.tr === 'zoom') { zoomAt(ctx, W, H, 1 + 0.25 * (1 - e)); ctx.globalAlpha = Math.min(1, p * 2); }
       else if (c.tr === 'slide') ctx.translate(W * (1 - e), 0);
       else if (c.tr === 'blur') tf = 'blur(' + Math.round(24 * (1 - e) * W / 1080) + 'px)';
     }
-    if (fx === 'shake') { ctx.translate(W / 2 + Math.sin(lt * 53) * W * 0.012 + Math.sin(lt * 31) * W * 0.006, H / 2 + Math.cos(lt * 47) * H * 0.008); ctx.scale(1.05, 1.05); ctx.translate(-W / 2, -H / 2); }
-    if (fx === 'pulse') { var zp = 1 + 0.07 * Math.pow(1 - ((lt * 2) % 1), 3); ctx.translate(W / 2, H / 2); ctx.scale(zp, zp); ctx.translate(-W / 2, -H / 2); }
-    var f = filterOf(c);
-    if (fx === 'bwflash' && Math.floor(lt * 2) % 2 === 1) f = (f === 'none' ? '' : f + ' ') + 'grayscale(1) contrast(1.25)';
-    if (fx === 'vhs') f = (f === 'none' ? '' : f + ' ') + 'saturate(.8) contrast(1.1)';
-    if (tf) f = (f === 'none' ? '' : f + ' ') + tf;
-    if (HAS_FILTER && f !== 'none') ctx.filter = f;
+    // movement effects
+    if (fx === 'shake') { ctx.translate((Math.sin(lt * 53) * 0.012 + Math.sin(lt * 31) * 0.006) * W * A, Math.cos(lt * 47) * H * 0.008 * A); zoomAt(ctx, W, H, 1 + 0.05 * A); }
+    else if (fx === 'pulse') zoomAt(ctx, W, H, 1 + 0.07 * A * Math.pow(1 - ((lt * 2) % 1), 3));
+    else if (fx === 'zoomp') zoomAt(ctx, W, H, 1 + 0.2 * A * Math.pow(Math.max(0, 1 - (lt % 1) / 0.3), 2));
+    else if (fx === 'swing') { ctx.translate(W / 2, H / 2); ctx.rotate(Math.sin(lt * 3) * 0.07 * A); ctx.scale(1.12, 1.12); ctx.translate(-W / 2, -H / 2); }
+    else if (fx === 'spin') { ctx.translate(W / 2, H / 2); ctx.rotate(lt * 0.5 * A); var sz = Math.hypot(W, H) / Math.min(W, H); ctx.scale(sz, sz); ctx.translate(-W / 2, -H / 2); }
+    // colour effects through the filter
+    var add = '';
+    if (fx === 'bwflash' && Math.floor(lt * 2) % 2 === 1) add = 'grayscale(1) contrast(1.25)';
+    else if (fx === 'vhs') add = 'saturate(.8) contrast(1.1)';
+    else if (fx === 'oldfilm') add = 'sepia(.65) contrast(1.12) brightness(' + (0.9 + 0.1 * rnd(Math.floor(lt * 12))).toFixed(3) + ')';
+    else if (fx === 'rainbow') add = 'hue-rotate(' + Math.round(lt * 140 * A) % 360 + 'deg) saturate(1.3)';
+    else if (fx === 'invert') add = 'invert(' + Math.min(1, A).toFixed(2) + ')';
+    else if (fx === 'duotone') add = 'grayscale(1) contrast(1.2)';
+    else if (fx === 'fadebw') add = 'grayscale(' + clamp(lt / Math.max(0.5, L * 0.8), 0, 1).toFixed(3) + ')';
+    else if (fx === 'blurpulse') add = 'blur(' + (Math.pow(Math.abs(Math.sin(lt * 2.2)), 3) * 10 * A * W / 1080).toFixed(2) + 'px)';
+    else if (fx === 'strobe' && Math.floor(lt * 10) % 2) add = 'brightness(' + (1 + 0.6 * A).toFixed(2) + ')';
+    var str = c.fstr == null ? 100 : c.fstr, full = filterOf(c, W), base = str < 100 && c.filter && c.filter !== 'none' ? filterOf(c, W, true) : full;
+    function withAdd(f) { f = (f === 'none' ? '' : f) + (add ? ' ' + add : '') + (tf ? ' ' + tf : ''); return f.trim() || 'none'; }
+    if (HAS_FILTER) ctx.filter = withAdd(base);
     drawMedia(ctx, c, W, H, lt);
+    if (base !== full) { ctx.save(); ctx.globalAlpha *= str / 100; if (HAS_FILTER) ctx.filter = withAdd(full); drawMedia(ctx, c, W, H, lt); ctx.restore(); }
     ctx.filter = 'none';
-    drawTone(ctx, c.adj, W, H);
+    drawTone(ctx, c.adj, W, H, lt);
     ctx.restore();
     if (p < 1 && c.tr === 'flash') { ctx.fillStyle = 'rgba(255,255,255,' + (1 - ease(p)).toFixed(3) + ')'; ctx.fillRect(0, 0, W, H); }
-    if (fx === 'flash') { var fa = Math.max(0, 1 - (lt % 1) / 0.18) * 0.75; if (fa > 0.01) { ctx.fillStyle = 'rgba(255,255,255,' + fa.toFixed(3) + ')'; ctx.fillRect(0, 0, W, H); } }
-    if (fx === 'glitch' || fx === 'rgb' || fx === 'vhs') postFx(ctx, fx, lt);
+    if (fx !== 'none') postFx(ctx, fx, lt, A, W, H);
   }
   function rnd(n) { var x = Math.sin(n * 12.9898) * 43758.5453; return x - Math.floor(x); }
+  function copyFrame(ctx) {
+    var cvv = ctx.canvas; if (fxC.width !== cvv.width || fxC.height !== cvv.height) { fxC.width = cvv.width; fxC.height = cvv.height; }
+    fxX.globalCompositeOperation = 'copy'; fxX.drawImage(cvv, 0, 0); fxX.globalCompositeOperation = 'source-over'; return fxC;
+  }
   // the red channel shifted sideways: cut red out of the frame (multiply by cyan) and add a shifted red-only copy back
   function rgbSplit(ctx, off) {
     var cvv = ctx.canvas, w = cvv.width, h = cvv.height;
-    if (fxC.width !== w || fxC.height !== h) { fxC.width = w; fxC.height = h; }
-    fxX.globalCompositeOperation = 'copy'; fxX.drawImage(cvv, 0, 0);
-    fxX.globalCompositeOperation = 'multiply'; fxX.fillStyle = '#ff0000'; fxX.fillRect(0, 0, w, h); fxX.globalCompositeOperation = 'source-over';
+    copyFrame(ctx); fxX.globalCompositeOperation = 'multiply'; fxX.fillStyle = '#ff0000'; fxX.fillRect(0, 0, w, h); fxX.globalCompositeOperation = 'source-over';
     ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.globalCompositeOperation = 'multiply'; ctx.fillStyle = '#00ffff'; ctx.fillRect(0, 0, w, h);
     ctx.globalCompositeOperation = 'lighter'; ctx.drawImage(fxC, off, 0);
     ctx.restore();
   }
-  function postFx(ctx, fx, lt) {
-    var cvv = ctx.canvas, w = cvv.width, h = cvv.height;
-    if (fx === 'rgb') return rgbSplit(ctx, Math.round(w * (0.006 + 0.004 * Math.sin(lt * 6))));
+  var pixC = document.createElement('canvas'), pixX = pixC.getContext('2d');
+  // effects drawn on top of the finished clip frame (device pixels: they work the same in preview and export)
+  function postFx(ctx, fx, lt, A, W, H) {
+    var cvv = ctx.canvas, w = cvv.width, h = cvv.height, k = w / W, i;
+    if (fx === 'flash') { var fa = Math.max(0, 1 - (lt % 1) / 0.18) * 0.75 * Math.min(1.3, A); if (fa > 0.01) { ctx.fillStyle = 'rgba(255,255,255,' + Math.min(1, fa).toFixed(3) + ')'; ctx.fillRect(0, 0, W, H); } return; }
+    if (fx === 'strobe') { if (Math.floor(lt * 10) % 2 === 0) { ctx.fillStyle = 'rgba(0,0,0,' + Math.min(0.85, 0.35 * A).toFixed(3) + ')'; ctx.fillRect(0, 0, W, H); } return; }
+    if (fx === 'rgb') return rgbSplit(ctx, Math.round(w * (0.006 + 0.004 * Math.sin(lt * 6)) * A));
+    if (fx === 'duotone') { ctx.save(); ctx.globalCompositeOperation = 'color'; ctx.fillStyle = 'rgba(123,100,255,' + Math.min(1, 0.55 * A).toFixed(3) + ')'; ctx.fillRect(0, 0, W, H); ctx.restore(); return; }
+    if (fx === 'grain') return grainOver(ctx, W, H, Math.min(0.9, 0.35 * A), lt);
+    if (fx === 'oldfilm') {
+      grainOver(ctx, W, H, 0.3 * A, lt);
+      ctx.save(); ctx.strokeStyle = 'rgba(255,255,240,.35)'; ctx.lineWidth = Math.max(1, W / 700);
+      for (i = 0; i < 2; i++) { if (rnd(Math.floor(lt * 8) + i * 3) < 0.6) { var sx = rnd(Math.floor(lt * 8) * 1.7 + i) * W; ctx.beginPath(); ctx.moveTo(sx, 0); ctx.lineTo(sx + W * 0.004, H); ctx.stroke(); } }
+      var gv = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.3, W / 2, H / 2, Math.hypot(W, H) / 2); gv.addColorStop(0, 'rgba(0,0,0,0)'); gv.addColorStop(1, 'rgba(30,15,0,.6)');
+      ctx.fillStyle = gv; ctx.fillRect(0, 0, W, H); ctx.restore(); return;
+    }
+    if (fx === 'leak') {
+      var lx = (0.5 + 0.45 * Math.sin(lt * 0.8)) * W, ly = (0.3 + 0.2 * Math.cos(lt * 0.6)) * H, lr = Math.max(W, H) * 0.7, lg = ctx.createRadialGradient(lx, ly, 0, lx, ly, lr);
+      lg.addColorStop(0, 'rgba(255,150,60,' + Math.min(0.9, 0.5 * A).toFixed(3) + ')'); lg.addColorStop(0.5, 'rgba(255,60,120,' + Math.min(0.6, 0.22 * A).toFixed(3) + ')'); lg.addColorStop(1, 'rgba(255,60,120,0)');
+      ctx.save(); ctx.globalCompositeOperation = 'screen'; ctx.fillStyle = lg; ctx.fillRect(0, 0, W, H); ctx.restore(); return;
+    }
+    if (fx === 'sparkle' || fx === 'snow') {
+      var n = Math.round((fx === 'snow' ? 90 : 36) * A), u = Math.min(W, H) / 1080;
+      ctx.save(); ctx.fillStyle = '#fff';
+      for (i = 0; i < n; i++) {
+        if (fx === 'snow') {
+          var sp = 0.5 + rnd(i * 2.3), fy = ((rnd(i * 1.1) + lt * 0.12 * sp) % 1) * H, fxp = rnd(i * 3.7) * W + Math.sin(lt * 1.3 + i) * 14 * u, fr = (2 + rnd(i * 5.1) * 5) * u;
+          ctx.globalAlpha = 0.55 + 0.4 * rnd(i * 7.7); ctx.beginPath(); ctx.arc(fxp, fy, fr, 0, 6.283); ctx.fill();
+        } else {
+          var tw = Math.pow(Math.max(0, Math.sin(lt * (2 + rnd(i) * 3) + i * 1.7)), 6); if (tw < 0.02) continue;
+          var px = rnd(i * 4.1) * W, py = rnd(i * 9.3) * H, r2 = (10 + rnd(i * 2.9) * 22) * u * tw;
+          ctx.globalAlpha = tw; ctx.beginPath(); ctx.moveTo(px, py - r2); ctx.quadraticCurveTo(px, py, px + r2, py); ctx.quadraticCurveTo(px, py, px, py + r2); ctx.quadraticCurveTo(px, py, px - r2, py); ctx.quadraticCurveTo(px, py, px, py - r2); ctx.fill();
+        }
+      }
+      ctx.restore(); return;
+    }
+    if (fx === 'glow') { copyFrame(ctx); ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalCompositeOperation = 'screen'; ctx.globalAlpha = Math.min(0.9, 0.45 * A); if (HAS_FILTER) ctx.filter = 'blur(' + Math.round(w * 0.012) + 'px) brightness(1.1)'; ctx.drawImage(fxC, 0, 0); ctx.restore(); return; }
+    if (fx === 'mirror') { ctx.save(); ctx.setTransform(-1, 0, 0, 1, w, 0); ctx.drawImage(cvv, 0, 0, Math.ceil(w / 2), h, 0, 0, Math.ceil(w / 2), h); ctx.restore(); return; }
+    if (fx === 'grid' || fx === 'split3') {
+      copyFrame(ctx); ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
+      if (fx === 'grid') { for (i = 0; i < 4; i++) ctx.drawImage(fxC, (i % 2) * w / 2, Math.floor(i / 2) * h / 2, w / 2, h / 2); }
+      else if (h >= w) { for (i = 0; i < 3; i++) ctx.drawImage(fxC, 0, h / 3, w, h / 3, 0, i * h / 3, w, h / 3); }
+      else { for (i = 0; i < 3; i++) ctx.drawImage(fxC, w / 3, 0, w / 3, h, i * w / 3, 0, w / 3, h); }
+      ctx.restore(); return;
+    }
+    if (fx === 'pixel') {
+      var bs = Math.max(2, Math.round(w / (90 / Math.max(0.3, A)))), pw = Math.max(1, Math.round(w / bs)), ph2 = Math.max(1, Math.round(h / bs));
+      if (pixC.width !== pw || pixC.height !== ph2) { pixC.width = pw; pixC.height = ph2; }
+      pixX.drawImage(cvv, 0, 0, pw, ph2); ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.imageSmoothingEnabled = false; ctx.drawImage(pixC, 0, 0, w, h); ctx.restore(); return;
+    }
+    if (fx === 'cinema') { var bh = H * Math.min(0.3, 0.11 * A); ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, bh); ctx.fillRect(0, H - bh, W, bh); return; }
+    if (fx === 'frame') { var bw = Math.min(W, H) * 0.045 * A; ctx.save(); ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.rect(0, 0, W, H); ctx.rect(bw, bw, W - bw * 2, H - bw * 2); ctx.fill('evenodd'); ctx.restore(); return; }
     if (fx === 'vhs') {
-      rgbSplit(ctx, Math.max(1, Math.round(w * 0.004)));
-      ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = 'rgba(0,0,0,.14)';
+      rgbSplit(ctx, Math.max(1, Math.round(w * 0.004 * A)));
+      ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = 'rgba(0,0,0,' + Math.min(0.4, 0.14 * A).toFixed(3) + ')';
       var step = Math.max(2, Math.round(h / 320)); for (var y = 0; y < h; y += step * 2) ctx.fillRect(0, y, w, step);
       var by = ((lt * 0.35) % 1.3 - 0.15) * h; ctx.fillStyle = 'rgba(255,255,255,.07)'; ctx.fillRect(0, by, w, h * 0.06);
       ctx.restore(); return;
     }
-    // glitch: short bursts of shifted horizontal slices + colour split
-    var ph = lt % 0.9; if (ph > 0.16) return;
-    var seed = Math.floor(lt * 24);
-    rgbSplit(ctx, Math.round(w * 0.012 * (rnd(seed) > 0.5 ? 1 : -1)));
-    ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
-    for (var i = 0; i < 7; i++) {
-      var sy = Math.floor(rnd(seed + i * 7.1) * h), sh = Math.max(2, Math.floor(rnd(seed + i * 3.3) * h * 0.07)), off = Math.round((rnd(seed + i * 5.7) - 0.5) * w * 0.12);
-      ctx.drawImage(cvv, 0, sy, w, sh, off, sy, w, sh);
+    if (fx === 'glitch') {
+      var ph = lt % 0.9; if (ph > 0.16 * Math.max(0.5, A)) return;
+      var seed = Math.floor(lt * 24);
+      rgbSplit(ctx, Math.round(w * 0.012 * A * (rnd(seed) > 0.5 ? 1 : -1)));
+      ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
+      for (i = 0; i < 7; i++) {
+        var sy = Math.floor(rnd(seed + i * 7.1) * h), sh = Math.max(2, Math.floor(rnd(seed + i * 3.3) * h * 0.07)), off = Math.round((rnd(seed + i * 5.7) - 0.5) * w * 0.12 * A);
+        ctx.drawImage(cvv, 0, sy, w, sh, off, sy, w, sh);
+      }
+      ctx.restore();
     }
-    ctx.restore();
   }
   function textStyle(x) {
     var s = Math.min(P.w, P.h) * x.size;
@@ -474,9 +598,9 @@
     var at = P.clips.length ? clipAt(t) : null, cur = at && media[at.c.mid] && media[at.c.mid].kind === 'video' ? at : null;
     var act = [];
     if (cur) {
-      var m = media[cur.c.mid], v = m.el, want = Math.min(m.dur - 0.02, cur.c.in + cur.local * cur.c.speed);
+      var m = media[cur.c.mid], v = m.el, want = Math.min(m.dur - 0.02, srcAt(cur.c, cur.local)), rate = clamp(rateAt(cur.c, cur.local), 0.0625, 16);
       act.push(v);
-      v.playbackRate = cur.c.speed; v.volume = clamp(cur.c.mute ? 0 : cur.c.vol, 0, 1); v.muted = !!cur.c.mute || cur.c.vol <= 0;
+      if (Math.abs(v.playbackRate - rate) > 0.01) v.playbackRate = rate; v.volume = clamp(cur.c.mute ? 0 : cur.c.vol, 0, 1); v.muted = !!cur.c.mute || cur.c.vol <= 0;
       if (run) {
         if (v.paused || lastClip !== cur.c.id) { if (Math.abs(v.currentTime - want) > 0.08) v.currentTime = want; var pr = v.play(); if (pr) pr.catch(function () {}); }
         else if (Math.abs(v.currentTime - want) > 0.3) v.currentTime = want;
@@ -515,7 +639,7 @@
     var t = T0 + (now - t0) / 1000, D = total();
     if (t >= D) { T = D; pause(); return; }
     if (stopAt && t >= stopAt) { stopAt = 0; T = t; pause(); return; }
-    T = t; syncMedia(T, true); renderFrame(cx, cv.width / P.w, T); setScroll(); timeLabel();
+    T = t; syncMedia(T, true); if (frameReady(T)) renderFrame(cx, cv.width / P.w, T); setScroll(); timeLabel();
     raf = requestAnimationFrame(loop);
   }
   function pause() {
@@ -524,7 +648,12 @@
     document.getElementById('v-play').innerHTML = ico('play'); document.getElementById('v-play').setAttribute('aria-label', 'Тоглуулах');
     seek(T);
   }
-  function seek(t) { T = clamp(t, 0, total()); syncMedia(T, false); draw(); timeLabel(); }
+  // false while the clip's video under t has no frame yet (seeking) — the preview keeps its last picture instead of flashing black
+  function frameReady(t) {
+    var at = P.clips.length ? clipAt(t) : null, m = at && media[at.c.mid];
+    return !(m && m.kind === 'video' && m.el.readyState < 2);
+  }
+  function seek(t) { T = clamp(t, 0, total()); if (playing) { T0 = T; t0 = performance.now(); syncMedia(T, true); return; } syncMedia(T, false); draw(); timeLabel(); }
   // play a short stretch (previewing an effect / motion / animation), then stop
   var stopAt = 0;
   function previewRange(a, len) { if (playing) pause(); seek(a); setScroll(); play(); stopAt = Math.min(total(), a + len); }
@@ -534,10 +663,12 @@
   var progScroll = false;
   function pad() { return Math.round(scroller.clientWidth / 2); }
   function setScroll() { progScroll = true; scroller.scrollLeft = T * pps; requestAnimationFrame(function () { progScroll = false; }); }
+  // scrubbing: one seek per animation frame however fast the scroll events come
+  var scrubQ = 0;
   scroller.addEventListener('scroll', function () {
-    if (progScroll || drag) return;
+    if (progScroll || drag || Math.abs(scroller.scrollLeft - T * pps) < 1.5) return;      // our own (pixel-rounded) scroll, not the user's
     if (playing) pause();
-    seek(scroller.scrollLeft / pps);
+    if (!scrubQ) scrubQ = requestAnimationFrame(function () { scrubQ = 0; seek(scroller.scrollLeft / pps); refreshTB(); });
   }, { passive: true });
   // two-finger pinch on the timeline zooms it (the zoom slider is hidden on phones)
   var pinch = null;
@@ -567,6 +698,7 @@
     h += '<div class="vtl-ruler" style="left:' + p + 'px;width:' + (D * pps) + 'px">';
     for (var s = 0; s <= D + 0.001; s += step) h += '<span style="left:' + (s * pps) + 'px">' + (s >= 60 ? Math.floor(s / 60) + ':' + ('0' + (s % 60)).slice(-2) : s + 'с') + '</span>';
     for (s = 0; s <= D; s += step / 2) h += '<i style="left:' + (s * pps) + 'px"></i>';
+    (P.markers || []).forEach(function (t) { h += '<b class="mk" data-mk="' + t + '" style="left:' + (t * pps) + 'px" title="Тэмдэг ' + fmt(t) + '"></b>'; });
     h += '</div>';
     // main track
     h += '<div class="vtl-row r-v" style="left:' + p + 'px">';
@@ -574,10 +706,10 @@
     P.clips.forEach(function (c, i) {
       var m = media[c.mid] || {}, L = clipLen(c), on = sel && sel.k === 'clip' && sel.id === c.id;
       var bg = '';
-      if (m.kind === 'video' && m.strip) bg = 'background-image:url(' + m.strip + ');background-size:' + (m.dur / c.speed * pps) + 'px 100%;background-position:' + (-c.in / c.speed * pps) + 'px 0;background-repeat:no-repeat;';
+      if (m.kind === 'video' && m.strip) bg = 'background-image:url(' + m.strip + ');background-size:' + (m.dur / avgSpeed(c) * pps) + 'px 100%;background-position:' + (-c.in / avgSpeed(c) * pps) + 'px 0;background-repeat:no-repeat;';
       else if (m.kind === 'image' && m.url) bg = 'background-image:url(' + m.url + ');';
       h += '<div class="it v' + (on ? ' on' : '') + '" data-k="clip" data-id="' + c.id + '" style="left:' + (x0 * pps) + 'px;width:' + Math.max(8, L * pps - 2) + 'px;' + bg + '">' +
-        '<span class="nm">' + (c.speed !== 1 ? c.speed + '× · ' : '') + fmt(L) + (c.mute ? ' · 🔇' : '') + '</span><span class="hd l" data-h="l"></span><span class="hd r" data-h="r"></span></div>';
+        '<span class="nm">' + (rampPts(c) ? '〰 ' : c.speed !== 1 ? c.speed + '× · ' : '') + fmt(L) + (c.mute ? ' · 🔇' : '') + '</span><span class="hd l" data-h="l"></span><span class="hd r" data-h="r"></span></div>';
       h += '<button type="button" class="tr-badge" data-tr="' + c.id + '" style="position:absolute;left:' + (x0 * pps) + 'px;top:50%;transform:translate(-50%,-50%)" title="Шилжилт" aria-label="Шилжилт">' + (c.tr && c.tr !== 'none' ? '⇢' : '|') + '</button>';
       x0 += L;
     });
@@ -608,62 +740,114 @@
     timeLabel();
   }
 
-  // pointer: tap selects, handles trim, selected text / music bars drag along the time line
-  var drag = null;
+  // pointer: tap selects; handles trim; a selected bar drags (texts / overlays / music along the time line, clips change order);
+  // the mouse can drag empty timeline to scrub; edges snap (magnet) to the playhead, other edges and markers
+  var drag = null, scrub = null, tlRaf = 0;
+  function tlQ() { if (!tlRaf) tlRaf = requestAnimationFrame(function () { tlRaf = 0; renderTL(); draw(); }); }
+  function snapPoints(exId) {
+    var pts = [0, T], s = 0;
+    P.clips.forEach(function (c) { if (c.id !== exId) pts.push(s); s += clipLen(c); }); pts.push(s);
+    P.texts.concat(P.overlays).forEach(function (x) { if (x.id !== exId) pts.push(x.start, x.end); });
+    P.audios.forEach(function (a) { if (a.id !== exId) pts.push(a.start, a.start + a.out - a.in); });
+    return pts.concat(P.markers || []);
+  }
+  function snapTo(t, pts) { if (!snapOn) return null; var best = null, bd = 10 / pps; pts.forEach(function (p) { var d = Math.abs(p - t); if (d < bd) { bd = d; best = p; } }); return best; }
+  var snapEl = document.createElement('div'); snapEl.className = 'snapln';
+  function snapLine(t) { if (t == null) { snapEl.style.display = 'none'; return; } if (snapEl.parentNode !== tl) tl.appendChild(snapEl); snapEl.style.display = 'block'; snapEl.style.left = (pad() + t * pps) + 'px'; }
   tl.addEventListener('pointerdown', function (e) {
     var trb = e.target.closest('[data-tr]');
     if (trb) { e.preventDefault(); sel = { k: 'clip', id: trb.dataset.tr }; refresh(); sheetTrans(); return; }
+    var mk = e.target.closest('[data-mk]');
+    if (mk) { e.preventDefault(); if (playing) pause(); seek(+mk.dataset.mk); setScroll(); refreshTB(); return; }
     var ru = e.target.closest('.vtl-ruler');
-    if (ru) { if (playing) pause(); seek((e.clientX - ru.getBoundingClientRect().left) / pps); setScroll(); return; }
-    var it = e.target.closest('.it'); if (!it) return;
+    if (ru) { if (playing) pause(); seek((e.clientX - ru.getBoundingClientRect().left) / pps); setScroll(); refreshTB(); return; }
+    var it = e.target.closest('.it');
+    if (!it) {
+      if (e.target.closest('button')) return;
+      if (e.pointerType === 'mouse' && e.button === 0) { e.preventDefault(); if (playing) pause(); scrub = { x: e.clientX, sl: scroller.scrollLeft, moved: false }; scroller.classList.add('grabbing'); }
+      return;
+    }
     var k = it.dataset.k, id = it.dataset.id, o = find(k, id); if (!o) return;
     var hd = e.target.closest('.hd'), wasSel = sel && sel.k === k && sel.id === id;
-    drag = { k: k, id: id, h: hd ? hd.dataset.h : null, x: e.clientX, moved: false, snap: JSON.stringify(o), wasSel: wasSel, tap: !hd };
-    if (hd || (wasSel && k !== 'clip')) { e.preventDefault(); try { it.setPointerCapture(e.pointerId); } catch (er) {} drag.cap = true; }
+    drag = { k: k, id: id, h: hd ? hd.dataset.h : null, x: e.clientX, moved: false, snap: JSON.stringify(o), wasSel: wasSel, el: it };
+    if (hd || wasSel) { e.preventDefault(); try { it.setPointerCapture(e.pointerId); } catch (er) {} drag.cap = true; }
     if (playing) pause();
   });
   window.addEventListener('pointermove', function (e) {
+    if (scrub) { var sdx = e.clientX - scrub.x; if (Math.abs(sdx) > 3) scrub.moved = true; scroller.scrollLeft = scrub.sl - sdx; return; }
     if (!drag) return;
     var dx = e.clientX - drag.x;
     if (!drag.moved && Math.abs(dx) < 5) return;
     drag.moved = true;
     if (!drag.cap) { drag = null; return; }      // a plain swipe — the timeline scrolls
     var o = find(drag.k, drag.id), s = JSON.parse(drag.snap), d = dx / pps; if (!o) return;
+    var pts = drag.pts || (drag.pts = snapPoints(drag.id)), hit = null;
+    function sn(t) { var r = snapTo(t, pts); if (r != null) { hit = r; return r; } return t; }
+    // move a bar keeping its length: whichever edge is nearer a snap point wins
+    function moveBar(st0, L) {
+      var ns = Math.max(0, st0 + d), a1 = snapTo(ns, pts), a2 = snapTo(ns + L, pts);
+      if (a1 != null && (a2 == null || Math.abs(a1 - ns) <= Math.abs(a2 - ns - L))) { hit = a1; return a1; }
+      if (a2 != null && a2 - L >= 0) { hit = a2; return a2 - L; }
+      return ns;
+    }
     if (drag.k === 'clip') {
-      var m = media[o.mid], maxSrc = m.kind === 'image' ? 3600 : m.dur;
-      if (drag.h === 'l') o.in = clamp(s.in + d * s.speed, 0, s.out - 0.2 * s.speed);
-      else if (drag.h === 'r') o.out = clamp(s.out + d * s.speed, s.in + 0.2 * s.speed, maxSrc);
-      if (m.kind === 'image' && drag.h === 'l') { o.in = 0; o.out = clamp(s.out - d, 0.3, 3600); }
+      var m = media[o.mid], maxSrc = m.kind === 'image' ? 3600 : m.dur, st = startOf(o.id);
+      if (!drag.h) {
+        // reorder: the bar follows the pointer, the drop place is shown by a line
+        drag.el.style.transform = 'translateX(' + dx + 'px)'; drag.el.classList.add('lift');
+        var row = tl.querySelector('.r-v').getBoundingClientRect(), pt = (e.clientX - row.left) / pps, acc = 0, idx = 0, line = 0;
+        P.clips.forEach(function (c) { if (c.id === o.id) return; var L2 = clipLen(c); if (acc + L2 / 2 < pt) { idx++; line = acc + L2; } acc += L2; });
+        drag.to = idx; snapLine(idx ? line : 0); return;
+      }
+      var ramp = !!rampPts(s), sp = s.speed;
+      if (drag.h === 'l') o.in = clamp(s.in + d * sp, 0, s.out - 0.2 * sp);
+      else if (drag.h === 'r') {
+        o.out = clamp(s.out + d * sp, s.in + 0.2 * sp, maxSrc);
+        if (!ramp && m.kind !== 'image') { var e1 = sn(st + (o.out - o.in) / sp); o.out = clamp(o.in + (e1 - st) * sp, o.in + 0.2 * sp, maxSrc); }
+      }
+      if (m.kind === 'image') { if (drag.h === 'l') { o.in = 0; o.out = clamp(s.out - d, 0.3, 3600); } else if (drag.h === 'r') { o.in = 0; o.out = clamp(sn(st + s.out + d) - st, 0.3, 3600); } }
     } else if (drag.k === 'over') {
       var mo = media[o.mid], lim = mo && mo.kind === 'video' ? mo.dur : Infinity, L0 = s.end - s.start;
-      if (drag.h === 'l') { var nd0 = clamp(d, lim === Infinity ? -s.start : Math.max(-s.start, -s.in), L0 - 0.2); o.start = s.start + nd0; if (lim !== Infinity) o.in = s.in + nd0; }
-      else if (drag.h === 'r') o.end = clamp(s.end + d, s.start + 0.2, lim === Infinity ? Infinity : s.start + (lim - s.in));
-      else { o.start = Math.max(0, s.start + d); o.end = o.start + L0; }
+      if (drag.h === 'l') { var ls = sn(s.start + d), nd0 = clamp(ls - s.start, lim === Infinity ? -s.start : Math.max(-s.start, -s.in), L0 - 0.2); o.start = s.start + nd0; if (lim !== Infinity) o.in = s.in + nd0; }
+      else if (drag.h === 'r') o.end = clamp(sn(s.end + d), s.start + 0.2, lim === Infinity ? Infinity : s.start + (lim - s.in));
+      else { o.start = moveBar(s.start, L0); o.end = o.start + L0; }
     } else if (drag.k === 'text') {
       var L = s.end - s.start;
-      if (drag.h === 'l') o.start = clamp(s.start + d, 0, s.end - 0.2);
-      else if (drag.h === 'r') o.end = Math.max(s.start + 0.2, s.end + d);
-      else { o.start = Math.max(0, s.start + d); o.end = o.start + L; }
+      if (drag.h === 'l') o.start = clamp(sn(s.start + d), 0, s.end - 0.2);
+      else if (drag.h === 'r') o.end = Math.max(s.start + 0.2, sn(s.end + d));
+      else { o.start = moveBar(s.start, L); o.end = o.start + L; }
     } else {
-      var md = media[o.mid];
-      if (drag.h === 'l') { var nd = clamp(d, -s.in, (s.out - s.in) - 0.3); o.start = Math.max(0, s.start + nd); o.in = s.in + (o.start - s.start); }
-      else if (drag.h === 'r') o.out = clamp(s.out + d, s.in + 0.3, md.dur);
-      else o.start = Math.max(0, s.start + d);
+      var md = media[o.mid], La = s.out - s.in;
+      if (drag.h === 'l') { var nd = clamp(sn(s.start + d) - s.start, -s.in, La - 0.3); o.start = Math.max(0, s.start + nd); o.in = s.in + (o.start - s.start); }
+      else if (drag.h === 'r') o.out = clamp(sn(s.start + La + d) - s.start + s.in, s.in + 0.3, md.dur);
+      else o.start = moveBar(s.start, La);
     }
-    renderTL(); draw();
+    snapLine(hit); tlQ();
   });
   window.addEventListener('pointerup', function () {
+    if (scrub) { var sc = scrub; scrub = null; scroller.classList.remove('grabbing'); if (!sc.moved && sel) { sel = null; refresh(); } return; }
     if (!drag) return;
-    var dr = drag; drag = null;
-    if (dr.moved && dr.cap) { commit(); return; }
+    var dr = drag; drag = null; snapLine(null);
+    if (dr.moved && dr.cap) {
+      if (dr.k === 'clip' && !dr.h && dr.to != null) {
+        var o = find('clip', dr.id), i = P.clips.indexOf(o);
+        P.clips.splice(i, 1); P.clips.splice(dr.to, 0, o); commit(); seek(startOf(o.id) + 0.01); setScroll(); return;
+      }
+      commit(); return;
+    }
     if (!dr.moved) {
       if (dr.wasSel && dr.k === 'text') { sheetText(find('text', dr.id)); return; }
-      sel = dr.wasSel ? null : { k: dr.k, id: dr.id };
+      sel = dr.wasSel && !desk.matches ? null : { k: dr.k, id: dr.id };
       if (sel && (sel.k === 'text' || sel.k === 'over')) { var x = find(sel.k, sel.id); if (T < x.start || T >= x.end) { seek(x.start + 0.01); setScroll(); } }
       refresh();
     }
   });
-  window.addEventListener('pointercancel', function () { drag = null; });
+  window.addEventListener('pointercancel', function () { drag = null; scrub = null; snapLine(null); });
+  // mouse wheel / trackpad: scroll the timeline sideways; Ctrl + wheel (or pinch on a trackpad) zooms it
+  scroller.addEventListener('wheel', function (e) {
+    if (e.ctrlKey || e.metaKey) { e.preventDefault(); setZoom(pps * Math.exp(-e.deltaY * 0.0025)); return; }
+    if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) { e.preventDefault(); scroller.scrollLeft += e.deltaY * (e.deltaMode === 1 ? 30 : 1); }
+  }, { passive: false });
 
   // ---------- preview: tap to select, drag to move (texts, overlays; a selected clip pans), handles scale + rotate ----------
   var pdrag = null;
@@ -775,10 +959,10 @@
   }
 
   // ---------- history + autosave ----------
-  function snap() { return JSON.stringify({ name: P.name, w: P.w, h: P.h, bg: P.bg, clips: P.clips, texts: P.texts, audios: P.audios, overlays: P.overlays }); }
+  function snap() { return JSON.stringify({ name: P.name, w: P.w, h: P.h, bg: P.bg, clips: P.clips, texts: P.texts, audios: P.audios, overlays: P.overlays, markers: P.markers || [] }); }
   function commit() { hist = hist.slice(0, hi + 1); hist.push(snap()); if (hist.length > 80) hist.shift(); hi = hist.length - 1; pruneEls(); save(); refresh(); }
   function restore(s) {
-    var o = JSON.parse(s); P.name = o.name; P.w = o.w; P.h = o.h; P.bg = o.bg; P.clips = o.clips; P.texts = o.texts; P.audios = o.audios; P.overlays = o.overlays || [];
+    var o = JSON.parse(s); P.name = o.name; P.w = o.w; P.h = o.h; P.bg = o.bg; P.clips = o.clips; P.texts = o.texts; P.audios = o.audios; P.overlays = o.overlays || []; P.markers = o.markers || [];
     if (sel && !selected()) sel = null;
     fitCanvas(); refresh(); seek(Math.min(T, total())); save();
   }
@@ -818,7 +1002,7 @@
       return idb('media', 'readonly', function (st) { return st.get(id); }).then(function (r) { return r ? loadMedia(r.file, r.kind, id, r.name).then(function (m) { m.saved = 1; }) : null; }).catch(function () { return null; });
     })).then(function () {
       var ok = function (c) { return !!media[c.mid]; };
-      P = { name: o.name, w: o.w, h: o.h, bg: o.bg, clips: o.clips.filter(ok), texts: o.texts, audios: o.audios.filter(ok), overlays: (o.overlays || []).filter(function (x) { return x.kind === 'emoji' || ok(x); }) };
+      P = { name: o.name, w: o.w, h: o.h, bg: o.bg, clips: o.clips.filter(ok), texts: o.texts, audios: o.audios.filter(ok), overlays: (o.overlays || []).filter(function (x) { return x.kind === 'emoji' || ok(x); }), markers: o.markers || [] };
       begin();
     });
   }
@@ -929,7 +1113,7 @@
       var st = startOf(o.id), loc = T - st, L = clipLen(o);
       if (loc < 0.1 || loc > L - 0.1) return toast('Шугамыг клипийн дунд аваачаад хуваана уу');
       var c2 = JSON.parse(JSON.stringify(o)); c2.id = uid(); c2.tr = 'none';
-      var cut = o.in + loc * o.speed;
+      var cut = srcAt(o, loc); if (rampPts(o)) { o.ramp = 'none'; c2.ramp = 'none'; }
       if (media[o.mid].kind === 'image') { o.out = loc; c2.in = 0; c2.out = L - loc; } else { o.out = cut; c2.in = cut; }
       P.clips.splice(P.clips.indexOf(o) + 1, 0, c2);
     } else if (sel.k === 'text' || sel.k === 'over') {
@@ -958,11 +1142,6 @@
     else { c.start = o.start + (o.out - o.in); P.audios.push(c); }
     sel = { k: sel.k, id: c.id }; commit();
   }
-  function moveClip(d) {
-    var o = selected(); if (!o || sel.k !== 'clip') return;
-    var i = P.clips.indexOf(o), j = i + d; if (j < 0 || j >= P.clips.length) return;
-    P.clips.splice(i, 1); P.clips.splice(j, 0, o); commit(); seek(startOf(o.id) + 0.01); setScroll();
-  }
   function addText() {
     var D = total(), st = D > 0 && T < D - 0.3 ? T : 0;
     var x = { id: uid(), text: '', start: st, end: D > 0 ? Math.min(Math.max(D, st + 1), st + TXT_DUR) : st + TXT_DUR, x: 0.5, y: P.h > P.w ? 0.62 : 0.5, size: 0.075, font: 'Montserrat', weight: 800, style: 'outline', color: '#ffffff', anim: 'pop' };
@@ -974,7 +1153,7 @@
   function freezeFrame() {
     var at = clipAt(T), m = at && media[at.c.mid];
     if (!m || m.kind !== 'video') return toast('Видео клип дээр шугамаа аваачна уу');
-    var c = at.c, loc = at.local, want = Math.min(m.dur - 0.02, c.in + loc * c.speed);
+    var c = at.c, loc = at.local, want = Math.min(m.dur - 0.02, srcAt(c, loc));
     if (playing) pause();
     toast('Кадр авч байна…');
     return seekV(m.el, want).then(function () {
@@ -984,8 +1163,8 @@
       return loadMedia(new File([blob], 'Царцаасан кадр.jpg', { type: 'image/jpeg' }), 'image');
     }).then(function (im) {
       var L = clipLen(c), i = P.clips.indexOf(c);
-      var fz = JSON.parse(JSON.stringify(c)); fz.id = uid(); fz.mid = im.id; fz.in = 0; fz.out = 2; fz.speed = 1; fz.tr = 'none'; fz.motion = 'none'; fz.vol = 1; fz.mute = false;
-      if (loc > 0.1 && loc < L - 0.1) { var c2 = JSON.parse(JSON.stringify(c)); c2.id = uid(); c2.tr = 'none'; var cut = c.in + loc * c.speed; c.out = cut; c2.in = cut; P.clips.splice(i + 1, 0, fz, c2); }
+      var fz = JSON.parse(JSON.stringify(c)); fz.id = uid(); fz.mid = im.id; fz.in = 0; fz.out = 2; fz.speed = 1; fz.ramp = 'none'; fz.tr = 'none'; fz.motion = 'none'; fz.vol = 1; fz.mute = false;
+      if (loc > 0.1 && loc < L - 0.1) { var c2 = JSON.parse(JSON.stringify(c)); c2.id = uid(); c2.tr = 'none'; var cut = srcAt(c, loc); if (rampPts(c)) { c.ramp = 'none'; c2.ramp = 'none'; } c.out = cut; c2.in = cut; P.clips.splice(i + 1, 0, fz, c2); }
       else P.clips.splice(loc <= 0.1 ? i : i + 1, 0, fz);
       sel = { k: 'clip', id: fz.id }; commit(); seek(startOf(fz.id) + 0.01); setScroll(); toast('2 секунд царцаалаа — захаас нь чирж уртасгана');
     }).catch(function () { toast('Кадр авч чадсангүй'); });
@@ -994,7 +1173,7 @@
   function extractAudio() {
     var c = selected(); if (!c || sel.k !== 'clip') return;
     var m = media[c.mid]; if (!m || m.kind !== 'video') return;
-    if (c.speed !== 1) return toast('Дууг салгахын тулд хурдыг 1× болгоно уу');
+    if (c.speed !== 1 || rampPts(c)) return toast('Дууг салгахын тулд хурдыг 1× болгоно уу');
     toast('Дууг салгаж байна…');
     return decodeAudio(m).then(function (b) {
       if (!b) return toast('Энэ видеонд дуу алга, эсвэл хөтөч уншиж чадсангүй');
@@ -1003,98 +1182,124 @@
       sel = { k: 'audio', id: a.id }; commit(); toast('Дуу тусдаа мөрөнд гарлаа');
     });
   }
-  function layer(d) {
-    var o = selected(); if (!o || sel.k !== 'over') return;
-    var i = P.overlays.indexOf(o), j = d > 0 ? P.overlays.length - 1 : 0; if (i === j) return toast(d > 0 ? 'Хамгийн урд байна' : 'Хамгийн ард байна');
-    P.overlays.splice(i, 1); if (d > 0) P.overlays.push(o); else P.overlays.unshift(o);
-    commit(); toast(d > 0 ? 'Урд гаргалаа' : 'Ард орууллаа');
-  }
   function addSticker(em) {
     var o = newOverlay(null, em); sel = { k: 'over', id: o.id }; commit(); seek(o.start + 0.01); setScroll();
   }
 
   // ---------- toolbar ----------
   function tbtn(a, ic, label, cls) { return '<button type="button" class="tb' + (cls ? ' ' + cls : '') + '" data-a="' + a + '">' + ico(ic) + '<span>' + label + '</span></button>'; }
+  var ADD_TOOLS = [['add', 'plus', 'Медиа'], ['stock', 'stock', 'Сан'], ['music', 'music', 'Хөгжим'], ['text', 'text', 'Текст'], ['sticker', 'sticker', 'Стикер'], ['over', 'layer', 'Давхар'], ['rec', 'mic', 'Дуу бичих']];
+  // what can be set on the selected item (timeline actions — split, freeze, copy, delete — live on the timeline bar)
+  function ctxTools(o) {
+    var m = media[o.mid] || {};
+    if (sel.k === 'clip') return (m.kind === 'video' ? [['speed', 'speed', 'Хурд'], ['vol', 'vol', 'Дуу']] : []).concat([['color', 'filter', 'Өнгө'], ['fx', 'fx', 'Эффект'], ['fit', 'crop', 'Байрлал'], ['trans', 'trans', 'Шилжилт']]);
+    if (sel.k === 'over') return [['oedit', 'shape', 'Тохиргоо']].concat(o.kind === 'emoji' ? [] : [['color', 'filter', 'Өнгө'], ['chroma', 'chroma', 'Дэвсгэр арилгах']]).concat(m.kind === 'video' ? [['ovol', 'vol', 'Дуу']] : []);
+    if (sel.k === 'text') return [['tedit', 'edit', 'Засах']];
+    return [['avol', 'vol', 'Дуу']];
+  }
+  function tbs(list) { return list.map(function (t) { return tbtn(t[0], t[1], t[2], t[3]); }).join(''); }
   function refreshTB() {
-    var h = '', back = tbtn('desel', 'back', '', 'back'), tail = tbtn('dup', 'dup', 'Хувилах') + tbtn('del', 'del', 'Устгах', 'danger');
-    if (!sel || !selected()) {
-      h = tbtn('add', 'plus', 'Медиа') + tbtn('stock', 'stock', 'Сан') + tbtn('text', 'text', 'Текст') + tbtn('sticker', 'sticker', 'Стикер') + tbtn('over', 'layer', 'Давхар') +
-        tbtn('music', 'music', 'Хөгжим') + tbtn('rec', 'mic', 'Дуу бичих') + tbtn('size', 'size', 'Хэмжээ') + tbtn('bg', 'color', 'Дэвсгэр');
-    } else if (sel.k === 'clip') {
-      var m = media[selected().mid] || {}, vid = m.kind === 'video';
-      h = back + tbtn('split', 'split', 'Хуваах') + (vid ? tbtn('speed', 'speed', 'Хурд') + tbtn('vol', 'vol', 'Дуу') : '') +
-        tbtn('filter', 'filter', 'Шүүлтүүр') + tbtn('adj', 'adj', 'Тохируулга') + tbtn('fx', 'fx', 'Эффект') + tbtn('fit', 'crop', 'Байрлал') + tbtn('trans', 'trans', 'Шилжилт') +
-        (vid ? tbtn('freeze', 'freeze', 'Царцаах') + tbtn('extract', 'extract', 'Дуу салгах') : '') +
-        tbtn('mleft', 'left', 'Урагш') + tbtn('mright', 'right', 'Хойш') + tail;
-    } else if (sel.k === 'over') {
-      var o = selected(), mo = media[o.mid] || {};
-      h = back + tbtn('oedit', 'shape', 'Тохиргоо') + (o.kind !== 'emoji' ? tbtn('filter', 'filter', 'Шүүлтүүр') + tbtn('adj', 'adj', 'Тохируулга') + tbtn('chroma', 'chroma', 'Дэвсгэр арилгах') : '') +
-        (mo.kind === 'video' ? tbtn('ovol', 'vol', 'Дуу') : '') + tbtn('split', 'split', 'Хуваах') + tbtn('front', 'front', 'Урд') + tbtn('backl', 'back2', 'Ард') + tail;
-    } else if (sel.k === 'text') {
-      h = back + tbtn('tedit', 'edit', 'Засах') + tbtn('split', 'split', 'Хуваах') + tail;
-    } else {
-      h = back + tbtn('split', 'split', 'Хуваах') + tbtn('avol', 'vol', 'Дуу') + tail;
+    var o = sel && selected(), h;
+    if (!o) h = tbs(ADD_TOOLS) + tbtn('size', 'size', 'Хэмжээ') + tbtn('bg', 'color', 'Дэвсгэр');
+    else {
+      var vid = sel.k === 'clip' && (media[o.mid] || {}).kind === 'video';
+      h = tbtn('desel', 'back', '', 'back') + tbtn('split', 'split', 'Хуваах') + tbs(ctxTools(o)) + (vid ? tbtn('freeze', 'freeze', 'Царцаах') : '') + tbtn('dup', 'dup', 'Хувилах') + tbtn('del', 'del', 'Устгах', 'danger');
     }
     tb.innerHTML = h;
-    if (desk.matches) deskPanel(h, back);
+    // timeline bar state
+    var at = P.clips.length ? clipAt(T) : null;
+    document.getElementById('v-tdel').disabled = !o; document.getElementById('v-tdup').disabled = !o;
+    document.getElementById('v-tsplit').disabled = !o && !at;
+    document.getElementById('v-tfreeze').disabled = !(at && (media[at.c.mid] || {}).kind === 'video');
+    document.getElementById('v-tsnap').classList.toggle('on', snapOn);
+    document.getElementById('v-tmark').classList.toggle('on', markerNear(T) >= 0);
+    if (desk.matches) deskPanel(o);
   }
   var KIND_NAME = { clip: 'Видео клип', over: 'Давхар', text: 'Текст', audio: 'Дуу, хөгжим' };
-  function deskPanel(h, back) {
-    var o = sel && selected(), k = selKey();
+  var lastTab = {};
+  function deskPanel(o) {
+    var k = selKey();
     if (sheetClose && sheetOwner !== k) closeSheet();
-    rail.innerHTML = tbtn('add', 'plus', 'Медиа') + tbtn('stock', 'stock', 'Сан') + tbtn('text', 'text', 'Текст') + tbtn('sticker', 'sticker', 'Стикер') + tbtn('over', 'layer', 'Давхар') +
-      tbtn('music', 'music', 'Хөгжим') + tbtn('rec', 'mic', 'Дуу бичих');
+    if (!rail.firstChild) rail.innerHTML = tbs(ADD_TOOLS);
     var title, sub = '';
     if (!o) {
       title = 'Төсөл'; sub = P.w + '×' + P.h + ' · ' + fmt(total());
       ptools.innerHTML = tbtn('size', 'size', 'Хэмжээ') + tbtn('bg', 'color', 'Дэвсгэр') +
-        '<div class="phint"><p>Доорх timeline дээрх клип, текст, хөгжим эсвэл дэлгэц дээрх зүйл дээр дарж сонгоод энд засна.</p>' +
-        '<dl><dt>Space</dt><dd>Тоглуулах / зогсоох</dd><dt>S</dt><dd>Шугам дээр хуваах</dd><dt>Delete</dt><dd>Устгах</dd><dt>Ctrl+Z</dt><dd>Буцаах</dd><dt>← →</dt><dd>Нэг кадр шилжих (Shift: 1 сек)</dd></dl></div>';
+        '<div class="phint"><p>Доорх timeline эсвэл дэлгэц дээрх зүйл дээр дарж сонгоод энд тохируулна. Хуваах, царцаах, устгах товч timeline-ий дээр байна.</p>' +
+        '<dl><dt>Space</dt><dd>Тоглуулах / зогсоох</dd><dt>S</dt><dd>Шугам дээр хуваах</dd><dt>M</dt><dd>Тэмдэг тавих</dd><dt>N</dt><dd>Соронз асаах / унтраах</dd><dt>Delete</dt><dd>Устгах</dd><dt>Ctrl+Z</dt><dd>Буцаах</dd><dt>Ctrl+D</dt><dd>Хувилах</dd><dt>← →</dt><dd>Нэг кадр (Shift: 1 сек)</dd><dt>Ctrl+хүрд</dt><dd>Timeline томруулах</dd></dl></div>';
     } else {
-      var m = media[o.mid] || {};
+      var m = media[o.mid] || {}, tools = ctxTools(o);
       title = sel.k === 'clip' ? (m.kind === 'image' ? 'Зураг' : 'Видео клип') : sel.k === 'over' ? (o.kind === 'emoji' ? 'Стикер' : m.kind === 'video' ? 'Давхар видео' : 'Давхар зураг') : KIND_NAME[sel.k];
       sub = sel.k === 'text' ? (o.text || '').replace(/\n/g, ' ').slice(0, 40) : sel.k === 'clip' ? fmt(clipLen(o)) : sel.k === 'audio' ? (m.name || '') + ' · ' + fmt(o.out - o.in) : fmt(o.end - o.start);
-      ptools.innerHTML = h.replace(back, '');
+      ptools.innerHTML = tools.length > 1 ? '<div class="ptabs">' + tools.map(function (t) { return '<button type="button" class="tb" data-a="' + t[0] + '">' + ico(t[1]) + '<span>' + t[2] + '</span></button>'; }).join('') + '</div>' : '';
+      // the remembered (or first) tab opens by itself
+      if (k !== lastPanelKey) {
+        var kind = sel.k + (sel.k === 'clip' ? m.kind : ''), want = tools.filter(function (t) { return t[0] === lastTab[kind]; })[0] || tools[0];
+        setTimeout(function () { if (selKey() === k && !sheetClose && ACT[want[0]]) { ACT[want[0]](); markTool(want[0]); } }, 0);
+      } else if (sheetClose) markTool(curTool);
     }
     document.getElementById('v-ptitle').innerHTML = esc(title) + (o ? '<button type="button" class="pclose" data-a="desel" title="Сонголтоо болих (Esc)" aria-label="Сонголтоо болих">✕</button>' : '');
     document.getElementById('v-psub').textContent = sub;
-    // a selected text opens its editor right away
-    if (o && sel.k === 'text' && k !== lastPanelKey) setTimeout(function () { if (selKey() === k && !sheetClose) sheetText(o); }, 0);
     lastPanelKey = k;
   }
-  var lastPanelKey = '';
-  function markTool(a) { ptools.querySelectorAll('.tb').forEach(function (b) { b.classList.toggle('on', b.dataset.a === a); }); }
-  desk.addEventListener('change', function () { closeSheet(); rail.innerHTML = ''; fitCanvas(); refresh(); });
+  var lastPanelKey = '', curTool = '';
+  function markTool(a) {
+    curTool = a; ptools.querySelectorAll('.tb').forEach(function (b) { b.classList.toggle('on', b.dataset.a === a); });
+    var o = sel && selected(); if (o && a) lastTab[sel.k + (sel.k === 'clip' ? (media[o.mid] || {}).kind : '')] = a;
+  }
+  desk.addEventListener('change', function () { closeSheet(); rail.innerHTML = ''; lastPanelKey = '-'; fitCanvas(); refresh(); });
   function refresh() { refreshTB(); renderTL(); draw(); document.getElementById('v-undo').disabled = hi <= 0; document.getElementById('v-redo').disabled = hi >= hist.length - 1; document.getElementById('v-size').innerHTML = ico('size') + '<span>' + sizeName() + '</span>'; }
+  // markers (M) and snapping (N)
+  var snapOn = true;
+  try { snapOn = localStorage.getItem('gc-video-snap') !== '0'; } catch (e) {}
+  function markerNear(t) { var ms = P.markers || []; for (var i = 0; i < ms.length; i++) if (Math.abs(ms[i] - t) < Math.max(0.05, 6 / pps)) return i; return -1; }
+  function toggleMarker() {
+    P.markers = P.markers || []; var i = markerNear(T);
+    if (i >= 0) { P.markers.splice(i, 1); toast('Тэмдэг арилгалаа'); } else { P.markers.push(+T.toFixed(3)); P.markers.sort(function (a, b) { return a - b; }); toast('Тэмдэг тавилаа — дээр нь дарж очно, соронз наалдана'); }
+    commit();
+  }
+  function toggleSnap() { snapOn = !snapOn; try { localStorage.setItem('gc-video-snap', snapOn ? '1' : '0'); } catch (e) {} refreshTB(); toast(snapOn ? 'Соронз асаалттай — ирмэг, шугам, тэмдэгт наалдана' : 'Соронз унтарлаа'); }
   var ACT = {
-    add: function () { pick('video/*,image/*'); }, text: addText, music: function () { pick('audio/*'); }, size: function () { sheetSize(); }, bg: function () { sheetBg(); },
+    add: function () { pick('video/*,image/*,audio/*'); }, text: addText, music: function () { sheetMusic(); }, size: function () { sheetSize(); }, bg: function () { sheetBg(); },
     stock: function () { sheetStock(false); }, sticker: function () { sheetSticker(); }, over: function () { sheetAddOver(); }, rec: function () { sheetRec(); },
-    desel: function () { sel = null; refresh(); }, split: splitSel, del: delSel, dup: dupSel, mleft: function () { moveClip(-1); }, mright: function () { moveClip(1); },
+    desel: function () { sel = null; refresh(); }, split: splitSel, del: delSel, dup: dupSel,
     speed: function () { sheetSpeed(); }, vol: function () { sheetVol(); }, avol: function () { sheetVol(); }, ovol: function () { sheetVol(); }, fit: function () { sheetPos(); }, trans: function () { sheetTrans(); },
-    tedit: function () { sheetText(selected()); }, filter: function () { sheetFilter(); }, adj: function () { sheetAdj(); }, fx: function () { sheetFx(); },
-    freeze: freezeFrame, extract: extractAudio, oedit: function () { sheetOver(); }, chroma: function () { sheetChroma(); }, front: function () { layer(1); }, backl: function () { layer(-1); }
+    tedit: function () { sheetText(selected()); }, color: function () { sheetColor(); }, filter: function () { sheetColor(); }, adj: function () { sheetColor(); }, fx: function () { sheetFx(); },
+    freeze: freezeFrame, extract: extractAudio, oedit: function () { sheetOver(); }, chroma: function () { sheetChroma(); }, mark: toggleMarker, snapt: toggleSnap
   };
   document.addEventListener('click', function (e) {
-    var b = e.target.closest('[data-a]'); if (!b || b.closest('.sheet')) return;
+    var b = e.target.closest('[data-a]'); if (!b || b.closest('.sheet') || b.disabled) return;
     if (ACT[b.dataset.a]) ACT[b.dataset.a]();
     if (desk.matches && sheetClose && b.closest('#v-ptools')) markTool(b.dataset.a);
   });
   document.getElementById('v-play').addEventListener('click', function () { playing ? pause() : play(); });
   document.getElementById('v-undo').addEventListener('click', undo);
   document.getElementById('v-redo').addEventListener('click', redo);
-  document.getElementById('v-zoom').addEventListener('input', function () { pps = +this.value; renderTL(); });
+  function setZoom(np) { pps = Math.round(clamp(np, 8, 400)); document.getElementById('v-zoom').value = Math.min(240, Math.max(20, pps)); renderTL(); }
+  document.getElementById('v-zoom').addEventListener('input', function () { setZoom(+this.value); });
+  document.getElementById('v-zin').addEventListener('click', function () { setZoom(pps * 1.4); });
+  document.getElementById('v-zout').addEventListener('click', function () { setZoom(pps / 1.4); });
+  document.getElementById('v-zfit').addEventListener('click', function () { setZoom((scroller.clientWidth - 160) / Math.max(1, total())); });
   document.getElementById('v-size').addEventListener('click', sheetSize);
   document.getElementById('v-export').addEventListener('click', sheetExport);
   var nameIn = document.getElementById('v-name');
   nameIn.addEventListener('change', function () { P.name = nameIn.value.trim() || 'Нэргүй видео'; commit(); });
   document.addEventListener('keydown', function (e) {
     if (/INPUT|TEXTAREA|SELECT/.test(e.target.tagName) || document.querySelector('.sheet:not(.dock)')) return;
-    var mod = e.ctrlKey || e.metaKey;
+    var mod = e.ctrlKey || e.metaKey, key = e.key.toLowerCase();
     if (e.code === 'Space') { e.preventDefault(); playing ? pause() : play(); }
-    else if (mod && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); }
-    else if (mod && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); }
+    else if (mod && key === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); }
+    else if (mod && key === 'y') { e.preventDefault(); redo(); }
+    else if (mod && key === 'd') { e.preventDefault(); dupSel(); }
     else if ((e.key === 'Delete' || e.key === 'Backspace') && sel) { e.preventDefault(); delSel(); }
-    else if (e.key.toLowerCase() === 's' && !mod) splitSel();
+    else if (mod) return;
+    else if (key === 's' || e.code === 'KeyS') splitSel();
+    else if (key === 'm' || e.code === 'KeyM') toggleMarker();
+    else if (key === 'n' || e.code === 'KeyN') toggleSnap();
+    else if (key === '=' || key === '+') setZoom(pps * 1.25);
+    else if (key === '-') setZoom(pps / 1.25);
+    else if (e.key === 'Home') { seek(0); setScroll(); }
+    else if (e.key === 'End') { seek(total()); setScroll(); }
     else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') { e.preventDefault(); if (playing) pause(); seek(T + (e.key === 'ArrowLeft' ? -1 : 1) * (e.shiftKey ? 1 : 1 / FPS)); setScroll(); }
   });
 
@@ -1107,9 +1312,9 @@
     if (desk.matches) {
       var d = document.createElement('div'); d.className = 'sheet dock'; d.setAttribute('aria-label', title);
       d.innerHTML = '<h3>' + title + '<button type="button" class="done">Болсон</button></h3>' + body;
-      pbody.appendChild(d); sheetOwner = selKey();
+      pbody.appendChild(d); sheetOwner = selKey(); if (sheetOwner) d.classList.add('tabbed'); else document.getElementById('v-panel').classList.add('free');
       requestAnimationFrame(function () { var pn = document.getElementById('v-panel'); pn.scrollTo({ top: Math.max(0, d.offsetTop - 8), behavior: 'smooth' }); });
-      sheetClose = function () { d.remove(); sheetClose = null; markTool(''); if (onClose) onClose(); };
+      sheetClose = function () { d.remove(); sheetClose = null; document.getElementById('v-panel').classList.remove('free'); markTool(''); if (onClose) onClose(); };
       d.querySelector('.done').addEventListener('click', closeSheet);
       return d;
     }
@@ -1162,20 +1367,48 @@
     onOpt(s, 'bgc', function (c) { P.bg = c; draw(); });
     s.querySelector('#v-bgp').addEventListener('input', function () { P.bg = this.value; draw(); });
   }
+  // speed: constant (log slider 0.1×–10× + chips) or a ramp curve
+  var SPEEDS2 = [0.1, 0.25, 0.5, 1, 1.5, 2, 3, 5, 10];
+  function spToV(sp) { return Math.round(Math.log(sp / 0.1) / Math.log(100) * 100); }
+  function vToSp(v) { var sp = 0.1 * Math.pow(100, v / 100); return sp < 1 ? Math.round(sp * 100) / 100 : Math.round(sp * 10) / 10; }
+  function rampSvg(pts) {
+    var d = pts.map(function (p, i) { return (i ? 'L' : 'M') + (p[0] * 76 + 2).toFixed(1) + ' ' + (17 - Math.log(p[1]) / Math.log(2) * 6).toFixed(1); }).join(' ');
+    return '<svg viewBox="0 0 80 34" class="rsv"><path d="M2 17H78" stroke="#ffffff30" stroke-dasharray="2 3"/><path d="' + d + '" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"/></svg>';
+  }
   function sheetSpeed() {
-    var c = selected();
-    var s = sheet('Хурд', opts(SPEEDS.map(function (v) { return [v, v + '×']; }), c.speed, 'sp') + '<p class="note">Удаашруулахад (0.5×) хөдөлгөөн зөөлөн, хурдасгахад (2×) богино болно. Дуу нь хурдтайгаа хамт өөрчлөгдөнө.</p>', commit);
-    onOpt(s, 'sp', function (v) { c.speed = +v; changed(); });
+    var c = selected(); if (!c || sel.k !== 'clip') return;
+    var curve = !!rampPts(c);
+    var s = sheet('Хурд', opts([['const', 'Тогтмол хурд'], ['curve', 'Муруй (speed ramp)']], curve ? 'curve' : 'const', 'smode') +
+      '<div id="v-sconst"' + (curve ? ' hidden' : '') + '><label class="lbl">Хурд</label><div class="rowv"><input type="range" id="v-sp" min="0" max="100" value="' + spToV(c.speed) + '"><b id="v-spv">' + c.speed + '×</b></div>' +
+      opts(SPEEDS2.map(function (v) { return [v, v + '×']; }), c.speed, 'sp') + '</div>' +
+      '<div id="v-scurve" class="rgrid"' + (curve ? '' : ' hidden') + '>' + RAMPS.slice(1).map(function (r) { return '<button type="button" data-rp="' + r[0] + '" class="' + (c.ramp === r[0] ? 'on' : '') + '">' + rampSvg(r[2]) + '<span>' + r[1] + '</span></button>'; }).join('') + '</div>' +
+      '<p class="note" id="v-sdur"></p>', commit);
+    var sl = s.querySelector('#v-sp'), sv = s.querySelector('#v-spv'), dur = s.querySelector('#v-sdur');
+    function info() { dur.textContent = 'Клипийн урт: ' + fmt(clipLen(c)) + (rampPts(c) ? ' · Муруй нь удаан хэсэгт хөдөлгөөнийг онцолж, хурдан хэсэгт алгасна.' : ' · Дуу нь хурдтайгаа хамт өөрчлөгдөнө.'); }
+    function setSp(v) { c.speed = v; c.ramp = 'none'; sv.textContent = v + '×'; sl.value = spToV(v); s.querySelectorAll('[data-sp]').forEach(function (q) { q.classList.toggle('on', +q.dataset.sp === v); }); info(); changed(); }
+    sl.addEventListener('input', function () { setSp(vToSp(+sl.value)); });
+    s.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-sp]'); if (b) return setSp(+b.dataset.sp);
+      var r = e.target.closest('[data-rp]'); if (r) { c.ramp = r.dataset.rp; s.querySelectorAll('[data-rp]').forEach(function (q) { q.classList.toggle('on', q === r); }); info(); changed(); previewRange(startOf(c.id) + 0.01, Math.min(clipLen(c), 5)); }
+    });
+    onOpt(s, 'smode', function (v) {
+      s.querySelector('#v-sconst').hidden = v !== 'const'; s.querySelector('#v-scurve').hidden = v !== 'curve';
+      if (v === 'const') { c.ramp = 'none'; s.querySelectorAll('[data-rp]').forEach(function (q) { q.classList.remove('on'); }); info(); changed(); }
+    });
+    info();
   }
   function sheetVol() {
-    var o = selected(), isA = sel.k === 'audio'; if (o.vol == null) o.vol = 1;
-    var s = sheet(isA ? 'Хөгжмийн дуу' : sel.k === 'over' ? 'Давхар видеоны дуу' : 'Клипийн дуу',
-      '<label class="lbl">Дууны түвшин</label><div class="rowv"><input type="range" id="v-vol" min="0" max="100" value="' + Math.round(o.vol * 100) + '"><b id="v-volv">' + Math.round(o.vol * 100) + '%</b></div>' +
-      (isA ? '<label class="lbl">Эхлэл, төгсгөл</label><div class="opts"><button type="button" class="opt' + (o.fadeIn ? ' on' : '') + '" data-fd="in">Зөөлөн эхлэх</button><button type="button" class="opt' + (o.fadeOut ? ' on' : '') + '" data-fd="out">Зөөлөн дуусах</button></div>'
-        : '<label class="lbl">Дуугүй болгох</label>' + opts([['0', 'Дуутай'], ['1', 'Дуугүй']], o.mute ? '1' : '0', 'mu')), commit);
+    var o = selected(), isA = sel.k === 'audio', vidClip = sel.k === 'clip' && (media[o.mid] || {}).kind === 'video'; if (o.vol == null) o.vol = 1;
+    var s = sheet(isA ? 'Дуу, хөгжим' : sel.k === 'over' ? 'Давхар видеоны дуу' : 'Клипийн дуу',
+      '<label class="lbl">Дууны түвшин</label><div class="rowv"><input type="range" id="v-vol" min="0" max="200" value="' + Math.round(o.vol * 100) + '"><b id="v-volv">' + Math.round(o.vol * 100) + '%</b></div>' +
+      (isA ? '<label class="lbl">Эхлэл, төгсгөл</label><div class="opts"><button type="button" class="opt' + (o.fadeIn ? ' on' : '') + '" data-fd="in">Зөөлөн эхлэх</button><button type="button" class="opt' + (o.fadeOut ? ' on' : '') + '" data-fd="out">Зөөлөн дуусах</button></div>' +
+        (o.credit ? '<p class="note">' + esc(o.credit) + '</p>' : '')
+        : '<label class="lbl">Дуугүй болгох</label>' + opts([['0', 'Дуутай'], ['1', 'Дуугүй']], o.mute ? '1' : '0', 'mu')) +
+      (vidClip ? '<button type="button" class="btn-g" id="v-extract" style="width:100%;margin-top:14px">' + ico('extract') + 'Дууг тусад нь салгах</button><p class="note">Салгасан дуу «Дуу, хөгжим» мөрөнд гарч, тусад нь тайрч, зөөж болно.</p>' : ''), commit);
     s.querySelector('#v-vol').addEventListener('input', function () { o.vol = this.value / 100; s.querySelector('#v-volv').textContent = this.value + '%'; if (!isA) o.mute = o.vol === 0; changed(); });
     if (isA) s.addEventListener('click', function (e) { var b = e.target.closest('[data-fd]'); if (!b) return; var k = b.dataset.fd === 'in' ? 'fadeIn' : 'fadeOut'; o[k] = !o[k]; b.classList.toggle('on', o[k]); });
     else onOpt(s, 'mu', function (v) { o.mute = v === '1'; changed(); });
+    var ex = s.querySelector('#v-extract'); if (ex) ex.addEventListener('click', function () { closeSheet(); extractAudio(); });
   }
   function sheetPos() {
     var c = selected(); if (!c || sel.k !== 'clip') return;
@@ -1245,43 +1478,50 @@
       changed();
     });
   }
-  // ---------- filters, adjustments, effects ----------
+  // ---------- colour (filter + adjustments in one place), effects ----------
   function thumbOf(o, isC) {
     var m = media[o.mid], el = m && (isC || m.kind !== 'video' ? m.el : elFor(o)), c = document.createElement('canvas'); c.width = 96; c.height = 96;
     var x = c.getContext('2d'); x.fillStyle = '#333'; x.fillRect(0, 0, 96, 96);
     if (el && (m.kind !== 'video' || el.readyState >= 2)) { var wh = srcWH(m, el), k = Math.max(96 / wh[0], 96 / wh[1]); try { x.drawImage(el, (96 - wh[0] * k) / 2, (96 - wh[1] * k) / 2, wh[0] * k, wh[1] * k); } catch (e) {} }
     return c;
   }
-  function sheetFilter() {
-    var o = selected(); if (!o || (sel.k !== 'clip' && sel.k !== 'over')) return;
-    var isC = sel.k === 'clip';
-    var s = sheet('Шүүлтүүр', '<div class="fgrid">' + FILTERS.map(function (f) { return '<button type="button" data-fl="' + f[0] + '" class="' + ((o.filter || 'none') === f[0] ? 'on' : '') + '"><canvas width="96" height="96"></canvas>' + f[1] + '</button>'; }).join('') + '</div>' +
-      (isC ? '<button type="button" class="btn-g" id="v-flall" style="margin-top:12px;width:100%">Бүх клипт хэрэглэх</button>' : '') +
+  var ADJG = [['Гэрэл', [['br', 'Гэрэлтүүлэг', -100, 100], ['ct', 'Контраст', -100, 100], ['fade', 'Бүдэг (matte)', 0, 100, 1]]],
+    ['Өнгө', [['sat', 'Ханалт', -100, 100], ['warm', 'Дулаан / Хүйтэн', -100, 100, 1], ['tint', 'Ногоон / Ягаан', -100, 100, 1], ['hue', 'Өнгө эргүүлэх', -100, 100]]],
+    ['Нөлөө', [['vig', 'Захын харанхуй', 0, 100, 1], ['grain', 'Ширхэг', 0, 100, 1], ['blur', 'Бүдэгрүүлэх', 0, 100]]]];
+  function sheetColor() {
+    var o = selected(); if (!o || (sel.k !== 'clip' && sel.k !== 'over') || o.kind === 'emoji') return;
+    var isC = sel.k === 'clip'; o.adj = o.adj || {};
+    var fs = o.fstr == null ? 100 : o.fstr;
+    var s = sheet('Өнгө', '<label class="lbl" style="margin-top:0">Шүүлтүүр</label><div class="fgrid">' + FILTERS.map(function (f) { return '<button type="button" data-fl="' + f[0] + '" class="' + ((o.filter || 'none') === f[0] ? 'on' : '') + '"><canvas width="96" height="96"></canvas>' + f[1] + '</button>'; }).join('') + '</div>' +
+      (isC ? '<label class="lbl">Шүүлтүүрийн хүч</label><div class="rowv"><input type="range" id="v-fs" min="0" max="100" value="' + fs + '"><b id="v-fsv">' + fs + '%</b></div>' : '') +
+      ADJG.map(function (g) {
+        var rows = g[1].filter(function (a) { return isC || !a[4]; }); if (!rows.length) return '';
+        return '<div class="agrp"><b>' + g[0] + '</b>' + rows.map(function (a) { var v = o.adj[a[0]] || 0; return '<label class="lbl">' + a[1] + '</label><div class="rowv"><input type="range" data-adj="' + a[0] + '" min="' + a[2] + '" max="' + a[3] + '" value="' + v + '"><b>' + v + '</b></div>'; }).join('') + '</div>';
+      }).join('') +
+      '<div class="opts" style="margin-top:14px"><button type="button" class="opt" id="v-adr">Анхны байдал</button>' + (isC ? '<button type="button" class="opt" id="v-adall">Бүх клипт хэрэглэх</button>' : '') + '</div>' +
       (HAS_FILTER ? '' : '<p class="note">Энэ хөтөч шүүлтүүрийг харуулж чадахгүй байна — Chrome, Edge, Firefox дээр ажиллана.</p>'), commit);
     var base = thumbOf(o, isC);
     s.querySelectorAll('[data-fl]').forEach(function (b, i) { var x = b.querySelector('canvas').getContext('2d'); if (FILTERS[i][2] && HAS_FILTER) x.filter = FILTERS[i][2]; x.drawImage(base, 0, 0); });
     onOpt(s, 'fl', function (v) { o.filter = v; draw(); });
-    var all = s.querySelector('#v-flall');
-    if (all) all.addEventListener('click', function () { P.clips.forEach(function (c) { c.filter = o.filter; }); draw(); toast('Бүх клипт хэрэглэлээ'); });
-  }
-  var ADJ = [['br', 'Гэрэлтүүлэг', -100, 100], ['ct', 'Контраст', -100, 100], ['sat', 'Өнгө ханалт', -100, 100], ['warm', 'Дулаан / Хүйтэн', -100, 100], ['hue', 'Өнгө эргүүлэх', -100, 100], ['vig', 'Захын харанхуй', 0, 100]];
-  function sheetAdj() {
-    var o = selected(); if (!o || (sel.k !== 'clip' && sel.k !== 'over')) return;
-    var isC = sel.k === 'clip', list = ADJ.filter(function (a) { return isC || (a[0] !== 'warm' && a[0] !== 'vig'); });
-    o.adj = o.adj || {};
-    var s = sheet('Тохируулга', list.map(function (a) {
-      var v = o.adj[a[0]] || 0;
-      return '<label class="lbl">' + a[1] + '</label><div class="rowv"><input type="range" data-adj="' + a[0] + '" min="' + a[2] + '" max="' + a[3] + '" value="' + v + '"><b>' + v + '</b></div>';
-    }).join('') + '<div class="opts" style="margin-top:14px"><button type="button" class="opt" id="v-adr">Анхны байдал</button>' + (isC ? '<button type="button" class="opt" id="v-adall">Бүх клипт хэрэглэх</button>' : '') + '</div>', commit);
+    var fsl = s.querySelector('#v-fs'); if (fsl) fsl.addEventListener('input', function () { o.fstr = +fsl.value; s.querySelector('#v-fsv').textContent = fsl.value + '%'; draw(); });
     s.addEventListener('input', function (e) { var r = e.target.closest('[data-adj]'); if (!r) return; o.adj[r.dataset.adj] = +r.value; r.nextElementSibling.textContent = r.value; draw(); });
-    s.querySelector('#v-adr').addEventListener('click', function () { o.adj = {}; s.querySelectorAll('[data-adj]').forEach(function (r) { r.value = 0; r.nextElementSibling.textContent = '0'; }); draw(); });
+    s.querySelector('#v-adr').addEventListener('click', function () {
+      o.adj = {}; o.filter = 'none'; o.fstr = 100; if (fsl) { fsl.value = 100; s.querySelector('#v-fsv').textContent = '100%'; }
+      s.querySelectorAll('[data-adj]').forEach(function (r) { r.value = 0; r.nextElementSibling.textContent = '0'; });
+      s.querySelectorAll('[data-fl]').forEach(function (q) { q.classList.toggle('on', q.dataset.fl === 'none'); }); draw();
+    });
     var all = s.querySelector('#v-adall');
-    if (all) all.addEventListener('click', function () { P.clips.forEach(function (c) { c.adj = JSON.parse(JSON.stringify(o.adj)); }); toast('Бүх клипт хэрэглэлээ'); });
+    if (all) all.addEventListener('click', function () { P.clips.forEach(function (c) { c.filter = o.filter; c.fstr = o.fstr; c.adj = JSON.parse(JSON.stringify(o.adj)); }); draw(); toast('Бүх клипт хэрэглэлээ'); });
   }
   function sheetFx() {
     var c = selected(); if (!c || sel.k !== 'clip') return;
-    var s = sheet('Эффект', opts(FXS, c.fx || 'none', 'fx') + '<p class="note">Сонгоход клипийн эхнээс 2 секунд тоглож харуулна.</p>', commit);
+    var amt = c.fxAmt == null ? 50 : c.fxAmt;
+    var s = sheet('Эффект', '<div class="opts"><button type="button" class="opt' + (!c.fx || c.fx === 'none' ? ' on' : '') + '" data-fx="none">Байхгүй</button></div>' +
+      FXCATS.map(function (g) { return '<label class="lbl">' + g[0] + '</label><div class="opts">' + g[1].map(function (f) { return '<button type="button" class="opt' + (c.fx === f[0] ? ' on' : '') + '" data-fx="' + f[0] + '">' + f[1] + '</button>'; }).join('') + '</div>'; }).join('') +
+      '<label class="lbl">Хүч</label><div class="rowv"><input type="range" id="v-fa" min="5" max="100" value="' + amt + '"><b id="v-fav">' + amt + '</b></div>' +
+      '<p class="note">Сонгоход клипийн эхнээс 2 секунд тоглож харуулна.</p>', commit);
     onOpt(s, 'fx', function (v) { c.fx = v; previewRange(startOf(c.id) + 0.01, Math.min(clipLen(c), 2)); });
+    s.querySelector('#v-fa').addEventListener('input', function () { c.fxAmt = +this.value; s.querySelector('#v-fav').textContent = this.value; draw(); });
   }
 
   // ---------- overlays: settings, background removal ----------
@@ -1294,6 +1534,7 @@
       '<label class="lbl">Тунгалаг</label><div class="rowv"><input type="range" id="v-op" min="5" max="100" value="' + op + '"><b id="v-opv">' + op + '%</b></div>' +
       '<label class="lbl">Гарч ирэх</label>' + opts(OANIMS, o.anim || 'none', 'oa') +
       '<label class="lbl">Байрлал</label><div class="opts">' + (em ? '' : '<button type="button" class="opt" data-pos="full">Бүтэн дэлгэц</button>') + '<button type="button" class="opt" data-pos="center">Голлуулах</button><button type="button" class="opt" data-pos="flip">⇋ Толин</button><button type="button" class="opt" data-pos="rot0">Эргэлтгүй</button></div>' +
+      '<label class="lbl">Давхаргын дараалал</label><div class="opts"><button type="button" class="opt" data-pos="front">Хамгийн урд</button><button type="button" class="opt" data-pos="back">Хамгийн ард</button></div>' +
       '<p class="note">Дэлгэц дээр чирж байрлуулна. Булангаас нь чирж томруулж, дээд бөмбөлгөөр эргүүлнэ (утсан дээр хоёр хуруугаар).</p>', commit);
     var ow = s.querySelector('#v-ow'), owv = s.querySelector('#v-owv');
     onOpt(s, 'osh', function (v) { o.shape = v; draw(); });
@@ -1304,6 +1545,7 @@
       var b = e.target.closest('[data-pos]'); if (!b) return;
       var p = b.dataset.pos;
       if (p === 'full') { var bx = ovBox(o), ar = bx ? bx.h / bx.w : 1; o.x = 0.5; o.y = 0.5; o.rot = 0; o.shape = 'rect'; o.w = Math.max(1, P.h / (P.w * ar)); s.querySelectorAll('[data-osh]').forEach(function (q) { q.classList.toggle('on', q.dataset.osh === 'rect'); }); }
+      else if (p === 'front' || p === 'back') { var li = P.overlays.indexOf(o); P.overlays.splice(li, 1); if (p === 'front') P.overlays.push(o); else P.overlays.unshift(o); toast(p === 'front' ? 'Урд гаргалаа' : 'Ард орууллаа'); }
       else if (p === 'center') { o.x = 0.5; o.y = 0.5; }
       else if (p === 'flip') o.flip = !o.flip;
       else o.rot = 0;
@@ -1361,7 +1603,9 @@
       '<p class="note" style="margin:0 0 12px">Үндсэн видеоны дээр өөр видео, зураг, стикер давхарлана (зураг доторх зураг). Ногоон дэвсгэртэй бол арилгаж болно.</p>' +
       '<div class="opts" style="flex-direction:column"><button type="button" class="opt" data-ao="file" style="text-align:left;min-height:52px">📁  Төхөөрөмжөөс видео, зураг</button>' +
       '<button type="button" class="opt" data-ao="stock" style="text-align:left;min-height:52px">🎞  Сангаас (Pexels, Pixabay)</button>' +
-      '<button type="button" class="opt" data-ao="sticker" style="text-align:left;min-height:52px">😀  Стикер</button></div>');
+      '<button type="button" class="opt" data-ao="sticker" style="text-align:left;min-height:52px">😀  Стикер</button></div>' +
+      '<label class="lbl">Холбоосоор нэмэх</label><div class="srch"><input type="url" id="v-ourl" placeholder="https://…/video.mp4" spellcheck="false"><button type="button" class="btn-g" id="v-ourlgo">Нэмэх</button></div>');
+    s.querySelector('#v-ourlgo').addEventListener('click', function () { var u = s.querySelector('#v-ourl').value.trim(); if (!u) return; closeSheet(); addFromLink(u, true); });
     s.addEventListener('click', function (e) {
       var b = e.target.closest('[data-ao]'); if (!b) return; var a = b.dataset.ao; closeSheet();
       if (a === 'file') pick('video/*,image/*', true); else if (a === 'stock') sheetStock(true); else sheetSticker();
@@ -1417,6 +1661,112 @@
       }).catch(function () { b.classList.remove('busy'); toast('Татаж чадсангүй. Дахин оролдоно уу.'); });
     });
     load(true);
+  }
+
+  // ---------- music library (free Creative Commons music + sound effects via /api/music), own files, links ----------
+  var MOODS = [['', 'Алдартай', ''], ['happy', 'Хөгжилтэй', 'happy upbeat'], ['energy', 'Эрч хүчтэй', 'energetic upbeat'], ['calm', 'Тайван', 'calm relaxing'], ['lofi', 'Lo-fi', 'lofi chill'],
+    ['cine', 'Кино', 'cinematic epic'], ['love', 'Романтик', 'romantic love'], ['pop', 'Поп', 'pop'], ['hiphop', 'Хип хоп', 'hip hop beat'], ['edm', 'Электрон', 'electronic dance'],
+    ['acoustic', 'Гитар', 'acoustic guitar'], ['piano', 'Төгөлдөр хуур', 'piano'], ['sad', 'Гунигтай', 'sad emotional'], ['corp', 'Бизнес', 'corporate background'], ['kids', 'Хүүхэд', 'kids playful']];
+  var SFX = [['', 'Алдартай', ''], ['whoosh', 'Шуугих', 'whoosh'], ['click', 'Товшилт', 'click'], ['pop', 'Поп', 'pop'], ['ding', 'Хонх', 'ding bell'], ['applause', 'Алга ташилт', 'applause'],
+    ['laugh', 'Инээд', 'laugh'], ['boom', 'Тэсрэлт', 'boom impact'], ['swoosh', 'Шилжилт', 'transition swoosh'], ['camera', 'Камер', 'camera shutter'], ['notif', 'Мэдэгдэл', 'notification'],
+    ['nature', 'Байгаль', 'nature birds'], ['rain', 'Бороо', 'rain'], ['crowd', 'Олон хүн', 'crowd']];
+  var musQ = { cat: 'music', mood: '', q: '', com: false };
+  var prevAud = null;
+  function stopPreview() { if (prevAud) { prevAud.pause(); prevAud.removeAttribute('src'); prevAud.load(); } document.querySelectorAll('.mrow.pl').forEach(function (r) { r.classList.remove('pl'); }); }
+  function addAudioFile(file, credit) {
+    return loadMedia(file, 'audio').then(function (m) {
+      var st = T < total() - 0.5 ? T : 0;
+      var a = { id: uid(), mid: m.id, start: st, in: 0, out: m.dur, vol: 1, fadeIn: false, fadeOut: true };
+      if (credit) a.credit = credit;
+      P.audios.push(a); sel = { k: 'audio', id: a.id }; commit(); toast('Хөгжим нэмэгдлээ');
+    });
+  }
+  function sheetMusic() {
+    var s = sheet('Хөгжим, дуу', opts([['music', 'Хөгжим'], ['sound_effect', 'Дуу эффект'], ['mine', 'Өөрийн файл']], musQ.cat, 'mcat') +
+      '<div id="v-mlib"><div class="srch" style="margin-top:12px"><input type="text" id="v-mq" placeholder="Хайх: summer, гитар, хөгжилтэй…" value="' + esc(musQ.q) + '" enterkeyhint="search"><button type="button" class="btn-x" id="v-mgo">Хайх</button></div>' +
+      '<div class="chips" id="v-mmood"></div>' +
+      '<label class="chk"><input type="checkbox" id="v-mcom"' + (musQ.com ? ' checked' : '') + '> Зөвхөн арилжаанд (бизнест) ашиглаж болох</label>' +
+      '<div class="mlist" id="v-ml"></div><button type="button" class="btn-g" id="v-mmore" style="width:100%;margin-top:10px" hidden>Цааш үзэх</button>' +
+      '<p class="note">Creative Commons лицензтэй үнэгүй хөгжим (Jamendo, Freesound, ccMixter — <a href="https://openverse.org" target="_blank" rel="noopener" style="color:inherit">Openverse</a>). «CC BY» бол видеоныхоо тайлбарт зохиогчийг дурдана — татах үед бэлэн текст гарна. «NC» нь арилжааны бус.</p></div>' +
+      '<div id="v-mmine" hidden><button type="button" class="btn-x" id="v-mfile" style="width:100%;margin-top:14px;height:46px">' + ico('plus') + 'Төхөөрөмжөөс дуу сонгох</button>' +
+      '<label class="lbl">Холбоосоор нэмэх</label><div class="srch"><input type="url" id="v-murl" placeholder="https://…/song.mp3" spellcheck="false"><button type="button" class="btn-g" id="v-murlgo">Нэмэх</button></div>' +
+      '<p class="note">mp3, m4a, wav, ogg файлын шууд холбоос. Мөн mp4 видеоны холбоос оруулбал видео нь нэмэгдэнэ. YouTube, TikTok-ийн хуудасны холбоос ажиллахгүй.</p></div>',
+      stopPreview);
+    var list = s.querySelector('#v-ml'), more = s.querySelector('#v-mmore'), qIn = s.querySelector('#v-mq'), page = 1, items = [], seq = 0;
+    function chips() { var src = musQ.cat === 'sound_effect' ? SFX : MOODS; s.querySelector('#v-mmood').innerHTML = src.map(function (m) { return '<button type="button" class="chip2' + (musQ.mood === m[0] ? ' on' : '') + '" data-md="' + m[0] + '">' + m[1] + '</button>'; }).join(''); }
+    function load(reset) {
+      if (reset) { page = 1; items = []; list.innerHTML = '<p class="note">Ачаалж байна…</p>'; stopPreview(); }
+      var my = ++seq, src = musQ.cat === 'sound_effect' ? SFX : MOODS, mood = src.filter(function (m) { return m[0] === musQ.mood; })[0], q = (musQ.q + ' ' + (mood ? mood[2] : '')).trim();
+      more.hidden = true;
+      fetch('/api/music?cat=' + musQ.cat + '&q=' + encodeURIComponent(q) + '&page=' + page + (musQ.com ? '&com=1' : '')).then(function (r) { return r.json(); }).then(function (d) {
+        if (my !== seq) return;
+        if (!d || d.error) throw new Error(d && d.error);
+        if (reset) list.innerHTML = '';
+        if (!(d.items || []).length && reset) list.innerHTML = '<p class="note">Олдсонгүй. Өөр үгээр (англиар илүү сайн) хайгаад үзээрэй.</p>';
+        (d.items || []).forEach(function (it) {
+          items.push(it);
+          var r = document.createElement('div'); r.className = 'mrow'; r.dataset.mi = items.length - 1;
+          r.innerHTML = '<button type="button" class="mplay" data-mp aria-label="Сонсох">' + ico('play') + ico('pause') + '</button>' +
+            '<span class="mt"><b>' + esc(it.title) + '</b><small>' + esc(it.author || '') + (it.dur ? ' · ' + fmt(it.dur).replace(/\.\d$/, '') : '') + ' · <em>' + esc(it.license || 'CC') + '</em></small></span>' +
+            '<button type="button" class="btn-g madd" data-ma>' + ico('plus') + '<span>Нэмэх</span></button>';
+          list.appendChild(r);
+        });
+        more.hidden = (d.items || []).length < 15;
+      }).catch(function () { if (my === seq) list.innerHTML = '<p class="note">Хөгжмийн сан ачаалж чадсангүй. Дахин оролдоно уу.</p>'; });
+    }
+    function go() { musQ.q = qIn.value.trim(); load(true); }
+    s.querySelector('#v-mgo').addEventListener('click', go);
+    qIn.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); go(); } });
+    s.querySelector('#v-mcom').addEventListener('change', function () { musQ.com = this.checked; load(true); });
+    onOpt(s, 'mcat', function (v) {
+      var mine = v === 'mine'; s.querySelector('#v-mlib').hidden = mine; s.querySelector('#v-mmine').hidden = !mine; stopPreview();
+      if (!mine) { musQ.cat = v; musQ.mood = ''; chips(); load(true); }
+    });
+    more.addEventListener('click', function () { page++; load(false); });
+    s.addEventListener('click', function (e) {
+      var c = e.target.closest('[data-md]');
+      if (c) { musQ.mood = c.dataset.md; s.querySelectorAll('[data-md]').forEach(function (q) { q.classList.toggle('on', q === c); }); load(true); return; }
+      var row = e.target.closest('.mrow'); if (!row) return;
+      var it = items[+row.dataset.mi], fu = '/api/music/file?u=' + encodeURIComponent(it.file);
+      if (e.target.closest('[data-mp]')) {
+        var on = row.classList.contains('pl'); stopPreview(); if (on) return;
+        prevAud = prevAud || new Audio(); prevAud.src = fu; prevAud.play().catch(function () { toast('Сонсгож чадсангүй'); row.classList.remove('pl'); });
+        prevAud.onended = function () { row.classList.remove('pl'); };
+        row.classList.add('pl'); return;
+      }
+      if (e.target.closest('[data-ma]')) {
+        var b = e.target.closest('[data-ma]'); if (b.disabled) return; b.disabled = true; b.querySelector('span').textContent = 'Татаж байна…';
+        fetch(fu).then(function (r) { if (!r.ok) throw new Error('http'); return r.blob(); }).then(function (blob) {
+          var type = /^audio\//.test(blob.type) ? blob.type : 'audio/mpeg';
+          var credit = '«' + it.title + '» — ' + (it.author || 'тодорхойгүй') + ' (' + (it.license || 'CC') + (it.source ? ', ' + it.source : '') + ')' + (it.page ? ' ' + it.page : '');
+          closeSheet();
+          return addAudioFile(new File([blob], it.title + (it.author ? ' — ' + it.author : '') + '.mp3', { type: type }), credit);
+        }).catch(function () { b.disabled = false; b.querySelector('span').textContent = 'Нэмэх'; toast('Татаж чадсангүй. Өөр дуу сонгоод үзээрэй.'); });
+      }
+    });
+    s.querySelector('#v-mfile').addEventListener('click', function () { closeSheet(); pick('audio/*'); });
+    var uIn = s.querySelector('#v-murl');
+    function addUrl() { var u = uIn.value.trim(); if (!u) return uIn.focus(); closeSheet(); addFromLink(u); }
+    s.querySelector('#v-murlgo').addEventListener('click', addUrl);
+    uIn.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); addUrl(); } });
+    if (musQ.cat === 'mine') { s.querySelector('#v-mlib').hidden = true; s.querySelector('#v-mmine').hidden = false; } else { chips(); load(true); }
+  }
+  // a direct file link (audio → music track, video / photo → main track) through the site's /api/fetch
+  function addFromLink(u, asOver) {
+    if (!/^https?:\/\//i.test(u)) u = 'https://' + u;
+    if (/(youtube\.com|youtu\.be|tiktok\.com|instagram\.com|facebook\.com|fb\.watch)/i.test(u)) { toast('YouTube, TikTok, Instagram, Facebook-ийн хуудаснаас шууд татах боломжгүй. Файлаа татаад «Медиа»-гаар нэмнэ үү.', 5000); return Promise.resolve(); }
+    toast('Холбоосоос татаж байна…', 10000);
+    return fetch('/api/fetch?u=' + encodeURIComponent(u)).then(function (r) {
+      if (r.status === 415) throw new Error('not_media'); if (r.status === 413) throw new Error('too_large'); if (!r.ok) throw new Error('http');
+      return r.blob();
+    }).then(function (blob) {
+      var name = decodeURIComponent((u.split('?')[0].split('/').pop() || 'file')).slice(0, 80) || 'file';
+      var f = new File([blob], name, { type: blob.type });
+      if (/^audio\//.test(blob.type)) return addAudioFile(f);
+      return addFiles([f], asOver);
+    }).catch(function (e) {
+      toast(e.message === 'not_media' ? 'Энэ холбоос дуу, видео, зургийн шууд файл биш байна (.mp3, .mp4, .jpg гэх мэтээр төгссөн холбоос хэрэгтэй)' : e.message === 'too_large' ? 'Файл хэт том байна (150 MB хүртэл)' : 'Холбоосоос татаж чадсангүй', 5000);
+    });
   }
 
   // ---------- voice-over ----------
@@ -1505,7 +1855,9 @@
           var od = Math.min(Math.min(s.o.end, D) - s.o.start, b.duration - oi);
           if (od > 0) src.start(s.o.start, oi, od);
         } else if (s.c) {
-          src.playbackRate.value = s.c.speed; g.gain.value = s.c.vol;
+          g.gain.value = s.c.vol;
+          if (rampPts(s.c)) { var Lc = clipLen(s.c); src.playbackRate.setValueAtTime(rateAt(s.c, 0), s.start); for (var q = 1; q <= 48; q++) src.playbackRate.linearRampToValueAtTime(rateAt(s.c, Lc * q / 48), s.start + Lc * q / 48); }
+          else src.playbackRate.value = s.c.speed;
           src.start(s.start, Math.min(s.c.in, b.duration), Math.max(0, Math.min(s.c.out, b.duration) - s.c.in));
         } else {
           var a = s.a, len = a.out - a.in, end = Math.min(a.start + len, D);
@@ -1545,7 +1897,7 @@
     var go = restart ? (function () {
       v.pause(); if (xPlay.indexOf(v) < 0) xPlay.push(v);
       return seekV(v, target).then(function () { v._mt = v.currentTime; v.playbackRate = speed; var pr = v.play(); return pr ? pr.catch(function () {}) : null; });
-    })() : Promise.resolve();
+    })() : (Math.abs(v.playbackRate - speed) > 0.01 ? (v.playbackRate = speed, Promise.resolve()) : Promise.resolve());
     return go.then(function () {
       if (v._mt >= target - tol) return;
       return new Promise(function (res) {
@@ -1561,7 +1913,7 @@
   // every video that must show a frame at time t: the main clip and any video overlays
   function framesAt(t) {
     var need = [], ps = [], at = P.clips.length ? clipAt(t) : null;
-    if (at && media[at.c.mid].kind === 'video') { var m = media[at.c.mid]; need.push(m.el); ps.push(frameAt(m.el, at.c.speed, Math.min(m.dur - 0.01, at.c.in + at.local * at.c.speed), m.dur)); }
+    if (at && media[at.c.mid].kind === 'video') { var m = media[at.c.mid]; need.push(m.el); ps.push(frameAt(m.el, clamp(rateAt(at.c, at.local), 0.0625, 16), Math.min(m.dur - 0.01, srcAt(at.c, at.local)), m.dur)); }
     P.overlays.forEach(function (o) {
       var mo = media[o.mid]; if (!mo || mo.kind !== 'video' || t < o.start || t >= o.end) return;
       var v = elFor(o); need.push(v); ps.push(frameAt(v, 1, Math.min(mo.dur - 0.01, (o.in || 0) + (t - o.start)), mo.dur));
@@ -1573,13 +1925,16 @@
   function sheetExport() {
     if (!total()) return toast('Эхлээд видео, зураг эсвэл текст нэмнэ үү');
     pause();
+    var seen = {}, credits = P.audios.map(function (a) { return a.credit; }).filter(function (c) { if (!c || seen[c]) return false; seen[c] = 1; return true; }).map(function (c) { return 'Хөгжим: ' + c; }).join('\n');
     var s = sheet('Видео татах',
       '<label class="lbl">Файлын нэр</label><input type="text" id="v-xname" value="' + esc(P.name) + '" spellcheck="false">' +
       '<label class="lbl">Чанар</label>' + opts([['1', 'Бүрэн (' + P.w + '×' + P.h + ')'], ['720', 'Хурдан (720p)']], '1', 'q') +
       '<p class="note">Урт: ' + fmt(total()) + ' · 30 кадр/сек · MP4. Видео зөвхөн энэ төхөөрөмж дээр бэлтгэгдэнэ — дуустал энэ хуудсыг хаалгүй байгаарай.</p>' +
+      (credits ? '<label class="lbl">Хөгжмийн эх сурвалж — нийтлэлийнхээ тайлбарт хуулж тавина уу</label><textarea id="v-xcred" readonly style="min-height:64px;font-size:13px">' + esc(credits) + '</textarea><button type="button" class="btn-g" id="v-xcopy" style="margin-top:8px">Хуулах</button>' : '') +
       '<div id="v-xout"><button type="button" class="btn-x" id="v-xgo" style="width:100%;margin-top:14px;height:46px">' + ico('dl') + 'MP4 бэлтгэх</button></div>',
       function () { if (exporting) exporting.cancel = true; });
     var q = '1'; onOpt(s, 'q', function (v) { q = v; });
+    var cp = s.querySelector('#v-xcopy'); if (cp) cp.addEventListener('click', function () { var ta = s.querySelector('#v-xcred'); ta.select(); (navigator.clipboard ? navigator.clipboard.writeText(ta.value) : Promise.reject()).catch(function () { document.execCommand('copy'); }); toast('Хууллаа'); });
     s.querySelector('#v-xname').addEventListener('change', function () { P.name = this.value.trim() || 'Нэргүй видео'; nameIn.value = P.name; save(); });
     s.querySelector('#v-xgo').addEventListener('click', function () { runExport(s, q === '720' ? 720 : 0); });
   }

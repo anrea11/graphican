@@ -4,13 +4,17 @@
     GET /api/stock?src=pexels|pixabay&type=photo|vector|video&q=&page=
     GET /api/stock/file?u=<media url>          (CORS proxy so images can be used/exported on the canvas; Range-aware for video)
     GET /api/stock/video?id=<pexels id>[&poster=1|&info=1]   (template videos: redirects to the HD mp4 / poster through the proxy)
+    GET /api/music?q=&cat=music|sound_effect&page=&com=1   (free Creative Commons music / sound effects from Openverse — Jamendo, Freesound, ccMixter…)
+    GET /api/fetch?u=<https url>               (video editor "add from link": a direct audio / video / image file, same-site callers only)
   Workers AI (binding "AI" in wrangler.jsonc) for the PDF editor:
     POST /api/ai/translate  {texts:[...], source, target}  -> {texts:[...]}   (per-line edge cache → Microsoft Translator if AZURE_TRANSLATOR_KEY is set → Llama 3.3 → m2m100)
     GET  /api/ai/ping[?az=1]  live check of Workers AI, or with az=1 of Microsoft Translator (key, region, quota)
     POST /api/i18n          {texts:[...]} -> {texts:[...]}   (site English UI: strings missing from assets/i18n-en.js, edge-cached)
     POST /api/ai/chat       {mode:'summary'|'ask', text, question, lang} -> {answer}
 */
-const MEDIA_HOSTS = ['images.pexels.com', 'videos.pexels.com', 'player.vimeo.com', 'i.vimeocdn.com', 'cdn.pixabay.com', 'pixabay.com'];
+const MEDIA_HOSTS = ['images.pexels.com', 'videos.pexels.com', 'player.vimeo.com', 'i.vimeocdn.com', 'cdn.pixabay.com', 'pixabay.com',
+  // Openverse audio sources (music library of the video editor)
+  'jamendo.com', 'freesound.org', 'ccmixter.org', 'wikimedia.org', 'openverse.org', 'freemusicarchive.org'];
 // find a key even if the secret was named slightly differently (PEXELS_API_KEY, pexels, trailing spaces…)
 function findKey(env, word) {
   const exact = env[word + '_KEY'];
@@ -139,6 +143,52 @@ async function file(url, request) {
   h.set('cache-control', /^image\//.test(h.get('content-type')) ? 'public, max-age=2592000, immutable' : 'public, max-age=86400');
   const name = url.searchParams.get('dl');
   if (name) h.set('content-disposition', `attachment; filename="${name.replace(/[^\w.\-]+/g, '_')}"`);
+  return new Response(r.body, { status: r.status === 206 ? 206 : 200, headers: h });
+}
+
+// free music / sound effects: Openverse (CC-licensed audio, no key needed), 24h edge cache
+async function music(url, env, ctx) {
+  const qIn = (url.searchParams.get('q') || '').trim().slice(0, 100);
+  const q = (await toEnglish(qIn, env, ctx)).slice(0, 100);
+  const cat = url.searchParams.get('cat') === 'sound_effect' ? 'sound_effect' : 'music';
+  const page = Math.max(1, Math.min(20, parseInt(url.searchParams.get('page') || '1', 10) || 1));
+  const com = url.searchParams.get('com') === '1';
+  const ck = new Request(`https://stock.cache/music/v1/${cat}/${com ? 1 : 0}/${page}/${encodeURIComponent(q.toLowerCase())}`);
+  const cache = caches.default, hit = await cache.match(ck);
+  if (hit) return hit;
+  const u = new URL('https://api.openverse.org/v1/audio/');
+  u.searchParams.set('q', q || (cat === 'music' ? 'background music' : 'whoosh'));
+  u.searchParams.set('category', cat); u.searchParams.set('page', page); u.searchParams.set('page_size', '20');
+  u.searchParams.set('mature', 'false');
+  if (com) u.searchParams.set('license_type', 'commercial');
+  const r = await fetch(u.toString(), { headers: { 'User-Agent': 'Graphican/1.0 (https://graphican.online; video editor music library)', Accept: 'application/json' } });
+  if (r.status === 400 || r.status === 404) return json({ items: [], page, q: qIn });
+  if (!r.ok) return json({ error: r.status === 429 ? 'rate_limit' : 'upstream', status: r.status }, 502);
+  const d = await r.json();
+  const items = (d.results || []).filter(a => a.url && /^https:/.test(a.url) && MEDIA_HOSTS.some(h => { try { const n = new URL(a.url).hostname; return n === h || n.endsWith('.' + h); } catch (e) { return false; } }))
+    .map(a => ({ id: a.id, title: a.title || 'Нэргүй', author: a.creator || '', authorUrl: a.creator_url || '', page: a.foreign_landing_url || '', file: a.url,
+      dur: a.duration ? Math.round(a.duration / 1000) : 0, license: (a.license || '').toUpperCase() + (a.license_version ? ' ' + a.license_version : ''), licenseUrl: a.license_url || '',
+      source: a.source || a.provider || '', genres: (a.genres || []).slice(0, 3), type: a.filetype || '' }));
+  const res = json({ items, page, total: d.result_count || 0, q: qIn, qEn: q !== qIn ? q : undefined }, 200, { 'cache-control': 'public, max-age=3600, s-maxage=86400' });
+  ctx.waitUntil(cache.put(ck, res.clone()));
+  return res;
+}
+// "add from link" in the video editor: any direct https media file, but only for this site's own pages and only media types
+async function fetchMedia(url, request) {
+  const site = request.headers.get('sec-fetch-site'), o = request.headers.get('origin') || '';
+  if (!(site === 'same-origin' || ALLOWED.test(o))) return json({ error: 'forbidden' }, 403);
+  let t; try { t = new URL(url.searchParams.get('u') || ''); } catch (e) { return json({ error: 'bad_url' }, 400); }
+  if (!/^https?:$/.test(t.protocol) || /^(localhost|127\.|10\.|192\.168\.|169\.254\.|0\.)/.test(t.hostname)) return json({ error: 'bad_url' }, 400);
+  const range = request.headers.get('range');
+  let r;
+  try { r = await fetch(t.toString(), { headers: range ? { Range: range } : {}, redirect: 'follow' }); } catch (e) { return json({ error: 'unreachable' }, 502); }
+  if (!r.ok) return json({ error: 'upstream', status: r.status }, 502);
+  const type = (r.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
+  if (!/^(audio|video|image)\//.test(type)) return json({ error: 'not_media', type }, 415);
+  const len = +(r.headers.get('content-length') || 0);
+  if (len > 150 * 1048576) return json({ error: 'too_large' }, 413);
+  const h = new Headers({ 'content-type': type, 'access-control-allow-origin': '*', 'cache-control': 'private, max-age=3600' });
+  ['content-length', 'content-range', 'accept-ranges'].forEach(k => { if (r.headers.get(k)) h.set(k, r.headers.get(k)); });
   return new Response(r.body, { status: r.status === 206 ? 206 : 200, headers: h });
 }
 
@@ -413,6 +463,9 @@ export default {
     if (url.pathname === '/api/stock') return search(url, env, ctx);
     if (url.pathname === '/api/stock/file') return file(url, request);
     if (url.pathname === '/api/stock/video') return video(url, env, ctx, request);
+    if (url.pathname === '/api/music') return music(url, env, ctx);
+    if (url.pathname === '/api/music/file') return file(url, request);
+    if (url.pathname === '/api/fetch') return fetchMedia(url, request);
     if (url.pathname === '/api/stock/health') // names only — never values
       return json({ pexels: !!findKey(env, 'PEXELS'), pixabay: !!findKey(env, 'PIXABAY'), azure: !!azKey(env), azureRegion: (env.AZURE_TRANSLATOR_REGION || env.AZURE_REGION || '').trim() || 'global', names: Object.keys(env).filter(n => n !== 'ASSETS' && n !== 'AI'), ai: !!env.AI }, 200, { 'cache-control': 'no-store' });
     if (url.pathname === '/api/ai/ping' && url.searchParams.get('az')) { // live check of Microsoft Translator (key, region, quota)
