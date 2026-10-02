@@ -150,6 +150,7 @@
     freeze: '<path d="M12 2v20M3.3 7l17.4 10M3.3 17L20.7 7"/>', extract: '<path d="M3 12h3l2-5 4 10 2-5h7"/>',
     crop: '<path d="M6 2v14a2 2 0 0 0 2 2h14M2 6h14a2 2 0 0 1 2 2v14"/>', chroma: '<rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 15l5-5 4 4 3-3 6 6"/>',
     front: '<rect x="8" y="8" width="12" height="12" rx="2" fill="currentColor"/><path d="M4 16V6a2 2 0 0 1 2-2h10"/>', back2: '<rect x="4" y="4" width="12" height="12" rx="2"/><path d="M20 8v10a2 2 0 0 1-2 2H8"/>',
+    kf: '<path d="M12 3l6 9-6 9-6-9z"/>',
     person: '<circle cx="12" cy="7" r="3.5"/><path d="M5 21a7 7 0 0 1 14 0"/><path d="M3 3l18 18" stroke-dasharray="2 2"/>',
     cc: '<rect x="3" y="5" width="18" height="14" rx="3"/><path d="M10 10.5a2 2 0 1 0 0 3M16 10.5a2 2 0 1 0 0 3"/>',
     shape: '<rect x="3" y="3" width="8" height="8" rx="2"/><circle cx="17" cy="17" r="4"/><path d="M17 3l4 7h-8z"/>', rec: '<circle cx="12" cy="12" r="8" fill="currentColor"/>'
@@ -316,7 +317,7 @@
   function zoomAt(ctx, W, H, z) { ctx.translate(W / 2, H / 2); ctx.scale(z, z); ctx.translate(-W / 2, -H / 2); }
   // one clip frame: position, filters, adjustments (effects live on their own timeline track — see fxPre / renderFrame)
   function drawClip(ctx, at, W, H, xf) {
-    var c = at.c, real = at.local, tf = xf || '';
+    var c = kfView(at.c, at.local, 'clip'), real = at.local, tf = xf || '';
     ctx.save();
     var str = c.fstr == null ? 100 : c.fstr, full = filterOf(c, W), base = str < 100 && c.filter && c.filter !== 'none' ? filterOf(c, W, true) : full;
     function withAdd(f) { f = (f === 'none' ? '' : f) + (tf ? ' ' + tf : ''); return f.trim() || 'none'; }
@@ -512,19 +513,122 @@
     return out;
   }
   function contrast(hex) { var n = parseInt(hex.slice(1), 16), r = n >> 16, g = (n >> 8) & 255, b = n & 255; return (r * 299 + g * 587 + b * 114) / 1000 > 150 ? '#111111' : '#ffffff'; }
+  // ---------- keyframes: snapshots of position / size / rotation / opacity at times inside an item; values glide between them ----------
+  var KF_PROPS = { over: ['x', 'y', 'w', 'rot', 'opacity'], text: ['x', 'y', 'size', 'rot', 'op'], clip: ['zoom', 'px', 'py', 'rot'] };
+  var KF_DEF = { opacity: 1, op: 1, rot: 0, zoom: 1, px: 0, py: 0 };
+  function kfLocal(k, o) { return k === 'clip' ? T - startOf(o.id) : T - o.start; }
+  function kfLen(k, o) { return k === 'clip' ? clipLen(o) : o.end - o.start; }
+  function kfAt(o, p, lt) {
+    var kf = o.kf, d = o[p] == null ? KF_DEF[p] : o[p];
+    function g(s) { return s[p] == null ? d : s[p]; }
+    if (lt <= kf[0].t) return g(kf[0]);
+    for (var i = 1; i < kf.length; i++) if (lt <= kf[i].t) {
+      var a = kf[i - 1], b = kf[i], f = (lt - a.t) / ((b.t - a.t) || 1);
+      if (o.kfe !== 'lin') f = f < 0.5 ? 2 * f * f : 1 - Math.pow(-2 * f + 2, 2) / 2;
+      return g(a) + (g(b) - g(a)) * f;
+    }
+    return g(kf[kf.length - 1]);
+  }
+  function kfView(o, lt, k) {
+    if (!o.kf || !o.kf.length) return o;
+    var v = {}, key; for (key in o) v[key] = o[key];
+    KF_PROPS[k].forEach(function (p) { v[p] = kfAt(o, p, lt); });
+    return v;
+  }
+  // before editing: the item's own values = what is shown at the playhead
+  function kfSync(o, k) { if (!o || !o.kf || !o.kf.length) return; var v = kfView(o, kfLocal(k, o), k); KF_PROPS[k].forEach(function (p) { o[p] = v[p]; }); }
+  // after editing: write the values into the keyframe at the playhead (makes one there if needed) — only for items with keyframes
+  function kfRecord(o, k) {
+    if (!o || !o.kf || !o.kf.length) return;
+    var lt = clamp(kfLocal(k, o), 0, kfLen(k, o)), s = null;
+    o.kf.forEach(function (q) { if (Math.abs(q.t - lt) < 0.05) s = q; });
+    if (!s) { s = { t: Math.round(lt * 1000) / 1000 }; o.kf.push(s); o.kf.sort(function (a, b) { return a.t - b.t; }); }
+    KF_PROPS[k].forEach(function (p) { s[p] = o[p] == null ? KF_DEF[p] : o[p]; });
+  }
+  function kfNear(o, k) { var lt = kfLocal(k, o), hit = -1; (o.kf || []).forEach(function (q, i) { if (Math.abs(q.t - lt) < 0.05) hit = i; }); return hit; }
+  function kfShift(o, d) { if (o.kf) o.kf = o.kf.map(function (q) { var c = {}, x; for (x in q) c[x] = q[x]; c.t = Math.round((q.t + d) * 1000) / 1000; return c; }); }
+  var KF_PRE = { over: [['zin', 'Томрох'], ['left', 'Зүүнээс орох'], ['spin', 'Эргэж орох'], ['fadein', 'Тодорч орох'], ['drift', 'Аажим гулсах'], ['grow', 'Аажим томрох']],
+    text: [['zin', 'Томрох'], ['left', 'Зүүнээс орох'], ['spin', 'Эргэж орох'], ['fadein', 'Тодорч орох'], ['drift', 'Аажим гулсах'], ['grow', 'Аажим томрох']],
+    clip: [['grow', 'Аажим ойртох'], ['shrink', 'Аажим холдох'], ['panl', 'Зүүн тийш гулсах'], ['panr', 'Баруун тийш гулсах'], ['tilt', 'Эргэлдэх']] };
+  function kfPreset(o, k, name) {
+    kfSync(o, k);
+    var L = kfLen(k, o), base = {}, a = {}, b = {}, t1 = Math.min(1, L * 0.5), sz = k === 'over' ? 'w' : 'size';
+    KF_PROPS[k].forEach(function (p) { base[p] = o[p] == null ? KF_DEF[p] : o[p]; a[p] = base[p]; b[p] = base[p]; });
+    if (k === 'clip') {
+      t1 = L;
+      if (name === 'grow') { a.zoom = base.zoom; b.zoom = base.zoom * 1.3; }
+      else if (name === 'shrink') { a.zoom = base.zoom * 1.3; b.zoom = base.zoom; }
+      else if (name === 'panl') { a.zoom = b.zoom = Math.max(1.2, base.zoom); a.px = 0.08; b.px = -0.08; }
+      else if (name === 'panr') { a.zoom = b.zoom = Math.max(1.2, base.zoom); a.px = -0.08; b.px = 0.08; }
+      else if (name === 'tilt') { a.zoom = b.zoom = Math.max(1.25, base.zoom); a.rot = -4; b.rot = 4; }
+    } else {
+      if (name === 'zin') a[sz] = base[sz] * 0.4;
+      else if (name === 'left') a.x = -0.3;
+      else if (name === 'spin') { a.rot = base.rot - 180; a[sz] = base[sz] * 0.3; }
+      else if (name === 'fadein') a[k === 'over' ? 'opacity' : 'op'] = 0;
+      else if (name === 'drift') { t1 = L; a.x = base.x - 0.05; b.x = base.x + 0.05; }
+      else if (name === 'grow') { t1 = L; b[sz] = base[sz] * 1.25; }
+    }
+    a.t = 0; b.t = Math.round(t1 * 1000) / 1000;
+    o.kf = [a, b];
+  }
+  function sheetKf() {
+    var o = selected(), k = sel && sel.k; if (!o || !KF_PROPS[k]) return;
+    var n = (o.kf || []).length, near = kfNear(o, k), L = kfLen(k, o), base = k === 'clip' ? startOf(o.id) : o.start;
+    var s = sheet('Keyframe', '<p class="note" style="margin:0">Keyframe нь тухайн мөчийн байрлал, хэмжээ, эргэлт' + (k === 'clip' ? '' : ', тунгалгийг') + ' хадгална — хооронд нь зөөлөн хөдөлнө. Keyframe-тэй үед дэлгэц дээр чирэх, томруулах нь шугам дээрх keyframe-ийг засна.</p>' +
+      '<div class="opts" style="margin-top:12px"><button type="button" class="opt kfbtn' + (near >= 0 ? ' on' : '') + '" id="v-kft">' + (near >= 0 ? '◆ Энэ keyframe-ийг арилгах' : '◇ Шугам дээр keyframe нэмэх') + '</button>' +
+      '<button type="button" class="opt" id="v-kfp">◀</button><button type="button" class="opt" id="v-kfn">▶</button></div>' +
+      (n ? '<label class="lbl">Keyframe-үүд (' + n + ')</label><div class="opts">' + o.kf.map(function (q, i) { return '<button type="button" class="opt' + (i === near ? ' on' : '') + '" data-kfi="' + i + '">◆ ' + fmt(q.t) + '</button>'; }).join('') + '</div>' +
+        '<label class="lbl">Хөдөлгөөн</label>' + opts([['smooth', 'Зөөлөн'], ['lin', 'Жигд']], o.kfe || 'smooth', 'kfe') +
+        '<div class="opts" style="margin-top:10px"><button type="button" class="opt" id="v-kfplay">▶ Тоглуулж үзэх</button><button type="button" class="opt" id="v-kfclr">Бүгдийг арилгах</button></div>' : '') +
+      '<label class="lbl">Бэлэн хөдөлгөөн</label><div class="opts">' + KF_PRE[k].map(function (q) { return '<button type="button" class="opt" data-kfpre="' + q[0] + '">' + q[1] + '</button>'; }).join('') + '</div>', commit);
+    function again() { commit(); sel = { k: k, id: o.id }; sheetKf(); }
+    function go(t) { if (playing) pause(); seek(base + clamp(t, 0, L - 0.01) + 0.001); setScroll(); refreshTB(); again(); }
+    s.querySelector('#v-kft').addEventListener('click', function () {
+      if (T < base || T > base + L) return toast('Шугамыг энэ хэсэг дээр аваачна уу');
+      var i = kfNear(o, k);
+      if (i >= 0) { o.kf.splice(i, 1); if (!o.kf.length) o.kf = null; }
+      else { kfSync(o, k); o.kf = o.kf || []; var s2 = { t: Math.round(kfLocal(k, o) * 1000) / 1000 }; KF_PROPS[k].forEach(function (p) { s2[p] = o[p] == null ? KF_DEF[p] : o[p]; }); o.kf.push(s2); o.kf.sort(function (a, b) { return a.t - b.t; }); }
+      draw(); again();
+    });
+    s.querySelector('#v-kfp').addEventListener('click', function () { var lt = kfLocal(k, o), c = (o.kf || []).filter(function (q) { return q.t < lt - 0.05; }).pop(); if (c) go(c.t); });
+    s.querySelector('#v-kfn').addEventListener('click', function () { var lt = kfLocal(k, o), c = (o.kf || []).filter(function (q) { return q.t > lt + 0.05; })[0]; if (c) go(c.t); });
+    s.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-kfi]'); if (b) { go(o.kf[+b.dataset.kfi].t); return; }
+      var pr = e.target.closest('[data-kfpre]'); if (pr) { kfPreset(o, k, pr.dataset.kfpre); draw(); commit(); previewRange(base + 0.01, Math.min(L, 3)); sel = { k: k, id: o.id }; setTimeout(function () { if (!playing) sheetKf(); }, 50); }
+    });
+    onOpt(s, 'kfe', function (v) { o.kfe = v; draw(); });
+    var pl = s.querySelector('#v-kfplay'); if (pl) pl.addEventListener('click', function () { previewRange(base + 0.01, Math.min(L, 6)); });
+    var cl = s.querySelector('#v-kfclr'); if (cl) cl.addEventListener('click', function () { kfSync(o, k); o.kf = null; draw(); again(); });
+  }
+
+  var OUT_ANIMS = [['none', 'Байхгүй'], ['fade', 'Бүдгэрэх'], ['up', 'Дээш'], ['down', 'Доош'], ['shrink', 'Жижгэрэх'], ['pop', 'Тэсрэх']];
+  // the out animation (last ~0.4 s): scale, offset and opacity factors
+  function outAnim(kind, lo, L, still) {
+    var r = { a: 1, sc: 1, dy: 0, rr: 0 }; if (still || !kind || kind === 'none') return r;
+    var d = Math.min(0.4, L / 3); if (lo >= d) return r;
+    var q = clamp(lo / d, 0, 1), e = ease(q), u = Math.min(P.w, P.h) * 0.08;
+    r.a = q;
+    if (kind === 'up') r.dy = -(1 - e) * u; else if (kind === 'down') r.dy = (1 - e) * u;
+    else if (kind === 'shrink') r.sc = 0.2 + 0.8 * e; else if (kind === 'pop') r.sc = 1 + (1 - q) * 0.35;
+    else if (kind === 'spin') { r.sc = e; r.rr = (1 - e) * 200; }
+    return r;
+  }
   function drawText(ctx, x, t, still) {
+    x = kfView(x, t - x.start, 'text');
     var dIn = Math.min(0.4, (x.end - x.start) / 3), dOut = Math.min(0.25, (x.end - x.start) / 4);
-    var a = 1, sc = 1, dy = 0, txt = x.text, li = t - x.start, lo = x.end - t;
+    var a = x.op == null ? 1 : x.op, sc = 1, dy = 0, txt = x.text, li = t - x.start, lo = x.end - t;
     if (x.anim !== 'none' && !still) {
       if (li < dIn) {
         var p = li / dIn;
-        if (x.anim === 'fade') a = p;
-        else if (x.anim === 'pop') { sc = 0.5 + 0.5 * backOut(p); a = Math.min(1, p * 2); }
-        else if (x.anim === 'slide') { dy = (1 - ease(p)) * Math.min(P.w, P.h) * 0.06; a = p; }
+        if (x.anim === 'fade') a *= p;
+        else if (x.anim === 'pop') { sc = 0.5 + 0.5 * backOut(p); a *= Math.min(1, p * 2); }
+        else if (x.anim === 'slide') { dy = (1 - ease(p)) * Math.min(P.w, P.h) * 0.06; a *= p; }
       }
       if (x.anim === 'type') { var n = Math.floor(Array.from(txt).length * clamp(li / Math.min(1.2, (x.end - x.start) * 0.6), 0, 1)); txt = Array.from(txt).slice(0, n).join(''); }
-      if (lo < dOut) a *= clamp(lo / dOut, 0, 1);
     }
+    var oa = outAnim(x.out == null ? (x.anim !== 'none' ? 'fade' : 'none') : x.out, lo, x.end - x.start, still);
+    a *= oa.a; sc *= oa.sc; dy += oa.dy;
     var st = textStyle(x); ctx.font = st.font; ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
     var lines = wrap(ctx, x.text, P.w * 0.86), lh = st.px * 1.18, maxW = 0;
     lines.forEach(function (l) { maxW = Math.max(maxW, ctx.measureText(l).width); });
@@ -622,6 +726,7 @@
     return keyC;
   }
   function drawOver(ctx, o, t, still) {
+    o = kfView(o, t - o.start, 'over');
     var b = ovBox(o); if (!b) return; lastBox[o.id] = b;
     var a = o.opacity == null ? 1 : o.opacity, sc = 1, dy = 0, rr = 0, L = o.end - o.start, li = t - o.start, lo = o.end - t;
     if (o.anim && o.anim !== 'none' && !still) {
@@ -634,8 +739,9 @@
         else if (o.anim === 'zoom') { sc = 0.15 + 0.85 * e; }
         else if (o.anim === 'spin') { sc = e; rr = (1 - e) * -200; }
       }
-      var dOut = Math.min(0.25, L / 4); if (lo < dOut) a *= clamp(lo / dOut, 0, 1);
     }
+    var oa = outAnim(o.out == null ? (o.anim && o.anim !== 'none' ? 'fade' : 'none') : o.out, lo, L, still);
+    a *= oa.a; sc *= oa.sc; dy += oa.dy; rr += oa.rr;
     if (a <= 0.001 || sc <= 0.001) return;
     var el = null, m = null;
     if (o.kind !== 'emoji') { m = media[o.mid]; if (!m) return; el = m.kind === 'video' ? elFor(o) : m.el; if (!el || (m.kind === 'video' && el.readyState < 2)) return; }
@@ -842,7 +948,7 @@
       if (m.kind === 'video' && m.strip) bg = 'background-image:url(' + m.strip + ');background-size:' + (m.dur / avgSpeed(c) * pps) + 'px 100%;background-position:' + (-c.in / avgSpeed(c) * pps) + 'px 0;background-repeat:no-repeat;';
       else if (m.kind === 'image' && m.url) bg = 'background-image:url(' + m.url + ');';
       h += '<div class="it v' + (on ? ' on' : '') + '" data-k="clip" data-id="' + c.id + '" style="left:' + (x0 * pps) + 'px;width:' + Math.max(8, L * pps - 2) + 'px;' + bg + '">' +
-        '<span class="nm">' + (rampPts(c) ? '〰 ' : c.speed !== 1 ? c.speed + '× · ' : '') + fmt(L) + (c.mute ? ' · 🔇' : '') + '</span><span class="hd l" data-h="l"></span><span class="hd r" data-h="r"></span></div>';
+        '<span class="nm">' + (rampPts(c) ? '〰 ' : c.speed !== 1 ? c.speed + '× · ' : '') + fmt(L) + (c.mute ? ' · 🔇' : '') + '</span>' + kfDots(c) + '<span class="hd l" data-h="l"></span><span class="hd r" data-h="r"></span></div>';
       var has = c.tr && c.tr !== 'none';
       if (has) h += '<div class="trband" data-trb="' + c.id + '" style="left:' + (x0 * pps) + 'px;width:' + Math.max(6, trDur(c) * pps) + 'px" title="Шилжилт: ' + esc(trName(c.tr)) + ' · ' + trDur(c).toFixed(1) + 'с — захаас нь чирж уртасгана"><span class="trh" data-trh="' + c.id + '"></span></div>';
       if (i > 0 || has) h += '<button type="button" class="tr-badge' + (has ? ' on' : '') + '" data-tr="' + c.id + '" style="left:' + (x0 * pps) + 'px" title="' + (has ? 'Шилжилт: ' + esc(trName(c.tr)) : 'Шилжилт нэмэх') + '" aria-label="Шилжилт">' + (has ? ico('trans') : ico('plus')) + '</button>';
@@ -868,7 +974,7 @@
         if (k === 'over' && md.kind === 'image') bg = 'background-image:url(' + md.url + ');background-size:auto 100%;';
         nm = k === 'text' ? (it.text || 'Текст').replace(/\n/g, ' ') : k === 'over' ? (it.kind === 'emoji' ? it.emoji : (md.kind === 'video' ? '▶ ' : '') + (md.name || 'Давхар')) : k === 'fx' ? '✦ ' + fxName(it.fx) : '♪ ' + (md.name || 'Хөгжим');
         out += '<div class="it ' + ({ text: 't', over: 'o', fx: 'e', audio: 'a' })[k] + (on ? ' on' : '') + '" data-k="' + k + '" data-id="' + it.id + '" style="left:' + (a * pps) + 'px;width:' + Math.max(10, (b - a) * pps - 2) + 'px;top:' + ((n - 1 - (it.ln || 0)) * LH + 1) + 'px;height:' + (LH - 3) + 'px;' + bg + '">' +
-          '<span class="nm">' + esc(nm) + '</span><span class="hd l" data-h="l"></span><span class="hd r" data-h="r"></span></div>';
+          '<span class="nm">' + esc(nm) + '</span>' + kfDots(it) + '<span class="hd l" data-h="l"></span><span class="hd r" data-h="r"></span></div>';
       });
       h += out + '</div>';
       heads += '<span class="k-' + k + '" style="top:' + top + 'px;height:' + (n * LH) + 'px">' + ico(r[2]) + r[1] + '</span>';
@@ -881,6 +987,7 @@
     document.getElementById('v-empty').style.display = P.clips.length || P.texts.length || P.overlays.length ? 'none' : '';
     timeLabel();
   }
+  function kfDots(o) { return (o.kf || []).map(function (q) { return '<i class="kfd" style="left:' + (q.t * pps) + 'px"></i>'; }).join(''); }
   function trName(id) { var n = ''; TRGROUPS.forEach(function (g) { g[1].forEach(function (t) { if (t[0] === id) n = t[1]; }); }); return n; }
   function fxName(id) { var n = id; FXCATS.forEach(function (g) { g[1].forEach(function (t) { if (t[0] === id) n = t[1]; }); }); return n; }
 
@@ -979,12 +1086,12 @@
       if (m.kind === 'image') { if (drag.h === 'l') { o.in = 0; o.out = clamp(s.out - d, 0.3, 3600); } else if (drag.h === 'r') { o.in = 0; o.out = clamp(sn(st + s.out + d) - st, 0.3, 3600); } }
     } else if (drag.k === 'over') {
       var mo = media[o.mid], lim = mo && mo.kind === 'video' ? mo.dur : Infinity, L0 = s.end - s.start;
-      if (drag.h === 'l') { var ls = sn(s.start + d), nd0 = clamp(ls - s.start, lim === Infinity ? -s.start : Math.max(-s.start, -s.in), L0 - 0.2); o.start = s.start + nd0; if (lim !== Infinity) o.in = s.in + nd0; }
+      if (drag.h === 'l') { var ls = sn(s.start + d), nd0 = clamp(ls - s.start, lim === Infinity ? -s.start : Math.max(-s.start, -s.in), L0 - 0.2); o.start = s.start + nd0; if (lim !== Infinity) o.in = s.in + nd0; o.kf = s.kf; kfShift(o, -(o.start - s.start)); }
       else if (drag.h === 'r') o.end = clamp(sn(s.end + d), s.start + 0.2, lim === Infinity ? Infinity : s.start + (lim - s.in));
       else { o.start = moveBar(s.start, L0); o.end = o.start + L0; }
     } else if (drag.k === 'text') {
       var L = s.end - s.start;
-      if (drag.h === 'l') o.start = clamp(sn(s.start + d), 0, s.end - 0.2);
+      if (drag.h === 'l') { o.start = clamp(sn(s.start + d), 0, s.end - 0.2); o.kf = s.kf; kfShift(o, -(o.start - s.start)); }
       else if (drag.h === 'r') o.end = Math.max(s.start + 0.2, sn(s.end + d));
       else { o.start = moveBar(s.start, L); o.end = o.start + L; }
     } else {
@@ -1051,7 +1158,7 @@
     if (!hit && sel && sel.k === 'clip') {
       var at = clipAt(T);
       if (at && at.c.id === sel.id) {
-        e.preventDefault(); if (playing) pause();
+        e.preventDefault(); if (playing) pause(); kfSync(at.c, 'clip');
         pdrag = { k: 'clip', id: at.c.id, p: p, x: at.c.px || 0, y: at.c.py || 0, moved: false };
         try { cv.setPointerCapture(e.pointerId); } catch (er) {}
         return;
@@ -1060,7 +1167,7 @@
     if (!hit) { if (playing) pause(); else if (sel) { sel = null; refresh(); } return; }
     e.preventDefault(); if (playing) pause();
     var again = sel && sel.k === hit.k && sel.id === hit.o.id;
-    sel = { k: hit.k, id: hit.o.id }; refreshTB(); renderTL(); draw();
+    sel = { k: hit.k, id: hit.o.id }; refreshTB(); renderTL(); draw(); kfSync(hit.o, hit.k);
     pdrag = { k: hit.k, id: hit.o.id, p: p, x: hit.o.x, y: hit.o.y, moved: false, again: again };
     try { cv.setPointerCapture(e.pointerId); } catch (er) {}
   });
@@ -1073,12 +1180,12 @@
     if (pdrag.k === 'clip') {
       var sx0 = Math.abs(pdrag.x + dx) < 0.015, sy0 = Math.abs(pdrag.y + dy) < 0.015;
       o.px = sx0 ? 0 : clamp(pdrag.x + dx, -1.5, 1.5); o.py = sy0 ? 0 : clamp(pdrag.y + dy, -1.5, 1.5);
-      guides(sx0, sy0); draw(); return;
+      kfRecord(o, 'clip'); guides(sx0, sy0); draw(); return;
     }
     var nx = pdrag.x + dx, ny = pdrag.y + dy;
     var sx = Math.abs(nx - 0.5) < 0.02, sy = Math.abs(ny - 0.5) < 0.015;
     o.x = sx ? 0.5 : clamp(nx, -0.2, 1.2); o.y = sy ? 0.5 : clamp(ny, -0.2, 1.2);
-    guides(sx, sy); draw();
+    kfRecord(o, pdrag.k); guides(sx, sy); draw();
   });
   cv.addEventListener('pointerup', function () {
     downs = Math.max(0, downs - 1);
@@ -1094,7 +1201,7 @@
   cv.addEventListener('touchstart', function (e) {
     var o = selected(); if (e.touches.length !== 2 || !o) return;
     var a = e.touches[0], b = e.touches[1];
-    pdrag = null;
+    pdrag = null; kfSync(o, sel.k);
     pin2 = { d: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY), ang: Math.atan2(b.clientY - a.clientY, b.clientX - a.clientX), o: o, k: sel.k, w: o.w, size: o.size, zoom: o.zoom || 1, rot: o.rot || 0 };
   }, { passive: true });
   cv.addEventListener('touchmove', function (e) {
@@ -1104,7 +1211,7 @@
     if (pin2.k === 'over') { o.w = clamp(pin2.w * f, 0.03, 3); o.rot = snapRot(pin2.rot + da); }
     else if (pin2.k === 'text') { o.size = clamp(pin2.size * f, 0.015, 0.4); o.rot = snapRot(pin2.rot + da); }
     else if (pin2.k === 'clip') o.zoom = clamp(pin2.zoom * f, 0.3, 4);
-    draw();
+    kfRecord(o, pin2.k); draw();
   }, { passive: false });
   cv.addEventListener('touchend', function (e) { if (pin2 && e.touches.length < 2) { pin2 = null; commit(); } });
   function snapRot(r) { r = ((r % 360) + 540) % 360 - 180; for (var q = -180; q <= 180; q += 90) if (Math.abs(r - q) < 5) return q === -180 ? 180 : q; return Math.round(r * 10) / 10; }
@@ -1112,7 +1219,7 @@
   var hdrag = null;
   document.getElementById('v-sel').addEventListener('pointerdown', function (e) {
     var h = e.target.closest('[data-hd]'), o = selected(); if (!h || !o) return;
-    e.preventDefault(); e.stopPropagation();
+    e.preventDefault(); e.stopPropagation(); kfSync(o, sel.k);
     var b = lastBox[o.id], r = cv.getBoundingClientRect(), k = r.width / P.w, c = { x: r.left + b.cx * k, y: r.top + b.cy * k };
     hdrag = { mode: h.dataset.hd, o: o, c: c, d: Math.hypot(e.clientX - c.x, e.clientY - c.y) || 1, w: o.w, size: o.size, rot: o.rot || 0, a: Math.atan2(e.clientY - c.y, e.clientX - c.x) };
     try { h.setPointerCapture(e.pointerId); } catch (er) {}
@@ -1124,7 +1231,7 @@
       var f = Math.hypot(e.clientX - c.x, e.clientY - c.y) / hdrag.d;
       if (sel.k === 'over') o.w = clamp(hdrag.w * f, 0.03, 3); else o.size = clamp(hdrag.size * f, 0.015, 0.4);
     } else o.rot = snapRot(hdrag.rot + (Math.atan2(e.clientY - c.y, e.clientX - c.x) - hdrag.a) * 180 / Math.PI);
-    draw();
+    kfRecord(o, sel.k); draw();
   });
   function hEnd() { if (hdrag) { hdrag = null; commit(); } }
   document.getElementById('v-sel').addEventListener('pointerup', hEnd);
@@ -1290,13 +1397,13 @@
     if (sel.k === 'clip') {
       var st = startOf(o.id), loc = T - st, L = clipLen(o);
       if (loc < 0.1 || loc > L - 0.1) return toast('Шугамыг клипийн дунд аваачаад хуваана уу');
-      var c2 = JSON.parse(JSON.stringify(o)); c2.id = uid(); c2.tr = 'none';
+      var c2 = JSON.parse(JSON.stringify(o)); c2.id = uid(); c2.tr = 'none'; kfShift(c2, -loc);
       var cut = srcAt(o, loc); if (rampPts(o)) { o.ramp = 'none'; c2.ramp = 'none'; }
       if (media[o.mid].kind === 'image') { o.out = loc; c2.in = 0; c2.out = L - loc; } else { o.out = cut; c2.in = cut; }
       P.clips.splice(P.clips.indexOf(o) + 1, 0, c2);
     } else if (sel.k === 'text' || sel.k === 'over' || sel.k === 'fx') {
       if (T <= o.start + 0.1 || T >= o.end - 0.1) return toast('Шугамыг дунд нь аваачаад хуваана уу');
-      var t2 = JSON.parse(JSON.stringify(o)); t2.id = uid(); t2.start = T; o.end = T;
+      var t2 = JSON.parse(JSON.stringify(o)); t2.id = uid(); t2.start = T; o.end = T; kfShift(t2, -(T - o.start));
       if (sel.k === 'over') { t2.in = (o.in || 0) + (T - o.start); t2.anim = 'none'; P.overlays.push(t2); } else listOf(sel.k).push(t2);
     } else {
       var aEnd = o.start + (o.out - o.in);
@@ -1371,9 +1478,9 @@
   // what can be set on the selected item (timeline actions — split, freeze, copy, delete — live on the timeline bar)
   function ctxTools(o) {
     var m = media[o.mid] || {};
-    if (sel.k === 'clip') return (m.kind === 'video' ? [['speed', 'speed', 'Хурд'], ['vol', 'vol', 'Дуу']] : []).concat([['color', 'filter', 'Өнгө'], ['fx', 'fx', 'Эффект'], ['fit', 'crop', 'Байрлал'], ['trans', 'trans', 'Шилжилт'], ['cut', 'person', 'Дэвсгэр']]);
-    if (sel.k === 'over') return [['oedit', 'shape', 'Тохиргоо']].concat(o.kind === 'emoji' ? [] : [['color', 'filter', 'Өнгө'], ['cut', 'person', 'Дэвсгэр арилгах']]).concat(m.kind === 'video' ? [['ovol', 'vol', 'Дуу']] : []);
-    if (sel.k === 'text') return [['tedit', 'edit', 'Засах']];
+    if (sel.k === 'clip') return (m.kind === 'video' ? [['speed', 'speed', 'Хурд'], ['vol', 'vol', 'Дуу']] : []).concat([['color', 'filter', 'Өнгө'], ['fx', 'fx', 'Эффект'], ['fit', 'crop', 'Байрлал'], ['trans', 'trans', 'Шилжилт'], ['cut', 'person', 'Дэвсгэр'], ['kf', 'kf', 'Keyframe']]);
+    if (sel.k === 'over') return [['oedit', 'shape', 'Тохиргоо']].concat(o.kind === 'emoji' ? [] : [['color', 'filter', 'Өнгө'], ['cut', 'person', 'Дэвсгэр арилгах']]).concat(m.kind === 'video' ? [['ovol', 'vol', 'Дуу']] : []).concat([['kf', 'kf', 'Keyframe']]);
+    if (sel.k === 'text') return [['tedit', 'edit', 'Засах'], ['kf', 'kf', 'Keyframe']];
     if (sel.k === 'fx') return [['fxe', 'fx', 'Эффект']];
     return [['avol', 'vol', 'Дуу']];
   }
@@ -1444,7 +1551,7 @@
     stock: function () { sheetStock(false); }, sticker: function () { sheetSticker(); }, over: function () { sheetAddOver(); }, rec: function () { sheetRec(); },
     desel: function () { sel = null; refresh(); }, split: splitSel, del: delSel, dup: dupSel,
     speed: function () { sheetSpeed(); }, vol: function () { sheetVol(); }, avol: function () { sheetVol(); }, ovol: function () { sheetVol(); }, fit: function () { sheetPos(); }, trans: function () { sheetTrans(); },
-    tedit: function () { sheetText(selected()); }, color: function () { sheetColor(); }, filter: function () { sheetColor(); }, adj: function () { sheetColor(); }, fx: function () { sheetFx(); }, fxadd: function () { sel = null; refresh(); sheetFx(); }, fxe: function () { sheetFxItem(); }, cap: function () { sheetCaptions(); }, cut: function () { sheetCut(); },
+    tedit: function () { sheetText(selected()); }, color: function () { sheetColor(); }, filter: function () { sheetColor(); }, adj: function () { sheetColor(); }, fx: function () { sheetFx(); }, fxadd: function () { sel = null; refresh(); sheetFx(); }, fxe: function () { sheetFxItem(); }, cap: function () { sheetCaptions(); }, kf: function () { sheetKf(); }, cut: function () { sheetCut(); },
     freeze: freezeFrame, extract: extractAudio, oedit: function () { sheetOver(); }, chroma: function () { sheetChroma(); }, mark: toggleMarker, snapt: toggleSnap
   };
   document.addEventListener('click', function (e) {
@@ -1592,6 +1699,7 @@
   }
   function sheetPos() {
     var c = selected(); if (!c || sel.k !== 'clip') return;
+    kfSync(c, 'clip');
     var z = Math.round((c.zoom || 1) * 100);
     var s = sheet('Байрлал', opts([['fill', 'Дүүргэх'], ['fit', 'Багтаах (бүдэг дэвсгэр)']], c.fit, 'fit') +
       '<label class="lbl">Томруулах</label><div class="rowv"><input type="range" id="v-zm" min="30" max="300" value="' + z + '"><b id="v-zmv">' + z + '%</b></div>' +
@@ -1605,6 +1713,8 @@
     s.querySelector('#v-flip').addEventListener('click', function () { c.flip = !c.flip; this.classList.toggle('on', c.flip); draw(); });
     s.querySelector('#v-reset').addEventListener('click', function () { c.zoom = 1; c.px = 0; c.py = 0; c.rot = 0; c.flip = false; zm.value = 100; zv.textContent = '100%'; s.querySelector('#v-flip').classList.remove('on'); draw(); });
     onOpt(s, 'mo', function (v) { c.motion = v; previewRange(startOf(c.id) + 0.01, Math.min(clipLen(c), 3)); });
+    s.addEventListener('input', function () { kfRecord(c, 'clip'); });
+    s.addEventListener('click', function (e) { if (e.target.closest('#v-rot,#v-reset')) { kfRecord(c, 'clip'); draw(); } });
   }
   var SWC = ['#000000', '#ffffff', '#7b64ff', '#ff3b5c', '#ffe600', '#22c55e', '#38bdf8'];
   function swatches(cur, attr) { return '<div class="opts">' + SWC.map(function (c) { return '<button type="button" class="sw' + (cur === c ? ' on' : '') + '" style="background:' + c + '" data-' + attr + '="' + c + '" aria-label="' + c + '"></button>'; }).join('') + '<label class="sw pick" title="Өөр өнгө"><input type="color" data-' + attr + 'p value="' + (cur || '#ffffff') + '"></label></div>'; }
@@ -1650,6 +1760,7 @@
       '<label class="lbl">Хэмжээ</label><div class="rowv"><input type="range" id="v-ts" min="3" max="20" step="0.5" value="' + (x.size * 100) + '"><b id="v-tsv">' + Math.round(x.size * 100) + '</b></div>' +
       '<label class="lbl">Эргүүлэх</label><div class="rowv"><input type="range" id="v-trot" min="-180" max="180" value="' + Math.round(x.rot || 0) + '"><b id="v-trotv">' + Math.round(x.rot || 0) + '°</b></div>' +
       '<label class="lbl">Гарч ирэх</label>' + opts(ANIMS, x.anim, 'an') +
+      '<label class="lbl">Алга болох</label>' + opts(OUT_ANIMS, x.out == null ? (x.anim !== 'none' ? 'fade' : 'none') : x.out, 'tout') +
       '<p class="note">Дэлгэц дээр текстийг чирж байрлуулна. Хэр удаан харагдахыг доорх timeline-ий шар мөрийн захаас чирж өөрчилнө.</p>',
       function () {
         if (!x.text.trim()) { P.texts = P.texts.filter(function (t) { return t !== x; }); sel = null; if (fresh) { refresh(); return; } }
@@ -1667,6 +1778,8 @@
     onOpt(s, 'fo', function (f) { x.font = f; loadFont(f).then(draw); draw(); });
     s.querySelector('#v-ts').addEventListener('input', function () { x.size = this.value / 100; s.querySelector('#v-tsv').textContent = Math.round(this.value); draw(); });
     onOpt(s, 'an', function (a) { x.anim = a; previewRange(x.start + 0.01, Math.min(1.3, x.end - x.start)); });
+    onOpt(s, 'tout', function (a) { x.out = a; previewRange(Math.max(x.start, x.end - 1.2), 1.2); });
+    kfSync(x, 'text'); s.addEventListener('input', function (e) { if (e.target.id === 'v-ts' || e.target.id === 'v-trot') kfRecord(x, 'text'); });
     s.querySelector('#v-trot').addEventListener('input', function () { x.rot = +this.value; s.querySelector('#v-trotv').textContent = this.value + '°'; draw(); });
     s.addEventListener('click', function (e) {
       var b = e.target.closest('[data-tp]'); if (!b) return;
@@ -1767,12 +1880,14 @@
   // ---------- overlays: settings, background removal ----------
   function sheetOver() {
     var o = selected(); if (!o || sel.k !== 'over') return;
+    kfSync(o, 'over');
     var em = o.kind === 'emoji', w = Math.round(o.w * 100), op = Math.round((o.opacity == null ? 1 : o.opacity) * 100);
     var s = sheet(em ? 'Стикер' : 'Давхар',
       (em ? '' : '<label class="lbl">Хэлбэр</label>' + opts([['rect', 'Тэгш өнцөгт'], ['round', 'Бөөрөнхий'], ['circle', 'Дугуй']], o.shape || 'rect', 'osh')) +
       '<label class="lbl">Хэмжээ</label><div class="rowv"><input type="range" id="v-ow" min="3" max="150" value="' + w + '"><b id="v-owv">' + w + '%</b></div>' +
       '<label class="lbl">Тунгалаг</label><div class="rowv"><input type="range" id="v-op" min="5" max="100" value="' + op + '"><b id="v-opv">' + op + '%</b></div>' +
       '<label class="lbl">Гарч ирэх</label>' + opts(OANIMS, o.anim || 'none', 'oa') +
+      '<label class="lbl">Алга болох</label>' + opts(OUT_ANIMS.concat([['spin', 'Эргэх']]), o.out == null ? (o.anim && o.anim !== 'none' ? 'fade' : 'none') : o.out, 'oout') +
       '<label class="lbl">Байрлал</label><div class="opts">' + (em ? '' : '<button type="button" class="opt" data-pos="full">Бүтэн дэлгэц</button>') + '<button type="button" class="opt" data-pos="center">Голлуулах</button><button type="button" class="opt" data-pos="flip">⇋ Толин</button><button type="button" class="opt" data-pos="rot0">Эргэлтгүй</button></div>' +
       '<label class="lbl">Давхаргын дараалал</label><div class="opts"><button type="button" class="opt" data-pos="front">Хамгийн урд</button><button type="button" class="opt" data-pos="back">Хамгийн ард</button></div>' +
       '<p class="note">Дэлгэц дээр чирж байрлуулна. Булангаас нь чирж томруулж, дээд бөмбөлгөөр эргүүлнэ (утсан дээр хоёр хуруугаар).</p>', commit);
@@ -1781,6 +1896,8 @@
     ow.addEventListener('input', function () { o.w = ow.value / 100; owv.textContent = ow.value + '%'; draw(); });
     s.querySelector('#v-op').addEventListener('input', function () { o.opacity = this.value / 100; s.querySelector('#v-opv').textContent = this.value + '%'; draw(); });
     onOpt(s, 'oa', function (v) { o.anim = v; previewRange(o.start + 0.01, Math.min(1.2, o.end - o.start)); });
+    onOpt(s, 'oout', function (v) { o.out = v; previewRange(Math.max(o.start, o.end - 1.2), 1.2); });
+    setTimeout(function () { s.addEventListener('input', function () { kfRecord(o, 'over'); }); s.addEventListener('click', function (e) { if (e.target.closest('[data-pos]')) { kfRecord(o, 'over'); draw(); } }); }, 0);
     s.addEventListener('click', function (e) {
       var b = e.target.closest('[data-pos]'); if (!b) return;
       var p = b.dataset.pos;
