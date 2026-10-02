@@ -7,7 +7,7 @@
   }).then(function (data) {
     if (!Number.isSafeInteger(data.downloads) || data.downloads < 0 || !/^\d{4}-\d{2}-\d{2}$/.test(data.since)) throw new Error('stats');
     count.textContent = new Intl.NumberFormat('mn-MN').format(data.downloads);
-    note.textContent = data.since.replace(/-/g, '.') + '-ноос бүртгэсэн файл татах үйлдлийн тоо. Давтан таталт орно.';
+    note.textContent = data.since.replace(/-/g, '.') + '-ноос хойш · Давтан таталт орно.';
   }).catch(function () { note.textContent = 'Таталтын тоог одоогоор харуулах боломжгүй байна.'; })
     .finally(function () { clearTimeout(timeout); });
 })();
