@@ -8,7 +8,7 @@ import json, os
 import landings as L
 
 ROOT, SITE, e, ld = L.ROOT, L.SITE, L.e, L.ld
-V = "8"
+V = "9"
 
 ICON = {
     "pdf": '<path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5"/><path d="m9 17 1-3 5-5 2 2-5 5z" fill="currentColor"/>',
@@ -103,7 +103,10 @@ def build():
     soc_h = " · ".join(f'<a href="{e(s["url"])}" target="_blank" rel="noopener me">{e(s.get("name") or "Link")}</a>' for s in socials)
 
     reviews = (d.get("home_trust") or {}).get("reviews") or []
-    review_cards = "".join(f'<figure class="ht-review"><blockquote>{e(x["text"])}</blockquote><figcaption>{e(x["name"])}</figcaption></figure>' for x in reviews if x.get("approved") is True and x.get("text") and x.get("name"))
+    def review_card(x):
+        photo = f'<span class="ht-avatar ht-avatar-{e(x.get("portrait", ""))}"><img src="{e(x["photo"])}" alt="{e(x["name"])}" width="56" height="56" loading="lazy" decoding="async"></span>' if x.get("photo") else ""
+        return f'<figure class="ht-review"><blockquote>{e(x["text"])}</blockquote><figcaption>{photo}<span><b>{e(x["name"])}</b><small>{e(x.get("tool", ""))}</small></span></figcaption></figure>'
+    review_cards = "".join(review_card(x) for x in reviews if x.get("approved") is True and x.get("text") and x.get("name"))
     review_content = ('<div class="ht-reviews">' + review_cards + '</div>') if review_cards else '<p class="ht-review-empty">Та Graphican ашиглаж үзсэн үү? Юу бүтээснээ, аль хэрэгсэл танд тусалсныг хуваалцаарай.</p>'
     TR_LINK = '<a href="/tools/translate-pdf/">Орчуулах</a>' if L.TRANSLATE_ON else ""   # PDF translation can be switched off
     body = f"""
@@ -117,10 +120,14 @@ def build():
     <nav class="hm-jump"><a href="#editor">Design editor</a><a href="#ppt">Илтгэл</a><a href="#pdf">PDF</a><a href="#image">Зураг</a><a href="#design">Дизайн</a></nav>
   </section>
 
-  <section class="ht-stats" aria-label="Graphican-ийн хэрэглээ">
-    <div><span class="ht-live">Хэрэглээний тоо</span><strong id="ht-downloads">—</strong><span>бүртгэгдсэн таталт</span></div>
-    <p id="ht-stat-note" aria-live="polite">Таталтын тоог ачаалж байна…</p>
-    <div class="ht-assurances"><span>Үнэгүй</span><span>Бүртгэл шаардахгүй</span><span>Монгол хэлээр</span></div>
+  <section class="ht-trust" id="reviews" aria-labelledby="ht-review-title">
+    <div class="ht-stats" aria-label="Graphican-ийн хэрэглээ">
+      <div><span class="ht-live">Хэрэглээний тоо</span><strong id="ht-downloads">—</strong><span>бүртгэгдсэн таталт</span></div>
+      <p id="ht-stat-note" aria-live="polite">Таталтын тоог ачаалж байна…</p>
+      <div class="ht-assurances"><span>Үнэгүй</span><span>Бүртгэл шаардахгүй</span><span>Монгол хэлээр</span></div>
+    </div>
+    <h2 id="ht-review-title">Хэрэглэгчдийн сэтгэгдэл</h2>
+    {review_content}
   </section>
 
   <section class="hm-sec hm-editor" id="editor">
@@ -249,10 +256,6 @@ def build():
         <span class="hm-guide" aria-hidden="true"><b>Aa</b><span><i></i><i></i><i></i></span></span>
         <span class="hm-row"><b>Design guide</b><i>→</i></span></a>
     </div>
-  </section>
-
-  <section class="hm-sec" id="reviews">
-    <div class="ht-feedback"><div><p class="hm-kicker">ТАНЫ ТУРШЛАГА</p><h2>Хэрэглэгчдийн сэтгэгдэл</h2>{review_content}<p class="ht-review-note">Сэтгэгдлийг таны зөвшөөрөлтэйгөөр нийтэлнэ.</p></div><a class="hm-btn ghost" href="mailto:{e(email)}?subject=Graphican%20-%20Сэтгэгдэл">Сэтгэгдлээ хуваалцах →</a></div>
   </section>
 
   <section class="hm-collab" id="collab">
