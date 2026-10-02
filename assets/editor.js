@@ -2220,19 +2220,46 @@
   });
   // drag a field's label left/right to change the number (Figma "scrubbing")
   var scrub = null;
-  rp.addEventListener('mousedown', function (e) {
+  rp.addEventListener('pointerdown', function (e) {
     var lb = e.target.closest('[data-scrub]'); if (!lb) return;
     var inp = lb.parentNode.querySelector('input'); if (!inp || inp.getAttribute('inputmode') !== 'decimal') return;
     e.preventDefault();
     scrub = { inp: inp, x: e.clientX, v: num(inp.value) || 0 };
     document.body.style.cursor = 'ew-resize';
   });
-  window.addEventListener('mousemove', function (e) {
+  function scrubSet(inp, v) { inp.value = v; if (inp.dataset.p) propInput(inp.dataset.p, v); else if (inp.dataset.q) { qInput(inp.dataset.q, v, true); padSync(inp); } }
+  window.addEventListener('pointermove', function (e) {
     if (!scrub) return;
-    var v = Math.round(scrub.v + (e.clientX - scrub.x) * (e.shiftKey ? 10 : 1));
-    scrub.inp.value = v; propInput(scrub.inp.dataset.p, v);
+    scrubSet(scrub.inp, Math.round(scrub.v + (e.clientX - scrub.x) * (e.shiftKey ? 10 : 1)));
   });
-  window.addEventListener('mouseup', function () { if (scrub) { scrub = null; document.body.style.cursor = ''; commit(); refreshUI(); } });
+  window.addEventListener('pointerup', function () { if (scrub) { scrub = null; document.body.style.cursor = ''; commit(); refreshUI(); } });
+  // shadow offset pad: drag the dot (or anywhere on the pad); Shift keeps it straight
+  var spad = null;
+  function padSync(inp) {
+    var m = /^fx:(\d+):(x|y)$/.exec(inp.dataset.q || ''); if (!m) return;
+    var pad = rp.querySelector('.opad[data-pad="' + m[1] + '"]'); if (!pad) return;
+    var R = +pad.dataset.r, dot = pad.querySelector('i'), v = clamp((num(inp.value) || 0) / R, -1, 1);
+    if (m[2] === 'x') dot.style.left = (50 + v * 50) + '%'; else dot.style.top = (50 + v * 50) + '%';
+  }
+  function padMove(e) {
+    var r = spad.pad.getBoundingClientRect(), R = +spad.pad.dataset.r;
+    var fx = clamp((e.clientX - r.left) / r.width * 2 - 1, -1, 1), fy = clamp((e.clientY - r.top) / r.height * 2 - 1, -1, 1);
+    if (e.shiftKey) { if (Math.abs(fx) > Math.abs(fy)) fy = 0; else fx = 0; }
+    if (Math.abs(fx) < 0.06) fx = 0; if (Math.abs(fy) < 0.06) fy = 0;
+    var x = Math.round(fx * R), y = Math.round(fy * R), i = spad.i;
+    editFx(function (l) { var q = l[i]; if (q) { q.x = x; q.y = y; } });
+    var dot = spad.pad.querySelector('i'); dot.style.left = (50 + fx * 50) + '%'; dot.style.top = (50 + fy * 50) + '%';
+    var ix = rp.querySelector('[data-q="fx:' + i + ':x"]'), iy = rp.querySelector('[data-q="fx:' + i + ':y"]');
+    if (ix) ix.value = x; if (iy) iy.value = y;
+  }
+  rp.addEventListener('pointerdown', function (e) {
+    var pad = e.target.closest('.opad'); if (!pad) return;
+    e.preventDefault(); spad = { pad: pad, i: +pad.dataset.pad };
+    try { pad.setPointerCapture(e.pointerId); } catch (er) {}
+    pad.classList.add('drag'); padMove(e);
+  });
+  window.addEventListener('pointermove', function (e) { if (spad) padMove(e); });
+  window.addEventListener('pointerup', function () { if (spad) { spad.pad.classList.remove('drag'); spad = null; commit(); } });
 
   function textEach(fn) { eachSel(function (x) { if (x.isType('textbox')) { fn(x); x.initDimensions(); } }); }
   rp.addEventListener('click', function (e) {
@@ -3353,7 +3380,14 @@
       h += '<div class="fx-row' + (e.on === false ? ' off' : '') + '"><div class="fx-h"><button type="button" class="ib" data-b="fx:eye:' + i + '" title="Харуулах / нуух">' + icon(e.on === false ? 'eyeOff' : 'eye') + '</button>' +
         '<b>' + FX_NAMES[e.t] + '</b><button type="button" class="ib rm" data-b="fx:del:' + i + '" title="Хасах">' + icon('minus') + '</button></div>';
       if (e.t === 'drop' || e.t === 'inner') {
-        h += '<div class="r3">' + fnf('X', q('x'), e.x) + fnf('Y', q('y'), e.y) + fnf('Blur', q('b'), e.b) + '</div>' + fcol(q('c'), e.c);
+        // presets, a pad to drag the offset, sliders — no typing needed (the X / Y fields stay for exact values)
+        var R = shR(), pc = parseCol(e.c || 'rgba(0,0,0,0.25)'), px = clamp((e.x || 0) / R, -1, 1), py = clamp((e.y || 0) / R, -1, 1);
+        h += '<div class="shpre">' + SH_PRE.map(function (p) { return '<button type="button" data-b="fx:pre:' + i + ':' + p[0] + '" title="' + p[2] + '"><i class="shs ' + p[0] + '"></i>' + p[1] + '</button>'; }).join('') + '</div>' +
+          '<div class="shrow"><div class="opad" data-pad="' + i + '" data-r="' + R + '" title="Чирж сүүдрийн чиглэл, зайг тохируулна"><b></b><b class="v"></b><i style="left:' + (50 + px * 50) + '%;top:' + (50 + py * 50) + '%"></i></div>' +
+          '<div class="shnum">' + fnf('X', q('x'), e.x) + fnf('Y', q('y'), e.y) + '</div></div>' +
+          fsl('Бүдэг', q('b'), 0, Math.max(60, Math.round(Math.min(W, H) / 12)), e.b) + fsl('Тод', q('cA'), 0, 100, Math.round(pc.a * 100), '%') +
+          '<div class="shcol">' + SH_COLS.map(function (c) { return '<button type="button" data-b="fx:col:' + i + ':' + c + '" style="background:' + c + '"' + (pc.hex.toLowerCase() === c ? ' class="on"' : '') + ' title="' + c + '"></button>'; }).join('') +
+          '<label class="csw pick" title="Өөр өнгө"><i style="background:' + esc(e.c) + '"></i><input type="color" data-q="' + q('c') + '" value="' + pc.hex + '"></label></div>';
       } else if (e.t === 'blur' || e.t === 'bgblur') {
         h += fsl('Хүч', q('b'), 0, Math.max(60, Math.round(Math.min(W, H) / 10)), e.b);
       } else if (e.t === 'noise') {
@@ -3383,7 +3417,17 @@
     if (!GX.HAS_FILTER && l.some(function (e) { return e.t === 'bgblur' || e.t === 'glass'; })) h += '<p class="note">Энэ хөтөч дээр background blur удаан ажиллаж магадгүй.</p>';
     return h + '</div>';
   }
-  function fnf(label, key, val) { return '<label class="nf"><span class="lb">' + label + '</span><input data-q="' + key + '" value="' + Math.round(val || 0) + '" inputmode="decimal"></label>'; }
+  var SH_PRE = [['soft', 'Зөөлөн', 'Бага зэрэг өргөгдсөн'], ['mid', 'Дунд', 'Карт шиг'], ['strong', 'Хүчтэй', 'Тод сүүдэр'], ['float', 'Хөвөх', 'Өндөрт хөвж буй'], ['hard', 'Хатуу', 'Бүдэггүй, ретро'], ['color', 'Өнгөт', 'Өнгөт гэрэлтэлт']];
+  var SH_COLS = ['#000000', '#1e1b4b', '#7b64ff', '#ff3b5c', '#ffffff'];
+  function shR() { return Math.max(40, Math.round(Math.min(W, H) / 20)); }
+  function shPreset(e, name) {
+    var u = Math.max(1, Math.min(W, H) / 100), r = function (v) { return Math.round(v * 10) / 10; };
+    var P0 = { soft: [0, 1, 3, 0.18], mid: [0, 2, 4, 0.28], strong: [0, 3, 6, 0.45], float: [0, 5, 10, 0.22], hard: [0.8, 0.8, 0, 0.9], color: [0, 0, 5, 0.7] }[name]; if (!P0) return;
+    e.x = r(P0[0] * u); e.y = r(P0[1] * u); e.b = r(P0[2] * u);
+    e.c = mkCol(name === 'color' ? '#7b64ff' : (parseCol(e.c || '#000').hex === '#7b64ff' ? '#000000' : parseCol(e.c || '#000').hex), P0[3]);
+    e.on = true;
+  }
+  function fnf(label, key, val) { return '<label class="nf"><span class="lb" data-scrub="' + key + '">' + label + '</span><input data-q="' + key + '" value="' + Math.round(val || 0) + '" inputmode="decimal"></label>'; }
   function fsl(label, key, min, max, v, unit) { return '<div class="sl"><span>' + label + '</span><input type="range" data-q="' + key + '" min="' + min + '" max="' + max + '" value="' + Math.round(v || 0) + '"><b>' + Math.round(v || 0) + (unit || '') + '</b></div>'; }
   function fcol(key, c) {
     var pc = parseCol(c);
@@ -3825,7 +3869,7 @@
   }
   rp.addEventListener('input', function (e) {
     var t = e.target, q = t.dataset.q; if (!q) return;
-    if (t.type === 'range') { var b = t.nextElementSibling; if (b) b.textContent = t.value + (/:(a|scale|radius|f|to)$/.test(q) && !/^fx:\d+:s$/.test(q) ? '%' : ''); qInput(q, t.value, true); }
+    if (t.type === 'range') { var b = t.nextElementSibling; if (b) b.textContent = t.value + (/:(a|cA|scale|radius|f|to)$/.test(q) && !/^fx:\d+:s$/.test(q) ? '%' : ''); qInput(q, t.value, true); }
     else if (t.type === 'color') { t.previousElementSibling.style.background = t.value; qInput(q, t.value, true); }
   });
   rp.addEventListener('change', function (e) {
@@ -3855,6 +3899,8 @@
           }
         });
       }
+      if (sub === 'pre') editFx(function (l) { var q = l[+parts[2]]; if (q) shPreset(q, parts[3]); });
+      if (sub === 'col') editFx(function (l) { var q = l[+parts[2]]; if (q) q.c = mkCol(parts[3], parseCol(q.c || '#000').a); });
       if (sub === 'eye') editFx(function (l) { var q = l[+parts[2]]; if (q) q.on = q.on === false; });
       if (sub === 'del') editFx(function (l) { l.splice(+parts[2], 1); });
       commit(); refreshUI(); return;
