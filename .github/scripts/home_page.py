@@ -8,7 +8,7 @@ import json, os
 import landings as L
 
 ROOT, SITE, e, ld = L.ROOT, L.SITE, L.e, L.ld
-V = "9"
+V = "10"
 
 ICON = {
     "pdf": '<path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5"/><path d="m9 17 1-3 5-5 2 2-5 5z" fill="currentColor"/>',
@@ -105,7 +105,7 @@ def build():
     reviews = (d.get("home_trust") or {}).get("reviews") or []
     def review_card(x):
         photo = f'<span class="ht-avatar ht-avatar-{e(x.get("portrait", ""))}"><img src="{e(x["photo"])}" alt="{e(x["name"])}" width="56" height="56" loading="lazy" decoding="async"></span>' if x.get("photo") else ""
-        return f'<figure class="ht-review"><blockquote>{e(x["text"])}</blockquote><figcaption>{photo}<span><b>{e(x["name"])}</b><small>{e(x.get("tool", ""))}</small></span></figcaption></figure>'
+        return f'<figure class="ht-review"><div class="ht-review-top"><span class="ht-tool">{e(x.get("tool", ""))}</span><span class="ht-quote" aria-hidden="true">“</span></div><blockquote>{e(x["text"])}</blockquote><figcaption>{photo}<span><b>{e(x["name"])}</b><small>Graphican хэрэглэгч</small></span></figcaption></figure>'
     review_cards = "".join(review_card(x) for x in reviews if x.get("approved") is True and x.get("text") and x.get("name"))
     review_content = ('<div class="ht-reviews">' + review_cards + '</div>') if review_cards else '<p class="ht-review-empty">Та Graphican ашиглаж үзсэн үү? Юу бүтээснээ, аль хэрэгсэл танд тусалсныг хуваалцаарай.</p>'
     TR_LINK = '<a href="/tools/translate-pdf/">Орчуулах</a>' if L.TRANSLATE_ON else ""   # PDF translation can be switched off
@@ -120,14 +120,12 @@ def build():
     <nav class="hm-jump"><a href="#editor">Design editor</a><a href="#ppt">Илтгэл</a><a href="#pdf">PDF</a><a href="#image">Зураг</a><a href="#design">Дизайн</a></nav>
   </section>
 
-  <section class="ht-trust" id="reviews" aria-labelledby="ht-review-title">
-    <div class="ht-stats" aria-label="Graphican-ийн хэрэглээ">
-      <div><span class="ht-live">Хэрэглээний тоо</span><strong id="ht-downloads">—</strong><span>бүртгэгдсэн таталт</span></div>
-      <p id="ht-stat-note" aria-live="polite">Таталтын тоог ачаалж байна…</p>
-      <div class="ht-assurances"><span>Үнэгүй</span><span>Бүртгэл шаардахгүй</span><span>Монгол хэлээр</span></div>
+  <section class="ht-stats" id="downloads" aria-labelledby="ht-download-title">
+    <div class="ht-stat-value">
+      <span class="ht-download-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5"/></svg></span>
+      <div><h2 id="ht-download-title">Нийт файлын таталт</h2><div class="ht-number"><strong id="ht-downloads" aria-describedby="ht-download-title">—</strong><span>удаа</span></div></div>
     </div>
-    <h2 id="ht-review-title">Хэрэглэгчдийн сэтгэгдэл</h2>
-    {review_content}
+    <div class="ht-stat-copy"><p>Graphican дээр бэлдсэн файлуудаа<br>хэрэглэгчид төхөөрөмждөө татсан тоо.</p><small id="ht-stat-note" aria-live="polite">Таталтын тоог ачаалж байна…</small></div>
   </section>
 
   <section class="hm-sec hm-editor" id="editor">
@@ -262,6 +260,11 @@ def build():
     <div><p class="hm-kicker">GRAPHICAN</p><h2>Мэргэжлийн дизайн хэрэгтэй юу?</h2><p>Лого · брэнд айдентити · сошиал дизайн · видео</p></div>
     <div class="hm-btns"><a class="hm-btn" href="/about/">Хамтран ажиллах <i>→</i></a><a class="hm-btn ghost" href="/about/#work">Ажлууд</a></div>
   </section>
+
+  <section class="ht-trust" id="reviews" aria-labelledby="ht-review-title">
+    <div class="ht-review-heading"><div><p class="hm-kicker">PDF · ДИЗАЙН · ИЛТГЭЛ</p><h2 id="ht-review-title">Хэрэглэгчдийн сэтгэгдэл</h2></div><p>Graphican ашигласан<br>хэрэглэгчдийн санал.</p></div>
+    {review_content}
+  </section>
 </main>
 
 <footer class="hm-foot">
@@ -312,7 +315,7 @@ def build():
 {body}
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <script src="/assets/app.js?v=38"></script>
-<script src="/assets/home-trust.js?v=1" defer></script>
+<script src="/assets/home-trust.js?v=2" defer></script>
 </body>
 </html>
 """
