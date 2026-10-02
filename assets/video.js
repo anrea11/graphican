@@ -54,7 +54,7 @@
   var media = {};          // id → { id, kind, file, url, el, dur, w, h, strip, wave, audio (AudioBuffer|null|undefined) }
   var sel = null;          // { k: 'clip'|'text'|'audio'|'over', id }
   var T = 0, playing = false, pps = 70, hist = [], hi = -1, started = false;
-  function blank(w, h) { return { name: 'Нэргүй видео', w: w, h: h, bg: '#000000', clips: [], texts: [], audios: [], overlays: [], markers: [] }; }
+  function blank(w, h) { return { name: 'Нэргүй видео', w: w, h: h, bg: '#000000', clips: [], texts: [], audios: [], overlays: [], markers: [], effects: [] }; }
   function uid() { return Math.random().toString(36).slice(2, 10); }
   function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
@@ -94,7 +94,7 @@
     var m = 0;
     P.texts.forEach(function (x) { m = Math.max(m, x.end); });
     P.audios.forEach(function (a) { m = Math.max(m, a.start + (a.out - a.in)); });
-    P.overlays.forEach(function (o) { m = Math.max(m, o.end); });
+    P.overlays.concat(P.effects || []).forEach(function (o) { m = Math.max(m, o.end); });
     return m;
   }
   function clipAt(t) {
@@ -107,7 +107,22 @@
     return null;
   }
   function startOf(id) { var s = 0; for (var i = 0; i < P.clips.length; i++) { if (P.clips[i].id === id) return s; s += clipLen(P.clips[i]); } return 0; }
-  function listOf(k) { return k === 'clip' ? P.clips : k === 'text' ? P.texts : k === 'over' ? P.overlays : P.audios; }
+  function listOf(k) { return k === 'clip' ? P.clips : k === 'text' ? P.texts : k === 'over' ? P.overlays : k === 'fx' ? (P.effects = P.effects || []) : P.audios; }
+  // items on the lane rows: start / end in timeline seconds
+  function iStart(k, o) { return o.start; }
+  function iEnd(k, o) { return k === 'audio' ? o.start + (o.out - o.in) : o.end; }
+  // every bar sits on a lane (ln, 0 = lowest); a bar that would overlap another on its lane moves up to the first free one
+  function laneFree(k, o, ln) { var a = iStart(k, o), b = iEnd(k, o); return !listOf(k).some(function (x) { return x !== o && (x.ln || 0) === ln && iStart(k, x) < b - 1e-3 && iEnd(k, x) > a + 1e-3; }); }
+  function settleLane(k, o) { var ln = Math.max(0, o.ln || 0); while (!laneFree(k, o, ln)) ln++; o.ln = ln; }
+  function ensureLanes() {
+    ['over', 'text', 'audio', 'fx'].forEach(function (k) {
+      var l = listOf(k); l.forEach(function (o) { if (o.ln == null) { o.ln = 0; settleLane(k, o); } });
+      // drop empty lanes in between
+      var used = {}; l.forEach(function (o) { used[o.ln] = 1; });
+      var map = {}, n = 0; Object.keys(used).map(Number).sort(function (a, b) { return a - b; }).forEach(function (v) { map[v] = n++; });
+      l.forEach(function (o) { o.ln = map[o.ln]; });
+    });
+  }
   function find(k, id) { var l = listOf(k); for (var i = 0; i < l.length; i++) if (l[i].id === id) return l[i]; return null; }
   function selected() { return sel ? find(sel.k, sel.id) : null; }
   function fmt(t) { t = Math.max(0, t || 0); var m = Math.floor(t / 60), s = t - m * 60; return m + ':' + (s < 10 ? '0' : '') + s.toFixed(1); }
@@ -190,10 +205,11 @@
     '<button class="ib" id="v-zin" type="button" title="Томруулах (+)" aria-label="Томруулах">' + ico('plus') + '</button>' +
     '<button class="ib" id="v-zfit" type="button" title="Бүхлээр харах" aria-label="Бүхлээр харах">' + ico('fitw') + '</button></div></div></div>' +
     '<aside class="vpanel" id="v-panel"><div class="ph"><b id="v-ptitle"></b><small id="v-psub"></small></div><div class="ptools" id="v-ptools"></div><div id="v-pbody"></div></aside></div>' +
-    '<div class="vtl"><div class="vtl-tracks" aria-hidden="true"><span class="k-v">' + ico('fit') + 'Видео, зураг</span><span class="k-o">' + ico('layer') + 'Давхар</span><span class="k-t">' + ico('text') + 'Текст</span><span class="k-a">' + ico('music') + 'Дуу, хөгжим</span></div><div class="vtl-scroll" id="v-scroll"><div class="vtl-inner" id="v-tl"></div></div><div class="vtl-head"></div></div>' +
+    '<div class="vtl"><div class="vtl-tracks" id="v-tracks" aria-hidden="true"></div><div class="vtl-scroll" id="v-scroll"><div class="vtl-inner" id="v-tl"></div></div><div class="vtl-head"></div></div>' +
     '<nav class="vtb" id="v-tb" aria-label="Хэрэгсэл"></nav>';
   var cv = document.getElementById('v-cv'), cx = cv.getContext('2d'), stage = document.getElementById('v-stage');
   var scroller = document.getElementById('v-scroll'), tl = document.getElementById('v-tl'), tb = document.getElementById('v-tb');
+  var tracksEl = document.getElementById('v-tracks');
   // computer: tools on the left, settings of the selected item docked on the right (phone: bottom bar + bottom sheets)
   var desk = window.matchMedia('(min-width: 1024px)'), rail = document.getElementById('v-rail'), ptools = document.getElementById('v-ptools'), pbody = document.getElementById('v-pbody');
   var fileIn = document.createElement('input'); fileIn.type = 'file'; fileIn.multiple = true; fileIn.hidden = true; document.body.appendChild(fileIn);
@@ -292,39 +308,48 @@
     ctx.restore();
   }
   function zoomAt(ctx, W, H, z) { ctx.translate(W / 2, H / 2); ctx.scale(z, z); ctx.translate(-W / 2, -H / 2); }
-  // one clip frame: position/filters/adjustments + its effect; the effect can run on part of the clip, at its own speed and colour
+  // one clip frame: position, filters, adjustments (effects live on their own timeline track — see fxPre / renderFrame)
   function drawClip(ctx, at, W, H, xf) {
-    var c = at.c, real = at.local, fx = c.fx || 'none', A = (c.fxAmt == null ? 50 : c.fxAmt) / 50, tf = xf || '', L = clipLen(c);
-    var f0 = c.fxFrom || 0, f1 = c.fxTo == null ? 1e9 : c.fxTo;
-    if (real < f0 || real > f1) fx = 'none';
-    var lt = (real - f0) * (c.fxSpd || 1), FC = c.fxCol || FX_COL[fx] || null;
+    var c = at.c, real = at.local, tf = xf || '';
     ctx.save();
-    // movement effects
-    if (fx === 'shake') { ctx.translate((Math.sin(lt * 53) * 0.012 + Math.sin(lt * 31) * 0.006) * W * A, Math.cos(lt * 47) * H * 0.008 * A); zoomAt(ctx, W, H, 1 + 0.05 * A); }
-    else if (fx === 'pulse') zoomAt(ctx, W, H, 1 + 0.07 * A * Math.pow(1 - ((lt * 2) % 1), 3));
-    else if (fx === 'zoomp') zoomAt(ctx, W, H, 1 + 0.2 * A * Math.pow(Math.max(0, 1 - (lt % 1) / 0.3), 2));
-    else if (fx === 'swing') { ctx.translate(W / 2, H / 2); ctx.rotate(Math.sin(lt * 3) * 0.07 * A); ctx.scale(1.12, 1.12); ctx.translate(-W / 2, -H / 2); }
-    else if (fx === 'spin') { ctx.translate(W / 2, H / 2); ctx.rotate(lt * 0.5 * A); var sz = Math.hypot(W, H) / Math.min(W, H); ctx.scale(sz, sz); ctx.translate(-W / 2, -H / 2); }
-    // colour effects through the filter
-    var add = '';
-    if (fx === 'bwflash' && Math.floor(lt * 2) % 2 === 1) add = 'grayscale(1) contrast(1.25)';
-    else if (fx === 'vhs') add = 'saturate(.8) contrast(1.1)';
-    else if (fx === 'oldfilm') add = 'sepia(.65) contrast(1.12) brightness(' + (0.9 + 0.1 * rnd(Math.floor(lt * 12))).toFixed(3) + ')';
-    else if (fx === 'rainbow') add = 'hue-rotate(' + Math.round(lt * 140 * A) % 360 + 'deg) saturate(1.3)';
-    else if (fx === 'invert') add = 'invert(' + Math.min(1, A).toFixed(2) + ')';
-    else if (fx === 'duotone') add = 'grayscale(1) contrast(1.2)';
-    else if (fx === 'fadebw') add = 'grayscale(' + clamp(lt / Math.max(0.5, (Math.min(f1, L) - f0) * (c.fxSpd || 1) * 0.8), 0, 1).toFixed(3) + ')';
-    else if (fx === 'blurpulse') add = 'blur(' + (Math.pow(Math.abs(Math.sin(lt * 2.2)), 3) * 10 * A * W / 1080).toFixed(2) + 'px)';
-    else if (fx === 'strobe' && Math.floor(lt * 10) % 2) add = 'brightness(' + (1 + 0.6 * A).toFixed(2) + ')';
     var str = c.fstr == null ? 100 : c.fstr, full = filterOf(c, W), base = str < 100 && c.filter && c.filter !== 'none' ? filterOf(c, W, true) : full;
-    function withAdd(f) { f = (f === 'none' ? '' : f) + (add ? ' ' + add : '') + (tf ? ' ' + tf : ''); return f.trim() || 'none'; }
+    function withAdd(f) { f = (f === 'none' ? '' : f) + (tf ? ' ' + tf : ''); return f.trim() || 'none'; }
     if (HAS_FILTER) ctx.filter = withAdd(base);
     drawMedia(ctx, c, W, H, real);
     if (base !== full) { ctx.save(); ctx.globalAlpha *= str / 100; if (HAS_FILTER) ctx.filter = withAdd(full); drawMedia(ctx, c, W, H, real); ctx.restore(); }
     ctx.filter = 'none';
     drawTone(ctx, c.adj, W, H, real);
     ctx.restore();
-    if (fx !== 'none') postFx(ctx, fx, lt, A, W, H, FC);
+  }
+  // ---------- effects track: effect items stack (applied in lane order) over the video layer ----------
+  function fxTime(e, t) { return (t - e.start) * (e.spd || 1); }
+  function fxAmt(e) { return (e.amt == null ? 50 : e.amt) / 50; }
+  function activeFx(t) { return (P.effects || []).filter(function (e) { return e.fx && e.fx !== 'none' && t >= e.start && t < e.end; }).sort(function (a, b) { return (a.ln || 0) - (b.ln || 0); }); }
+  // movement effects transform the layer, colour effects return a filter string
+  function fxPre(ctx, e, t, W, H) {
+    var fx = e.fx, lt = fxTime(e, t), A = fxAmt(e), L = (e.end - e.start) * (e.spd || 1);
+    if (fx === 'shake') { ctx.translate((Math.sin(lt * 53) * 0.012 + Math.sin(lt * 31) * 0.006) * W * A, Math.cos(lt * 47) * H * 0.008 * A); zoomAt(ctx, W, H, 1 + 0.05 * A); }
+    else if (fx === 'pulse') zoomAt(ctx, W, H, 1 + 0.07 * A * Math.pow(1 - ((lt * 2) % 1), 3));
+    else if (fx === 'zoomp') zoomAt(ctx, W, H, 1 + 0.2 * A * Math.pow(Math.max(0, 1 - (lt % 1) / 0.3), 2));
+    else if (fx === 'swing') { ctx.translate(W / 2, H / 2); ctx.rotate(Math.sin(lt * 3) * 0.07 * A); ctx.scale(1.12, 1.12); ctx.translate(-W / 2, -H / 2); }
+    else if (fx === 'spin') { ctx.translate(W / 2, H / 2); ctx.rotate(lt * 0.5 * A); var sz = Math.hypot(W, H) / Math.min(W, H); ctx.scale(sz, sz); ctx.translate(-W / 2, -H / 2); }
+    if (fx === 'bwflash') return Math.floor(lt * 2) % 2 === 1 ? 'grayscale(1) contrast(1.25)' : '';
+    if (fx === 'vhs') return 'saturate(.8) contrast(1.1)';
+    if (fx === 'oldfilm') return 'sepia(.65) contrast(1.12) brightness(' + (0.9 + 0.1 * rnd(Math.floor(lt * 12))).toFixed(3) + ')';
+    if (fx === 'rainbow') return 'hue-rotate(' + Math.round(lt * 140 * A) % 360 + 'deg) saturate(1.3)';
+    if (fx === 'invert') return 'invert(' + Math.min(1, A).toFixed(2) + ')';
+    if (fx === 'duotone') return 'grayscale(1) contrast(1.2)';
+    if (fx === 'fadebw') return 'grayscale(' + clamp(lt / Math.max(0.5, L * 0.8), 0, 1).toFixed(3) + ')';
+    if (fx === 'blurpulse') return 'blur(' + (Math.pow(Math.abs(Math.sin(lt * 2.2)), 3) * 10 * A * W / 1080).toFixed(2) + 'px)';
+    if (fx === 'strobe') return Math.floor(lt * 10) % 2 ? 'brightness(' + (1 + 0.6 * A).toFixed(2) + ')' : '';
+    return '';
+  }
+  var layers = {};
+  function layerFor(ctx) {
+    var key = ctx.canvas === cv ? 'p' : 'x', l = layers[key];
+    if (!l) { var c = document.createElement('canvas'); l = layers[key] = { c: c, x: c.getContext('2d') }; }
+    if (l.c.width !== ctx.canvas.width || l.c.height !== ctx.canvas.height) { l.c.width = ctx.canvas.width; l.c.height = ctx.canvas.height; }
+    return l;
   }
   // ---------- transitions: the previous clip (its last frame) and the incoming clip drawn together ----------
   function trDur(c) { return clamp(c.trd || TR, 0.1, Math.max(0.1, clipLen(c) - 0.05)); }
@@ -603,16 +628,31 @@
     ctx.restore();
   }
   // one frame at time t, in project pixels scaled by k
-  function renderFrame(ctx, k, t, still) {
-    ctx.setTransform(k, 0, 0, k, 0, 0); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+  function drawMain(ctx, t) {
     ctx.fillStyle = P.bg; ctx.fillRect(0, 0, P.w, P.h);
     var at = P.clips.length ? clipAt(t) : null;
-    if (at) {
-      var prev = at.i > 0 ? P.clips[at.i - 1] : null;
-      if (at.c.tr && at.c.tr !== 'none' && at.local < trDur(at.c)) drawTrans(ctx, prev ? { c: prev, local: Math.max(0, clipLen(prev) - 0.04), i: at.i - 1 } : null, at, P.w, P.h);
-      else drawClip(ctx, at, P.w, P.h);
+    if (!at) return;
+    var prev = at.i > 0 ? P.clips[at.i - 1] : null;
+    if (at.c.tr && at.c.tr !== 'none' && at.local < trDur(at.c)) drawTrans(ctx, prev ? { c: prev, local: Math.max(0, clipLen(prev) - 0.04), i: at.i - 1 } : null, at, P.w, P.h);
+    else drawClip(ctx, at, P.w, P.h);
+  }
+  function ovOrder() { return P.overlays.map(function (o, i) { return [o, i]; }).sort(function (a, b) { return ((a[0].ln || 0) - (b[0].ln || 0)) || (a[1] - b[1]); }).map(function (x) { return x[0]; }); }
+  // one frame at time t, in project pixels scaled by k: video layer (+ effects) → overlays → texts
+  function renderFrame(ctx, k, t, still) {
+    ctx.setTransform(k, 0, 0, k, 0, 0); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; ctx.filter = 'none';
+    var E = activeFx(t);
+    if (!E.length) drawMain(ctx, t);
+    else {
+      var L = layerFor(ctx); L.x.setTransform(k, 0, 0, k, 0, 0); L.x.globalAlpha = 1; L.x.globalCompositeOperation = 'source-over'; L.x.filter = 'none';
+      drawMain(L.x, t);
+      ctx.fillStyle = P.bg; ctx.fillRect(0, 0, P.w, P.h);
+      ctx.save(); var add = [];
+      E.forEach(function (e) { var f = fxPre(ctx, e, t, P.w, P.h); if (f) add.push(f); });
+      if (HAS_FILTER && add.length) ctx.filter = add.join(' ');
+      ctx.drawImage(L.c, 0, 0, P.w, P.h); ctx.restore();
+      E.forEach(function (e) { postFx(ctx, e.fx, fxTime(e, t), fxAmt(e), P.w, P.h, e.col || FX_COL[e.fx] || null); });
     }
-    P.overlays.forEach(function (o) { if (t >= o.start && t < o.end) drawOver(ctx, o, t, still); });
+    ovOrder().forEach(function (o) { if (t >= o.start && t < o.end) drawOver(ctx, o, t, still); });
     P.texts.forEach(function (x) { if (t >= x.start && t < x.end) drawText(ctx, x, t, still); });
   }
   var drawQ = false;
@@ -750,8 +790,12 @@
     });
     return Math.max(1, ends.length);
   }
+  // rows under the main track, each with as many lanes as it needs (top lane = in front)
+  var ROWS = [['fx', 'Эффект', 'fx'], ['over', 'Давхар', 'layer'], ['text', 'Текст', 'text'], ['audio', 'Дуу, хөгжим', 'music']];
+  var geo = {};
+  function laneH() { return desk.matches ? 30 : 28; }
   function renderTL() {
-    var p = pad(), D = Math.max(total(), 1), clipsEnd = clipsTotal();
+    var p = pad(), D = Math.max(total(), 1), clipsEnd = clipsTotal(), LH = laneH(), MH = desk.matches ? 72 : 64;
     var w = p * 2 + D * pps + 90;
     tl.style.width = w + 'px';
     var h = '';
@@ -762,8 +806,10 @@
     for (s = 0; s <= D; s += step / 2) h += '<i style="left:' + (s * pps) + 'px"></i>';
     (P.markers || []).forEach(function (t) { h += '<b class="mk" data-mk="' + t + '" style="left:' + (t * pps) + 'px" title="Тэмдэг ' + fmt(t) + '"></b>'; });
     h += '</div>';
-    // main track
-    h += '<div class="vtl-row r-v" style="left:' + p + 'px">';
+    // main track + transitions at the joins
+    var top = 26;
+    geo.clip = { top: top, h: MH };
+    h += '<div class="vtl-row r-v" style="left:' + p + 'px;top:' + top + 'px;height:' + MH + 'px">';
     var x0 = 0;
     P.clips.forEach(function (c, i) {
       var m = media[c.mid] || {}, L = clipLen(c), on = sel && sel.k === 'clip' && sel.id === c.id;
@@ -772,35 +818,46 @@
       else if (m.kind === 'image' && m.url) bg = 'background-image:url(' + m.url + ');';
       h += '<div class="it v' + (on ? ' on' : '') + '" data-k="clip" data-id="' + c.id + '" style="left:' + (x0 * pps) + 'px;width:' + Math.max(8, L * pps - 2) + 'px;' + bg + '">' +
         '<span class="nm">' + (rampPts(c) ? '〰 ' : c.speed !== 1 ? c.speed + '× · ' : '') + fmt(L) + (c.mute ? ' · 🔇' : '') + '</span><span class="hd l" data-h="l"></span><span class="hd r" data-h="r"></span></div>';
-      h += '<button type="button" class="tr-badge" data-tr="' + c.id + '" style="position:absolute;left:' + (x0 * pps) + 'px;top:50%;transform:translate(-50%,-50%)" title="Шилжилт" aria-label="Шилжилт">' + (c.tr && c.tr !== 'none' ? '⇄' : '+') + '</button>';
+      var has = c.tr && c.tr !== 'none';
+      if (has) h += '<div class="trband" data-trb="' + c.id + '" style="left:' + (x0 * pps) + 'px;width:' + Math.max(6, trDur(c) * pps) + 'px" title="Шилжилт: ' + esc(trName(c.tr)) + ' · ' + trDur(c).toFixed(1) + 'с — захаас нь чирж уртасгана"><span class="trh" data-trh="' + c.id + '"></span></div>';
+      if (i > 0 || has) h += '<button type="button" class="tr-badge' + (has ? ' on' : '') + '" data-tr="' + c.id + '" style="left:' + (x0 * pps) + 'px" title="' + (has ? 'Шилжилт: ' + esc(trName(c.tr)) : 'Шилжилт нэмэх') + '" aria-label="Шилжилт">' + (has ? ico('trans') : ico('plus')) + '</button>';
       x0 += L;
     });
-    h += '<button type="button" class="vtl-add" data-a="add" style="left:' + (clipsEnd * pps + 8) + 'px;top:0" title="Видео, зураг нэмэх" aria-label="Видео, зураг нэмэх">' + ico('plus') + '</button>';
+    h += '<button type="button" class="vtl-add" data-a="add" style="left:' + (clipsEnd * pps + 8) + 'px;top:0;height:' + MH + 'px" title="Видео, зураг нэмэх" aria-label="Видео, зураг нэмэх">' + ico('plus') + '</button>';
     h += '</div>';
-    // text + audio tracks
-    function row(cls, items, k, sf, ef, label) {
-      var n = lanes(items, sf, ef), lh = 36 / n, out = '<div class="vtl-row ' + cls + '" style="left:' + p + 'px;width:' + (D * pps) + 'px">';
-      if (!items.length) out += '<span class="vtl-lab" style="top:10px;left:-' + (p - 10) + 'px">' + label + '</span>';
+    top += MH + 8;
+    // lane rows
+    var heads = '<span class="k-v" style="top:26px;height:' + MH + 'px">' + ico('fit') + 'Видео, зураг</span>';
+    ROWS.forEach(function (r) {
+      var k = r[0], items = listOf(k), maxLn = -1;
+      items.forEach(function (it) { maxLn = Math.max(maxLn, it.ln || 0); });
+      var n = Math.max(1, maxLn + 1 + (drag && drag.k === k && drag.moved && !drag.h ? 1 : 0));
+      geo[k] = { top: top, n: n };
+      var out = '<div class="vtl-row lanes r-' + k + '" style="left:' + p + 'px;top:' + top + 'px;width:' + (D * pps) + 'px;height:' + (n * LH) + 'px">';
+      for (var li = 1; li < n; li++) out += '<i class="lsep" style="top:' + (li * LH) + 'px"></i>';
+      if (!items.length) out += '<span class="vtl-lab" style="top:' + (LH / 2 - 7) + 'px;left:-' + (p - 10) + 'px">' + r[1] + '</span>';
       items.forEach(function (it) {
-        var on = sel && sel.k === k && sel.id === it.id, a = sf(it), b = ef(it);
-        var md = media[it.mid] || {}, bg = '', nm;
+        var on = sel && sel.k === k && sel.id === it.id, a = iStart(k, it), b = iEnd(k, it), md = media[it.mid] || {}, bg = '', nm;
         if (k === 'audio' && md.wave) bg = 'background-image:url(' + md.wave + ');background-size:' + (md.dur * pps) + 'px 100%;background-position:' + (-it.in * pps) + 'px 0;background-repeat:no-repeat;';
         if (k === 'over' && md.kind === 'video' && md.strip) bg = 'background-image:url(' + md.strip + ');background-size:' + (md.dur * pps) + 'px 100%;background-position:' + (-it.in * pps) + 'px 0;background-repeat:no-repeat;';
         if (k === 'over' && md.kind === 'image') bg = 'background-image:url(' + md.url + ');background-size:auto 100%;';
-        nm = k === 'text' ? (it.text || 'Текст').replace(/\n/g, ' ') : k === 'over' ? (it.kind === 'emoji' ? it.emoji : (md.kind === 'video' ? '▶ ' : '') + (md.name || 'Давхар')) : '♪ ' + (md.name || 'Хөгжим');
-        out += '<div class="it ' + (k === 'text' ? 't' : k === 'over' ? 'o' : 'a') + (on ? ' on' : '') + '" data-k="' + k + '" data-id="' + it.id + '" style="left:' + (a * pps) + 'px;width:' + Math.max(10, (b - a) * pps - 2) + 'px;top:' + (it._lane * lh) + 'px;height:' + (lh - 2) + 'px;' + bg + '">' +
+        nm = k === 'text' ? (it.text || 'Текст').replace(/\n/g, ' ') : k === 'over' ? (it.kind === 'emoji' ? it.emoji : (md.kind === 'video' ? '▶ ' : '') + (md.name || 'Давхар')) : k === 'fx' ? '✦ ' + fxName(it.fx) : '♪ ' + (md.name || 'Хөгжим');
+        out += '<div class="it ' + ({ text: 't', over: 'o', fx: 'e', audio: 'a' })[k] + (on ? ' on' : '') + '" data-k="' + k + '" data-id="' + it.id + '" style="left:' + (a * pps) + 'px;width:' + Math.max(10, (b - a) * pps - 2) + 'px;top:' + ((n - 1 - (it.ln || 0)) * LH + 1) + 'px;height:' + (LH - 3) + 'px;' + bg + '">' +
           '<span class="nm">' + esc(nm) + '</span><span class="hd l" data-h="l"></span><span class="hd r" data-h="r"></span></div>';
       });
-      return out + '</div>';
-    }
-    h += row('r-o', P.overlays, 'over', function (o) { return o.start; }, function (o) { return o.end; }, '⧉  Давхар');
-    h += row('r-t', P.texts, 'text', function (x) { return x.start; }, function (x) { return x.end; }, 'Т  Текст');
-    h += row('r-a', P.audios, 'audio', function (a) { return a.start; }, function (a) { return a.start + (a.out - a.in); }, '♪  Хөгжим');
+      h += out + '</div>';
+      heads += '<span class="k-' + k + '" style="top:' + top + 'px;height:' + (n * LH) + 'px">' + ico(r[2]) + r[1] + '</span>';
+      top += n * LH + 8;
+    });
     tl.innerHTML = h;
+    tl.style.height = top + 'px';
+    tracksEl.innerHTML = heads; tracksEl.style.height = top + 'px';
     progScroll = true; scroller.scrollLeft = T * pps; requestAnimationFrame(function () { progScroll = false; });
     document.getElementById('v-empty').style.display = P.clips.length || P.texts.length || P.overlays.length ? 'none' : '';
     timeLabel();
   }
+  function trName(id) { var n = ''; TRGROUPS.forEach(function (g) { g[1].forEach(function (t) { if (t[0] === id) n = t[1]; }); }); return n; }
+  function fxName(id) { var n = id; FXCATS.forEach(function (g) { g[1].forEach(function (t) { if (t[0] === id) n = t[1]; }); }); return n; }
 
   // pointer: tap selects; handles trim; a selected bar drags (texts / overlays / music along the time line, clips change order);
   // the mouse can drag empty timeline to scrub; edges snap (magnet) to the playhead, other edges and markers
@@ -817,8 +874,10 @@
   var snapEl = document.createElement('div'); snapEl.className = 'snapln';
   function snapLine(t) { if (t == null) { snapEl.style.display = 'none'; return; } if (snapEl.parentNode !== tl) tl.appendChild(snapEl); snapEl.style.display = 'block'; snapEl.style.left = (pad() + t * pps) + 'px'; }
   tl.addEventListener('pointerdown', function (e) {
-    var trb = e.target.closest('[data-tr]');
-    if (trb) { e.preventDefault(); sel = { k: 'clip', id: trb.dataset.tr }; refresh(); sheetTrans(); return; }
+    var trh = e.target.closest('[data-trh]');
+    if (trh) { e.preventDefault(); var tc = find('clip', trh.dataset.trh); drag = { k: 'trd', id: tc.id, x: e.clientX, d0: trDur(tc), moved: false, cap: true }; try { trh.setPointerCapture(e.pointerId); } catch (er) {} return; }
+    var trb = e.target.closest('[data-tr],[data-trb]');
+    if (trb) { e.preventDefault(); if (playing) pause(); sel = { k: 'clip', id: trb.dataset.tr || trb.dataset.trb }; refresh(); if (!desk.matches || !sheetClose) sheetTrans(); else { closeSheet(); sheetTrans(); } markTool('trans'); return; }
     var mk = e.target.closest('[data-mk]');
     if (mk) { e.preventDefault(); if (playing) pause(); seek(+mk.dataset.mk); setScroll(); refreshTB(); return; }
     var ru = e.target.closest('.vtl-ruler');
@@ -831,18 +890,43 @@
     }
     var k = it.dataset.k, id = it.dataset.id, o = find(k, id); if (!o) return;
     var hd = e.target.closest('.hd'), wasSel = sel && sel.k === k && sel.id === id;
-    drag = { k: k, id: id, h: hd ? hd.dataset.h : null, x: e.clientX, moved: false, snap: JSON.stringify(o), wasSel: wasSel, el: it };
-    if (hd || wasSel) { e.preventDefault(); try { it.setPointerCapture(e.pointerId); } catch (er) {} drag.cap = true; }
+    drag = { k: k, id: id, h: hd ? hd.dataset.h : null, x: e.clientX, y: e.clientY, moved: false, snap: JSON.stringify(o), wasSel: wasSel, el: it, touch: e.pointerType !== 'mouse' };
+    // mouse: drag right away; touch: a selected bar drags at once, any other after holding it a moment (a quick swipe still scrolls)
+    if (hd || wasSel || !drag.touch) { if (!drag.touch || hd || wasSel) e.preventDefault(); try { it.setPointerCapture(e.pointerId); } catch (er) {} drag.cap = true; }
+    else {
+      var dr0 = drag, pid = e.pointerId;
+      drag.lp = setTimeout(function () {
+        if (drag !== dr0 || dr0.moved) return;
+        dr0.cap = true; dr0.lpOn = true; it.classList.add('lift');
+        try { it.setPointerCapture(pid); } catch (er) {}
+        if (navigator.vibrate) try { navigator.vibrate(12); } catch (er) {}
+        sel = { k: k, id: id }; refreshTB(); draw();
+      }, 320);
+    }
     if (playing) pause();
   });
   window.addEventListener('pointermove', function (e) {
     if (scrub) { var sdx = e.clientX - scrub.x; if (Math.abs(sdx) > 3) scrub.moved = true; scroller.scrollLeft = scrub.sl - sdx; return; }
     if (!drag) return;
-    var dx = e.clientX - drag.x;
-    if (!drag.moved && Math.abs(dx) < 5) return;
-    drag.moved = true;
-    if (!drag.cap) { drag = null; return; }      // a plain swipe — the timeline scrolls
+    var dx = e.clientX - drag.x, dy = e.clientY - (drag.y || 0);
+    if (!drag.moved && Math.abs(dx) < 5 && Math.abs(dy) < 6) return;
+    if (!drag.cap) { clearTimeout(drag.lp); drag = null; return; }      // a plain swipe — the timeline scrolls
+    if (drag.k === 'trd') {
+      drag.moved = true; var tc = find('clip', drag.id);
+      tc.trd = Math.round(clamp(drag.d0 + dx / pps, 0.1, Math.min(2, clipLen(tc) - 0.05)) * 10) / 10; tlQ(); return;
+    }
+    if (!drag.moved) {
+      drag.moved = true;
+      // dragging a bar selects it
+      if (!sel || sel.k !== drag.k || sel.id !== drag.id) { sel = { k: drag.k, id: drag.id }; refreshTB(); }
+      drag.el.classList.add('lift');
+    }
     var o = find(drag.k, drag.id), s = JSON.parse(drag.snap), d = dx / pps; if (!o) return;
+    // up / down: another lane (an empty one appears on top while dragging)
+    if (!drag.h && drag.k !== 'clip' && geo[drag.k]) {
+      var g = geo[drag.k], ty = e.clientY - tl.getBoundingClientRect().top, row = Math.floor((ty - g.top) / laneH());
+      o.ln = clamp(g.n - 1 - row, 0, g.n - 1);
+    }
     var pts = drag.pts || (drag.pts = snapPoints(drag.id)), hit = null;
     function sn(t) { var r = snapTo(t, pts); if (r != null) { hit = r; return r; } return t; }
     // move a bar keeping its length: whichever edge is nearer a snap point wins
@@ -889,7 +973,10 @@
   window.addEventListener('pointerup', function () {
     if (scrub) { var sc = scrub; scrub = null; scroller.classList.remove('grabbing'); if (!sc.moved && sel) { sel = null; refresh(); } return; }
     if (!drag) return;
-    var dr = drag; drag = null; snapLine(null);
+    var dr = drag; drag = null; snapLine(null); clearTimeout(dr.lp);
+    if (dr.k === 'trd') { if (dr.moved) { commit(); toast('Шилжилт ' + trDur(find('clip', dr.id)).toFixed(1) + ' сек'); } return; }
+    if (dr.lpOn && !dr.moved) { refresh(); return; }
+    if (dr.moved && dr.cap && dr.k !== 'clip' && !dr.h) settleLane(dr.k, find(dr.k, dr.id));
     if (dr.moved && dr.cap) {
       if (dr.k === 'clip' && !dr.h && dr.to != null) {
         var o = find('clip', dr.id), i = P.clips.indexOf(o);
@@ -904,10 +991,14 @@
       refresh();
     }
   });
-  window.addEventListener('pointercancel', function () { drag = null; scrub = null; snapLine(null); });
+  window.addEventListener('pointercancel', function () { if (drag) clearTimeout(drag.lp); drag = null; scrub = null; snapLine(null); renderTL(); });
+  tl.addEventListener('touchmove', function (e) { if (drag && drag.cap) e.preventDefault(); }, { passive: false });
+  // the track names follow the timeline when it scrolls up / down
+  scroller.addEventListener('scroll', function () { tracksEl.style.transform = 'translateY(' + (-scroller.scrollTop) + 'px)'; }, { passive: true });
   // mouse wheel / trackpad: scroll the timeline sideways; Ctrl + wheel (or pinch on a trackpad) zooms it
   scroller.addEventListener('wheel', function (e) {
     if (e.ctrlKey || e.metaKey) { e.preventDefault(); setZoom(pps * Math.exp(-e.deltaY * 0.0025)); return; }
+    if (e.shiftKey && scroller.scrollHeight > scroller.clientHeight) { e.preventDefault(); scroller.scrollTop += (e.deltaY || e.deltaX) * (e.deltaMode === 1 ? 30 : 1); return; }
     if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) { e.preventDefault(); scroller.scrollLeft += e.deltaY * (e.deltaMode === 1 ? 30 : 1); }
   }, { passive: false });
 
@@ -921,7 +1012,7 @@
   function hitAt(p) {
     var hit = null;
     P.texts.slice().reverse().forEach(function (x) { if (!hit && T >= x.start && T < x.end && lastBox[x.id] && inBox(lastBox[x.id], p)) hit = { k: 'text', o: x }; });
-    P.overlays.slice().reverse().forEach(function (o) { if (!hit && T >= o.start && T < o.end && lastBox[o.id] && inBox(lastBox[o.id], p)) hit = { k: 'over', o: o }; });
+    ovOrder().reverse().forEach(function (o) { if (!hit && T >= o.start && T < o.end && lastBox[o.id] && inBox(lastBox[o.id], p)) hit = { k: 'over', o: o }; });
     return hit;
   }
   var downs = 0;
@@ -1021,10 +1112,10 @@
   }
 
   // ---------- history + autosave ----------
-  function snap() { return JSON.stringify({ name: P.name, w: P.w, h: P.h, bg: P.bg, clips: P.clips, texts: P.texts, audios: P.audios, overlays: P.overlays, markers: P.markers || [] }); }
-  function commit() { hist = hist.slice(0, hi + 1); hist.push(snap()); if (hist.length > 80) hist.shift(); hi = hist.length - 1; pruneEls(); save(); refresh(); }
+  function snap() { return JSON.stringify({ name: P.name, w: P.w, h: P.h, bg: P.bg, clips: P.clips, texts: P.texts, audios: P.audios, overlays: P.overlays, markers: P.markers || [], effects: P.effects || [] }); }
+  function commit() { ensureLanes(); hist = hist.slice(0, hi + 1); hist.push(snap()); if (hist.length > 80) hist.shift(); hi = hist.length - 1; pruneEls(); save(); refresh(); }
   function restore(s) {
-    var o = JSON.parse(s); P.name = o.name; P.w = o.w; P.h = o.h; P.bg = o.bg; P.clips = o.clips; P.texts = o.texts; P.audios = o.audios; P.overlays = o.overlays || []; P.markers = o.markers || [];
+    var o = JSON.parse(s); P.name = o.name; P.w = o.w; P.h = o.h; P.bg = o.bg; P.clips = o.clips; P.texts = o.texts; P.audios = o.audios; P.overlays = o.overlays || []; P.markers = o.markers || []; P.effects = o.effects || [];
     if (sel && !selected()) sel = null;
     fitCanvas(); refresh(); seek(Math.min(T, total())); save();
   }
@@ -1064,7 +1155,7 @@
       return idb('media', 'readonly', function (st) { return st.get(id); }).then(function (r) { return r ? loadMedia(r.file, r.kind, id, r.name).then(function (m) { m.saved = 1; }) : null; }).catch(function () { return null; });
     })).then(function () {
       var ok = function (c) { return !!media[c.mid]; };
-      P = { name: o.name, w: o.w, h: o.h, bg: o.bg, clips: o.clips.filter(ok), texts: o.texts, audios: o.audios.filter(ok), overlays: (o.overlays || []).filter(function (x) { return x.kind === 'emoji' || ok(x); }), markers: o.markers || [] };
+      P = { name: o.name, w: o.w, h: o.h, bg: o.bg, clips: o.clips.filter(ok), texts: o.texts, audios: o.audios.filter(ok), overlays: (o.overlays || []).filter(function (x) { return x.kind === 'emoji' || ok(x); }), markers: o.markers || [], effects: o.effects || [] };
       begin();
     });
   }
@@ -1178,10 +1269,10 @@
       var cut = srcAt(o, loc); if (rampPts(o)) { o.ramp = 'none'; c2.ramp = 'none'; }
       if (media[o.mid].kind === 'image') { o.out = loc; c2.in = 0; c2.out = L - loc; } else { o.out = cut; c2.in = cut; }
       P.clips.splice(P.clips.indexOf(o) + 1, 0, c2);
-    } else if (sel.k === 'text' || sel.k === 'over') {
+    } else if (sel.k === 'text' || sel.k === 'over' || sel.k === 'fx') {
       if (T <= o.start + 0.1 || T >= o.end - 0.1) return toast('Шугамыг дунд нь аваачаад хуваана уу');
       var t2 = JSON.parse(JSON.stringify(o)); t2.id = uid(); t2.start = T; o.end = T;
-      if (sel.k === 'over') { t2.in = (o.in || 0) + (T - o.start); t2.anim = 'none'; P.overlays.push(t2); } else P.texts.push(t2);
+      if (sel.k === 'over') { t2.in = (o.in || 0) + (T - o.start); t2.anim = 'none'; P.overlays.push(t2); } else listOf(sel.k).push(t2);
     } else {
       var aEnd = o.start + (o.out - o.in);
       if (T <= o.start + 0.1 || T >= aEnd - 0.1) return toast('Шугамыг хөгжмийн дунд аваачаад хуваана уу');
@@ -1200,7 +1291,8 @@
     var c = JSON.parse(JSON.stringify(o)); c.id = uid();
     if (sel.k === 'clip') P.clips.splice(P.clips.indexOf(o) + 1, 0, c);
     else if (sel.k === 'text') { var L = o.end - o.start; c.start = o.end; c.end = o.end + L; P.texts.push(c); }
-    else if (sel.k === 'over') { c.x = clamp(o.x + 0.05, 0, 1); c.y = clamp(o.y + 0.05, 0, 1); P.overlays.push(c); }
+    else if (sel.k === 'over') { c.x = clamp(o.x + 0.05, 0, 1); c.y = clamp(o.y + 0.05, 0, 1); c.ln = (o.ln || 0) + 1; P.overlays.push(c); }
+    else if (sel.k === 'fx') { var Lf = o.end - o.start; c.start = o.end; c.end = o.end + Lf; P.effects.push(c); }
     else { c.start = o.start + (o.out - o.in); P.audios.push(c); }
     sel = { k: sel.k, id: c.id }; commit();
   }
@@ -1250,13 +1342,14 @@
 
   // ---------- toolbar ----------
   function tbtn(a, ic, label, cls) { return '<button type="button" class="tb' + (cls ? ' ' + cls : '') + '" data-a="' + a + '">' + ico(ic) + '<span>' + label + '</span></button>'; }
-  var ADD_TOOLS = [['add', 'plus', 'Медиа'], ['stock', 'stock', 'Сан'], ['music', 'music', 'Хөгжим'], ['text', 'text', 'Текст'], ['sticker', 'sticker', 'Стикер'], ['over', 'layer', 'Давхар'], ['rec', 'mic', 'Дуу бичих']];
+  var ADD_TOOLS = [['add', 'plus', 'Медиа'], ['stock', 'stock', 'Сан'], ['music', 'music', 'Хөгжим'], ['text', 'text', 'Текст'], ['sticker', 'sticker', 'Стикер'], ['over', 'layer', 'Давхар'], ['fxadd', 'fx', 'Эффект'], ['rec', 'mic', 'Дуу бичих']];
   // what can be set on the selected item (timeline actions — split, freeze, copy, delete — live on the timeline bar)
   function ctxTools(o) {
     var m = media[o.mid] || {};
     if (sel.k === 'clip') return (m.kind === 'video' ? [['speed', 'speed', 'Хурд'], ['vol', 'vol', 'Дуу']] : []).concat([['color', 'filter', 'Өнгө'], ['fx', 'fx', 'Эффект'], ['fit', 'crop', 'Байрлал'], ['trans', 'trans', 'Шилжилт']]);
     if (sel.k === 'over') return [['oedit', 'shape', 'Тохиргоо']].concat(o.kind === 'emoji' ? [] : [['color', 'filter', 'Өнгө'], ['chroma', 'chroma', 'Дэвсгэр арилгах']]).concat(m.kind === 'video' ? [['ovol', 'vol', 'Дуу']] : []);
     if (sel.k === 'text') return [['tedit', 'edit', 'Засах']];
+    if (sel.k === 'fx') return [['fxe', 'fx', 'Эффект']];
     return [['avol', 'vol', 'Дуу']];
   }
   function tbs(list) { return list.map(function (t) { return tbtn(t[0], t[1], t[2], t[3]); }).join(''); }
@@ -1277,7 +1370,7 @@
     document.getElementById('v-tmark').classList.toggle('on', markerNear(T) >= 0);
     if (desk.matches) deskPanel(o);
   }
-  var KIND_NAME = { clip: 'Видео клип', over: 'Давхар', text: 'Текст', audio: 'Дуу, хөгжим' };
+  var KIND_NAME = { clip: 'Видео клип', over: 'Давхар', text: 'Текст', audio: 'Дуу, хөгжим', fx: 'Эффект' };
   var lastTab = {};
   function deskPanel(o) {
     var k = selKey();
@@ -1326,7 +1419,7 @@
     stock: function () { sheetStock(false); }, sticker: function () { sheetSticker(); }, over: function () { sheetAddOver(); }, rec: function () { sheetRec(); },
     desel: function () { sel = null; refresh(); }, split: splitSel, del: delSel, dup: dupSel,
     speed: function () { sheetSpeed(); }, vol: function () { sheetVol(); }, avol: function () { sheetVol(); }, ovol: function () { sheetVol(); }, fit: function () { sheetPos(); }, trans: function () { sheetTrans(); },
-    tedit: function () { sheetText(selected()); }, color: function () { sheetColor(); }, filter: function () { sheetColor(); }, adj: function () { sheetColor(); }, fx: function () { sheetFx(); },
+    tedit: function () { sheetText(selected()); }, color: function () { sheetColor(); }, filter: function () { sheetColor(); }, adj: function () { sheetColor(); }, fx: function () { sheetFx(); }, fxadd: function () { sel = null; refresh(); sheetFx(); }, fxe: function () { sheetFxItem(); },
     freeze: freezeFrame, extract: extractAudio, oedit: function () { sheetOver(); }, chroma: function () { sheetChroma(); }, mark: toggleMarker, snapt: toggleSnap
   };
   document.addEventListener('click', function (e) {
@@ -1601,45 +1694,49 @@
     var all = s.querySelector('#v-adall');
     if (all) all.addEventListener('click', function () { P.clips.forEach(function (c) { c.filter = o.filter; c.fstr = o.fstr; c.adj = JSON.parse(JSON.stringify(o.adj)); }); draw(); toast('Бүх клипт хэрэглэлээ'); });
   }
+  // effects: add over the selected clip (or from the playhead), then each effect bar has its own settings
+  function fxGrid(cur) {
+    return FXCATS.map(function (g) { return '<label class="lbl">' + g[0] + '</label><div class="opts">' + g[1].map(function (f) { return '<button type="button" class="opt' + (cur === f[0] ? ' on' : '') + '" data-fx="' + f[0] + '">' + f[1] + '</button>'; }).join('') + '</div>'; }).join('');
+  }
+  function addEffect(fx, a, b) {
+    var e = { id: uid(), fx: fx, start: a, end: Math.max(a + 0.3, b), amt: 50, spd: 1, col: null, ln: 0 };
+    P.effects = P.effects || []; P.effects.push(e); settleLane('fx', e);
+    sel = { k: 'fx', id: e.id }; commit(); previewRange(a + 0.01, Math.min(2.5, e.end - a));
+    toast('«' + fxName(fx) + '» эффект нэмэгдлээ — «Эффект» мөрөнд захаас нь чирж уртасгана');
+    return e;
+  }
   function sheetFx() {
-    var c = selected(); if (!c || sel.k !== 'clip') return;
-    var amt = c.fxAmt == null ? 50 : c.fxAmt, spd = Math.round((c.fxSpd || 1) * 100), L = clipLen(c), Lt = Math.round(L * 10);
-    var f0 = Math.round((c.fxFrom || 0) * 10), f1 = Math.round(Math.min(L, c.fxTo == null ? L : c.fxTo) * 10);
-    var s = sheet('Эффект', '<div class="opts"><button type="button" class="opt' + (!c.fx || c.fx === 'none' ? ' on' : '') + '" data-fx="none">Байхгүй</button></div>' +
-      FXCATS.map(function (g) { return '<label class="lbl">' + g[0] + '</label><div class="opts">' + g[1].map(function (f) { return '<button type="button" class="opt' + (c.fx === f[0] ? ' on' : '') + '" data-fx="' + f[0] + '">' + f[1] + '</button>'; }).join('') + '</div>'; }).join('') +
-      '<div id="v-fxset"><div class="agrp"><b>Тохиргоо</b>' +
-      '<label class="lbl">Хүч</label><div class="rowv"><input type="range" id="v-fa" min="5" max="100" value="' + amt + '"><b id="v-fav">' + amt + '</b></div>' +
-      '<label class="lbl">Хурд</label><div class="rowv"><input type="range" id="v-fsp" min="25" max="300" step="5" value="' + spd + '"><b id="v-fspv">' + (spd / 100) + '×</b></div>' +
-      '<div id="v-fxcol"><label class="lbl">Өнгө</label>' + swatches(c.fxCol || FX_COL[c.fx] || '#ffffff', 'fc') + '</div>' +
-      '<label class="lbl">Хэзээ (клип дотор)</label><div class="rowv"><span class="mini">Эхлэх</span><input type="range" id="v-ff0" min="0" max="' + Lt + '" value="' + f0 + '"><b id="v-ff0v">' + (f0 / 10).toFixed(1) + 'с</b></div>' +
-      '<div class="rowv"><span class="mini">Дуусах</span><input type="range" id="v-ff1" min="0" max="' + Lt + '" value="' + f1 + '"><b id="v-ff1v">' + (f1 / 10).toFixed(1) + 'с</b></div>' +
-      '<div class="opts" style="margin-top:10px"><button type="button" class="opt" id="v-ffall">Бүтэн клипт</button><button type="button" class="opt" id="v-ffprev">▶ Дахин үзэх</button></div></div></div>', commit);
-    function show() { s.querySelector('#v-fxset').hidden = !c.fx || c.fx === 'none'; s.querySelector('#v-fxcol').hidden = !FX_COL[c.fx]; }
-    function prev() { var a = startOf(c.id) + (c.fxFrom || 0) + 0.01; previewRange(a, Math.min(2.5, Math.max(0.5, Math.min(L, c.fxTo == null ? L : c.fxTo) - (c.fxFrom || 0)))); }
-    onOpt(s, 'fx', function (v) {
-      c.fx = v; if (c.fxCol && !FX_COL[v]) c.fxCol = null;
-      s.querySelectorAll('[data-fc]').forEach(function (q) { q.classList.toggle('on', q.dataset.fc === (c.fxCol || FX_COL[v])); });
-      show(); prev();
+    var c = selected(), a, b, here = [];
+    if (c && sel.k === 'clip') { a = startOf(c.id); b = a + clipLen(c); }
+    else { var D = total(); a = D > 0 && T < D - 0.3 ? T : 0; b = D > 0 ? Math.min(D, a + 3) : a + 3; if (b - a < 0.5) a = Math.max(0, b - 3); }
+    (P.effects || []).forEach(function (e) { if (e.start < b && e.end > a) here.push(e); });
+    var s = sheet('Эффект нэмэх', (here.length ? '<label class="lbl" style="margin-top:0">Энэ хэсэгт байгаа</label><div class="opts">' + here.map(function (e) { return '<button type="button" class="opt" data-fxsel="' + e.id + '">✦ ' + esc(fxName(e.fx)) + '</button>'; }).join('') + '</div>' : '') +
+      '<p class="note" style="margin-top:' + (here.length ? 10 : 0) + 'px">' + fmt(a) + ' – ' + fmt(b) + ' хэсэгт нэмэгдэнэ. Нэг хэсэгт хэд ч эффект давхарлаж болно.</p>' + fxGrid(''));
+    s.addEventListener('click', function (e) {
+      var b2 = e.target.closest('[data-fx]'); if (b2) { closeSheet(); addEffect(b2.dataset.fx, a, b); return; }
+      var x = e.target.closest('[data-fxsel]'); if (x) { closeSheet(); sel = { k: 'fx', id: x.dataset.fxsel }; refresh(); }
     });
-    s.querySelector('#v-fa').addEventListener('input', function () { c.fxAmt = +this.value; s.querySelector('#v-fav').textContent = this.value; draw(); });
-    s.querySelector('#v-fsp').addEventListener('input', function () { c.fxSpd = this.value / 100; s.querySelector('#v-fspv').textContent = c.fxSpd + '×'; draw(); });
+  }
+  function sheetFxItem() {
+    var e = selected(); if (!e || sel.k !== 'fx') return;
+    var amt = e.amt == null ? 50 : e.amt, spd = Math.round((e.spd || 1) * 100);
+    var s = sheet('Эффект', '<p class="note" style="margin:0">' + fmt(e.start) + ' – ' + fmt(e.end) + ' · «Эффект» мөрөнд чирж зөөж, захаас нь сунгана.</p>' + fxGrid(e.fx) +
+      '<div class="agrp"><b>Тохиргоо</b><label class="lbl">Хүч</label><div class="rowv"><input type="range" id="v-fa" min="5" max="100" value="' + amt + '"><b id="v-fav">' + amt + '</b></div>' +
+      '<label class="lbl">Хурд</label><div class="rowv"><input type="range" id="v-fsp" min="25" max="300" step="5" value="' + spd + '"><b id="v-fspv">' + (spd / 100) + '×</b></div>' +
+      '<div id="v-fxcol"><label class="lbl">Өнгө</label>' + swatches(e.col || FX_COL[e.fx] || '#ffffff', 'fc') + '</div>' +
+      '<div class="opts" style="margin-top:12px"><button type="button" class="opt" id="v-ffprev">▶ Дахин үзэх</button></div></div>', commit);
+    function show() { s.querySelector('#v-fxcol').hidden = !FX_COL[e.fx]; }
+    function prev() { previewRange(e.start + 0.01, Math.min(2.5, e.end - e.start)); }
+    onOpt(s, 'fx', function (v) { e.fx = v; if (e.col && !FX_COL[v]) e.col = null; show(); renderTL(); prev(); });
+    s.querySelector('#v-fa').addEventListener('input', function () { e.amt = +this.value; s.querySelector('#v-fav').textContent = this.value; draw(); });
+    s.querySelector('#v-fsp').addEventListener('input', function () { e.spd = this.value / 100; s.querySelector('#v-fspv').textContent = e.spd + '×'; draw(); });
     s.querySelector('#v-fsp').addEventListener('change', prev);
-    onOpt(s, 'fc', function (v) { c.fxCol = v; prev(); });
-    s.querySelector('[data-fcp]').addEventListener('input', function () { c.fxCol = this.value; draw(); });
-    var r0 = s.querySelector('#v-ff0'), r1 = s.querySelector('#v-ff1');
-    function rng(which) {
-      var a = +r0.value, b = +r1.value;
-      if (b - a < 3) { if (which === 0) a = Math.max(0, b - 3); else b = Math.min(Lt, a + 3); r0.value = a; r1.value = b; }
-      c.fxFrom = a / 10; c.fxTo = b >= Lt ? null : b / 10;
-      s.querySelector('#v-ff0v').textContent = (a / 10).toFixed(1) + 'с'; s.querySelector('#v-ff1v').textContent = (b / 10).toFixed(1) + 'с';
-      seek(startOf(c.id) + (which ? Math.max(a, b / 10 * 10 - 1) / 10 : a / 10) + 0.01);
-    }
-    r0.addEventListener('input', function () { rng(0); }); r1.addEventListener('input', function () { rng(1); });
-    r0.addEventListener('change', prev); r1.addEventListener('change', prev);
-    s.querySelector('#v-ffall').addEventListener('click', function () { c.fxFrom = 0; c.fxTo = null; r0.value = 0; r1.value = Lt; s.querySelector('#v-ff0v').textContent = '0.0с'; s.querySelector('#v-ff1v').textContent = (Lt / 10).toFixed(1) + 'с'; prev(); });
+    onOpt(s, 'fc', function (v) { e.col = v; prev(); });
+    s.querySelector('[data-fcp]').addEventListener('input', function () { e.col = this.value; draw(); });
     s.querySelector('#v-ffprev').addEventListener('click', prev);
     show();
   }
+
 
 
   // ---------- overlays: settings, background removal ----------
@@ -1663,7 +1760,11 @@
       var b = e.target.closest('[data-pos]'); if (!b) return;
       var p = b.dataset.pos;
       if (p === 'full') { var bx = ovBox(o), ar = bx ? bx.h / bx.w : 1; o.x = 0.5; o.y = 0.5; o.rot = 0; o.shape = 'rect'; o.w = Math.max(1, P.h / (P.w * ar)); s.querySelectorAll('[data-osh]').forEach(function (q) { q.classList.toggle('on', q.dataset.osh === 'rect'); }); }
-      else if (p === 'front' || p === 'back') { var li = P.overlays.indexOf(o); P.overlays.splice(li, 1); if (p === 'front') P.overlays.push(o); else P.overlays.unshift(o); toast(p === 'front' ? 'Урд гаргалаа' : 'Ард орууллаа'); }
+      else if (p === 'front' || p === 'back') {
+        var mx = 0; P.overlays.forEach(function (x) { mx = Math.max(mx, x.ln || 0); });
+        if (p === 'front') o.ln = mx + 1; else { P.overlays.forEach(function (x) { if (x !== o) x.ln = (x.ln || 0) + 1; }); o.ln = 0; }
+        ensureLanes(); renderTL(); toast(p === 'front' ? 'Урд гаргалаа' : 'Ард орууллаа');
+      }
       else if (p === 'center') { o.x = 0.5; o.y = 0.5; }
       else if (p === 'flip') o.flip = !o.flip;
       else o.rot = 0;
@@ -2145,8 +2246,19 @@
     var r = s.querySelector('#v-res');
     if (r) r.addEventListener('click', function () { r.disabled = true; r.textContent = 'Нээж байна…'; resume(saved).then(function () { s.remove(); }); });
   }
+  // projects saved before the effects track: a clip's own effect becomes an item on the track over that clip
+  function migrateFx() {
+    P.effects = P.effects || [];
+    P.clips.forEach(function (c) {
+      if (c.fx && c.fx !== 'none') {
+        var st = startOf(c.id), L = clipLen(c);
+        P.effects.push({ id: uid(), fx: c.fx, start: st + (c.fxFrom || 0), end: st + Math.min(L, c.fxTo == null ? L : c.fxTo), amt: c.fxAmt == null ? 50 : c.fxAmt, spd: c.fxSpd || 1, col: c.fxCol || null });
+      }
+      delete c.fx; delete c.fxAmt; delete c.fxSpd; delete c.fxCol; delete c.fxFrom; delete c.fxTo;
+    });
+  }
   function begin() {
-    started = true;
+    started = true; migrateFx();
     document.querySelectorAll('.vstart').forEach(function (x) { x.remove(); });
     nameIn.value = P.name; hist = []; hi = -1; T = 0;
     fitCanvas(); commit(); seek(0);

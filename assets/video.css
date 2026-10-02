@@ -220,12 +220,10 @@ button:disabled { opacity:.35; cursor:default; }
   .vtl-tracks { display:block; position:absolute; left:0; top:0; bottom:0; width:132px; z-index:6; background:var(--bg2); border-right:1px solid var(--line); }
   .vtl-tracks span { position:absolute; left:12px; right:8px; display:flex; align-items:center; gap:8px; font-size:12px; font-weight:600; color:var(--muted); }
   .vtl-tracks .i { width:16px; height:16px; }
-  .vtl-tracks .k-v { top:26px; height:72px; } .vtl-tracks .k-o { top:106px; height:36px; } .vtl-tracks .k-t { top:148px; height:36px; } .vtl-tracks .k-a { top:190px; height:36px; }
   .toast { bottom:280px; }
 }
 @media (min-width:1024px) {
   .vpanel { position:relative; }
-  .vtl-scroll { background:linear-gradient(180deg, transparent 102px, rgba(255,255,255,.028) 102px, rgba(255,255,255,.028) 144px, transparent 144px, transparent 186px, rgba(255,255,255,.028) 186px, rgba(255,255,255,.028) 228px, transparent 228px); }
 }
 
 /* timeline bar: edit actions | time | play | zoom */
@@ -286,3 +284,25 @@ button:disabled { opacity:.35; cursor:default; }
 @media (min-width:1024px) { .vpanel.free .phint { display:none; } }
 .rowv .mini { font-size:11.5px; color:var(--muted); min-width:50px; }
 #v-trset[hidden], #v-trdir[hidden], #v-trcol[hidden], #v-fxset[hidden], #v-fxcol[hidden] { display:none; }
+
+/* timeline v2: rows with lanes (top lane = in front), effects row, transitions at the joins */
+.vtl { overflow:hidden; }
+.vtl-scroll { overflow-y:auto; max-height:236px; }
+.vtl-inner { height:auto; min-height:200px; }
+.vtl-row.lanes { background:rgba(255,255,255,.025); border-radius:6px; }
+.vtl-row .lsep { position:absolute; left:0; right:0; height:0; border-top:1px dashed rgba(255,255,255,.06); pointer-events:none; }
+.it.e { background:#9d174d; } .it.e .nm { top:50%; bottom:auto; transform:translateY(-50%); }
+.it.lift { z-index:9; opacity:.9; box-shadow:0 10px 28px rgba(0,0,0,.65); outline:2px solid #fff; }
+.vtl-row .tr-badge { position:absolute; top:50%; transform:translate(-50%, -50%); z-index:5; width:26px; height:26px; border-radius:50%; background:var(--bg3); color:var(--muted); border:2px solid var(--bg); display:flex; align-items:center; justify-content:center; box-shadow:0 2px 6px rgba(0,0,0,.5); }
+.vtl-row .tr-badge .i { width:14px; height:14px; }
+.vtl-row .tr-badge.on { background:#fff; color:#111; }
+.vtl-row .tr-badge:hover { background:var(--acc); color:#fff; }
+.trband { position:absolute; top:0; height:16px; z-index:4; border-radius:8px 0 6px 0; background:repeating-linear-gradient(135deg, rgba(255,255,255,.34) 0 6px, rgba(255,255,255,.12) 6px 12px); border:1.5px solid rgba(255,255,255,.75); cursor:pointer; }
+.trh { position:absolute; right:-6px; top:-2px; width:12px; height:20px; border-radius:4px; background:#fff; cursor:ew-resize; touch-action:none; box-shadow:0 1px 4px rgba(0,0,0,.5); }
+@media (min-width:1024px) {
+  .vtl-scroll { max-height:300px; scrollbar-width:thin; }
+  .vtl-scroll::-webkit-scrollbar { display:block; width:8px; height:0; }
+  .vtl-scroll::-webkit-scrollbar-thumb { background:var(--bg4); border-radius:4px; }
+  .vtl-tracks { bottom:auto; }
+  .vtl-tracks span { padding-left:2px; }
+}
