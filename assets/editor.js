@@ -4860,7 +4860,8 @@
   }
 
   // slideshow: page transitions + element entrance animations (each animated layer is rendered on its own)
-  var TRANS = [['none', 'Байхгүй'], ['fade', 'Бүдгэрэх'], ['slide', 'Гулсах'], ['push', 'Түлхэх'], ['zoom', 'Томрох'], ['blur', 'Тодрох'], ['wipe', 'Арчих'], ['rise', 'Дээш'], ['flip', 'Эргэх']];
+  var TRANS = [['none', 'Байхгүй'], ['fade', 'Бүдгэрэх'], ['dip', 'Хар руу'], ['flash', 'Гялбаа'], ['slide', 'Гулсах'], ['push', 'Түлхэх'], ['pushup', 'Дээш түлхэх'], ['rise', 'Дээш'],
+    ['zoom', 'Томрох'], ['zoomout', 'Холдох'], ['blur', 'Тодрох'], ['wipe', 'Арчих'], ['diag', 'Налуу'], ['circle', 'Дугуй'], ['doors', 'Хаалга'], ['spin', 'Эргэлдэх'], ['flip', 'Эргэх'], ['cube', 'Куб']];
   function renderOnly(o, f, mult) {
     var vpt = canvas.viewportTransform, bg = canvas.backgroundColor, hid = [], out, pad = 0;
     (o.gFx || []).forEach(function (e) { if (e.on !== false) pad = Math.max(pad, (e.b || 0) * 2, e.l || 0, (e.d || 0) + 4, Math.abs(e.x || 0) * (e.n || 1) + Math.abs(e.y || 0) * (e.n || 1)); });

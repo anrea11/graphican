@@ -314,3 +314,7 @@ button:disabled { opacity:.35; cursor:default; }
 #v-dkr[hidden] { display:none; }
 #v-xmp4[hidden] { display:none; }
 img.xvid { object-fit:contain; }
+.it.v.gap { background:repeating-linear-gradient(135deg, rgba(255,255,255,.05) 0 8px, transparent 8px 16px) !important; border:1.5px dashed rgba(255,255,255,.28); }
+.it.v.gap::after { display:none; }
+.it.v.gap.on { border-color:#fff; }
+.it.v.gap .nm { color:var(--muted); text-shadow:none; }

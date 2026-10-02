@@ -150,7 +150,7 @@
     freeze: '<path d="M12 2v20M3.3 7l17.4 10M3.3 17L20.7 7"/>', extract: '<path d="M3 12h3l2-5 4 10 2-5h7"/>',
     crop: '<path d="M6 2v14a2 2 0 0 0 2 2h14M2 6h14a2 2 0 0 1 2 2v14"/>', chroma: '<rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 15l5-5 4 4 3-3 6 6"/>',
     front: '<rect x="8" y="8" width="12" height="12" rx="2" fill="currentColor"/><path d="M4 16V6a2 2 0 0 1 2-2h10"/>', back2: '<rect x="4" y="4" width="12" height="12" rx="2"/><path d="M20 8v10a2 2 0 0 1-2 2H8"/>',
-    kf: '<path d="M12 3l6 9-6 9-6-9z"/>', beat: '<path d="M3 12h3l2-6 3 12 3-9 2 3h5"/>',
+    kf: '<path d="M12 3l6 9-6 9-6-9z"/>', chain: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>', beat: '<path d="M3 12h3l2-6 3 12 3-9 2 3h5"/>',
     person: '<circle cx="12" cy="7" r="3.5"/><path d="M5 21a7 7 0 0 1 14 0"/><path d="M3 3l18 18" stroke-dasharray="2 2"/>',
     cc: '<rect x="3" y="5" width="18" height="14" rx="3"/><path d="M10 10.5a2 2 0 1 0 0 3M16 10.5a2 2 0 1 0 0 3"/>',
     shape: '<rect x="3" y="3" width="8" height="8" rx="2"/><circle cx="17" cy="17" r="4"/><path d="M17 3l4 7h-8z"/>', rec: '<circle cx="12" cy="12" r="8" fill="currentColor"/>'
@@ -198,7 +198,8 @@
     '<button class="ib dk" id="v-tdup" type="button" data-a="dup" title="Хувилах (Ctrl+D)" aria-label="Хувилах">' + ico('dup') + '</button>' +
     '<button class="ib dk" id="v-tfreeze" type="button" data-a="freeze" title="Кадр царцаах" aria-label="Кадр царцаах">' + ico('freeze') + '</button>' +
     '<span class="sep dk"></span><button class="ib dk" id="v-tmark" type="button" data-a="mark" title="Тэмдэг тавих / арилгах (M)" aria-label="Тэмдэг">' + ico('mark') + '</button>' +
-    '<button class="ib tog" id="v-tsnap" type="button" data-a="snapt" title="Соронз: ирмэг, шугам, тэмдэгт наалдах (N)" aria-label="Соронз">' + ico('magnet') + '</button></div>' +
+    '<button class="ib tog" id="v-tsnap" type="button" data-a="snapt" title="Соронз: ирмэг, шугам, тэмдэгт наалдах (N)" aria-label="Соронз">' + ico('magnet') + '</button>' +
+    '<button class="ib tog dk" id="v-tmag" type="button" data-a="magt" title="Үндсэн мөрийн соронз: асаалттай бол клипүүд залгаатай, унтраавал хооронд нь зай гаргаж болно" aria-label="Үндсэн мөрийн соронз">' + ico('chain') + '</button></div>' +
     '<span class="time" id="v-time"></span>' +
     '<div class="tmid"><button class="ib" id="v-undo" type="button" title="Буцаах (Ctrl+Z)" aria-label="Буцаах">' + ico('undo') + '</button>' +
     '<button class="play" id="v-play" type="button" aria-label="Тоглуулах">' + ico('play') + '</button>' +
@@ -1009,8 +1010,8 @@
       var bg = '';
       if (m.kind === 'video' && m.strip) bg = 'background-image:url(' + m.strip + ');background-size:' + (m.dur / avgSpeed(c) * pps) + 'px 100%;background-position:' + (-c.in / avgSpeed(c) * pps) + 'px 0;background-repeat:no-repeat;';
       else if (m.kind === 'image' && m.url) bg = 'background-image:url(' + m.url + ');';
-      h += '<div class="it v' + (on ? ' on' : '') + '" data-k="clip" data-id="' + c.id + '" style="left:' + (x0 * pps) + 'px;width:' + Math.max(8, L * pps - 2) + 'px;' + bg + '">' +
-        '<span class="nm">' + (rampPts(c) ? '〰 ' : c.speed !== 1 ? c.speed + '× · ' : '') + fmt(L) + (c.mute ? ' · 🔇' : '') + '</span>' + kfDots(c) + '<span class="hd l" data-h="l"></span><span class="hd r" data-h="r"></span></div>';
+      h += '<div class="it v' + (c.gap ? ' gap' : '') + (on ? ' on' : '') + '" data-k="clip" data-id="' + c.id + '" style="left:' + (x0 * pps) + 'px;width:' + Math.max(8, L * pps - 2) + 'px;' + bg + '">' +
+        '<span class="nm">' + (c.gap ? 'Хоосон · ' + fmt(L) : (rampPts(c) ? '〰 ' : c.speed !== 1 ? c.speed + '× · ' : '') + fmt(L) + (c.mute ? ' · 🔇' : '')) + '</span>' + kfDots(c) + '<span class="hd l" data-h="l"></span><span class="hd r" data-h="r"></span></div>';
       var has = c.tr && c.tr !== 'none';
       if (has) h += '<div class="trband" data-trb="' + c.id + '" style="left:' + (x0 * pps) + 'px;width:' + Math.max(6, trDur(c) * pps) + 'px" title="Шилжилт: ' + esc(trName(c.tr)) + ' · ' + trDur(c).toFixed(1) + 'с — захаас нь чирж уртасгана"><span class="trh" data-trh="' + c.id + '"></span></div>';
       if (i > 0 || has) h += '<button type="button" class="tr-badge' + (has ? ' on' : '') + '" data-tr="' + c.id + '" style="left:' + (x0 * pps) + 'px" title="' + (has ? 'Шилжилт: ' + esc(trName(c.tr)) : 'Шилжилт нэмэх') + '" aria-label="Шилжилт">' + (has ? ico('trans') : ico('plus')) + '</button>';
@@ -1132,7 +1133,19 @@
       return ns;
     }
     if (drag.k === 'clip') {
-      var m = media[o.mid], maxSrc = m.kind === 'image' ? 3600 : m.dur, st = startOf(o.id);
+      var m = media[o.mid] || { kind: 'image' }, maxSrc = m.kind === 'image' ? 3600 : m.dur, st = startOf(o.id);
+      if (!drag.h && P.magnet === false) {
+        // free placement: the gap before grows / shrinks; a gap after shrinks first, then the clips after move along
+        if (!drag.free) {
+          var ix = P.clips.indexOf(o), pv = P.clips[ix - 1], nx = P.clips[ix + 1];
+          if (!pv || !pv.gap) { pv = gapClip(0); P.clips.splice(ix, 0, pv); }
+          drag.free = { pg: pv, pg0: pv.out - pv.in, ng: nx && nx.gap ? nx : null, ng0: nx && nx.gap ? nx.out - nx.in : 0, st0: startOf(o.id) };
+        }
+        var F = drag.free, dd = Math.max(-F.pg0, d), sn0 = snapTo(F.st0 + dd, pts);
+        if (sn0 != null && sn0 - F.st0 >= -F.pg0) { dd = sn0 - F.st0; hit = sn0; }
+        F.pg.out = F.pg.in + F.pg0 + dd; if (F.ng) F.ng.out = F.ng.in + Math.max(0, F.ng0 - dd);
+        snapLine(hit); tlQ(); return;
+      }
       if (!drag.h) {
         // reorder: the bar follows the pointer, the drop place is shown by a line
         drag.el.style.transform = 'translateX(' + dx + 'px)'; drag.el.classList.add('lift');
@@ -1173,6 +1186,7 @@
     if (dr.lpOn && !dr.moved) { refresh(); return; }
     if (dr.moved && dr.cap && dr.k !== 'clip' && !dr.h) settleLane(dr.k, find(dr.k, dr.id));
     if (dr.moved && dr.cap) {
+      if (dr.k === 'clip' && dr.free) { mergeGaps(); commit(); return; }
       if (dr.k === 'clip' && !dr.h && dr.to != null) {
         var o = find('clip', dr.id), i = P.clips.indexOf(o);
         P.clips.splice(i, 1); P.clips.splice(dr.to, 0, o); commit(); seek(startOf(o.id) + 0.01); setScroll(); return;
@@ -1307,10 +1321,10 @@
   }
 
   // ---------- history + autosave ----------
-  function snap() { return JSON.stringify({ name: P.name, w: P.w, h: P.h, bg: P.bg, clips: P.clips, texts: P.texts, audios: P.audios, overlays: P.overlays, markers: P.markers || [], effects: P.effects || [] }); }
+  function snap() { return JSON.stringify({ name: P.name, w: P.w, h: P.h, bg: P.bg, clips: P.clips, texts: P.texts, audios: P.audios, overlays: P.overlays, markers: P.markers || [], effects: P.effects || [], magnet: P.magnet }); }
   function commit() { ensureLanes(); hist = hist.slice(0, hi + 1); hist.push(snap()); if (hist.length > 80) hist.shift(); hi = hist.length - 1; pruneEls(); save(); refresh(); }
   function restore(s) {
-    var o = JSON.parse(s); P.name = o.name; P.w = o.w; P.h = o.h; P.bg = o.bg; P.clips = o.clips; P.texts = o.texts; P.audios = o.audios; P.overlays = o.overlays || []; P.markers = o.markers || []; P.effects = o.effects || [];
+    var o = JSON.parse(s); P.name = o.name; P.w = o.w; P.h = o.h; P.bg = o.bg; P.clips = o.clips; P.texts = o.texts; P.audios = o.audios; P.overlays = o.overlays || []; P.markers = o.markers || []; P.effects = o.effects || []; P.magnet = o.magnet;
     if (sel && !selected()) sel = null;
     fitCanvas(); refresh(); seek(Math.min(T, total())); save();
   }
@@ -1349,8 +1363,8 @@
     return Promise.all(rec.mids.map(function (id) {
       return idb('media', 'readonly', function (st) { return st.get(id); }).then(function (r) { return r ? loadMedia(r.file, r.kind, id, r.name).then(function (m) { m.saved = 1; }) : null; }).catch(function () { return null; });
     })).then(function () {
-      var ok = function (c) { return !!media[c.mid]; };
-      P = { name: o.name, w: o.w, h: o.h, bg: o.bg, clips: o.clips.filter(ok), texts: o.texts, audios: o.audios.filter(ok), overlays: (o.overlays || []).filter(function (x) { return x.kind === 'emoji' || ok(x); }), markers: o.markers || [], effects: o.effects || [] };
+      var ok = function (c) { return c.gap || !!media[c.mid]; };
+      P = { name: o.name, w: o.w, h: o.h, bg: o.bg, clips: o.clips.filter(ok), texts: o.texts, audios: o.audios.filter(ok), overlays: (o.overlays || []).filter(function (x) { return x.kind === 'emoji' || ok(x); }), markers: o.markers || [], effects: o.effects || [], magnet: o.magnet };
       begin();
     });
   }
@@ -1462,7 +1476,7 @@
       if (loc < 0.1 || loc > L - 0.1) return toast('Шугамыг клипийн дунд аваачаад хуваана уу');
       var c2 = JSON.parse(JSON.stringify(o)); c2.id = uid(); c2.tr = 'none'; kfShift(c2, -loc);
       var cut = srcAt(o, loc); if (rampPts(o)) { o.ramp = 'none'; c2.ramp = 'none'; }
-      if (media[o.mid].kind === 'image') { o.out = loc; c2.in = 0; c2.out = L - loc; } else { o.out = cut; c2.in = cut; }
+      if (o.gap || (media[o.mid] || {}).kind === 'image') { o.out = loc; c2.in = 0; c2.out = L - loc; } else { o.out = cut; c2.in = cut; }
       P.clips.splice(P.clips.indexOf(o) + 1, 0, c2);
     } else if (sel.k === 'text' || sel.k === 'over' || sel.k === 'fx') {
       if (T <= o.start + 0.1 || T >= o.end - 0.1) return toast('Шугамыг дунд нь аваачаад хуваана уу');
@@ -1478,8 +1492,24 @@
   function delSel() {
     if (!sel) return;
     var l = listOf(sel.k), i = l.findIndex(function (x) { return x.id === sel.id; });
-    if (i >= 0) l.splice(i, 1);
+    if (i >= 0 && sel.k === 'clip' && P.magnet === false && !l[i].gap && i < l.length - 1) l.splice(i, 1, gapClip(clipLen(l[i])));
+    else if (i >= 0) l.splice(i, 1);
+    if (sel.k === 'clip') mergeGaps();
     sel = null; commit(); seek(Math.min(T, total()));
+  }
+  // main track gaps (when its magnet is off): empty stretches that show the background colour
+  function gapClip(len) { return { id: uid(), gap: true, mid: null, in: 0, out: len, speed: 1, vol: 1, mute: true, fit: 'fill', tr: 'none' }; }
+  function mergeGaps() {
+    var out = [];
+    P.clips.forEach(function (c) { var pv = out[out.length - 1]; if (c.gap && pv && pv.gap) pv.out += c.out - c.in; else if (!(c.gap && c.out - c.in < 0.02)) out.push(c); });
+    while (out.length && out[out.length - 1].gap) out.pop();
+    P.clips = out;
+  }
+  function toggleMagnet() {
+    P.magnet = P.magnet === false;
+    if (P.magnet) { var had = P.clips.some(function (c) { return c.gap; }); P.clips = P.clips.filter(function (c) { return !c.gap; }); toast(had ? 'Үндсэн мөрийн соронз асаалттай — хоосон зайнууд хаагдлаа' : 'Үндсэн мөрийн соронз асаалттай — клипүүд залгаатай'); }
+    else toast('Үндсэн мөрийн соронз унтарлаа — клипийг чирж хооронд нь зай гаргана, устгахад зай үлдэнэ');
+    commit();
   }
   function dupSel() {
     var o = selected(); if (!o) return;
@@ -1541,6 +1571,7 @@
   // what can be set on the selected item (timeline actions — split, freeze, copy, delete — live on the timeline bar)
   function ctxTools(o) {
     var m = media[o.mid] || {};
+    if (o.gap) return [];
     if (sel.k === 'clip') return (m.kind === 'video' ? [['speed', 'speed', 'Хурд'], ['vol', 'vol', 'Дуу']] : []).concat([['color', 'filter', 'Өнгө'], ['fx', 'fx', 'Эффект'], ['fit', 'crop', 'Байрлал'], ['trans', 'trans', 'Шилжилт'], ['cut', 'person', 'Дэвсгэр'], ['kf', 'kf', 'Keyframe']]);
     if (sel.k === 'over') return [['oedit', 'shape', 'Тохиргоо']].concat(o.kind === 'emoji' ? [] : [['color', 'filter', 'Өнгө'], ['cut', 'person', 'Дэвсгэр арилгах']]).concat(m.kind === 'video' ? [['ovol', 'vol', 'Дуу']] : []).concat([['kf', 'kf', 'Keyframe']]);
     if (sel.k === 'text') return [['tedit', 'edit', 'Засах'], ['kf', 'kf', 'Keyframe']];
@@ -1551,6 +1582,7 @@
   function refreshTB() {
     var o = sel && selected(), h;
     if (!o) h = tbs(ADD_TOOLS) + tbtn('size', 'size', 'Хэмжээ') + tbtn('bg', 'color', 'Дэвсгэр');
+    else if (o.gap) h = tbtn('desel', 'back', '', 'back') + tbtn('del', 'del', 'Зайг хаах', 'danger');
     else {
       var vid = sel.k === 'clip' && (media[o.mid] || {}).kind === 'video';
       h = tbtn('desel', 'back', '', 'back') + tbtn('split', 'split', 'Хуваах') + tbs(ctxTools(o)) + (vid ? tbtn('freeze', 'freeze', 'Царцаах') : '') + tbtn('dup', 'dup', 'Хувилах') + tbtn('del', 'del', 'Устгах', 'danger');
@@ -1562,6 +1594,7 @@
     document.getElementById('v-tsplit').disabled = !o && !at;
     document.getElementById('v-tfreeze').disabled = !(at && (media[at.c.mid] || {}).kind === 'video');
     document.getElementById('v-tsnap').classList.toggle('on', snapOn);
+    document.getElementById('v-tmag').classList.toggle('on', P.magnet !== false);
     document.getElementById('v-tmark').classList.toggle('on', markerNear(T) >= 0);
     if (desk.matches) deskPanel(o);
   }
@@ -1579,7 +1612,7 @@
         '<dl><dt>Space</dt><dd>Тоглуулах / зогсоох</dd><dt>S</dt><dd>Шугам дээр хуваах</dd><dt>M</dt><dd>Тэмдэг тавих</dd><dt>N</dt><dd>Соронз асаах / унтраах</dd><dt>Delete</dt><dd>Устгах</dd><dt>Ctrl+Z</dt><dd>Буцаах</dd><dt>Ctrl+D</dt><dd>Хувилах</dd><dt>← →</dt><dd>Нэг кадр (Shift: 1 сек)</dd><dt>Ctrl+хүрд</dt><dd>Timeline томруулах</dd></dl></div>';
     } else {
       var m = media[o.mid] || {}, tools = ctxTools(o);
-      title = sel.k === 'clip' ? (m.kind === 'image' ? 'Зураг' : 'Видео клип') : sel.k === 'over' ? (o.kind === 'emoji' ? 'Стикер' : m.kind === 'video' ? 'Давхар видео' : 'Давхар зураг') : KIND_NAME[sel.k];
+      title = sel.k === 'clip' ? (o.gap ? 'Хоосон зай' : m.kind === 'image' ? 'Зураг' : 'Видео клип') : sel.k === 'over' ? (o.kind === 'emoji' ? 'Стикер' : m.kind === 'video' ? 'Давхар видео' : 'Давхар зураг') : KIND_NAME[sel.k];
       sub = sel.k === 'text' ? (o.text || '').replace(/\n/g, ' ').slice(0, 40) : sel.k === 'clip' ? fmt(clipLen(o)) : sel.k === 'audio' ? (m.name || '') + ' · ' + fmt(o.out - o.in) : fmt(o.end - o.start);
       ptools.innerHTML = tools.length > 1 ? '<div class="ptabs">' + tools.map(function (t) { return '<button type="button" class="tb" data-a="' + t[0] + '">' + ico(t[1]) + '<span>' + t[2] + '</span></button>'; }).join('') + '</div>' : '';
       // the remembered (or first) tab opens by itself
@@ -1615,7 +1648,7 @@
     desel: function () { sel = null; refresh(); }, split: splitSel, del: delSel, dup: dupSel,
     speed: function () { sheetSpeed(); }, vol: function () { sheetVol(); }, avol: function () { sheetVol(); }, ovol: function () { sheetVol(); }, fit: function () { sheetPos(); }, trans: function () { sheetTrans(); },
     tedit: function () { sheetText(selected()); }, color: function () { sheetColor(); }, filter: function () { sheetColor(); }, adj: function () { sheetColor(); }, fx: function () { sheetFx(); }, fxadd: function () { sel = null; refresh(); sheetFx(); }, fxe: function () { sheetFxItem(); }, cap: function () { sheetCaptions(); }, kf: function () { sheetKf(); }, beat: function () { sheetBeat(); }, cut: function () { sheetCut(); },
-    freeze: freezeFrame, extract: extractAudio, oedit: function () { sheetOver(); }, chroma: function () { sheetChroma(); }, mark: toggleMarker, snapt: toggleSnap
+    freeze: freezeFrame, extract: extractAudio, oedit: function () { sheetOver(); }, chroma: function () { sheetChroma(); }, mark: toggleMarker, snapt: toggleSnap, magt: toggleMagnet
   };
   document.addEventListener('click', function (e) {
     var b = e.target.closest('[data-a]'); if (!b || b.closest('.sheet') || b.disabled) return;
@@ -2560,7 +2593,7 @@
   function mixAudio(D, opt) {
     opt = opt || {};
     var srcs = [], SR = opt.sr || 48000, CH = opt.ch || 2;
-    P.clips.forEach(function (c, i) { var m = media[c.mid]; if (m.kind === 'video' && !c.mute && c.vol > 0) srcs.push({ c: c, m: m, start: startOf(c.id) }); });
+    P.clips.forEach(function (c, i) { var m = media[c.mid]; if (m && m.kind === 'video' && !c.mute && c.vol > 0) srcs.push({ c: c, m: m, start: startOf(c.id) }); });
     P.audios.forEach(function (a) { var m = media[a.mid]; if (!opt.voice || a.rec || (m && m.kind === 'video')) srcs.push({ a: a, m: m }); });
     P.overlays.forEach(function (o) { var m = media[o.mid]; if (m && m.kind === 'video' && !o.mute && (o.vol == null ? 1 : o.vol) > 0) srcs.push({ o: o, m: m }); });
     if (!srcs.length) return Promise.resolve(null);
@@ -2650,7 +2683,7 @@
   // every video that must show a frame at time t: the main clip and any video overlays
   function framesAt(t) {
     var need = [], ps = [], at = P.clips.length ? clipAt(t) : null;
-    if (at && media[at.c.mid].kind === 'video') { var m = media[at.c.mid]; need.push(m.el); ps.push(frameAt(m.el, clamp(rateAt(at.c, at.local), 0.0625, 16), Math.min(m.dur - 0.01, srcAt(at.c, at.local)), m.dur)); }
+    if (at && (media[at.c.mid] || {}).kind === 'video') { var m = media[at.c.mid]; need.push(m.el); ps.push(frameAt(m.el, clamp(rateAt(at.c, at.local), 0.0625, 16), Math.min(m.dur - 0.01, srcAt(at.c, at.local)), m.dur)); }
     P.overlays.forEach(function (o) {
       var mo = media[o.mid]; if (!mo || mo.kind !== 'video' || t < o.start || t >= o.end) return;
       var v = elFor(o); need.push(v); ps.push(frameAt(v, 1, Math.min(mo.dur - 0.01, (o.in || 0) + (t - o.start)), mo.dur));

@@ -586,6 +586,26 @@ body[data-mode="ppt"] .dock { bottom:134px; } body[data-mode="ppt"] .ctxbar { bo
 .tr-in.tr-flip { animation-name:trFlipIn; } .tr-out.tr-flip { animation-name:trFlipOut; }
 .pslide.back.tr-in.tr-slide, .pslide.back.tr-in.tr-push { animation-name:trSlideInBack; } .pslide.back.tr-out.tr-push { animation-name:trPushOutBack; }
 .pslide.back.tr-in.tr-wipe { animation-name:trWipeInBack; }
+.tr-in.tr-dip { animation-name:trDipIn; } .tr-out.tr-dip { animation-name:trDipOut; }
+.tr-in.tr-flash { animation-name:trFlashIn; } .tr-out.tr-flash { animation-name:trDipOut; }
+.tr-in.tr-pushup { animation-name:trRiseIn; } .tr-out.tr-pushup { animation-name:trPushUpOut; }
+.tr-in.tr-zoomout { animation-name:trFadeIn; } .tr-out.tr-zoomout { animation-name:trZoomOut; }
+.tr-in.tr-diag { animation-name:trDiagIn; } .tr-out.tr-diag { animation-name:trStay; }
+.tr-in.tr-circle { animation-name:trCircleIn; } .tr-out.tr-circle { animation-name:trStay; }
+.tr-in.tr-doors { animation-name:trDoorsIn; } .tr-out.tr-doors { animation-name:trStay; }
+.tr-in.tr-spin { animation-name:trSpinIn; } .tr-out.tr-spin { animation-name:trSpinOut; }
+.tr-in.tr-cube { animation-name:trCubeIn; transform-origin:0 50%; } .tr-out.tr-cube { animation-name:trCubeOut; transform-origin:100% 50%; }
+.pslide.back.tr-in.tr-cube { animation-name:trCubeInBack; transform-origin:100% 50%; } .pslide.back.tr-out.tr-cube { animation-name:trCubeOutBack; transform-origin:0 50%; }
+@keyframes trDipIn { 0%, 50% { opacity:0; } 100% { opacity:1; } } @keyframes trDipOut { 0% { opacity:1; } 50%, 100% { opacity:0; } }
+@keyframes trFlashIn { 0%, 45% { opacity:0; filter:brightness(3); } 100% { opacity:1; filter:none; } }
+@keyframes trPushUpOut { from { transform:none; } to { transform:translateY(-100%); } }
+@keyframes trZoomOut { from { opacity:1; transform:none; } to { opacity:0; transform:scale(.6); } }
+@keyframes trDiagIn { from { clip-path:polygon(0 0, 0 0, 0 0); } to { clip-path:polygon(0 0, 200% 0, 0 200%); } }
+@keyframes trCircleIn { from { clip-path:circle(0% at 50% 50%); } to { clip-path:circle(75% at 50% 50%); } }
+@keyframes trDoorsIn { from { clip-path:inset(0 50% 0 50%); } to { clip-path:inset(0 0 0 0); } }
+@keyframes trSpinIn { from { opacity:0; transform:rotate(-180deg) scale(.2); } to { opacity:1; transform:none; } } @keyframes trSpinOut { from { opacity:1; transform:none; } to { opacity:0; transform:rotate(180deg) scale(.2); } }
+@keyframes trCubeIn { from { transform:translateX(100%) rotateY(90deg); } to { transform:none; } } @keyframes trCubeOut { from { transform:none; } to { transform:translateX(-100%) rotateY(-90deg); } }
+@keyframes trCubeInBack { from { transform:translateX(-100%) rotateY(-90deg); } to { transform:none; } } @keyframes trCubeOutBack { from { transform:none; } to { transform:translateX(100%) rotateY(90deg); } }
 @keyframes trFadeIn { from { opacity:0; } to { opacity:1; } } @keyframes trFadeOut { from { opacity:1; } to { opacity:0; } }
 @keyframes trStay { from { opacity:1; } to { opacity:1; } }
 @keyframes trSlideIn { from { transform:translateX(100%); } to { transform:none; } } @keyframes trSlideInBack { from { transform:translateX(-100%); } to { transform:none; } }
