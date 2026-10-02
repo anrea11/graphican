@@ -6,6 +6,7 @@
     GET /api/stock/video?id=<pexels id>[&poster=1|&info=1]   (template videos: redirects to the HD mp4 / poster through the proxy)
     GET /api/music?q=&cat=music|sound_effect&page=&com=1   (free Creative Commons music / sound effects from Openverse — Jamendo, Freesound, ccMixter…)
     GET /api/fetch?u=<https url>               (video editor "add from link": a direct audio / video / image file, same-site callers only)
+    POST /api/ai/transcribe?lang=mn|en|ru|     body: 16 kHz mono WAV (≤ 8 MB) → {text, words:[{w, s, e}]}   (video editor auto captions, Whisper)
   Workers AI (binding "AI" in wrangler.jsonc) for the PDF editor:
     POST /api/ai/translate  {texts:[...], source, target}  -> {texts:[...]}   (per-line edge cache → Microsoft Translator if AZURE_TRANSLATOR_KEY is set → Llama 3.3 → m2m100)
     GET  /api/ai/ping[?az=1]  live check of Workers AI, or with az=1 of Microsoft Translator (key, region, quota)
@@ -190,6 +191,35 @@ async function fetchMedia(url, request) {
   const h = new Headers({ 'content-type': type, 'access-control-allow-origin': '*', 'cache-control': 'private, max-age=3600' });
   ['content-length', 'content-range', 'accept-ranges'].forEach(k => { if (r.headers.get(k)) h.set(k, r.headers.get(k)); });
   return new Response(r.body, { status: r.status === 206 ? 206 : 200, headers: h });
+}
+
+// auto captions: a short WAV from the video editor → words with times (Whisper large v3 turbo; the base model as a fallback)
+function b64(buf) { const u = new Uint8Array(buf); let s = ''; for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode.apply(null, u.subarray(i, i + 0x8000)); return btoa(s); }
+async function transcribe(url, request, env) {
+  if (request.method !== 'POST') return json({ error: 'method' }, 405);
+  if (!allowed(request)) return json({ error: 'forbidden' }, 403);
+  if (!env.AI) return json({ error: 'no_ai' }, 503);
+  const buf = await request.arrayBuffer();
+  if (!buf.byteLength) return json({ error: 'empty' }, 400);
+  if (buf.byteLength > 8 * 1048576) return json({ error: 'too_large' }, 413);
+  const lang = /^[a-z]{2}$/.test(url.searchParams.get('lang') || '') ? url.searchParams.get('lang') : undefined;
+  let r = null, words = [];
+  try {
+    r = await env.AI.run('@cf/openai/whisper-large-v3-turbo', { audio: b64(buf), task: 'transcribe', language: lang, vad_filter: true });
+    (r.segments || []).forEach(sg => {
+      if (sg.words && sg.words.length) sg.words.forEach(w => words.push({ w: String(w.word || '').trim(), s: w.start, e: w.end }));
+      else { // no word times: spread the segment's words over it
+        const ws = String(sg.text || '').trim().split(/\s+/).filter(Boolean), d = (sg.end - sg.start) / Math.max(1, ws.length);
+        ws.forEach((w, i) => words.push({ w, s: sg.start + i * d, e: sg.start + (i + 1) * d }));
+      }
+    });
+  } catch (e) { r = null; }
+  if (!r) {
+    try { r = await env.AI.run('@cf/openai/whisper', { audio: [...new Uint8Array(buf)] }); (r.words || []).forEach(w => words.push({ w: String(w.word || '').trim(), s: w.start, e: w.end })); }
+    catch (e) { return json({ error: 'ai_failed', message: String(e && e.message || e).slice(0, 200) }, 502); }
+  }
+  words = words.filter(w => w.w && isFinite(w.s) && isFinite(w.e));
+  return json({ text: r.text || words.map(w => w.w).join(' '), words, lang: (r.transcription_info && r.transcription_info.language) || lang || '' }, 200, { 'cache-control': 'no-store' });
 }
 
 // template videos are stored as a Pexels id; resolve it to a real file here so the key never reaches the browser
@@ -466,6 +496,7 @@ export default {
     if (url.pathname === '/api/music') return music(url, env, ctx);
     if (url.pathname === '/api/music/file') return file(url, request);
     if (url.pathname === '/api/fetch') return fetchMedia(url, request);
+    if (url.pathname === '/api/ai/transcribe') return transcribe(url, request, env);
     if (url.pathname === '/api/stock/health') // names only — never values
       return json({ pexels: !!findKey(env, 'PEXELS'), pixabay: !!findKey(env, 'PIXABAY'), azure: !!azKey(env), azureRegion: (env.AZURE_TRANSLATOR_REGION || env.AZURE_REGION || '').trim() || 'global', names: Object.keys(env).filter(n => n !== 'ASSETS' && n !== 'AI'), ai: !!env.AI }, 200, { 'cache-control': 'no-store' });
     if (url.pathname === '/api/ai/ping' && url.searchParams.get('az')) { // live check of Microsoft Translator (key, region, quota)

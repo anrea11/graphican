@@ -32,3 +32,4 @@ MediaPipe Face Landmarker model (face/face_landmarker.task, float16 v1, sha256 6
 MediaPipe Face Detector model (face/blaze_face_short_range.tflite, float16, sha256 b4578f35940bf5a1a655214a1cce5cab13eba73c1297cd78e1a04c2380b0152f) — Google — Apache License 2.0 — https://ai.google.dev/edge/mediapipe/solutions/vision/face_detector
   Used by /tools/socialcrop/ (assets/faces.js)
 mp4-muxer.min.js — mp4-muxer 5.2.2 (Vanilagy), MP4 multiplexer for the video editor — MIT
+MediaPipe Selfie Segmenter model (face/selfie_segmenter.tflite, float16, sha256 191ac9529ae506ee0beefa6b2c945a172dab9d07d1e802a290a4e4038226658b) — Google — Apache License 2.0 — https://ai.google.dev/edge/mediapipe/solutions/vision/image_segmenter
