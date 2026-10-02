@@ -133,6 +133,7 @@
     '<input class="vname" id="v-name" value="" aria-label="Видеоны нэр" spellcheck="false">' +
     '<button class="chip" id="v-size" type="button" title="Хэмжээ солих"></button>' +
     '<button class="btn-x" id="v-export" type="button">' + ico('dl') + '<span>Татах</span></button></header>' +
+    '<div class="vmain"><nav class="vrail" id="v-rail" aria-label="Нэмэх"></nav><div class="vcenter">' +
     '<div class="vstage" id="v-stage"><canvas id="v-cv"></canvas><div class="guide v" id="g-v"></div><div class="guide h" id="g-h"></div>' +
     '<div class="selbox" id="v-sel" hidden><i class="tl" data-hd="s"></i><i class="tr" data-hd="s"></i><i class="bl" data-hd="s"></i><i class="br" data-hd="s"></i><i class="rot" data-hd="r"></i></div>' +
     '<div class="vempty" id="v-empty"><b>Видео, зургаа нэмээд эхлээрэй</b><span>Файлууд тань серверт очихгүй — зөвхөн энэ төхөөрөмж дээр засагдана</span><button class="btn-x" type="button" data-a="add">' + ico('plus') + 'Видео, зураг нэмэх</button></div></div>' +
@@ -140,11 +141,14 @@
     '<button class="ib" id="v-undo" type="button" title="Буцаах (Ctrl+Z)" aria-label="Буцаах">' + ico('undo') + '</button>' +
     '<button class="play" id="v-play" type="button" aria-label="Тоглуулах">' + ico('play') + '</button>' +
     '<button class="ib" id="v-redo" type="button" title="Дахин хийх (Ctrl+Y)" aria-label="Дахин хийх">' + ico('redo') + '</button>' +
-    '<span class="grow"></span><input class="zoom" id="v-zoom" type="range" min="20" max="240" value="70" aria-label="Timeline томруулах"></div>' +
-    '<div class="vtl"><div class="vtl-scroll" id="v-scroll"><div class="vtl-inner" id="v-tl"></div></div><div class="vtl-head"></div></div>' +
+    '<span class="grow"></span><span class="zl">Timeline</span><input class="zoom" id="v-zoom" type="range" min="20" max="240" value="70" aria-label="Timeline томруулах" title="Timeline томруулах"></div></div>' +
+    '<aside class="vpanel" id="v-panel"><div class="ph"><b id="v-ptitle"></b><small id="v-psub"></small></div><div class="ptools" id="v-ptools"></div><div id="v-pbody"></div></aside></div>' +
+    '<div class="vtl"><div class="vtl-tracks" aria-hidden="true"><span class="k-v">' + ico('fit') + 'Видео, зураг</span><span class="k-o">' + ico('layer') + 'Давхар</span><span class="k-t">' + ico('text') + 'Текст</span><span class="k-a">' + ico('music') + 'Дуу, хөгжим</span></div><div class="vtl-scroll" id="v-scroll"><div class="vtl-inner" id="v-tl"></div></div><div class="vtl-head"></div></div>' +
     '<nav class="vtb" id="v-tb" aria-label="Хэрэгсэл"></nav>';
   var cv = document.getElementById('v-cv'), cx = cv.getContext('2d'), stage = document.getElementById('v-stage');
   var scroller = document.getElementById('v-scroll'), tl = document.getElementById('v-tl'), tb = document.getElementById('v-tb');
+  // computer: tools on the left, settings of the selected item docked on the right (phone: bottom bar + bottom sheets)
+  var desk = window.matchMedia('(min-width: 1024px)'), rail = document.getElementById('v-rail'), ptools = document.getElementById('v-ptools'), pbody = document.getElementById('v-pbody');
   var fileIn = document.createElement('input'); fileIn.type = 'file'; fileIn.multiple = true; fileIn.hidden = true; document.body.appendChild(fileIn);
   var drop = document.createElement('div'); drop.className = 'drop'; drop.textContent = 'Энд тавина уу'; document.body.appendChild(drop);
 
@@ -609,6 +613,8 @@
   tl.addEventListener('pointerdown', function (e) {
     var trb = e.target.closest('[data-tr]');
     if (trb) { e.preventDefault(); sel = { k: 'clip', id: trb.dataset.tr }; refresh(); sheetTrans(); return; }
+    var ru = e.target.closest('.vtl-ruler');
+    if (ru) { if (playing) pause(); seek((e.clientX - ru.getBoundingClientRect().left) / pps); setScroll(); return; }
     var it = e.target.closest('.it'); if (!it) return;
     var k = it.dataset.k, id = it.dataset.id, o = find(k, id); if (!o) return;
     var hd = e.target.closest('.hd'), wasSel = sel && sel.k === k && sel.id === id;
@@ -1030,7 +1036,35 @@
       h = back + tbtn('split', 'split', 'Хуваах') + tbtn('avol', 'vol', 'Дуу') + tail;
     }
     tb.innerHTML = h;
+    if (desk.matches) deskPanel(h, back);
   }
+  var KIND_NAME = { clip: 'Видео клип', over: 'Давхар', text: 'Текст', audio: 'Дуу, хөгжим' };
+  function deskPanel(h, back) {
+    var o = sel && selected(), k = selKey();
+    if (sheetClose && sheetOwner !== k) closeSheet();
+    rail.innerHTML = tbtn('add', 'plus', 'Медиа') + tbtn('stock', 'stock', 'Сан') + tbtn('text', 'text', 'Текст') + tbtn('sticker', 'sticker', 'Стикер') + tbtn('over', 'layer', 'Давхар') +
+      tbtn('music', 'music', 'Хөгжим') + tbtn('rec', 'mic', 'Дуу бичих');
+    var title, sub = '';
+    if (!o) {
+      title = 'Төсөл'; sub = P.w + '×' + P.h + ' · ' + fmt(total());
+      ptools.innerHTML = tbtn('size', 'size', 'Хэмжээ') + tbtn('bg', 'color', 'Дэвсгэр') +
+        '<div class="phint"><p>Доорх timeline дээрх клип, текст, хөгжим эсвэл дэлгэц дээрх зүйл дээр дарж сонгоод энд засна.</p>' +
+        '<dl><dt>Space</dt><dd>Тоглуулах / зогсоох</dd><dt>S</dt><dd>Шугам дээр хуваах</dd><dt>Delete</dt><dd>Устгах</dd><dt>Ctrl+Z</dt><dd>Буцаах</dd><dt>← →</dt><dd>Нэг кадр шилжих (Shift: 1 сек)</dd></dl></div>';
+    } else {
+      var m = media[o.mid] || {};
+      title = sel.k === 'clip' ? (m.kind === 'image' ? 'Зураг' : 'Видео клип') : sel.k === 'over' ? (o.kind === 'emoji' ? 'Стикер' : m.kind === 'video' ? 'Давхар видео' : 'Давхар зураг') : KIND_NAME[sel.k];
+      sub = sel.k === 'text' ? (o.text || '').replace(/\n/g, ' ').slice(0, 40) : sel.k === 'clip' ? fmt(clipLen(o)) : sel.k === 'audio' ? (m.name || '') + ' · ' + fmt(o.out - o.in) : fmt(o.end - o.start);
+      ptools.innerHTML = h.replace(back, '');
+    }
+    document.getElementById('v-ptitle').innerHTML = esc(title) + (o ? '<button type="button" class="pclose" data-a="desel" title="Сонголтоо болих (Esc)" aria-label="Сонголтоо болих">✕</button>' : '');
+    document.getElementById('v-psub').textContent = sub;
+    // a selected text opens its editor right away
+    if (o && sel.k === 'text' && k !== lastPanelKey) setTimeout(function () { if (selKey() === k && !sheetClose) sheetText(o); }, 0);
+    lastPanelKey = k;
+  }
+  var lastPanelKey = '';
+  function markTool(a) { ptools.querySelectorAll('.tb').forEach(function (b) { b.classList.toggle('on', b.dataset.a === a); }); }
+  desk.addEventListener('change', function () { closeSheet(); rail.innerHTML = ''; fitCanvas(); refresh(); });
   function refresh() { refreshTB(); renderTL(); draw(); document.getElementById('v-undo').disabled = hi <= 0; document.getElementById('v-redo').disabled = hi >= hist.length - 1; document.getElementById('v-size').innerHTML = ico('size') + '<span>' + sizeName() + '</span>'; }
   var ACT = {
     add: function () { pick('video/*,image/*'); }, text: addText, music: function () { pick('audio/*'); }, size: function () { sheetSize(); }, bg: function () { sheetBg(); },
@@ -1043,6 +1077,7 @@
   document.addEventListener('click', function (e) {
     var b = e.target.closest('[data-a]'); if (!b || b.closest('.sheet')) return;
     if (ACT[b.dataset.a]) ACT[b.dataset.a]();
+    if (desk.matches && sheetClose && b.closest('#v-ptools')) markTool(b.dataset.a);
   });
   document.getElementById('v-play').addEventListener('click', function () { playing ? pause() : play(); });
   document.getElementById('v-undo').addEventListener('click', undo);
@@ -1053,7 +1088,7 @@
   var nameIn = document.getElementById('v-name');
   nameIn.addEventListener('change', function () { P.name = nameIn.value.trim() || 'Нэргүй видео'; commit(); });
   document.addEventListener('keydown', function (e) {
-    if (/INPUT|TEXTAREA|SELECT/.test(e.target.tagName) || document.querySelector('.sheet')) return;
+    if (/INPUT|TEXTAREA|SELECT/.test(e.target.tagName) || document.querySelector('.sheet:not(.dock)')) return;
     var mod = e.ctrlKey || e.metaKey;
     if (e.code === 'Space') { e.preventDefault(); playing ? pause() : play(); }
     else if (mod && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); }
@@ -1065,8 +1100,19 @@
 
   // ---------- sheets ----------
   var sheetClose = null;
+  var sheetOwner = '';
+  function selKey() { return sel ? sel.k + ':' + sel.id : ''; }
   function sheet(title, body, onClose) {
     closeSheet();
+    if (desk.matches) {
+      var d = document.createElement('div'); d.className = 'sheet dock'; d.setAttribute('aria-label', title);
+      d.innerHTML = '<h3>' + title + '<button type="button" class="done">Болсон</button></h3>' + body;
+      pbody.appendChild(d); sheetOwner = selKey();
+      requestAnimationFrame(function () { var pn = document.getElementById('v-panel'); pn.scrollTo({ top: Math.max(0, d.offsetTop - 8), behavior: 'smooth' }); });
+      sheetClose = function () { d.remove(); sheetClose = null; markTool(''); if (onClose) onClose(); };
+      d.querySelector('.done').addEventListener('click', closeSheet);
+      return d;
+    }
     var bg = document.createElement('div'); bg.className = 'sheet-bg';
     var s = document.createElement('div'); s.className = 'sheet'; s.setAttribute('role', 'dialog'); s.setAttribute('aria-label', title);
     s.innerHTML = '<div class="grab"></div><h3>' + title + '<button type="button" class="done">Болсон</button></h3>' + body;
@@ -1076,7 +1122,10 @@
     return s;
   }
   function closeSheet() { if (sheetClose) sheetClose(); }
-  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && sheetClose) closeSheet(); });
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape') return;
+    if (sheetClose) closeSheet(); else if (sel && desk.matches && !/INPUT|TEXTAREA/.test(e.target.tagName)) { sel = null; refresh(); }
+  });
   function opts(list, cur, attr) { return '<div class="opts">' + list.map(function (o) { return '<button type="button" class="opt' + (String(o[0]) === String(cur) ? ' on' : '') + '" data-' + attr + '="' + o[0] + '">' + o[1] + '</button>'; }).join('') + '</div>'; }
   function onOpt(s, attr, fn) { s.addEventListener('click', function (e) { var b = e.target.closest('[data-' + attr + ']'); if (!b) return; s.querySelectorAll('[data-' + attr + ']').forEach(function (x) { x.classList.toggle('on', x === b); }); fn(b.getAttribute('data-' + attr)); }); }
   function changed() { renderTL(); draw(); }
