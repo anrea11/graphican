@@ -4,7 +4,7 @@ Tools-first home page (/). Fully static, visible HTML: one "drop any file" box t
 what to do with it, then the tools grouped as PDF · Зураг · Дизайн, and a short band that leads
 to the collaboration page (/about/). The portfolio lives on /about/ (rendered by app.js).
 """
-import json, os, re
+import json, os
 import landings as L
 
 ROOT, SITE, e, ld = L.ROOT, L.SITE, L.e, L.ld
@@ -102,9 +102,6 @@ def build():
     email, phone = contact.get("email", ""), contact.get("phone", "")
     soc_h = " · ".join(f'<a href="{e(s["url"])}" target="_blank" rel="noopener me">{e(s.get("name") or "Link")}</a>' for s in socials)
 
-    case_cards = "".join(
-        f'<article class="ht-case"><a href="/about/#project/{i + 1}-{re.sub(r"[^a-z0-9]+", "-", x["name"].lower()).strip("-")}"><img src="{e(thumb(x["image"]))}" alt="{e(x["name"])} — хийсэн ажлын жишээ" loading="lazy" decoding="async"><div><span>{e(x.get("type", ""))}</span><h3>{e(x["name"])}</h3><p>{e(x.get("description", ""))}</p><b>Ажлыг үзэх →</b></div></a></article>'
-        for i, x in enumerate((d.get("work", {}).get("projects", []) or [])[:3]) if x.get("image"))
     reviews = (d.get("home_trust") or {}).get("reviews") or []
     review_cards = "".join(f'<figure class="ht-review"><blockquote>{e(x["text"])}</blockquote><figcaption>{e(x["name"])}</figcaption></figure>' for x in reviews if x.get("approved") is True and x.get("text") and x.get("name"))
     review_content = ('<div class="ht-reviews">' + review_cards + '</div>') if review_cards else '<p class="ht-review-empty">Та Graphican ашиглаж үзсэн үү? Юу бүтээснээ, аль хэрэгсэл танд тусалсныг хуваалцаарай.</p>'
@@ -254,11 +251,6 @@ def build():
     </div>
   </section>
 
-  <section class="hm-sec" id="cases">
-    <div class="hm-head"><div><p class="hm-kicker">GRAPHICAN · АЖЛУУД</p><h2>Хийсэн ажлын жишээнүүд</h2></div><a href="/about/#work">Бүх ажлыг үзэх →</a></div>
-    <p class="hm-lead">Брэнд, бүтээгдэхүүн, арга хэмжээний төслүүдээс.</p>
-    <div class="ht-cases">{case_cards}</div>
-  </section>
   <section class="hm-sec" id="reviews">
     <div class="ht-feedback"><div><p class="hm-kicker">ТАНЫ ТУРШЛАГА</p><h2>Хэрэглэгчдийн сэтгэгдэл</h2>{review_content}<p class="ht-review-note">Сэтгэгдлийг таны зөвшөөрөлтэйгөөр нийтэлнэ.</p></div><a class="hm-btn ghost" href="mailto:{e(email)}?subject=Graphican%20-%20Сэтгэгдэл">Сэтгэгдлээ хуваалцах →</a></div>
   </section>
