@@ -150,7 +150,7 @@
     freeze: '<path d="M12 2v20M3.3 7l17.4 10M3.3 17L20.7 7"/>', extract: '<path d="M3 12h3l2-5 4 10 2-5h7"/>',
     crop: '<path d="M6 2v14a2 2 0 0 0 2 2h14M2 6h14a2 2 0 0 1 2 2v14"/>', chroma: '<rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 15l5-5 4 4 3-3 6 6"/>',
     front: '<rect x="8" y="8" width="12" height="12" rx="2" fill="currentColor"/><path d="M4 16V6a2 2 0 0 1 2-2h10"/>', back2: '<rect x="4" y="4" width="12" height="12" rx="2"/><path d="M20 8v10a2 2 0 0 1-2 2H8"/>',
-    kf: '<path d="M12 3l6 9-6 9-6-9z"/>',
+    kf: '<path d="M12 3l6 9-6 9-6-9z"/>', beat: '<path d="M3 12h3l2-6 3 12 3-9 2 3h5"/>',
     person: '<circle cx="12" cy="7" r="3.5"/><path d="M5 21a7 7 0 0 1 14 0"/><path d="M3 3l18 18" stroke-dasharray="2 2"/>',
     cc: '<rect x="3" y="5" width="18" height="14" rx="3"/><path d="M10 10.5a2 2 0 1 0 0 3M16 10.5a2 2 0 1 0 0 3"/>',
     shape: '<rect x="3" y="3" width="8" height="8" rx="2"/><circle cx="17" cy="17" r="4"/><path d="M17 3l4 7h-8z"/>', rec: '<circle cx="12" cy="12" r="8" fill="currentColor"/>'
@@ -828,6 +828,7 @@
     if (cur) {
       var m = media[cur.c.mid], v = m.el, want = Math.min(m.dur - 0.02, srcAt(cur.c, cur.local)), rate = clamp(rateAt(cur.c, cur.local), 0.0625, 16);
       act.push(v);
+      if (run) route(v, cur.c);
       if (Math.abs(v.playbackRate - rate) > 0.01) v.playbackRate = rate; v.volume = clamp(cur.c.mute ? 0 : cur.c.vol, 0, 1); v.muted = !!cur.c.mute || cur.c.vol <= 0;
       if (run) {
         if (v.paused || lastClip !== cur.c.id) { if (Math.abs(v.currentTime - want) > 0.08) v.currentTime = want; var pr = v.play(); if (pr) pr.catch(function () {}); }
@@ -842,7 +843,7 @@
     }
     P.overlays.forEach(function (o) {
       var m = media[o.mid]; if (!m || m.kind !== 'video' || t < o.start || t >= o.end) return;
-      var v = elFor(o); act.push(v);
+      var v = elFor(o); act.push(v); if (run) route(v, o);
       v.volume = clamp(o.mute ? 0 : (o.vol == null ? 1 : o.vol), 0, 1); v.muted = !!o.mute || o.vol <= 0;
       follow(v, Math.min(m.dur - 0.02, o.in + (t - o.start)), run);
     });
@@ -850,8 +851,8 @@
       var m = media[a.mid]; if (!m) return;
       var end = a.start + (a.out - a.in), inside = t >= a.start && t < end && t < total();
       if (!inside || !run) return;
-      var el = elFor(a); act.push(el);
-      var g = a.vol;
+      var el = elFor(a); act.push(el); route(el, a);
+      var g = a.vol * duckGain(a, t);
       if (a.fadeIn) g *= clamp((t - a.start) / 1, 0, 1);
       if (a.fadeOut) g *= clamp((Math.min(end, total()) - t) / 1.5, 0, 1);
       el.volume = clamp(g, 0, 1); el.muted = false;
@@ -862,7 +863,8 @@
   function play() {
     var D = total(); if (D <= 0) { toast('Эхлээд видео, зураг нэмнэ үү'); return; }
     if (T >= D - 0.05) T = 0;
-    playing = true; t0 = performance.now(); T0 = T; lastClip = null; placeSel();
+    playing = true; t0 = performance.now(); T0 = T; lastClip = null; placeSel(); ensureDuck();
+    if (P.clips.concat(P.audios, P.overlays).some(needsFx)) ax();
     document.getElementById('v-play').innerHTML = ico('pause'); document.getElementById('v-play').setAttribute('aria-label', 'Зогсоох');
     P.texts.forEach(function (x) { loadFont(x.font); });
     cancelAnimationFrame(raf); raf = requestAnimationFrame(loop);
@@ -974,7 +976,7 @@
         if (k === 'over' && md.kind === 'image') bg = 'background-image:url(' + md.url + ');background-size:auto 100%;';
         nm = k === 'text' ? (it.text || 'Текст').replace(/\n/g, ' ') : k === 'over' ? (it.kind === 'emoji' ? it.emoji : (md.kind === 'video' ? '▶ ' : '') + (md.name || 'Давхар')) : k === 'fx' ? '✦ ' + fxName(it.fx) : '♪ ' + (md.name || 'Хөгжим');
         out += '<div class="it ' + ({ text: 't', over: 'o', fx: 'e', audio: 'a' })[k] + (on ? ' on' : '') + '" data-k="' + k + '" data-id="' + it.id + '" style="left:' + (a * pps) + 'px;width:' + Math.max(10, (b - a) * pps - 2) + 'px;top:' + ((n - 1 - (it.ln || 0)) * LH + 1) + 'px;height:' + (LH - 3) + 'px;' + bg + '">' +
-          '<span class="nm">' + esc(nm) + '</span>' + kfDots(it) + '<span class="hd l" data-h="l"></span><span class="hd r" data-h="r"></span></div>';
+          '<span class="nm">' + esc(nm) + '</span>' + kfDots(it) + (k === 'audio' ? beatDots(it) : '') + '<span class="hd l" data-h="l"></span><span class="hd r" data-h="r"></span></div>';
       });
       h += out + '</div>';
       heads += '<span class="k-' + k + '" style="top:' + top + 'px;height:' + (n * LH) + 'px">' + ico(r[2]) + r[1] + '</span>';
@@ -987,6 +989,7 @@
     document.getElementById('v-empty').style.display = P.clips.length || P.texts.length || P.overlays.length ? 'none' : '';
     timeLabel();
   }
+  function beatDots(a) { return beatsOnTimeline(a).map(function (t) { return '<i class="bdot" style="left:' + ((t - a.start) * pps) + 'px"></i>'; }).join(''); }
   function kfDots(o) { return (o.kf || []).map(function (q) { return '<i class="kfd" style="left:' + (q.t * pps) + 'px"></i>'; }).join(''); }
   function trName(id) { var n = ''; TRGROUPS.forEach(function (g) { g[1].forEach(function (t) { if (t[0] === id) n = t[1]; }); }); return n; }
   function fxName(id) { var n = id; FXCATS.forEach(function (g) { g[1].forEach(function (t) { if (t[0] === id) n = t[1]; }); }); return n; }
@@ -999,7 +1002,7 @@
     var pts = [0, T], s = 0;
     P.clips.forEach(function (c) { if (c.id !== exId) pts.push(s); s += clipLen(c); }); pts.push(s);
     P.texts.concat(P.overlays).forEach(function (x) { if (x.id !== exId) pts.push(x.start, x.end); });
-    P.audios.forEach(function (a) { if (a.id !== exId) pts.push(a.start, a.start + a.out - a.in); });
+    P.audios.forEach(function (a) { if (a.id !== exId) pts.push(a.start, a.start + a.out - a.in); pts = pts.concat(beatsOnTimeline(a)); });
     return pts.concat(P.markers || []);
   }
   function snapTo(t, pts) { if (!snapOn) return null; var best = null, bd = 10 / pps; pts.forEach(function (p) { var d = Math.abs(p - t); if (d < bd) { bd = d; best = p; } }); return best; }
@@ -1482,7 +1485,7 @@
     if (sel.k === 'over') return [['oedit', 'shape', 'Тохиргоо']].concat(o.kind === 'emoji' ? [] : [['color', 'filter', 'Өнгө'], ['cut', 'person', 'Дэвсгэр арилгах']]).concat(m.kind === 'video' ? [['ovol', 'vol', 'Дуу']] : []).concat([['kf', 'kf', 'Keyframe']]);
     if (sel.k === 'text') return [['tedit', 'edit', 'Засах'], ['kf', 'kf', 'Keyframe']];
     if (sel.k === 'fx') return [['fxe', 'fx', 'Эффект']];
-    return [['avol', 'vol', 'Дуу']];
+    return [['avol', 'vol', 'Дуу'], ['beat', 'beat', 'Цохилт']];
   }
   function tbs(list) { return list.map(function (t) { return tbtn(t[0], t[1], t[2], t[3]); }).join(''); }
   function refreshTB() {
@@ -1551,7 +1554,7 @@
     stock: function () { sheetStock(false); }, sticker: function () { sheetSticker(); }, over: function () { sheetAddOver(); }, rec: function () { sheetRec(); },
     desel: function () { sel = null; refresh(); }, split: splitSel, del: delSel, dup: dupSel,
     speed: function () { sheetSpeed(); }, vol: function () { sheetVol(); }, avol: function () { sheetVol(); }, ovol: function () { sheetVol(); }, fit: function () { sheetPos(); }, trans: function () { sheetTrans(); },
-    tedit: function () { sheetText(selected()); }, color: function () { sheetColor(); }, filter: function () { sheetColor(); }, adj: function () { sheetColor(); }, fx: function () { sheetFx(); }, fxadd: function () { sel = null; refresh(); sheetFx(); }, fxe: function () { sheetFxItem(); }, cap: function () { sheetCaptions(); }, kf: function () { sheetKf(); }, cut: function () { sheetCut(); },
+    tedit: function () { sheetText(selected()); }, color: function () { sheetColor(); }, filter: function () { sheetColor(); }, adj: function () { sheetColor(); }, fx: function () { sheetFx(); }, fxadd: function () { sel = null; refresh(); sheetFx(); }, fxe: function () { sheetFxItem(); }, cap: function () { sheetCaptions(); }, kf: function () { sheetKf(); }, beat: function () { sheetBeat(); }, cut: function () { sheetCut(); },
     freeze: freezeFrame, extract: extractAudio, oedit: function () { sheetOver(); }, chroma: function () { sheetChroma(); }, mark: toggleMarker, snapt: toggleSnap
   };
   document.addEventListener('click', function (e) {
@@ -1691,11 +1694,22 @@
       (isA ? '<label class="lbl">Эхлэл, төгсгөл</label><div class="opts"><button type="button" class="opt' + (o.fadeIn ? ' on' : '') + '" data-fd="in">Зөөлөн эхлэх</button><button type="button" class="opt' + (o.fadeOut ? ' on' : '') + '" data-fd="out">Зөөлөн дуусах</button></div>' +
         (o.credit ? '<p class="note">' + esc(o.credit) + '</p>' : '')
         : '<label class="lbl">Дуугүй болгох</label>' + opts([['0', 'Дуутай'], ['1', 'Дуугүй']], o.mute ? '1' : '0', 'mu')) +
+      '<div class="agrp"><b>Дуу боловсруулах</b><label class="chk" style="margin-top:8px"><input type="checkbox" id="v-nr"' + (o.nr ? ' checked' : '') + '> Чимээ шуугиан багасгах</label>' +
+      '<label class="lbl">Дуу хувиргах</label>' + opts(VFX, o.vfx || 'none', 'vfx') +
+      (isA ? '<label class="chk" style="margin-top:12px"><input type="checkbox" id="v-duck"' + (o.duck ? ' checked' : '') + '> Яриа гарахад автоматаар намсгах</label>' +
+        '<div class="rowv" id="v-dkr"' + (o.duck ? '' : ' hidden') + '><span class="mini">Хэр их</span><input type="range" id="v-dk" min="20" max="95" value="' + Math.round((o.dk == null ? 0.7 : o.dk) * 100) + '"><b id="v-dkv">' + Math.round((o.dk == null ? 0.7 : o.dk) * 100) + '%</b></div>' : '') + '</div>' +
       (vidClip ? '<button type="button" class="btn-g" id="v-extract" style="width:100%;margin-top:14px">' + ico('extract') + 'Дууг тусад нь салгах</button><p class="note">Салгасан дуу «Дуу, хөгжим» мөрөнд гарч, тусад нь тайрч, зөөж болно.</p>' : ''), commit);
     s.querySelector('#v-vol').addEventListener('input', function () { o.vol = this.value / 100; s.querySelector('#v-volv').textContent = this.value + '%'; if (!isA) o.mute = o.vol === 0; changed(); });
     if (isA) s.addEventListener('click', function (e) { var b = e.target.closest('[data-fd]'); if (!b) return; var k = b.dataset.fd === 'in' ? 'fadeIn' : 'fadeOut'; o[k] = !o[k]; b.classList.toggle('on', o[k]); });
     else onOpt(s, 'mu', function (v) { o.mute = v === '1'; changed(); });
     var ex = s.querySelector('#v-extract'); if (ex) ex.addEventListener('click', function () { closeSheet(); extractAudio(); });
+    s.querySelector('#v-nr').addEventListener('change', function () { o.nr = this.checked; ax(); syncMedia(T, playing); });
+    onOpt(s, 'vfx', function (v) { o.vfx = v; ax(); syncMedia(T, playing); if (!playing) { var st0 = sel.k === 'clip' ? startOf(o.id) : o.start; previewRange(Math.max(T, st0), 2.5); } });
+    var dkc = s.querySelector('#v-duck');
+    if (dkc) {
+      dkc.addEventListener('change', function () { o.duck = this.checked; s.querySelector('#v-dkr').hidden = !o.duck; if (o.duck) ensureDuck().then(function (e) { toast(e ? 'Яриа танигдлаа — хөгжим тэр хэсэгт намсана' : 'Яриатай дуу олдсонгүй'); }); });
+      s.querySelector('#v-dk').addEventListener('input', function () { o.dk = this.value / 100; s.querySelector('#v-dkv').textContent = this.value + '%'; });
+    }
   }
   function sheetPos() {
     var c = selected(); if (!c || sel.k !== 'clip') return;
@@ -2330,6 +2344,157 @@
       });
     }, Promise.resolve(null));
   }
+  // ---------- sound processing: noise gate, voice effects (preview through WebAudio, export in the offline mix), ducking, beats ----------
+  var WORKLET = [
+    "class Gate extends AudioWorkletProcessor{constructor(){super();this.env=0;this.g=1;this.gs=new Float32Array(128)}",
+    "process(I,O){const i=I[0],o=O[0];if(!i||!i.length)return true;const sr=sampleRate,at=Math.exp(-1/(0.004*sr)),rl=Math.exp(-1/(0.15*sr)),thr=0.012;",
+    "if(this.gs.length<o[0].length)this.gs=new Float32Array(o[0].length);",
+    "for(let n=0;n<o[0].length;n++){let a=0;for(let c=0;c<i.length;c++)a=Math.max(a,Math.abs(i[c][n]));this.env=a>this.env?at*this.env+(1-at)*a:rl*this.env+(1-rl)*a;",
+    "const t=this.env>thr?1:Math.max(0.06,Math.pow(this.env/thr,2));this.g+=(t-this.g)*(t>this.g?0.02:0.0015);this.gs[n]=this.g}",
+    "for(let c=0;c<o.length;c++){const x=i[c]||i[0],y=o[c];for(let n=0;n<y.length;n++)y[n]=x[n]*this.gs[n]}return true}}",
+    "registerProcessor('gc-gate',Gate);",
+    "class Pitch extends AudioWorkletProcessor{constructor(op){super();this.r=(op.processorOptions&&op.processorOptions.ratio)||1;this.N=Math.round(sampleRate*0.05);this.L=this.N*2+4;this.b=[new Float32Array(this.L),new Float32Array(this.L)];this.w=0;this.ph=0}",
+    "rd(b,d){let p=this.w-d;while(p<0)p+=this.L;const i=Math.floor(p),f=p-i;return b[i%this.L]*(1-f)+b[(i+1)%this.L]*f}",
+    "process(I,O){const i=I[0],o=O[0];if(!i||!i.length)return true;const N=this.N,st=(1-this.r)/N;",
+    "for(let n=0;n<o[0].length;n++){const p1=this.ph,p2=(this.ph+0.5)%1,g1=Math.sin(Math.PI*p1),g2=Math.sin(Math.PI*p2);",
+    "for(let c=0;c<o.length;c++){const x=i[c]||i[0],b=this.b[c]||this.b[0];b[this.w]=x[n];o[c][n]=g1*this.rd(b,p1*N)+g2*this.rd(b,p2*N)}",
+    "this.ph+=st;this.ph-=Math.floor(this.ph);this.w=(this.w+1)%this.L}return true}}",
+    "registerProcessor('gc-pitch',Pitch);"].join('\n');
+  var wkURL = null;
+  function loadWorklet(ctx) {
+    if (!ctx.audioWorklet || !window.AudioWorkletNode) return Promise.resolve(false);
+    if (ctx._wk) return ctx._wk;
+    wkURL = wkURL || URL.createObjectURL(new Blob([WORKLET], { type: 'application/javascript' }));
+    return (ctx._wk = ctx.audioWorklet.addModule(wkURL).then(function () { return true; }, function () { return false; }));
+  }
+  var VFX = [['none', 'Байхгүй'], ['robot', 'Робот'], ['echo', 'Цуурай'], ['hall', 'Танхим'], ['phone', 'Утас, радио'], ['high', 'Нарийн хоолой'], ['low', 'Бүдүүн хоолой']];
+  function needsFx(s) { return !!(s && (s.nr || (s.vfx && s.vfx !== 'none'))); }
+  function impulse(ctx, sec) {
+    var n = Math.round(ctx.sampleRate * sec), b = ctx.createBuffer(2, n, ctx.sampleRate);
+    for (var c = 0; c < 2; c++) { var d = b.getChannelData(c); for (var i = 0; i < n; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / n, 3); }
+    return b;
+  }
+  // input → [noise reduction] → [voice effect] → output
+  function buildChain(ctx, s, wk) {
+    var inp = ctx.createGain(), cur = inp;
+    function to(n) { cur.connect(n); cur = n; return n; }
+    function bq(type, f, q) { var x = ctx.createBiquadFilter(); x.type = type; x.frequency.value = f; if (q) x.Q.value = q; return x; }
+    if (s.nr) { to(bq('highpass', 90)); to(bq('lowpass', 7500)); var pk = to(bq('peaking', 3000, 0.8)); pk.gain.value = 2; if (wk) to(new AudioWorkletNode(ctx, 'gc-gate')); }
+    var v = s.vfx || 'none';
+    if ((v === 'high' || v === 'low') && wk) to(new AudioWorkletNode(ctx, 'gc-pitch', { processorOptions: { ratio: v === 'high' ? 1.5 : 0.72 } }));
+    else if (v === 'robot') { var rg = ctx.createGain(); rg.gain.value = 0; var osc = ctx.createOscillator(); osc.frequency.value = 55; osc.connect(rg.gain); osc.start(0); to(rg); var mk = ctx.createGain(); mk.gain.value = 1.6; to(mk); }
+    else if (v === 'phone') { to(bq('highpass', 450)); to(bq('lowpass', 3000)); var ws = ctx.createWaveShaper(), cu = new Float32Array(256); for (var i = 0; i < 256; i++) { var x = i / 128 - 1; cu[i] = Math.tanh(x * 2.5) * 0.8; } ws.curve = cu; to(ws); }
+    else if (v === 'echo' || v === 'hall') {
+      var dry = ctx.createGain(), wet = ctx.createGain(), out = ctx.createGain(); cur.connect(dry); dry.connect(out);
+      if (v === 'echo') { var dl = ctx.createDelay(1); dl.delayTime.value = 0.28; var fb = ctx.createGain(); fb.gain.value = 0.42; cur.connect(dl); dl.connect(fb); fb.connect(dl); dl.connect(wet); wet.gain.value = 0.55; }
+      else { var conv = ctx.createConvolver(); conv.buffer = impulse(ctx, 2.4); cur.connect(conv); conv.connect(wet); wet.gain.value = 0.55; dry.gain.value = 0.8; }
+      wet.connect(out); cur = out;
+    }
+    return { i: inp, o: cur };
+  }
+  // preview: a media element goes through the chain once it needs one (and stays routed)
+  var AX = null, axWk = false, routed = new WeakMap();
+  function ax() {
+    if (!AX) { var C = window.AudioContext || window.webkitAudioContext; if (!C) return null; AX = new C(); loadWorklet(AX).then(function (ok) { axWk = ok; }); }
+    if (AX.state === 'suspended') AX.resume().catch(function () {});
+    return AX;
+  }
+  function route(el, s) {
+    var r = routed.get(el);
+    if (!r && !needsFx(s)) return;
+    var c = ax(); if (!c) return;
+    var sig = (s.nr ? 'n' : '') + (s.vfx || 'none') + (axWk ? 'w' : '');
+    if (!r) { try { r = { src: c.createMediaElementSource(el), sig: null, ch: null }; } catch (e) { return; } routed.set(el, r); }
+    if (r.sig === sig) return;
+    try { r.src.disconnect(); } catch (e) {}
+    if (r.ch) try { r.ch.o.disconnect(); } catch (e) {}
+    r.ch = buildChain(c, s, axWk); r.src.connect(r.ch.i); r.ch.o.connect(c.destination); r.sig = sig;
+  }
+  // ducking: music goes down while someone speaks (an envelope of the speech sources, 50 ms steps)
+  var duck = { sig: '', env: null, busy: null, bsig: '' };
+  function duckSig() {
+    return JSON.stringify([P.clips.map(function (c) { return [c.id, c.in, c.out, c.speed, c.ramp, c.mute, c.vol]; }), P.audios.filter(function (a) { return a.rec || (media[a.mid] || {}).kind === 'video'; }).map(function (a) { return [a.id, a.start, a.in, a.out, a.vol]; }),
+      P.overlays.filter(function (o) { return (media[o.mid] || {}).kind === 'video'; }).map(function (o) { return [o.id, o.start, o.end, o.in, o.mute]; })]);
+  }
+  function ensureDuck() {
+    if (!P.audios.some(function (a) { return a.duck; })) return Promise.resolve(null);
+    var sg = duckSig(); if (duck.sig === sg && duck.env) return Promise.resolve(duck.env);
+    if (duck.busy && duck.bsig === sg) return duck.busy;
+    duck.bsig = sg;
+    duck.busy = mixAudio(total(), { voice: true, sr: 8000, ch: 1, plain: true }).then(function (buf) {
+      var env = null;
+      if (buf) {
+        var d = buf.getChannelData(0), hop = 400, n = Math.ceil(d.length / hop), r = new Float32Array(n), i, j;
+        for (i = 0; i < n; i++) { var s2 = 0, c = 0; for (j = i * hop; j < Math.min(d.length, (i + 1) * hop); j++) { s2 += d[j] * d[j]; c++; } r[i] = Math.sqrt(s2 / Math.max(1, c)); }
+        var srt = Array.prototype.slice.call(r).sort(function (a, b) { return a - b; }), thr = Math.max(0.006, 0.2 * (srt[Math.floor(srt.length * 0.95)] || 0));
+        env = new Float32Array(n); var hold = 0, v = 0;
+        for (i = 0; i < n; i++) { if (r[i] > thr) hold = 8; else if (hold > 0) hold--; var tg = hold > 0 ? 1 : 0; v += (tg - v) * (tg > v ? 0.6 : 0.12); env[i] = v; }
+      }
+      duck.env = env; duck.sig = sg; duck.busy = null; return env;
+    }).catch(function () { duck.busy = null; return null; });
+    return duck.busy;
+  }
+  function duckAt(t) { var e = duck.env; if (!e || !e.length) return 0; return e[clamp(Math.floor(t / 0.05), 0, e.length - 1)] || 0; }
+  function duckGain(a, t) { return a.duck ? 1 - (a.dk == null ? 0.7 : a.dk) * duckAt(t) : 1; }
+  // beats: a low-band onset envelope, its tempo by autocorrelation (70–180 BPM) and the best phase
+  function detectBeats(buf) {
+    var sr = buf.sampleRate, d0 = buf.getChannelData(0), d1 = buf.numberOfChannels > 1 ? buf.getChannelData(1) : d0, hop = Math.round(sr * 0.01), n = Math.floor(d0.length / hop);
+    var k = Math.exp(-2 * Math.PI * 160 / sr), lp = 0, e = new Float32Array(n), i, j;
+    for (i = 0; i < n; i++) { var s2 = 0; for (j = i * hop; j < (i + 1) * hop; j++) { lp = k * lp + (1 - k) * (d0[j] + d1[j]) * 0.5; s2 += lp * lp; } e[i] = Math.log(1e-7 + s2); }
+    var o = new Float32Array(n);
+    for (i = 1; i < n; i++) o[i] = Math.max(0, e[i] - e[i - 1]);
+    var o2 = new Float32Array(n), acc = 0, W = 50;
+    for (i = 0; i < n; i++) { acc += o[i] - (i >= W ? o[i - W] : 0); o2[i] = Math.max(0, o[i] - acc / Math.min(W, i + 1)); }
+    var M = Math.min(n, 6000), best = 0, P0 = 50;
+    for (var lag = 33; lag <= 86; lag++) {
+      var sc = 0; for (i = lag; i < M; i++) sc += o2[i] * o2[i - lag];
+      var bpm = 6000 / lag; sc *= bpm >= 88 && bpm <= 145 ? 1.12 : 1;
+      if (sc > best) { best = sc; P0 = lag; }
+    }
+    var off = 0, bs = -1;
+    for (var f = 0; f < P0; f++) { var s3 = 0; for (i = f; i < n; i += P0) s3 += o2[i]; if (s3 > bs) { bs = s3; off = f; } }
+    var beats = [];
+    for (i = off; i < n; i += P0) { var mi = i, mv = o2[i]; for (j = Math.max(0, i - 3); j <= Math.min(n - 1, i + 3); j++) if (o2[j] > mv) { mv = o2[j]; mi = j; } beats.push(Math.round(mi * hop / sr * 1000) / 1000); }
+    return { bpm: Math.round(6000 / P0), beats: beats };
+  }
+  function beatsOnTimeline(a) { return (a.beats || []).map(function (b) { return a.start + b - a.in; }).filter(function (t) { return t >= a.start - 1e-3 && t <= a.start + (a.out - a.in) + 1e-3; }); }
+  function syncToBeats(a, every) {
+    var bt = beatsOnTimeline(a).filter(function (_, i) { return i % every === 0; }); if (bt.length < 2) return 0;
+    var t = 0, n = 0;
+    P.clips.forEach(function (c) {
+      var m = media[c.mid] || {}, L = clipLen(c), tg = null;
+      if (m.kind === 'image') tg = bt.filter(function (b) { return b > t + 0.3; })[0];
+      else bt.forEach(function (b) { if (b > t + 0.3 && b <= t + L + 1e-3) tg = b; });
+      if (tg != null) {
+        var nl = tg - t;
+        if (m.kind === 'image') { c.in = 0; c.out = nl; n++; }
+        else if (!rampPts(c) && Math.abs(nl - L) > 0.02) { c.out = c.in + nl * c.speed; n++; }
+        t = tg;
+      } else t += L;
+    });
+    return n;
+  }
+  function sheetBeat() {
+    var a = selected(); if (!a || sel.k !== 'audio') return;
+    var bt = beatsOnTimeline(a);
+    var s = sheet('Цохилт', (a.beats ? '<p class="note" style="margin:0">' + (a.bpm ? a.bpm + ' BPM · ' : '') + bt.length + ' цохилт — «Дуу, хөгжим» мөрөнд цэгээр харагдана, соронз наалдана.</p>' : '<p class="note" style="margin:0">Хөгжмийн цохилтыг таньж, клипүүдийг цохилт дээр тасалж болно.</p>') +
+      '<button type="button" class="btn-x" id="v-bgo" style="width:100%;margin-top:12px;height:44px">' + (a.beats ? 'Дахин таних' : 'Цохилт таних') + '</button>' +
+      (a.beats ? '<label class="lbl">Клипийг цохилтод тааруулах</label>' + opts([['1', 'Цохилт бүрт'], ['2', '2 цохилтод'], ['4', '4 цохилтод']], '2', 'bev') +
+        '<div class="opts" style="margin-top:10px"><button type="button" class="opt" id="v-bsync">Тааруулах</button><button type="button" class="opt" id="v-bmk">Тэмдэг болгох</button><button type="button" class="opt" id="v-bclr">Арилгах</button></div>' +
+        '<p class="note">Зураг клипүүдийн урт цохилт хүртэл болно; видео клип цохилт дээр богиносно.</p>' : ''), commit);
+    var ev = 2; onOpt(s, 'bev', function (v) { ev = +v; });
+    s.querySelector('#v-bgo').addEventListener('click', function () {
+      var b = this; b.disabled = true; b.textContent = 'Таньж байна…';
+      decodeAudio(media[a.mid]).then(function (buf) {
+        if (!buf) throw new Error('decode');
+        var r = detectBeats(buf); a.beats = r.beats; a.bpm = r.bpm; commit(); toast(r.bpm + ' BPM · ' + beatsOnTimeline(a).length + ' цохилт олдлоо'); sel = { k: 'audio', id: a.id }; sheetBeat();
+      }).catch(function () { b.disabled = false; b.textContent = 'Цохилт таних'; toast('Цохилт таньж чадсангүй'); });
+    });
+    var sy = s.querySelector('#v-bsync'); if (sy) sy.addEventListener('click', function () { var n = syncToBeats(a, ev); commit(); toast(n ? n + ' клипийг цохилтод тааруулав' : 'Тааруулах клип олдсонгүй'); });
+    var mk = s.querySelector('#v-bmk'); if (mk) mk.addEventListener('click', function () { var seen = {}; P.markers = (P.markers || []).concat(beatsOnTimeline(a).filter(function (_, i) { return i % ev === 0; })).filter(function (t) { var k = t.toFixed(2); if (seen[k]) return false; seen[k] = 1; return true; }).sort(function (x, y) { return x - y; }); commit(); toast('Цохилтууд тэмдэг боллоо'); });
+    var cl = s.querySelector('#v-bclr'); if (cl) cl.addEventListener('click', function () { a.beats = null; a.bpm = null; commit(); sel = { k: 'audio', id: a.id }; sheetBeat(); });
+  }
+
   // opt.voice: only speech-like sources (clip sound, voice-overs, sound taken off videos) — for captions; opt.sr / opt.ch for the output
   function mixAudio(D, opt) {
     opt = opt || {};
@@ -2338,12 +2503,19 @@
     P.audios.forEach(function (a) { var m = media[a.mid]; if (!opt.voice || a.rec || (m && m.kind === 'video')) srcs.push({ a: a, m: m }); });
     P.overlays.forEach(function (o) { var m = media[o.mid]; if (m && m.kind === 'video' && !o.mute && (o.vol == null ? 1 : o.vol) > 0) srcs.push({ o: o, m: m }); });
     if (!srcs.length) return Promise.resolve(null);
-    return Promise.all(srcs.map(function (s) { return decodeAudio(s.m); })).then(function (bufs) {
+    var bufs;
+    return Promise.all(srcs.map(function (s) { return decodeAudio(s.m); })).then(function (bb) {
+      bufs = bb; return opt.plain ? null : ensureDuck();
+    }).then(function () {
       if (!bufs.some(Boolean)) return null;
       var AC = window.OfflineAudioContext || window.webkitOfflineAudioContext, ctx = new AC(CH, Math.max(1, Math.ceil(D * SR)), SR);
+      var needWk = !opt.plain && srcs.some(function (s) { var it = s.c || s.a || s.o; return it.nr || it.vfx === 'high' || it.vfx === 'low'; });
+      return (needWk ? loadWorklet(ctx) : Promise.resolve(false)).then(function (wk) {
       srcs.forEach(function (s, i) {
         var b = bufs[i]; if (!b) return;
-        var src = ctx.createBufferSource(), g = ctx.createGain(); src.buffer = b; src.connect(g); g.connect(ctx.destination);
+        var it = s.c || s.a || s.o, src = ctx.createBufferSource(), g = ctx.createGain(); src.buffer = b;
+        if (!opt.plain && needsFx(it)) { var ch = buildChain(ctx, it, wk); src.connect(ch.i); ch.o.connect(g); } else src.connect(g);
+        g.connect(ctx.destination);
         if (s.o) {
           if (s.o.start >= D) return;
           g.gain.value = s.o.vol == null ? 1 : s.o.vol;
@@ -2358,13 +2530,21 @@
         } else {
           var a = s.a, len = a.out - a.in, end = Math.min(a.start + len, D);
           if (a.start >= D) return;
-          g.gain.setValueAtTime(a.fadeIn ? 0 : a.vol, a.start);
-          if (a.fadeIn) g.gain.linearRampToValueAtTime(a.vol, Math.min(end, a.start + 1));
-          if (a.fadeOut) { g.gain.setValueAtTime(a.vol, Math.max(a.start, end - 1.5)); g.gain.linearRampToValueAtTime(0, end); }
+          if (a.duck && duck.env && !opt.plain) {
+            // fades × ducking as one gain curve (50 ms steps)
+            var nst = Math.max(2, Math.ceil((end - a.start) / 0.05) + 1), cu = new Float32Array(nst);
+            for (var q2 = 0; q2 < nst; q2++) { var tt = a.start + (end - a.start) * q2 / (nst - 1), gg = a.vol; if (a.fadeIn) gg *= clamp((tt - a.start) / 1, 0, 1); if (a.fadeOut) gg *= clamp((end - tt) / 1.5, 0, 1); cu[q2] = gg * duckGain(a, tt); }
+            g.gain.setValueCurveAtTime(cu, a.start, Math.max(0.01, end - a.start));
+          } else {
+            g.gain.setValueAtTime(a.fadeIn ? 0 : a.vol, a.start);
+            if (a.fadeIn) g.gain.linearRampToValueAtTime(a.vol, Math.min(end, a.start + 1));
+            if (a.fadeOut) { g.gain.setValueAtTime(a.vol, Math.max(a.start, end - 1.5)); g.gain.linearRampToValueAtTime(0, end); }
+          }
           src.start(a.start, a.in, end - a.start);
         }
       });
       return ctx.startRendering();
+      });
     });
   }
   function seekV(v, t) {
