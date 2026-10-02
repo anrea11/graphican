@@ -22,7 +22,12 @@
   var STYLES = [['plain', 'Энгийн'], ['outline', 'Хүрээтэй'], ['box', 'Шошго'], ['shadow', 'Сүүдэр'], ['glow', 'Гэрэлтэх']];
   var COLORS = ['#ffffff', '#000000', '#ffe600', '#ff3b5c', '#7b64ff', '#22c55e', '#38bdf8', '#ff8a00'];
   var ANIMS = [['none', 'Байхгүй'], ['pop', 'Үсрэх'], ['fade', 'Бүдгэрэх'], ['slide', 'Доороос'], ['type', 'Бичигдэх']];
-  var TRANS = [['none', 'Байхгүй'], ['fade', 'Бүдгэрэх'], ['flash', 'Гялбаа'], ['zoom', 'Томрох'], ['slide', 'Гулсах'], ['blur', 'Бүдэг']];
+  var TRGROUPS = [['Энгийн', [['none', 'Байхгүй'], ['fade', 'Бүдгэрэх'], ['dipb', 'Хар руу'], ['flash', 'Цагаан гялбаа'], ['blur', 'Бүдэг']]],
+    ['Хөдөлгөөн', [['slide', 'Түлхэх'], ['cover', 'Хучих'], ['zoom', 'Томрох'], ['zoomout', 'Холдох'], ['spin', 'Эргэх'], ['flip', 'Хөрвөх'], ['shake', 'Цохилт']]],
+    ['Хэлбэр', [['wipe', 'Арчих'], ['diag', 'Налуу'], ['circle', 'Дугуй'], ['doors', 'Хаалга'], ['stripes', 'Хөшиг']]],
+    ['Эффект', [['glitch', 'Глитч'], ['pixel', 'Пиксел']]]];
+  var TR_DIR = { slide: 1, cover: 1, wipe: 1 }, TR_COL = { dipb: 1, flash: 1 };
+  var FX_COL = { flash: '#ffffff', leak: '#ff9640', duotone: '#7b64ff', sparkle: '#ffffff', snow: '#ffffff', frame: '#ffffff', cinema: '#000000', strobe: '#000000' };
   // colour presets = canvas filter strings (warmth, vignette and the sliders are added on top in filterOf / drawTone)
   var FILTERS = [['none', 'Байхгүй', ''], ['vivid', 'Тод', 'saturate(1.45) contrast(1.08)'], ['warm', 'Дулаан', 'sepia(.22) saturate(1.3) hue-rotate(-6deg)'],
     ['cool', 'Сэрүүн', 'saturate(1.05) hue-rotate(10deg) brightness(1.04)'], ['bw', 'Хар цагаан', 'grayscale(1) contrast(1.1)'], ['vintage', 'Хуучин', 'sepia(.45) contrast(.92) brightness(1.05) saturate(.85)'],
@@ -287,16 +292,13 @@
     ctx.restore();
   }
   function zoomAt(ctx, W, H, z) { ctx.translate(W / 2, H / 2); ctx.scale(z, z); ctx.translate(-W / 2, -H / 2); }
-  function drawClip(ctx, at, W, H) {
-    var c = at.c, lt = at.local, fx = c.fx || 'none', A = (c.fxAmt == null ? 50 : c.fxAmt) / 50, p = c.tr && c.tr !== 'none' ? clamp(lt / TR, 0, 1) : 1, tf = '', L = clipLen(c);
+  // one clip frame: position/filters/adjustments + its effect; the effect can run on part of the clip, at its own speed and colour
+  function drawClip(ctx, at, W, H, xf) {
+    var c = at.c, real = at.local, fx = c.fx || 'none', A = (c.fxAmt == null ? 50 : c.fxAmt) / 50, tf = xf || '', L = clipLen(c);
+    var f0 = c.fxFrom || 0, f1 = c.fxTo == null ? 1e9 : c.fxTo;
+    if (real < f0 || real > f1) fx = 'none';
+    var lt = (real - f0) * (c.fxSpd || 1), FC = c.fxCol || FX_COL[fx] || null;
     ctx.save();
-    if (p < 1) {
-      var e = ease(p);
-      if (c.tr === 'fade') ctx.globalAlpha = e;
-      else if (c.tr === 'zoom') { zoomAt(ctx, W, H, 1 + 0.25 * (1 - e)); ctx.globalAlpha = Math.min(1, p * 2); }
-      else if (c.tr === 'slide') ctx.translate(W * (1 - e), 0);
-      else if (c.tr === 'blur') tf = 'blur(' + Math.round(24 * (1 - e) * W / 1080) + 'px)';
-    }
     // movement effects
     if (fx === 'shake') { ctx.translate((Math.sin(lt * 53) * 0.012 + Math.sin(lt * 31) * 0.006) * W * A, Math.cos(lt * 47) * H * 0.008 * A); zoomAt(ctx, W, H, 1 + 0.05 * A); }
     else if (fx === 'pulse') zoomAt(ctx, W, H, 1 + 0.07 * A * Math.pow(1 - ((lt * 2) % 1), 3));
@@ -311,20 +313,71 @@
     else if (fx === 'rainbow') add = 'hue-rotate(' + Math.round(lt * 140 * A) % 360 + 'deg) saturate(1.3)';
     else if (fx === 'invert') add = 'invert(' + Math.min(1, A).toFixed(2) + ')';
     else if (fx === 'duotone') add = 'grayscale(1) contrast(1.2)';
-    else if (fx === 'fadebw') add = 'grayscale(' + clamp(lt / Math.max(0.5, L * 0.8), 0, 1).toFixed(3) + ')';
+    else if (fx === 'fadebw') add = 'grayscale(' + clamp(lt / Math.max(0.5, (Math.min(f1, L) - f0) * (c.fxSpd || 1) * 0.8), 0, 1).toFixed(3) + ')';
     else if (fx === 'blurpulse') add = 'blur(' + (Math.pow(Math.abs(Math.sin(lt * 2.2)), 3) * 10 * A * W / 1080).toFixed(2) + 'px)';
     else if (fx === 'strobe' && Math.floor(lt * 10) % 2) add = 'brightness(' + (1 + 0.6 * A).toFixed(2) + ')';
     var str = c.fstr == null ? 100 : c.fstr, full = filterOf(c, W), base = str < 100 && c.filter && c.filter !== 'none' ? filterOf(c, W, true) : full;
     function withAdd(f) { f = (f === 'none' ? '' : f) + (add ? ' ' + add : '') + (tf ? ' ' + tf : ''); return f.trim() || 'none'; }
     if (HAS_FILTER) ctx.filter = withAdd(base);
-    drawMedia(ctx, c, W, H, lt);
-    if (base !== full) { ctx.save(); ctx.globalAlpha *= str / 100; if (HAS_FILTER) ctx.filter = withAdd(full); drawMedia(ctx, c, W, H, lt); ctx.restore(); }
+    drawMedia(ctx, c, W, H, real);
+    if (base !== full) { ctx.save(); ctx.globalAlpha *= str / 100; if (HAS_FILTER) ctx.filter = withAdd(full); drawMedia(ctx, c, W, H, real); ctx.restore(); }
     ctx.filter = 'none';
-    drawTone(ctx, c.adj, W, H, lt);
+    drawTone(ctx, c.adj, W, H, real);
     ctx.restore();
-    if (p < 1 && c.tr === 'flash') { ctx.fillStyle = 'rgba(255,255,255,' + (1 - ease(p)).toFixed(3) + ')'; ctx.fillRect(0, 0, W, H); }
-    if (fx !== 'none') postFx(ctx, fx, lt, A, W, H);
+    if (fx !== 'none') postFx(ctx, fx, lt, A, W, H, FC);
   }
+  // ---------- transitions: the previous clip (its last frame) and the incoming clip drawn together ----------
+  function trDur(c) { return clamp(c.trd || TR, 0.1, Math.max(0.1, clipLen(c) - 0.05)); }
+  function trEase(c, p) {
+    var e = c.tre || 'smooth';
+    return e === 'lin' ? p : e === 'out' ? 1 - Math.pow(1 - p, 3) : e === 'in' ? p * p * p : (p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2);
+  }
+  function dirV(c) { return { left: [-1, 0], right: [1, 0], up: [0, -1], down: [0, 1] }[c.trdir || 'left']; }
+  function hexA(hex, a) { var n = parseInt((hex || '#000000').slice(1), 16); return 'rgba(' + (n >> 16) + ',' + ((n >> 8) & 255) + ',' + (n & 255) + ',' + clamp(a, 0, 1).toFixed(3) + ')'; }
+  function pixelate(ctx, bs) {
+    var cvv = ctx.canvas, w = cvv.width, h = cvv.height, pw = Math.max(1, Math.round(w / bs)), ph = Math.max(1, Math.round(h / bs));
+    if (pixC.width !== pw || pixC.height !== ph) { pixC.width = pw; pixC.height = ph; }
+    pixX.drawImage(cvv, 0, 0, pw, ph); ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.imageSmoothingEnabled = false; ctx.drawImage(pixC, 0, 0, w, h); ctx.restore();
+  }
+  function slices(ctx, g, seed) {
+    var cvv = ctx.canvas, w = cvv.width, h = cvv.height;
+    ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
+    for (var i = 0; i < 8; i++) { var sy = Math.floor(rnd(seed + i * 7.1) * h), sh = Math.max(2, Math.floor(rnd(seed + i * 3.3) * h * 0.08)), off = Math.round((rnd(seed + i * 5.7) - 0.5) * w * 0.2 * g); ctx.drawImage(cvv, 0, sy, w, sh, off, sy, w, sh); }
+    ctx.restore();
+  }
+  function drawTrans(ctx, A, B, W, H) {
+    var c = B.c, raw = clamp(B.local / trDur(c), 0, 1), p = trEase(c, raw), v = dirV(c), t = c.tr, k = W / 1080;
+    function dA(fn, xf) { if (!A) return; ctx.save(); if (fn) fn(); drawClip(ctx, A, W, H, xf); ctx.restore(); }
+    function dB(fn, xf) { ctx.save(); if (fn) fn(); drawClip(ctx, B, W, H, xf); ctx.restore(); }
+    function fill(col, a) { ctx.fillStyle = hexA(col, a); ctx.fillRect(0, 0, W, H); }
+    function clipB(path) { dA(); dB(function () { ctx.beginPath(); path(); ctx.clip(); }); }
+    if (t === 'fade') { dA(); dB(function () { ctx.globalAlpha = p; }); }
+    else if (t === 'dipb' || t === 'flash') { var col = c.trc || (t === 'dipb' ? '#000000' : '#ffffff'); if (p < 0.5) { dA(); fill(col, p * 2); } else { dB(); fill(col, (1 - p) * 2); } }
+    else if (t === 'zoom') { dA(function () { zoomAt(ctx, W, H, 1 + 0.6 * p); }); dB(function () { zoomAt(ctx, W, H, 1.4 - 0.4 * p); ctx.globalAlpha = clamp(p * 1.6 - 0.3, 0, 1); }); }
+    else if (t === 'zoomout') { dB(function () { zoomAt(ctx, W, H, 1.25 - 0.25 * p); }); dA(function () { zoomAt(ctx, W, H, 1 - 0.7 * p); ctx.globalAlpha = 1 - p; }); }
+    else if (t === 'slide') { dA(function () { ctx.translate(v[0] * p * W, v[1] * p * H); }); dB(function () { ctx.translate(-v[0] * (1 - p) * W, -v[1] * (1 - p) * H); }); }
+    else if (t === 'cover') { dA(); dB(function () { ctx.translate(-v[0] * (1 - p) * W, -v[1] * (1 - p) * H); ctx.shadowColor = 'rgba(0,0,0,.5)'; ctx.shadowBlur = 40 * k; }); }
+    else if (t === 'wipe') clipB(function () { if (v[0] < 0) ctx.rect(W * (1 - p), 0, W * p, H); else if (v[0] > 0) ctx.rect(0, 0, W * p, H); else if (v[1] < 0) ctx.rect(0, H * (1 - p), W, H * p); else ctx.rect(0, 0, W, H * p); });
+    else if (t === 'diag') clipB(function () { var d = (W + H) * p; ctx.moveTo(0, 0); ctx.lineTo(d, 0); ctx.lineTo(0, d); ctx.closePath(); });
+    else if (t === 'circle') clipB(function () { ctx.arc(W / 2, H / 2, Math.hypot(W, H) / 2 * p, 0, 6.2832); });
+    else if (t === 'stripes') clipB(function () { var n = 8; for (var i = 0; i < n; i++) ctx.rect(0, i * H / n, W, H / n * p); });
+    else if (t === 'doors') {
+      dB();
+      if (A) [0, 1].forEach(function (s) { ctx.save(); ctx.translate((s ? 1 : -1) * p * W / 2, 0); ctx.beginPath(); ctx.rect(s * W / 2, 0, W / 2, H); ctx.clip(); drawClip(ctx, A, W, H); ctx.restore(); });
+    }
+    else if (t === 'blur') { dA(null, 'blur(' + (p * 30 * k).toFixed(1) + 'px)'); dB(function () { ctx.globalAlpha = p; }, 'blur(' + ((1 - p) * 30 * k).toFixed(1) + 'px)'); }
+    else if (t === 'spin') { dA(function () { ctx.translate(W / 2, H / 2); ctx.rotate(p * Math.PI); ctx.scale(1 - p * 0.8, 1 - p * 0.8); ctx.translate(-W / 2, -H / 2); ctx.globalAlpha = 1 - p; }); dB(function () { ctx.translate(W / 2, H / 2); ctx.rotate(-(1 - p) * Math.PI); ctx.scale(0.2 + 0.8 * p, 0.2 + 0.8 * p); ctx.translate(-W / 2, -H / 2); ctx.globalAlpha = Math.min(1, p * 1.5); }); }
+    else if (t === 'flip') { if (p < 0.5) dA(function () { ctx.translate(W / 2, 0); ctx.scale(Math.max(0.001, 1 - 2 * p), 1); ctx.translate(-W / 2, 0); }); else dB(function () { ctx.translate(W / 2, 0); ctx.scale(Math.max(0.001, 2 * p - 1), 1); ctx.translate(-W / 2, 0); }); }
+    else if (t === 'shake') { dA(); dB(function () { var g = 1 - p; ctx.translate((rnd(Math.floor(raw * 30)) - 0.5) * W * 0.08 * g, (rnd(Math.floor(raw * 30) + 0.5) - 0.5) * H * 0.05 * g); zoomAt(ctx, W, H, 1 + 0.08 * g); ctx.globalAlpha = Math.min(1, p * 2.5); }); }
+    else if (t === 'glitch' || t === 'pixel') {
+      if (p < 0.5) dA(); else dB();
+      var g = 1 - Math.abs(2 * p - 1);
+      if (t === 'glitch') { rgbSplit(ctx, Math.round(ctx.canvas.width * 0.03 * g)); slices(ctx, g, Math.floor(raw * 40)); }
+      else pixelate(ctx, Math.max(1, g * ctx.canvas.width / 14));
+    }
+    else dB();
+  }
+
   function rnd(n) { var x = Math.sin(n * 12.9898) * 43758.5453; return x - Math.floor(x); }
   function copyFrame(ctx) {
     var cvv = ctx.canvas; if (fxC.width !== cvv.width || fxC.height !== cvv.height) { fxC.width = cvv.width; fxC.height = cvv.height; }
@@ -341,12 +394,12 @@
   }
   var pixC = document.createElement('canvas'), pixX = pixC.getContext('2d');
   // effects drawn on top of the finished clip frame (device pixels: they work the same in preview and export)
-  function postFx(ctx, fx, lt, A, W, H) {
+  function postFx(ctx, fx, lt, A, W, H, FC) {
     var cvv = ctx.canvas, w = cvv.width, h = cvv.height, k = w / W, i;
-    if (fx === 'flash') { var fa = Math.max(0, 1 - (lt % 1) / 0.18) * 0.75 * Math.min(1.3, A); if (fa > 0.01) { ctx.fillStyle = 'rgba(255,255,255,' + Math.min(1, fa).toFixed(3) + ')'; ctx.fillRect(0, 0, W, H); } return; }
-    if (fx === 'strobe') { if (Math.floor(lt * 10) % 2 === 0) { ctx.fillStyle = 'rgba(0,0,0,' + Math.min(0.85, 0.35 * A).toFixed(3) + ')'; ctx.fillRect(0, 0, W, H); } return; }
+    if (fx === 'flash') { var fa = Math.max(0, 1 - (lt % 1) / 0.18) * 0.75 * Math.min(1.3, A); if (fa > 0.01) { ctx.fillStyle = hexA(FC || '#ffffff', Math.min(1, fa)); ctx.fillRect(0, 0, W, H); } return; }
+    if (fx === 'strobe') { if (Math.floor(lt * 10) % 2 === 0) { ctx.fillStyle = hexA(FC || '#000000', Math.min(0.85, 0.35 * A)); ctx.fillRect(0, 0, W, H); } return; }
     if (fx === 'rgb') return rgbSplit(ctx, Math.round(w * (0.006 + 0.004 * Math.sin(lt * 6)) * A));
-    if (fx === 'duotone') { ctx.save(); ctx.globalCompositeOperation = 'color'; ctx.fillStyle = 'rgba(123,100,255,' + Math.min(1, 0.55 * A).toFixed(3) + ')'; ctx.fillRect(0, 0, W, H); ctx.restore(); return; }
+    if (fx === 'duotone') { ctx.save(); ctx.globalCompositeOperation = 'color'; ctx.fillStyle = hexA(FC || '#7b64ff', Math.min(1, 0.55 * A)); ctx.fillRect(0, 0, W, H); ctx.restore(); return; }
     if (fx === 'grain') return grainOver(ctx, W, H, Math.min(0.9, 0.35 * A), lt);
     if (fx === 'oldfilm') {
       grainOver(ctx, W, H, 0.3 * A, lt);
@@ -357,12 +410,12 @@
     }
     if (fx === 'leak') {
       var lx = (0.5 + 0.45 * Math.sin(lt * 0.8)) * W, ly = (0.3 + 0.2 * Math.cos(lt * 0.6)) * H, lr = Math.max(W, H) * 0.7, lg = ctx.createRadialGradient(lx, ly, 0, lx, ly, lr);
-      lg.addColorStop(0, 'rgba(255,150,60,' + Math.min(0.9, 0.5 * A).toFixed(3) + ')'); lg.addColorStop(0.5, 'rgba(255,60,120,' + Math.min(0.6, 0.22 * A).toFixed(3) + ')'); lg.addColorStop(1, 'rgba(255,60,120,0)');
+      lg.addColorStop(0, hexA(FC || '#ff9640', Math.min(0.9, 0.5 * A))); lg.addColorStop(0.5, 'rgba(255,60,120,' + Math.min(0.6, 0.22 * A).toFixed(3) + ')'); lg.addColorStop(1, 'rgba(255,60,120,0)');
       ctx.save(); ctx.globalCompositeOperation = 'screen'; ctx.fillStyle = lg; ctx.fillRect(0, 0, W, H); ctx.restore(); return;
     }
     if (fx === 'sparkle' || fx === 'snow') {
       var n = Math.round((fx === 'snow' ? 90 : 36) * A), u = Math.min(W, H) / 1080;
-      ctx.save(); ctx.fillStyle = '#fff';
+      ctx.save(); ctx.fillStyle = FC || '#ffffff';
       for (i = 0; i < n; i++) {
         if (fx === 'snow') {
           var sp = 0.5 + rnd(i * 2.3), fy = ((rnd(i * 1.1) + lt * 0.12 * sp) % 1) * H, fxp = rnd(i * 3.7) * W + Math.sin(lt * 1.3 + i) * 14 * u, fr = (2 + rnd(i * 5.1) * 5) * u;
@@ -389,8 +442,8 @@
       if (pixC.width !== pw || pixC.height !== ph2) { pixC.width = pw; pixC.height = ph2; }
       pixX.drawImage(cvv, 0, 0, pw, ph2); ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.imageSmoothingEnabled = false; ctx.drawImage(pixC, 0, 0, w, h); ctx.restore(); return;
     }
-    if (fx === 'cinema') { var bh = H * Math.min(0.3, 0.11 * A); ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, bh); ctx.fillRect(0, H - bh, W, bh); return; }
-    if (fx === 'frame') { var bw = Math.min(W, H) * 0.045 * A; ctx.save(); ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.rect(0, 0, W, H); ctx.rect(bw, bw, W - bw * 2, H - bw * 2); ctx.fill('evenodd'); ctx.restore(); return; }
+    if (fx === 'cinema') { var bh = H * Math.min(0.3, 0.11 * A); ctx.fillStyle = FC || '#000000'; ctx.fillRect(0, 0, W, bh); ctx.fillRect(0, H - bh, W, bh); return; }
+    if (fx === 'frame') { var bw = Math.min(W, H) * 0.045 * A; ctx.save(); ctx.fillStyle = FC || '#ffffff'; ctx.beginPath(); ctx.rect(0, 0, W, H); ctx.rect(bw, bw, W - bw * 2, H - bw * 2); ctx.fill('evenodd'); ctx.restore(); return; }
     if (fx === 'vhs') {
       rgbSplit(ctx, Math.max(1, Math.round(w * 0.004 * A)));
       ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = 'rgba(0,0,0,' + Math.min(0.4, 0.14 * A).toFixed(3) + ')';
@@ -554,7 +607,11 @@
     ctx.setTransform(k, 0, 0, k, 0, 0); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
     ctx.fillStyle = P.bg; ctx.fillRect(0, 0, P.w, P.h);
     var at = P.clips.length ? clipAt(t) : null;
-    if (at) drawClip(ctx, at, P.w, P.h);
+    if (at) {
+      var prev = at.i > 0 ? P.clips[at.i - 1] : null;
+      if (at.c.tr && at.c.tr !== 'none' && at.local < trDur(at.c)) drawTrans(ctx, prev ? { c: prev, local: Math.max(0, clipLen(prev) - 0.04), i: at.i - 1 } : null, at, P.w, P.h);
+      else drawClip(ctx, at, P.w, P.h);
+    }
     P.overlays.forEach(function (o) { if (t >= o.start && t < o.end) drawOver(ctx, o, t, still); });
     P.texts.forEach(function (x) { if (t >= x.start && t < x.end) drawText(ctx, x, t, still); });
   }
@@ -607,6 +664,11 @@
       } else follow(v, want, false);
       lastClip = cur.c.id;
     } else lastClip = null;
+    // during a transition the previous clip shows its last frame: park its video there
+    if (at && at.i > 0 && at.c.tr && at.c.tr !== 'none' && at.local < trDur(at.c)) {
+      var pc = P.clips[at.i - 1], pm = media[pc.mid];
+      if (pm && pm.kind === 'video' && (!cur || pm.el !== media[cur.c.mid].el)) { act.push(pm.el); if (!pm.el.paused) pm.el.pause(); follow(pm.el, Math.min(pm.dur - 0.02, srcAt(pc, Math.max(0, clipLen(pc) - 0.04))), false); }
+    }
     P.overlays.forEach(function (o) {
       var m = media[o.mid]; if (!m || m.kind !== 'video' || t < o.start || t >= o.end) return;
       var v = elFor(o); act.push(v);
@@ -710,7 +772,7 @@
       else if (m.kind === 'image' && m.url) bg = 'background-image:url(' + m.url + ');';
       h += '<div class="it v' + (on ? ' on' : '') + '" data-k="clip" data-id="' + c.id + '" style="left:' + (x0 * pps) + 'px;width:' + Math.max(8, L * pps - 2) + 'px;' + bg + '">' +
         '<span class="nm">' + (rampPts(c) ? '〰 ' : c.speed !== 1 ? c.speed + '× · ' : '') + fmt(L) + (c.mute ? ' · 🔇' : '') + '</span><span class="hd l" data-h="l"></span><span class="hd r" data-h="r"></span></div>';
-      h += '<button type="button" class="tr-badge" data-tr="' + c.id + '" style="position:absolute;left:' + (x0 * pps) + 'px;top:50%;transform:translate(-50%,-50%)" title="Шилжилт" aria-label="Шилжилт">' + (c.tr && c.tr !== 'none' ? '⇢' : '|') + '</button>';
+      h += '<button type="button" class="tr-badge" data-tr="' + c.id + '" style="position:absolute;left:' + (x0 * pps) + 'px;top:50%;transform:translate(-50%,-50%)" title="Шилжилт" aria-label="Шилжилт">' + (c.tr && c.tr !== 'none' ? '⇄' : '+') + '</button>';
       x0 += L;
     });
     h += '<button type="button" class="vtl-add" data-a="add" style="left:' + (clipsEnd * pps + 8) + 'px;top:0" title="Видео, зураг нэмэх" aria-label="Видео, зураг нэмэх">' + ico('plus') + '</button>';
@@ -1426,11 +1488,37 @@
     s.querySelector('#v-reset').addEventListener('click', function () { c.zoom = 1; c.px = 0; c.py = 0; c.rot = 0; c.flip = false; zm.value = 100; zv.textContent = '100%'; s.querySelector('#v-flip').classList.remove('on'); draw(); });
     onOpt(s, 'mo', function (v) { c.motion = v; previewRange(startOf(c.id) + 0.01, Math.min(clipLen(c), 3)); });
   }
+  var SWC = ['#000000', '#ffffff', '#7b64ff', '#ff3b5c', '#ffe600', '#22c55e', '#38bdf8'];
+  function swatches(cur, attr) { return '<div class="opts">' + SWC.map(function (c) { return '<button type="button" class="sw' + (cur === c ? ' on' : '') + '" style="background:' + c + '" data-' + attr + '="' + c + '" aria-label="' + c + '"></button>'; }).join('') + '<label class="sw pick" title="Өөр өнгө"><input type="color" data-' + attr + 'p value="' + (cur || '#ffffff') + '"></label></div>'; }
   function sheetTrans() {
     var c = selected(); if (!c || sel.k !== 'clip') return;
-    var s = sheet('Шилжилт', opts(TRANS, c.tr || 'none', 'tr') + '<p class="note">Энэ клип эхлэхэд тоглогдоно (0.5 сек).</p><button type="button" class="btn-g" id="v-trall" style="margin-top:12px;width:100%">Бүх клипт хэрэглэх</button>', commit);
-    onOpt(s, 'tr', function (v) { c.tr = v; seek(startOf(c.id) + 0.02); renderTL(); });
-    s.querySelector('#v-trall').addEventListener('click', function () { P.clips.forEach(function (x, i) { if (i > 0 || c.tr === 'fade') x.tr = c.tr; }); renderTL(); toast('Бүх клипт хэрэглэлээ'); });
+    var i = P.clips.indexOf(c), d0 = Math.round((c.trd || TR) * 10);
+    var s = sheet('Шилжилт', '<p class="note" style="margin:0 0 4px">' + (i > 0 ? 'Өмнөх клипээс энэ клип рүү шилжинэ.' : 'Эхний клип — дэвсгэр өнгөнөөс гарч ирнэ.') + '</p>' +
+      TRGROUPS.map(function (g) { return '<label class="lbl">' + g[0] + '</label>' + opts(g[1], c.tr || 'none', 'tr'); }).join('') +
+      '<div id="v-trset"><label class="lbl">Хугацаа</label><div class="rowv"><input type="range" id="v-trd" min="1" max="20" value="' + d0 + '"><b id="v-trdv">' + (d0 / 10).toFixed(1) + 'с</b></div>' +
+      '<div id="v-trdir"><label class="lbl">Чиглэл</label>' + opts([['left', '← Зүүн'], ['right', '→ Баруун'], ['up', '↑ Дээш'], ['down', '↓ Доош']], c.trdir || 'left', 'tdir') + '</div>' +
+      '<div id="v-trcol"><label class="lbl">Өнгө</label>' + swatches(c.trc || (c.tr === 'dipb' ? '#000000' : '#ffffff'), 'tc') + '</div>' +
+      '<label class="lbl">Хурдатгал</label>' + opts([['smooth', 'Зөөлөн'], ['out', 'Хурдан эхлэх'], ['in', 'Удаан эхлэх'], ['lin', 'Жигд']], c.tre || 'smooth', 'tre') +
+      '<div class="opts" style="margin-top:14px"><button type="button" class="opt" id="v-trprev">▶ Дахин үзэх</button><button type="button" class="opt" id="v-trall">Бүх клипт хэрэглэх</button></div></div>', commit);
+    function show() {
+      var on = c.tr && c.tr !== 'none';
+      s.querySelector('#v-trset').hidden = !on; s.querySelector('#v-trdir').hidden = !TR_DIR[c.tr]; s.querySelector('#v-trcol').hidden = !TR_COL[c.tr];
+    }
+    function prev() { if (c.tr && c.tr !== 'none') { var st = startOf(c.id); previewRange(Math.max(0, st - 0.6), trDur(c) + 1.2); } }
+    function set(fn) { fn(); renderTL(); draw(); }
+    onOpt(s, 'tr', function (v) { set(function () { c.tr = v; }); show(); prev(); });
+    s.querySelector('#v-trd').addEventListener('input', function () { c.trd = this.value / 10; s.querySelector('#v-trdv').textContent = c.trd.toFixed(1) + 'с'; draw(); });
+    s.querySelector('#v-trd').addEventListener('change', prev);
+    onOpt(s, 'tdir', function (v) { c.trdir = v; prev(); });
+    onOpt(s, 'tc', function (v) { c.trc = v; prev(); });
+    s.querySelector('[data-tcp]').addEventListener('input', function () { c.trc = this.value; draw(); });
+    onOpt(s, 'tre', function (v) { c.tre = v; prev(); });
+    s.querySelector('#v-trprev').addEventListener('click', prev);
+    s.querySelector('#v-trall').addEventListener('click', function () {
+      P.clips.forEach(function (x, j) { if (j > 0 || x === c) { x.tr = c.tr; x.trd = c.trd; x.trdir = c.trdir; x.trc = c.trc; x.tre = c.tre; } });
+      renderTL(); toast('Бүх клипт хэрэглэлээ');
+    });
+    show();
   }
   function sheetText(x, fresh) {
     if (!x) return;
@@ -1515,14 +1603,44 @@
   }
   function sheetFx() {
     var c = selected(); if (!c || sel.k !== 'clip') return;
-    var amt = c.fxAmt == null ? 50 : c.fxAmt;
+    var amt = c.fxAmt == null ? 50 : c.fxAmt, spd = Math.round((c.fxSpd || 1) * 100), L = clipLen(c), Lt = Math.round(L * 10);
+    var f0 = Math.round((c.fxFrom || 0) * 10), f1 = Math.round(Math.min(L, c.fxTo == null ? L : c.fxTo) * 10);
     var s = sheet('Эффект', '<div class="opts"><button type="button" class="opt' + (!c.fx || c.fx === 'none' ? ' on' : '') + '" data-fx="none">Байхгүй</button></div>' +
       FXCATS.map(function (g) { return '<label class="lbl">' + g[0] + '</label><div class="opts">' + g[1].map(function (f) { return '<button type="button" class="opt' + (c.fx === f[0] ? ' on' : '') + '" data-fx="' + f[0] + '">' + f[1] + '</button>'; }).join('') + '</div>'; }).join('') +
+      '<div id="v-fxset"><div class="agrp"><b>Тохиргоо</b>' +
       '<label class="lbl">Хүч</label><div class="rowv"><input type="range" id="v-fa" min="5" max="100" value="' + amt + '"><b id="v-fav">' + amt + '</b></div>' +
-      '<p class="note">Сонгоход клипийн эхнээс 2 секунд тоглож харуулна.</p>', commit);
-    onOpt(s, 'fx', function (v) { c.fx = v; previewRange(startOf(c.id) + 0.01, Math.min(clipLen(c), 2)); });
+      '<label class="lbl">Хурд</label><div class="rowv"><input type="range" id="v-fsp" min="25" max="300" step="5" value="' + spd + '"><b id="v-fspv">' + (spd / 100) + '×</b></div>' +
+      '<div id="v-fxcol"><label class="lbl">Өнгө</label>' + swatches(c.fxCol || FX_COL[c.fx] || '#ffffff', 'fc') + '</div>' +
+      '<label class="lbl">Хэзээ (клип дотор)</label><div class="rowv"><span class="mini">Эхлэх</span><input type="range" id="v-ff0" min="0" max="' + Lt + '" value="' + f0 + '"><b id="v-ff0v">' + (f0 / 10).toFixed(1) + 'с</b></div>' +
+      '<div class="rowv"><span class="mini">Дуусах</span><input type="range" id="v-ff1" min="0" max="' + Lt + '" value="' + f1 + '"><b id="v-ff1v">' + (f1 / 10).toFixed(1) + 'с</b></div>' +
+      '<div class="opts" style="margin-top:10px"><button type="button" class="opt" id="v-ffall">Бүтэн клипт</button><button type="button" class="opt" id="v-ffprev">▶ Дахин үзэх</button></div></div></div>', commit);
+    function show() { s.querySelector('#v-fxset').hidden = !c.fx || c.fx === 'none'; s.querySelector('#v-fxcol').hidden = !FX_COL[c.fx]; }
+    function prev() { var a = startOf(c.id) + (c.fxFrom || 0) + 0.01; previewRange(a, Math.min(2.5, Math.max(0.5, Math.min(L, c.fxTo == null ? L : c.fxTo) - (c.fxFrom || 0)))); }
+    onOpt(s, 'fx', function (v) {
+      c.fx = v; if (c.fxCol && !FX_COL[v]) c.fxCol = null;
+      s.querySelectorAll('[data-fc]').forEach(function (q) { q.classList.toggle('on', q.dataset.fc === (c.fxCol || FX_COL[v])); });
+      show(); prev();
+    });
     s.querySelector('#v-fa').addEventListener('input', function () { c.fxAmt = +this.value; s.querySelector('#v-fav').textContent = this.value; draw(); });
+    s.querySelector('#v-fsp').addEventListener('input', function () { c.fxSpd = this.value / 100; s.querySelector('#v-fspv').textContent = c.fxSpd + '×'; draw(); });
+    s.querySelector('#v-fsp').addEventListener('change', prev);
+    onOpt(s, 'fc', function (v) { c.fxCol = v; prev(); });
+    s.querySelector('[data-fcp]').addEventListener('input', function () { c.fxCol = this.value; draw(); });
+    var r0 = s.querySelector('#v-ff0'), r1 = s.querySelector('#v-ff1');
+    function rng(which) {
+      var a = +r0.value, b = +r1.value;
+      if (b - a < 3) { if (which === 0) a = Math.max(0, b - 3); else b = Math.min(Lt, a + 3); r0.value = a; r1.value = b; }
+      c.fxFrom = a / 10; c.fxTo = b >= Lt ? null : b / 10;
+      s.querySelector('#v-ff0v').textContent = (a / 10).toFixed(1) + 'с'; s.querySelector('#v-ff1v').textContent = (b / 10).toFixed(1) + 'с';
+      seek(startOf(c.id) + (which ? Math.max(a, b / 10 * 10 - 1) / 10 : a / 10) + 0.01);
+    }
+    r0.addEventListener('input', function () { rng(0); }); r1.addEventListener('input', function () { rng(1); });
+    r0.addEventListener('change', prev); r1.addEventListener('change', prev);
+    s.querySelector('#v-ffall').addEventListener('click', function () { c.fxFrom = 0; c.fxTo = null; r0.value = 0; r1.value = Lt; s.querySelector('#v-ff0v').textContent = '0.0с'; s.querySelector('#v-ff1v').textContent = (Lt / 10).toFixed(1) + 'с'; prev(); });
+    s.querySelector('#v-ffprev').addEventListener('click', prev);
+    show();
   }
+
 
   // ---------- overlays: settings, background removal ----------
   function sheetOver() {
@@ -1919,6 +2037,10 @@
       var v = elFor(o); need.push(v); ps.push(frameAt(v, 1, Math.min(mo.dur - 0.01, (o.in || 0) + (t - o.start)), mo.dur));
     });
     xStop(need);
+    if (at && at.i > 0 && at.c.tr && at.c.tr !== 'none' && at.local < trDur(at.c)) {
+      var pc = P.clips[at.i - 1], pm = media[pc.mid];
+      if (pm && pm.kind === 'video' && need.indexOf(pm.el) < 0) ps.push(seekV(pm.el, Math.min(pm.dur - 0.02, srcAt(pc, Math.max(0, clipLen(pc) - 0.04)))));
+    }
     return Promise.all(ps);
   }
   var exporting = null;

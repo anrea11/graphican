@@ -284,3 +284,5 @@ button:disabled { opacity:.35; cursor:default; }
   .sheet.dock { padding-top:6px; }
 }
 @media (min-width:1024px) { .vpanel.free .phint { display:none; } }
+.rowv .mini { font-size:11.5px; color:var(--muted); min-width:50px; }
+#v-trset[hidden], #v-trdir[hidden], #v-trcol[hidden], #v-fxset[hidden], #v-fxcol[hidden] { display:none; }
