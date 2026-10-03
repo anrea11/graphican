@@ -153,6 +153,7 @@
     dup: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>', del: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
     left: '<path d="M14 7l-5 5 5 5"/><path d="M20 12H9"/>', right: '<path d="M10 7l5 5-5 5"/><path d="M4 12h11"/>', edit: '<path d="M4 20h4L19 9l-4-4L4 16z"/>',
     all: '<path d="M4 6h16M4 10h10M4 14h16M4 18h10"/>', alc: '<path d="M4 6h16M7 10h10M4 14h16M7 18h10"/>', alr: '<path d="M4 6h16M10 10h10M4 14h16M10 18h10"/>',
+    msel: '<rect x="3" y="3" width="8" height="8" rx="2"/><rect x="13" y="13" width="8" height="8" rx="2"/><path d="M14 5.5l2 2 3.5-4M4.5 16.5l2 2 3.5-4"/>', selall: '<rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 12l3 3 5-6"/>',
     full: '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>', close: '<path d="M6 6l12 12M18 6L6 18"/>',
     play: '<path d="M7 4.5v15l13-7.5z"/>', pause: '<path d="M7 4h4v16H7zM13 4h4v16h-4z"/>', undo: '<path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/>',
     redo: '<path d="M15 14l5-5-5-5"/><path d="M20 9H9a5 5 0 0 0 0 10h3"/>', dl: '<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>', color: '<circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18z" fill="currentColor"/>',
@@ -222,6 +223,7 @@
     '<div class="vtr"><div class="tgrp">' +
     '<button class="ib" id="v-tsplit" type="button" data-a="split" title="Хуваах (S)" aria-label="Хуваах">' + ico('split') + '</button>' +
     '<button class="ib" id="v-tdel" type="button" data-a="del" title="Устгах (Delete)" aria-label="Устгах">' + ico('del') + '</button>' +
+    '<button class="ib tog" id="v-tmulti" type="button" data-a="msel" title="Олноор сонгох: хэд хэдэн зүйлийг сонгоод зэрэг устгах (Shift / Ctrl + дарах, Ctrl+A)" aria-label="Олноор сонгох">' + ico('msel') + '</button>' +
     '<button class="ib dk" id="v-tdup" type="button" data-a="dup" title="Хувилах (Ctrl+D)" aria-label="Хувилах">' + ico('dup') + '</button>' +
     '<button class="ib dk" id="v-tfreeze" type="button" data-a="freeze" title="Кадр царцаах" aria-label="Кадр царцаах">' + ico('freeze') + '</button>' +
     '<span class="sep dk"></span><button class="ib dk" id="v-tmark" type="button" data-a="mark" title="Тэмдэг тавих / арилгах (M)" aria-label="Тэмдэг">' + ico('mark') + '</button>' +
@@ -1140,11 +1142,11 @@
     h += '<div class="vtl-row r-v" style="left:' + p + 'px;top:' + top + 'px;height:' + MH + 'px">';
     var x0 = 0;
     P.clips.forEach(function (c, i) {
-      var m = media[c.mid] || {}, L = clipLen(c), on = sel && sel.k === 'clip' && sel.id === c.id;
+      var m = media[c.mid] || {}, L = clipLen(c), on = sel && sel.k === 'clip' && sel.id === c.id, mo = inMulti('clip', c.id); on = on || mo;
       var bg = '';
       if (m.kind === 'video' && m.strip) bg = 'background-image:url(' + m.strip + ');background-size:' + (m.dur / avgSpeed(c) * pps) + 'px 100%;background-position:' + (-c.in / avgSpeed(c) * pps) + 'px 0;background-repeat:no-repeat;';
       else if (m.kind === 'image' && m.url) bg = 'background-image:url(' + m.url + ');';
-      h += '<div class="it v' + (c.gap ? ' gap' : '') + (on ? ' on' : '') + '" data-k="clip" data-id="' + c.id + '" style="left:' + (x0 * pps) + 'px;width:' + Math.max(8, L * pps - 2) + 'px;' + bg + '">' +
+      h += '<div class="it v' + (c.gap ? ' gap' : '') + (on ? ' on' : '') + (mo ? ' m' : '') + '" data-k="clip" data-id="' + c.id + '" style="left:' + (x0 * pps) + 'px;width:' + Math.max(8, L * pps - 2) + 'px;' + bg + '">' +
         '<span class="nm">' + (c.gap ? 'Хоосон · ' + fmt(L) : (rampPts(c) ? '〰 ' : c.speed !== 1 ? c.speed + '× · ' : '') + fmt(L) + (c.mute ? ' · 🔇' : '')) + '</span>' + kfDots(c) + '<span class="hd l" data-h="l"></span><span class="hd r" data-h="r"></span></div>';
       var has = c.tr && c.tr !== 'none';
       if (has) h += '<div class="trband" data-trb="' + c.id + '" style="left:' + (x0 * pps) + 'px;width:' + Math.max(6, trDur(c) * pps) + 'px" title="Шилжилт: ' + esc(trName(c.tr)) + ' · ' + trDur(c).toFixed(1) + 'с — захаас нь чирж уртасгана"><span class="trh" data-trh="' + c.id + '"></span></div>';
@@ -1166,12 +1168,12 @@
       for (var li = 1; li < n; li++) out += '<i class="lsep" style="top:' + (li * LH) + 'px"></i>';
       if (!items.length) out += '<span class="vtl-lab" style="top:' + (LH / 2 - 7) + 'px">' + r[1] + ' — хоосон</span>';
       items.forEach(function (it) {
-        var on = sel && sel.k === selK(k) && sel.id === it.id, a = iStart(k, it), b = iEnd(k, it), md = media[it.mid] || {}, bg = '', nm;
+        var mo = inMulti(k, it.id), on = mo || (sel && sel.k === selK(k) && sel.id === it.id), a = iStart(k, it), b = iEnd(k, it), md = media[it.mid] || {}, bg = '', nm;
         if (k === 'audio' && md.wave) bg = 'background-image:url(' + md.wave + ');background-size:' + (md.dur * pps) + 'px 100%;background-position:' + (-it.in * pps) + 'px 0;background-repeat:no-repeat;';
         if (k === 'over' && md.kind === 'video' && md.strip) bg = 'background-image:url(' + md.strip + ');background-size:' + (md.dur * pps) + 'px 100%;background-position:' + (-it.in * pps) + 'px 0;background-repeat:no-repeat;';
         if (k === 'over' && md.kind === 'image') bg = 'background-image:url(' + md.url + ');background-size:auto 100%;';
         nm = k === 'text' || k === 'cap' ? (it.text || 'Текст').replace(/\n/g, ' ') : k === 'over' ? (it.kind === 'emoji' ? it.emoji : (md.kind === 'video' ? '▶ ' : '') + (md.name || 'Давхар')) : k === 'fx' ? '✦ ' + fxName(it.fx) : '♪ ' + (md.name || 'Хөгжим');
-        out += '<div class="it ' + ({ text: 't', cap: 'c', over: 'o', fx: 'e', audio: 'a' })[k] + (on ? ' on' : '') + '" data-k="' + k + '" data-id="' + it.id + '" style="left:' + (a * pps) + 'px;width:' + Math.max(10, (b - a) * pps - 2) + 'px;top:' + ((n - 1 - (it.ln || 0)) * LH + 1) + 'px;height:' + (LH - 3) + 'px;' + bg + '">' +
+        out += '<div class="it ' + ({ text: 't', cap: 'c', over: 'o', fx: 'e', audio: 'a' })[k] + (on ? ' on' : '') + (mo ? ' m' : '') + '" data-k="' + k + '" data-id="' + it.id + '" style="left:' + (a * pps) + 'px;width:' + Math.max(10, (b - a) * pps - 2) + 'px;top:' + ((n - 1 - (it.ln || 0)) * LH + 1) + 'px;height:' + (LH - 3) + 'px;' + bg + '">' +
           '<span class="nm">' + esc(nm) + '</span>' + kfDots(it) + (k === 'audio' ? beatDots(it) : '') + '<span class="hd l" data-h="l"></span><span class="hd r" data-h="r"></span></div>';
       });
       h += out + '</div>';
@@ -1221,6 +1223,9 @@
       return;
     }
     var k = it.dataset.k, id = it.dataset.id, o = find(k, id); if (!o) return;
+    // Shift / Ctrl / ⌘ + click adds to the selection; in multi-select a tap ticks / unticks (a swipe still scrolls)
+    if ((e.shiftKey || e.ctrlKey || e.metaKey) && !(k === 'clip' && o.gap)) { e.preventDefault(); if (playing) pause(); if (!multi) multiStart(); toggleMulti(k, id); refresh(); return; }
+    if (multi) { mtap = { k: k, id: id, x: e.clientX, y: e.clientY, moved: false, gap: k === 'clip' && o.gap }; if (playing) pause(); return; }
     var hd = e.target.closest('.hd'), wasSel = sel && sel.k === selK(k) && sel.id === id;
     drag = { k: k, id: id, h: hd ? hd.dataset.h : null, x: e.clientX, y: e.clientY, moved: false, snap: JSON.stringify(o), wasSel: wasSel, el: it, touch: e.pointerType !== 'mouse' };
     // mouse: drag right away; touch: a selected bar drags at once, any other after holding it a moment (a quick swipe still scrolls)
@@ -1314,7 +1319,9 @@
     }
     snapLine(hit); tlQ();
   });
+  window.addEventListener('pointermove', function (e) { if (mtap && Math.abs(e.clientX - mtap.x) + Math.abs(e.clientY - mtap.y) > 8) mtap.moved = true; });
   window.addEventListener('pointerup', function () {
+    if (mtap) { var mt = mtap; mtap = null; if (!mt.moved && !mt.gap && multi) { toggleMulti(mt.k, mt.id); refresh(); } return; }
     if (scrub) { var sc = scrub; scrub = null; scroller.classList.remove('grabbing'); if (!sc.moved && sel) { sel = null; refresh(); } return; }
     if (!drag) return;
     var dr = drag; drag = null; snapLine(null); clearTimeout(dr.lp);
@@ -1336,7 +1343,7 @@
       refresh();
     }
   });
-  window.addEventListener('pointercancel', function () { if (drag) clearTimeout(drag.lp); drag = null; scrub = null; snapLine(null); renderTL(); });
+  window.addEventListener('pointercancel', function () { mtap = null; if (drag) clearTimeout(drag.lp); drag = null; scrub = null; snapLine(null); renderTL(); });
   tl.addEventListener('touchmove', function (e) { if (drag && drag.cap) e.preventDefault(); }, { passive: false });
   // the track names follow the timeline when it scrolls up / down
   scroller.addEventListener('scroll', function () { tracksEl.style.transform = 'translateY(' + (-scroller.scrollTop) + 'px)'; }, { passive: true });
@@ -1364,6 +1371,7 @@
   cv.addEventListener('pointerdown', function (e) {
     if (++downs > 1) { pdrag = null; guides(false, false); return; }      // second finger: pinch (touch handlers below)
     if (fullOn) { e.preventDefault(); playing ? pause() : play(); fsTick(); return; }
+    if (multi) return;
     var p = toProj(e), hit = hitAt(p);
     if (picking) { e.preventDefault(); var pk = picking; picking = null; pk(p); return; }
     // keep the selected item on top of the hit-test: tapping inside it again opens / drags it
@@ -1664,7 +1672,45 @@
     }
     commit(); toast('Хуваалаа');
   }
+  // ---------- multi-select: tick several bars on the timeline and delete them in one go ----------
+  // multi = { 'row:id': { k: row kind (clip / over / text / cap / audio / fx), id } }; while it is on, sel is empty
+  var multi = null, mtap = null;
+  function mkey(k, id) { return k + ':' + id; }
+  function rowOf(k, o) { return k === 'text' && o && o.cap ? 'cap' : k; }
+  function inMulti(k, id) { return !!(multi && multi[mkey(k, id)]); }
+  function multiList() { return multi ? Object.keys(multi).map(function (q) { return multi[q]; }).filter(function (m) { return find(m.k, m.id); }) : []; }
+  function multiStart() {
+    multi = {};
+    var o = selected(); if (o && !o.gap) { var rk = rowOf(sel.k, o); multi[mkey(rk, o.id)] = { k: rk, id: o.id }; }
+    sel = null; closeSheet(); refresh();
+    if (!desk.matches) toast('Устгах зүйлсээ timeline дээр дарж сонгоно');
+  }
+  function toggleMulti(k, id) { var q = mkey(k, id); if (multi[q]) delete multi[q]; else multi[q] = { k: k, id: id }; }
+  function multiEnd() { multi = null; refresh(); }
+  // «Бүгд»: everything in the rows already ticked (nothing ticked yet: all the texts)
+  function multiAll() {
+    if (!multi) multi = {};
+    var rows = {}; multiList().forEach(function (m) { rows[m.k] = 1; }); if (!Object.keys(rows).length) rows.text = 1;
+    Object.keys(rows).forEach(function (k) {
+      (k === 'clip' ? P.clips : rowItems(k)).forEach(function (o) { if (!o.gap) multi[mkey(k, o.id)] = { k: k, id: o.id }; });
+    });
+    refresh();
+  }
+  function delMulti() {
+    var L = multiList(); if (!L.length) { toast('Юу ч сонгоогүй байна'); return; }
+    var ids = {}; L.forEach(function (m) { ids[m.id] = 1; });
+    if (L.some(function (m) { return m.k === 'clip'; })) {
+      var out = [];
+      P.clips.forEach(function (c) { if (!ids[c.id]) out.push(c); else if (P.magnet === false) out.push(gapClip(clipLen(c))); });
+      P.clips = out; mergeGaps();
+    }
+    function keep(x) { return !ids[x.id]; }
+    P.texts = P.texts.filter(keep); P.overlays = P.overlays.filter(keep); P.audios = P.audios.filter(keep); P.effects = (P.effects || []).filter(keep);
+    multi = null; sel = null; commit(); seek(Math.min(T, total()));
+    toast(L.length + ' зүйл устгагдлаа — буцаах бол ↶ товч');
+  }
   function delSel() {
+    if (multi) { delMulti(); return; }
     if (!sel) return;
     var l = listOf(sel.k), i = l.findIndex(function (x) { return x.id === sel.id; });
     if (i >= 0 && sel.k === 'clip' && P.magnet === false && !l[i].gap && i < l.length - 1) l.splice(i, 1, gapClip(clipLen(l[i])));
@@ -1812,7 +1858,7 @@
     else if (k === 'text') { P1 = [['tedit', 'edit', 'Засах'], ['split', 'split', 'Хуваах'], ['kf', 'kf', 'Keyframe'], ['dup', 'dup', 'Хувилах'], ['del', 'del', 'Устгах', 'danger']]; M1 = []; }
     else if (k === 'fx') { P1 = [['fxe', 'fx', 'Эффект'], ['split', 'split', 'Хуваах'], ['dup', 'dup', 'Хувилах'], ['del', 'del', 'Устгах', 'danger']]; M1 = []; }
     else { P1 = [['avol', 'vol', 'Дуу'], ['split', 'split', 'Хуваах'], ['beat', 'beat', 'Цохилт'], ['dup', 'dup', 'Хувилах'], ['del', 'del', 'Устгах', 'danger']]; M1 = []; }
-    return { p: P1, m: M1 };
+    return { p: P1, m: (M1 || []).concat([['msel', 'msel', 'Олноор сонгох']]) };
   }
   var moreList = [];
   function sheetMoreTools() {
@@ -1877,17 +1923,20 @@
   }
   function tbs(list) { return list.map(function (t) { return tbtn(t[0], t[1], t[2], t[3]); }).join(''); }
   function refreshTB() {
-    var o = sel && selected(), h;
-    if (!o) h = tbs(HUBS);
+    if (multi && sel) multi = null;          // picking one thing (adding, tapping the canvas…) ends multi-select
+    var o = sel && selected(), h, mn = multiList().length;
+    if (multi) h = tbtn('mdone', 'back', '', 'back') + '<span class="mcount"><b>' + mn + '</b>сонгосон</span>' + tbtn('mall', 'selall', 'Бүгд') + tbtn('mdel', 'del', 'Устгах', 'danger');
+    else if (!o) h = tbs(HUBS);
     else if (o.gap) h = tbtn('desel', 'back', '', 'back') + tbtn('del', 'del', 'Зайг хаах', 'danger');
     else {
       var cb = ctxBar(o); moreList = cb.m;
       h = tbtn('desel', 'back', '', 'back') + tbs(cb.p) + (cb.m.length ? tbtn('cmore', 'more', 'Бусад') : '');
     }
-    tb.innerHTML = h; tb.classList.toggle('hubs', !o); tb.classList.toggle('ctx', !!o);
+    tb.innerHTML = h; tb.classList.toggle('hubs', !o && !multi); tb.classList.toggle('ctx', !!o || !!multi); tb.classList.toggle('multi', !!multi);
+    document.getElementById('v-tmulti').classList.toggle('on', !!multi);
     // timeline bar state
     var at = P.clips.length ? clipAt(T) : null;
-    document.getElementById('v-tdel').disabled = !o; document.getElementById('v-tdup').disabled = !o;
+    document.getElementById('v-tdel').disabled = !o && !mn; document.getElementById('v-tdup').disabled = !o;
     document.getElementById('v-tsplit').disabled = !o && !at;
     document.getElementById('v-tfreeze').disabled = !(at && (media[at.c.mid] || {}).kind === 'video');
     document.getElementById('v-tsnap').classList.toggle('on', snapOn);
@@ -1902,6 +1951,16 @@
     if (sheetClose && sheetOwner !== k) closeSheet();
     if (!rail.firstChild) rail.innerHTML = tbs(HUBS);
     var title, sub = '';
+    if (multi) {
+      var mn = multiList().length;
+      title = mn + ' зүйл сонгосон'; sub = 'Олноор сонгох';
+      ptools.innerHTML = '<div class="mpanel">' + tbtn('mall', 'selall', 'Бүгдийг сонгох') + tbtn('mdel', 'del', 'Устгах (' + mn + ')', 'danger') + tbtn('mdone', 'close', 'Болих') + '</div>' +
+        '<div class="phint"><p>Timeline дээрх зүйлс дээр дарж сонголтод нэмнэ / хасна. «Бүгдийг сонгох» нь сонгосон мөрийн бүх зүйлийг (юу ч сонгоогүй бол бүх текстийг) сонгоно.</p>' +
+        '<dl><dt>Shift / Ctrl + дарах</dt><dd>Нэмж сонгох</dd><dt>Ctrl+A</dt><dd>Мөрийн бүгдийг сонгох</dd><dt>Delete</dt><dd>Сонгосныг устгах</dd><dt>Esc</dt><dd>Болих</dd></dl></div>';
+      document.getElementById('v-ptitle').innerHTML = esc(title) + '<button type="button" class="pclose" data-a="mdone" title="Болих (Esc)" aria-label="Болих">✕</button>';
+      document.getElementById('v-psub').textContent = sub; lastPanelKey = 'multi';
+      return;
+    }
     if (!o) {
       title = 'Төсөл'; sub = P.w + '×' + P.h + ' · ' + fmt(total());
       ptools.innerHTML = tbtn('size', 'size', 'Хэмжээ') + tbtn('bg', 'color', 'Дэвсгэр') +
@@ -1943,6 +2002,7 @@
     add: function () { pick('video/*,image/*,audio/*'); }, text: addText, music: function () { sheetMusic(); }, size: function () { sheetSize(); }, bg: function () { sheetBg(); },
     stock: function () { sheetStock(false); }, sticker: function () { sheetSticker(); }, over: function () { sheetAddOver(); }, rec: function () { sheetRec(); },
     desel: function () { sel = null; refresh(); }, split: splitSel, del: delSel, dup: dupSel,
+    msel: function () { if (multi) multiEnd(); else multiStart(); }, mdone: multiEnd, mall: multiAll, mdel: delMulti,
     speed: function () { sheetSpeed(); }, vol: function () { sheetVol(); }, avol: function () { sheetVol(); }, ovol: function () { sheetVol(); }, fit: function () { sheetPos(); }, trans: function () { sheetTrans(); },
     tedit: function () { sheetText(selected()); }, color: function () { sheetColor(); }, filter: function () { sheetColor(); }, adj: function () { sheetColor(); }, fx: function () { sheetFx(); }, fxadd: function () { sel = null; refresh(); sheetFx(); }, fxe: function () { sheetFxItem(); }, cap: function () { sheetCaptions(); }, kf: function () { sheetKf(); }, beat: function () { sheetBeat(); }, cut: function () { sheetCut(); },
     hmedia: hubMedia, htext: hubText, haudio: hubAudio, hcap: function () { sheetCaptions(); }, hfx: hubFx, hmore: hubMore,
@@ -1975,7 +2035,8 @@
     else if (mod && key === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); }
     else if (mod && key === 'y') { e.preventDefault(); redo(); }
     else if (mod && key === 'd') { e.preventDefault(); dupSel(); }
-    else if ((e.key === 'Delete' || e.key === 'Backspace') && sel) { e.preventDefault(); delSel(); }
+    else if ((e.key === 'Delete' || e.key === 'Backspace') && (sel || multi)) { e.preventDefault(); delSel(); }
+    else if (mod && key === 'a') { e.preventDefault(); if (!multi) multiStart(); multiAll(); }
     else if (mod) return;
     else if (key === 's' || e.code === 'KeyS') splitSel();
     else if (key === 'm' || e.code === 'KeyM') toggleMarker();
@@ -2043,7 +2104,7 @@
   }
   document.addEventListener('keydown', function (e) {
     if (e.key !== 'Escape') return;
-    if (fullOn) setFull(false); else if (sheetClose) closeSheet(); else if (sel && desk.matches && !/INPUT|TEXTAREA/.test(e.target.tagName)) { sel = null; refresh(); }
+    if (fullOn) setFull(false); else if (multi) multiEnd(); else if (sheetClose) closeSheet(); else if (sel && desk.matches && !/INPUT|TEXTAREA/.test(e.target.tagName)) { sel = null; refresh(); }
   });
   function opts(list, cur, attr) { return '<div class="opts">' + list.map(function (o) { return '<button type="button" class="opt' + (String(o[0]) === String(cur) ? ' on' : '') + '" data-' + attr + '="' + o[0] + '">' + o[1] + '</button>'; }).join('') + '</div>'; }
   function onOpt(s, attr, fn) { s.addEventListener('click', function (e) { var b = e.target.closest('[data-' + attr + ']'); if (!b) return; s.querySelectorAll('[data-' + attr + ']').forEach(function (x) { x.classList.toggle('on', x === b); }); fn(b.getAttribute('data-' + attr)); }); }
