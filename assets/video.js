@@ -19,6 +19,19 @@
   var FW = { 'Inter': [400, 700, 800], 'Montserrat': [400, 700, 800], 'Roboto': [400, 700, 800], 'Oswald': [400, 700], 'Nunito': [400, 700, 800], 'Rubik': [400, 700, 800],
     'Comfortaa': [400, 700], 'Lora': [400, 700], 'Cormorant Garamond': [400, 700], 'Caveat': [400, 700], 'Lobster': [400], 'Pacifico': [400], 'Kurale': [400], 'Bad Script': [400] };
   var FONTS = Object.keys(FW);
+  // the full Mongolian-ready catalogue (178 Google fonts with Ө Ү): only weights Google really has are asked for
+  var FCAT = {};
+  (window.MN_FONTS || []).forEach(function (f) {
+    FCAT[f[0]] = f[1] === 'm' ? 's' : f[1];
+    if (FW[f[0]]) return;
+    var w = f[2].filter(function (x) { return x === 400 || x === 700 || x === 800; });
+    FW[f[0]] = w.length ? w : [f[2][0]];
+  });
+  var FPOP = (window.MN_FONTS || []).filter(function (f) { return f[4]; }).map(function (f) { return f[0]; });
+  // fonts made by Cyrillic-first foundries that look right with Mongolian text
+  var FMN = FONTS.concat(['Golos Text', 'Onest', 'Geologica', 'Commissioner', 'PT Sans', 'PT Serif', 'Philosopher', 'Yeseva One', 'Forum', 'Prata', 'Alice', 'Marmelad', 'Exo 2', 'Manrope'])
+    .filter(function (n, i, a) { return FW[n] && a.indexOf(n) === i; });
+  if (!FPOP.length) FPOP = FONTS.slice();
   var STYLES = [['plain', 'Энгийн'], ['outline', 'Хүрээтэй'], ['box', 'Шошго'], ['shadow', 'Сүүдэр'], ['glow', 'Гэрэлтэх']];
   var COLORS = ['#ffffff', '#000000', '#ffe600', '#ff3b5c', '#7b64ff', '#22c55e', '#38bdf8', '#ff8a00'];
   var ANIMS = [['none', 'Байхгүй'], ['pop', 'Үсрэх'], ['fade', 'Бүдгэрэх'], ['slide', 'Доороос'], ['type', 'Бичигдэх'], ['karaoke', 'Үг тодрох']];
@@ -139,6 +152,7 @@
     fit: '<rect x="3" y="5" width="18" height="14" rx="2"/><rect x="8" y="8" width="8" height="8" rx="1"/>', trans: '<path d="M4 12h16M14 6l6 6-6 6"/><path d="M4 6v12"/>',
     dup: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>', del: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
     left: '<path d="M14 7l-5 5 5 5"/><path d="M20 12H9"/>', right: '<path d="M10 7l5 5-5 5"/><path d="M4 12h11"/>', edit: '<path d="M4 20h4L19 9l-4-4L4 16z"/>',
+    all: '<path d="M4 6h16M4 10h10M4 14h16M4 18h10"/>', alc: '<path d="M4 6h16M7 10h10M4 14h16M7 18h10"/>', alr: '<path d="M4 6h16M10 10h10M4 14h16M10 18h10"/>',
     full: '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>', close: '<path d="M6 6l12 12M18 6L6 18"/>',
     play: '<path d="M7 4.5v15l13-7.5z"/>', pause: '<path d="M7 4h4v16H7zM13 4h4v16h-4z"/>', undo: '<path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/>',
     redo: '<path d="M15 14l5-5-5-5"/><path d="M20 9H9a5 5 0 0 0 0 10h3"/>', dl: '<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>', color: '<circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18z" fill="currentColor"/>',
@@ -201,7 +215,7 @@
     '<div class="vq" id="v-q" role="group" aria-label="Preview-ийн чанар" title="Preview-ийн чанар: гацвал «Бага» болгоно. Татах видеонд нөлөөлөхгүй."><span>Preview</span><button type="button" data-q="low">Бага</button><button type="button" data-q="mid">Дунд</button><button type="button" data-q="high">Их</button></div>' +
     '<div class="selbox" id="v-sel" hidden><i class="tl" data-hd="s"></i><i class="tr" data-hd="s"></i><i class="bl" data-hd="s"></i><i class="br" data-hd="s"></i><i class="rot" data-hd="r"></i></div>' +
     '<div class="vempty" id="v-empty"><b>Видео эсвэл зураг нэмээд эхлээрэй.</b><span>Файлууд тань серверт очихгүй — зөвхөн энэ төхөөрөмж дээр засагдана</span><button class="btn-x" type="button" data-a="hmedia">' + ico('plus') + 'Медиа нэмэх</button></div>' +
-    '<button class="vfsb" id="v-fs" type="button" title="Бүтэн дэлгэцээр үзэх (F)" aria-label="Бүтэн дэлгэцээр үзэх">' + ico('full') + '</button>' +
+    '<button class="vfsb" id="v-full" type="button" title="Бүтэн дэлгэцээр үзэх (F)" aria-label="Бүтэн дэлгэцээр үзэх">' + ico('full') + '</button>' +
     '<div class="vfsbar" id="v-fsbar"><button class="vfsx" id="v-fsx" type="button" aria-label="Бүтэн дэлгэцээс гарах">' + ico('close') + '<span>Гарах</span></button>' +
     '<button class="vfsp" id="v-fsp" type="button" aria-label="Тоглуулах">' + ico('play') + '</button><span class="vfst" id="v-fst"></span><input type="range" id="v-fsr" min="0" max="1000" value="0" aria-label="Байрлал"></div></div>' +
     '<div class="vtr"><div class="tgrp">' +
@@ -270,7 +284,7 @@
     if (document.activeElement !== fsr) fsr.value = Math.round(T / D * 1000);
     document.getElementById('v-fsp').innerHTML = ico(playing ? 'pause' : 'play');
   }
-  document.getElementById('v-fs').addEventListener('click', function () { setFull(true); });
+  document.getElementById('v-full').addEventListener('click', function () { setFull(true); });
   document.getElementById('v-fsx').addEventListener('click', function (e) { e.stopPropagation(); setFull(false); });
   document.getElementById('v-fsp').addEventListener('click', function (e) { e.stopPropagation(); playing ? pause() : play(); fsTick(); });
   fsr.addEventListener('input', function () { if (playing) pause(); seek(fsr.value / 1000 * total()); fsTick(); });
@@ -787,11 +801,14 @@
     lastBox[x.id] = { cx: cxp, cy: cyp, w: maxW + pad * 2, h: hTot + pad * 2, rot: x.rot || 0 };
     if (a <= 0.001) return;
     ctx.save(); ctx.globalAlpha = a; ctx.translate(cxp, cyp + dy); if (x.rot) ctx.rotate(x.rot * Math.PI / 180); ctx.scale(sc, sc);
+    // left / right alignment: every line is shifted inside the block (the block itself stays centred on x, y)
+    var alg = x.align === 'left' || x.align === 'right' ? x.align : null;
+    function lx(l) { if (!alg) return 0; var d = (maxW - ctx.measureText(l).width) / 2; return alg === 'left' ? -d : d; }
     if (x.style === 'box') {
       ctx.fillStyle = x.color;
       lines.forEach(function (l, i) {
         if (!l) return; var w = ctx.measureText(l).width + pad * 2, y = -hTot / 2 + i * lh;
-        roundRect(ctx, -w / 2, y - pad * 0.15, w, lh + pad * 0.3, st.px * 0.22); ctx.fill();
+        roundRect(ctx, lx(l) - w / 2, y - pad * 0.15, w, lh + pad * 0.3, st.px * 0.22); ctx.fill();
       });
     }
     // karaoke captions: each word lights up when it is spoken (x.words = [{w, s, e}] in timeline seconds)
@@ -800,7 +817,7 @@
     shown.forEach(function (l, i) {
       var y = -hTot / 2 + i * lh + lh / 2;
       if (kw) {
-        var ws = l.split(/\s+/).filter(Boolean), lw = ctx.measureText(l).width, xx = -lw / 2;
+        var ws = l.split(/\s+/).filter(Boolean), lw = ctx.measureText(l).width, xx = lx(l) - lw / 2;
         ctx.textAlign = 'left';
         ws.forEach(function (w) {
           var k = kw[wi++] || {}, on = t >= k.s, cur = on && t < k.e, ww = ctx.measureText(w).width;
@@ -815,13 +832,14 @@
         ctx.textAlign = 'center';
         return;
       }
-      if (x.style === 'outline') { ctx.lineJoin = 'round'; ctx.lineWidth = st.px * 0.16; ctx.strokeStyle = x.color === '#000000' ? '#ffffff' : '#000000'; ctx.strokeText(l, 0, y); }
+      var ox = x.anim === 'type' ? lx(lines[i] || l) + (alg ? (ctx.measureText(lines[i] || l).width - ctx.measureText(l).width) / 2 * (alg === 'left' ? -1 : 1) : 0) : lx(l);
+      if (x.style === 'outline') { ctx.lineJoin = 'round'; ctx.lineWidth = st.px * 0.16; ctx.strokeStyle = x.color === '#000000' ? '#ffffff' : '#000000'; ctx.strokeText(l, ox, y); }
       if (x.style === 'shadow') { ctx.shadowColor = 'rgba(0,0,0,.65)'; ctx.shadowBlur = st.px * 0.25; ctx.shadowOffsetY = st.px * 0.06; }
       if (x.style === 'glow') { ctx.shadowColor = x.color; ctx.shadowBlur = st.px * 0.5; }
       if (x.style === 'plain') { ctx.shadowColor = 'rgba(0,0,0,.35)'; ctx.shadowBlur = st.px * 0.08; }
       ctx.fillStyle = x.style === 'box' ? contrast(x.color) : x.color;
-      ctx.fillText(l, 0, y);
-      if (x.style === 'glow') { ctx.shadowBlur = st.px * 0.15; ctx.fillText(l, 0, y); }
+      ctx.fillText(l, ox, y);
+      if (x.style === 'glow') { ctx.shadowBlur = st.px * 0.15; ctx.fillText(l, ox, y); }
     });
     ctx.restore();
   }
@@ -1161,7 +1179,7 @@
     tracksEl.innerHTML = heads; tracksEl.style.height = top + 'px';
     progScroll = true; scroller.scrollLeft = T * pps; requestAnimationFrame(function () { progScroll = false; });
     document.getElementById('v-empty').style.display = P.clips.length || P.texts.length || P.overlays.length ? 'none' : '';
-    document.getElementById('v-fs').style.display = P.clips.length ? '' : 'none';
+    document.getElementById('v-full').style.display = P.clips.length ? '' : 'none';
     timeLabel();
   }
   function beatDots(a) { return beatsOnTimeline(a).map(function (t) { return '<i class="bdot" style="left:' + ((t - a.start) * pps) + 'px"></i>'; }).join(''); }
@@ -1962,7 +1980,7 @@
     var bg = document.createElement('div'); bg.className = 'sheet-bg';
     var s = document.createElement('div'); s.className = 'sheet'; s.setAttribute('role', 'dialog'); s.setAttribute('aria-label', title);
     s.innerHTML = '<div class="grab"></div><h3>' + title + '<button type="button" class="done">Болсон</button></h3>' + body;
-    s.dataset.st = 'mid'; bg.dataset.st = 'mid';
+    s.dataset.sz = 'mid'; bg.dataset.sz = 'mid';
     document.body.appendChild(bg); document.body.appendChild(s);
     sheetDrag(s, bg);
     sheetClose = function () { bg.remove(); s.remove(); sheetClose = null; if (onClose) onClose(); };
@@ -1975,7 +1993,7 @@
     var vh = window.innerHeight;
     return st === 'min' ? 62 : st === 'max' ? vh - 56 : Math.round(vh * 0.5);
   }
-  function setSheetSt(s, bg, st) { s.dataset.st = bg.dataset.st = st; s.style.maxHeight = ''; if (st === 'min') s.scrollTop = 0; }
+  function setSheetSt(s, bg, st) { s.dataset.sz = bg.dataset.sz = st; s.style.maxHeight = ''; if (st === 'min') s.scrollTop = 0; }
   function sheetDrag(s, bg) {
     var y0 = 0, h0 = 0, id = null, moved = false, onGrab = false;
     s.addEventListener('pointerdown', function (e) {
@@ -1990,7 +2008,7 @@
     });
     function end(e) {
       if (id !== e.pointerId) return; id = null; s.classList.remove('dragging');
-      if (!moved) { if (onGrab) setSheetSt(s, bg, { min: 'mid', mid: 'max', max: 'min' }[s.dataset.st]); return; }
+      if (!moved) { if (onGrab) setSheetSt(s, bg, { min: 'mid', mid: 'max', max: 'min' }[s.dataset.sz]); return; }
       var h = s.getBoundingClientRect().height, best = 'mid', bd = 1e9;
       ['min', 'mid', 'max'].forEach(function (st) { var d = Math.abs(sheetH(st) - h); if (d < bd) { bd = d; best = st; } });
       setSheetSt(s, bg, best);
@@ -2142,34 +2160,101 @@
     });
     show();
   }
+  // font previews: Google Fonts text= subsets («Монгол дизайн» only, a few KB) under an alias so they never clash with the full face; cached per session
+  var pvP = {}, PV_TXT = 'Монгол дизайн';
+  function previewFont(n) {
+    if (pvP[n]) return pvP[n];
+    if (n === 'Inter' || fontP[n]) return (pvP[n] = Promise.resolve('"' + n + '"'));
+    var ws = FW[n] || [400], w = ws.indexOf(400) >= 0 ? 400 : ws[0], alias = 'gvpv-' + n.replace(/[^A-Za-z0-9]/g, '');
+    pvP[n] = fetch('https://fonts.googleapis.com/css2?family=' + n.replace(/ /g, '+') + ':wght@' + w + '&text=' + encodeURIComponent(PV_TXT + n))
+      .then(function (r) { if (!r.ok) throw new Error(r.status); return r.text(); })
+      .then(function (css) { var m = css.match(/src:\s*url\(([^)]+)\)/); if (!m) throw new Error('css'); return new FontFace(alias, 'url(' + m[1] + ')', { weight: String(w) }).load(); })
+      .then(function (ff) { document.fonts.add(ff); return '"' + alias + '"'; })
+      .catch(function () { delete pvP[n]; return null; });
+    return pvP[n];
+  }
+  function recentFonts() { try { var r = JSON.parse(localStorage.getItem('gc-video-fonts') || '[]'); return Array.isArray(r) ? r.filter(function (n) { return FW[n]; }) : []; } catch (e) { return []; } }
+  function pushRecent(n) { var r = recentFonts().filter(function (q) { return q !== n; }); r.unshift(n); try { localStorage.setItem('gc-video-fonts', JSON.stringify(r.slice(0, 10))); } catch (e) {} }
+  var FTABS = [['recent', 'Сүүлд'], ['pop', 'Алдартай'], ['mn', 'Монгол'], ['s', 'Энгийн'], ['r', 'Сериф'], ['d', 'Гоёл'], ['h', 'Гар бичмэл']];
+  var FTNAME = { s: 'Sans serif', r: 'Serif', d: 'Display', h: 'Handwriting' };
+  function fontList(tab, q) {
+    var all = Object.keys(FW);
+    q = (q || '').trim().toLowerCase();
+    if (q) return all.filter(function (n) { return n.toLowerCase().indexOf(q) >= 0 || (FTNAME[FCAT[n]] || '').toLowerCase().indexOf(q) >= 0; }).sort();
+    if (tab === 'recent') return recentFonts();
+    if (tab === 'pop') return FPOP;
+    if (tab === 'mn') return FMN;
+    return all.filter(function (n) { return (FCAT[n] || 's') === tab; }).sort();
+  }
+  var tTab = 't', fTab = 'pop';
+  var TSTYLE_L = { plain: 'Энгийн', outline: 'Хүрээ', box: 'Дэвсгэр', shadow: 'Сүүдэр', glow: 'Гэрэлтэх' };
   function sheetText(x, fresh) {
     if (!x) return;
     var before = JSON.stringify(x);
+    if (!recentFonts().length && fTab === 'recent') fTab = 'pop';
+    var al = x.align || 'center';
     var s = sheet('Текст',
+      '<div class="stabs" role="tablist">' + [['t', 'Текст'], ['s', 'Загвар'], ['f', 'Фонт'], ['a', 'Хөдөлгөөн']].map(function (t) { return '<button type="button" role="tab" data-tab="' + t[0] + '" class="' + (tTab === t[0] ? 'on' : '') + '">' + t[1] + '</button>'; }).join('') + '</div>' +
+      '<div class="spane" data-pane="t">' +
       '<textarea id="v-tt" placeholder="Текстээ бичнэ үү" aria-label="Текст">' + esc(x.text) + '</textarea>' +
-      '<label class="lbl">Бэлэн загвар</label><div class="opts">' + TPRESETS.map(function (t) { return '<button type="button" class="opt" data-tp="' + t[0] + '" style="' + styleTile(t[2].style).replace(/background:[^;]+;?/, '') + ';font-family:\'' + t[2].font + '\',Inter;' + (t[2].style === 'box' ? 'background:' + t[2].color + ';color:' + contrast(t[2].color) : t[2].style === 'glow' ? 'color:' + t[2].color : '') + '">' + t[1] + '</button>'; }).join('') + '</div>' +
-      '<label class="lbl">Хэв маяг</label><div class="styles">' + STYLES.map(function (st) { return '<button type="button" data-st="' + st[0] + '" class="' + (x.style === st[0] ? 'on' : '') + '" title="' + st[1] + '" style="' + styleTile(st[0]) + '">Аа</button>'; }).join('') + '</div>' +
-      '<label class="lbl">Өнгө</label><div class="opts">' + COLORS.map(function (c) { return '<button type="button" class="sw' + (x.color === c ? ' on' : '') + '" style="background:' + c + '" data-col="' + c + '" aria-label="' + c + '"></button>'; }).join('') + '<label class="sw pick" title="Өөр өнгө"><input type="color" id="v-tc" value="' + x.color + '"></label></div>' +
-      '<label class="lbl">Фонт</label><div class="opts">' + FONTS.map(function (f) { return '<button type="button" class="opt' + (x.font === f ? ' on' : '') + '" data-fo="' + f + '" style="font-family:\'' + f + '\',Inter">' + f + '</button>'; }).join('') + '</div>' +
       '<label class="lbl">Хэмжээ</label><div class="rowv"><input type="range" id="v-ts" min="3" max="20" step="0.5" value="' + (x.size * 100) + '"><b id="v-tsv">' + Math.round(x.size * 100) + '</b></div>' +
+      '<label class="lbl">Зэрэгцүүлэх</label><div class="seg" role="group" aria-label="Зэрэгцүүлэх">' + [['left', 'Зүүн', 'all'], ['center', 'Голд', 'alc'], ['right', 'Баруун', 'alr']].map(function (a) { return '<button type="button" data-al="' + a[0] + '" class="' + (al === a[0] ? 'on' : '') + '" title="' + a[1] + '" aria-label="' + a[1] + '">' + ico(a[2]) + '</button>'; }).join('') + '</div>' +
       '<label class="lbl">Эргүүлэх</label><div class="rowv"><input type="range" id="v-trot" min="-180" max="180" value="' + Math.round(x.rot || 0) + '"><b id="v-trotv">' + Math.round(x.rot || 0) + '°</b></div>' +
-      '<label class="lbl">Гарч ирэх</label>' + opts(ANIMS, x.anim, 'an') +
-      '<label class="lbl">Алга болох</label>' + opts(OUT_ANIMS, x.out == null ? (x.anim !== 'none' ? 'fade' : 'none') : x.out, 'tout') +
-      '<p class="note">Дэлгэц дээр текстийг чирж байрлуулна. Хэр удаан харагдахыг доорх timeline-ий шар мөрийн захаас чирж өөрчилнө.</p>',
+      '<p class="note">Дэлгэц дээр текстийг чирж байрлуулна. Хэр удаан харагдахыг timeline-ий «Текст» мөрийн захаас чирж өөрчилнө.</p></div>' +
+      '<div class="spane" data-pane="s">' +
+      '<label class="lbl" style="margin-top:0">Бэлэн загвар</label><div class="opts">' + TPRESETS.map(function (t) { return '<button type="button" class="opt" data-tp="' + t[0] + '" style="' + styleTile(t[2].style).replace(/background:[^;]+;?/, '') + ';font-family:\'' + t[2].font + '\',Inter;' + (t[2].style === 'box' ? 'background:' + t[2].color + ';color:' + contrast(t[2].color) : t[2].style === 'glow' ? 'color:' + t[2].color : '') + '">' + t[1] + '</button>'; }).join('') + '</div>' +
+      '<label class="lbl">Хүрээ, сүүдэр, дэвсгэр</label><div class="styles lab">' + STYLES.map(function (st) { return '<button type="button" data-st="' + st[0] + '" class="' + (x.style === st[0] ? 'on' : '') + '" title="' + st[1] + '"><i style="' + styleTile(st[0]) + '">Аа</i><span>' + TSTYLE_L[st[0]] + '</span></button>'; }).join('') + '</div>' +
+      '<label class="lbl">Өнгө</label><div class="opts">' + COLORS.map(function (c) { return '<button type="button" class="sw' + (x.color === c ? ' on' : '') + '" style="background:' + c + '" data-col="' + c + '" aria-label="' + c + '"></button>'; }).join('') + '<label class="sw pick" title="Өөр өнгө"><input type="color" id="v-tc" value="' + x.color + '"></label></div></div>' +
+      '<div class="spane" data-pane="f">' +
+      '<input type="search" id="v-fq" class="fq" placeholder="Фонт хайх…" aria-label="Фонт хайх">' +
+      '<div class="fcats" role="tablist">' + FTABS.map(function (t) { return '<button type="button" data-fc="' + t[0] + '" class="' + (fTab === t[0] ? 'on' : '') + '">' + t[1] + '</button>'; }).join('') + '</div>' +
+      '<div class="flist" id="v-fl"></div></div>' +
+      '<div class="spane" data-pane="a">' +
+      '<label class="lbl" style="margin-top:0">Гарч ирэх</label>' + opts(ANIMS, x.anim, 'an') +
+      '<label class="lbl">Алга болох</label>' + opts(OUT_ANIMS, x.out == null ? (x.anim !== 'none' ? 'fade' : 'none') : x.out, 'tout') + '</div>',
       function () {
+        if (fio) fio.disconnect();
         if (!x.text.trim()) { P.texts = P.texts.filter(function (t) { return t !== x; }); sel = null; if (fresh) { refresh(); return; } }
         if (fresh || JSON.stringify(x) !== before) commit(); else refresh();
       });
-    FONTS.forEach(loadFont);
+    loadFont(x.font);
+    function showTab(t) {
+      tTab = t;
+      s.querySelectorAll('[data-tab]').forEach(function (b) { b.classList.toggle('on', b.dataset.tab === t); b.setAttribute('aria-selected', b.dataset.tab === t); });
+      s.querySelectorAll('[data-pane]').forEach(function (p) { p.hidden = p.dataset.pane !== t; });
+      if (t === 'f') renderFonts();
+    }
+    // font list: only the rows that scroll into view load their preview
+    var fio = null, fl = s.querySelector('#v-fl'), fq = s.querySelector('#v-fq');
+    function renderFonts() {
+      var list = fontList(fTab, fq.value);
+      fl.innerHTML = list.map(function (n) {
+        return '<button type="button" class="fr' + (x.font === n ? ' on' : '') + '" data-fo="' + esc(n) + '"><span class="fp">' + PV_TXT + '</span><span class="fn">' + esc(n) + '</span></button>';
+      }).join('') || '<p class="note">' + (fTab === 'recent' && !fq.value ? 'Сүүлд хэрэглэсэн фонт алга.' : 'Олдсонгүй') + '</p>';
+      if (fio) fio.disconnect();
+      fio = 'IntersectionObserver' in window ? new IntersectionObserver(function (es) {
+        es.forEach(function (e) { if (e.isIntersecting) { fio.unobserve(e.target); paint(e.target); } });
+      }, { root: s.classList.contains('dock') ? null : s, rootMargin: '160px 0px' }) : null;
+      fl.querySelectorAll('.fr').forEach(function (b) { if (fio) fio.observe(b); else paint(b); });
+    }
+    function paint(b) {
+      previewFont(b.dataset.fo).then(function (ff) { if (ff) { b.querySelector('.fp').style.fontFamily = ff + ', Inter, sans-serif'; b.classList.add('pv'); } else b.classList.add('nopv'); });
+    }
+    fq.addEventListener('input', function () { renderFonts(); });
     var ta = s.querySelector('#v-tt');
-    setTimeout(function () { ta.focus(); }, 60);
+    if (tTab === 't') setTimeout(function () { ta.focus(); }, 60);
     ta.addEventListener('input', function () { x.text = ta.value; changed(); });
     s.addEventListener('click', function (e) {
+      var tb = e.target.closest('[data-tab]'); if (tb) { showTab(tb.dataset.tab); return; }
+      var fc = e.target.closest('[data-fc]'); if (fc) { fTab = fc.dataset.fc; fq.value = ''; s.querySelectorAll('[data-fc]').forEach(function (q) { q.classList.toggle('on', q === fc); }); renderFonts(); fl.scrollTop = 0; return; }
+      var fo = e.target.closest('[data-fo]');
+      if (fo) { x.font = fo.dataset.fo; pushRecent(x.font); fl.querySelectorAll('[data-fo]').forEach(function (q) { q.classList.toggle('on', q === fo); }); loadFont(x.font).then(draw); draw(); return; }
+      var ab = e.target.closest('[data-al]'); if (ab) { x.align = ab.dataset.al; s.querySelectorAll('[data-al]').forEach(function (q) { q.classList.toggle('on', q === ab); }); draw(); return; }
       var b = e.target.closest('[data-st]'); if (b) { s.querySelectorAll('[data-st]').forEach(function (q) { q.classList.toggle('on', q === b); }); x.style = b.dataset.st; draw(); }
     });
+    showTab(tTab);
     onOpt(s, 'col', function (c) { x.color = c; draw(); });
     s.querySelector('#v-tc').addEventListener('input', function () { x.color = this.value; draw(); });
-    onOpt(s, 'fo', function (f) { x.font = f; loadFont(f).then(draw); draw(); });
     s.querySelector('#v-ts').addEventListener('input', function () { x.size = this.value / 100; s.querySelector('#v-tsv').textContent = Math.round(this.value); draw(); });
     onOpt(s, 'an', function (a) { x.anim = a; previewRange(x.start + 0.01, Math.min(1.3, x.end - x.start)); });
     onOpt(s, 'tout', function (a) { x.out = a; previewRange(Math.max(x.start, x.end - 1.2), 1.2); });
@@ -2183,7 +2268,6 @@
       x.x = 0.5; x.rot = 0; loadFont(x.font);
       s.querySelectorAll('[data-st]').forEach(function (q) { q.classList.toggle('on', q.dataset.st === x.style); });
       s.querySelectorAll('[data-col]').forEach(function (q) { q.classList.toggle('on', q.dataset.col === x.color); });
-      s.querySelectorAll('[data-fo]').forEach(function (q) { q.classList.toggle('on', q.dataset.fo === x.font); });
       s.querySelectorAll('[data-an]').forEach(function (q) { q.classList.toggle('on', q.dataset.an === x.anim); });
       s.querySelector('#v-ts').value = x.size * 100; s.querySelector('#v-tsv').textContent = Math.round(x.size * 100);
       s.querySelector('#v-trot').value = 0; s.querySelector('#v-trotv').textContent = '0°';
