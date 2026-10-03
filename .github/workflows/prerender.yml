@@ -11,6 +11,7 @@ on:
       - '.github/scripts/landings.py'
       - '.github/scripts/apps.py'
       - '.github/scripts/home_page.py'
+      - '.github/scripts/tpl_previews.py'
       - '.github/scripts/og.py'
       - 'worker/index.js'   # TRANSLATE_ON decides whether /tools/translate-pdf/ is linked and in the sitemap
       - 'assets/templates.js'
@@ -28,12 +29,19 @@ jobs:
           python-version: '3.12'
       - run: pip install pillow
       - run: python3 .github/scripts/thumbs.py
+      - name: Home page template previews (photo templates; skipped slots keep their fallback)
+        continue-on-error: true
+        timeout-minutes: 8
+        run: |
+          pip install playwright
+          python3 -m playwright install --with-deps chromium
+          python3 .github/scripts/tpl_previews.py
       - run: python3 .github/scripts/prerender.py
         env:
           PYTHONDONTWRITEBYTECODE: '1'
       - name: Commit if changed
         run: |
-          git add -A index.html about design tools editor slides privacy terms support sitemap.xml assets/uploads/_t assets/uploads/og .github/scripts/lastmod.json
+          git add -A assets/home index.html about design tools editor slides privacy terms support sitemap.xml assets/uploads/_t assets/uploads/og .github/scripts/lastmod.json
           if git diff --cached --quiet; then echo "nothing to update"; exit 0; fi
           git config user.name "graphican-bot"
           git config user.email "actions@users.noreply.github.com"

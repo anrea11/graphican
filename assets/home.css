@@ -782,6 +782,7 @@ h2.one { filter:blur(calc((1 - var(--p, 1)) * .12em)); opacity:calc(.2 + var(--p
 .tw .tp:hover, .tw .tp:focus-visible { transform:scale(1.035); }
 .tw:not([data-f="all"]) .tp { opacity:.13; filter:grayscale(1); pointer-events:none; }
 .tw[data-f="post"] .tp[data-f="post"], .tw[data-f="sq"] .tp[data-f="sq"], .tw[data-f="story"] .tp[data-f="story"] { opacity:1; filter:none; pointer-events:auto; border-color:rgba(164,151,255,.55); }
+.tw-by { grid-column:1 / -1; margin:-8px 0 0; text-align:right; font-size:12px; color:var(--dim); } .tw-by a { color:var(--mut); text-decoration:underline; text-underline-offset:3px; }
 .tpl .dk { margin-top:clamp(36px, 5vw, 64px); padding-top:22px; border-top:1px solid var(--line); }
 @media (max-width:899px) {
   .tpl-g { grid-template-columns:minmax(0, 1fr); }

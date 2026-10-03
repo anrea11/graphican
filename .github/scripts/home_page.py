@@ -11,6 +11,20 @@ import landings as L
 ROOT, SITE, e, ld = L.ROOT, L.SITE, L.e, L.ld
 V = "16"
 
+# Home template wall: (photo template id, name, format, width, height, drawn fallback id) in three columns.
+# The photo previews are rendered in CI by tpl_previews.py; a slot whose preview is missing shows its fallback.
+TPL_SLOTS = [
+    ("opening", "Нээлт — story", "Story", 300, 533, "naadam2", 0), ("fashion", "Загвар — editorial", "Instagram пост", 300, 375, "sale", 0),
+    ("pizza", "Пицца 1+1", "Квадрат пост", 300, 300, "tsagaansar2", 0), ("travel", "Аялал — Говь", "Instagram пост", 300, 375, "job", 0),
+    ("cocktail", "Коктейль үдэш", "Instagram пост", 300, 375, "sport", 0),
+    ("finedine", "Fine dining", "Instagram пост", 300, 375, "newyear", 1), ("story", "Бүтээгдэхүүн — story", "Story", 300, 533, "countdown", 1),
+    ("dessert", "Шинэ амттан", "Квадрат пост", 300, 300, "kids", 1), ("cashmere", "Монгол ноолуур", "Instagram пост", 300, 375, "menu", 1),
+    ("naadam3", "Наадам — фото", "Instagram пост", 300, 375, "tips", 1),
+    ("hotelpost", "Зочид буудал", "Instagram пост", 300, 375, "naadam", 2), ("sale2", "Хямдрал — editorial", "Квадрат пост", 300, 300, "notice", 2),
+    ("interior", "Интерьер дизайн", "Instagram пост", 300, 375, "giveaway", 2), ("tsagaansar3", "Цагаан сар — тал нутаг", "Instagram пост", 300, 375, "sale3", 2),
+    ("coffee3", "Coffee — бараан", "Instagram пост", 300, 375, "tsagaansar", 2), ("testimonial", "Сэтгэгдэл", "Квадрат пост", 300, 300, "course", 2),
+]
+
 ICON = {
     "pdf": '<path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5"/><path d="m9 17 1-3 5-5 2 2-5 5z" fill="currentColor"/>',
     "word": '<path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5"/><path d="M9 12l1.2 5 1.8-4 1.8 4 1.2-5"/>',
@@ -266,16 +280,26 @@ def build():
            ("course", "Сургалтын бүртгэл", "Квадрат пост", 300, 300), ("tips", "Зөвлөгөө", "Instagram пост", 300, 375), ("giveaway", "Бэлэгтэй тоглоом", "Instagram пост", 300, 375),
            ("sale3", "Хямдрал — neon", "Instagram пост", 300, 375), ("tsagaansar", "Цагаан сар — хаан хөх", "Instagram пост", 300, 375)]
     FKEY = {"Instagram пост": "post", "Квадрат пост": "sq", "Story": "story"}
+    HOME_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "assets", "home")
+    def slot(sl):
+        pid, name, fmt_, w, h, fb, col = sl
+        if os.path.exists(os.path.join(HOME_DIR, f"tplp-{pid}.webp")): return (pid, name, fmt_, w, h, f"tplp-{pid}", col, True)
+        f = TBY[fb]; return (f[0], f[1], f[2], f[3], f[4], f"tpl-{f[0]}", col, False)
+    TBY = {t[0]: t for t in TPL}
+    WALL_T = [slot(sl) for sl in TPL_SLOTS]
+    has_photo = any(t[7] for t in WALL_T)
     def tpl_card(t, dup=False):
-        i, n, fmt_, w, h = t
+        i, n, fmt_, w, h, img = t[:6]
         extra = ' aria-hidden="true" tabindex="-1"' if dup else ""
-        return (f'<a class="tp" data-f="{FKEY[fmt_]}" href="/editor/?tpl={i}"{extra}><img src="/assets/home/tpl-{i}.webp" alt="{"" if dup else e(n) + " — " + e(fmt_) + " загвар"}" width="{w}" height="{h}" loading="lazy" decoding="async">'
+        return (f'<a class="tp" data-f="{FKEY[fmt_]}" href="/editor/?tpl={i}"{extra}><img src="/assets/home/{img}.webp?v={V}" alt="{"" if dup else e(n) + " — " + e(fmt_) + " загвар"}" width="{w}" height="{h}" loading="lazy" decoding="async">'
                 f'<span class="tp-meta"><b>{e(n)}</b><small>{e(fmt_)}</small></span><span class="tp-use">Энэ загварыг ашиглах →</span></a>')
     # the wall: three columns of near-equal height, each one a seamless loop (the set is repeated once)
-    TBY = {t[0]: t for t in TPL}
-    COLS = [["naadam2", "sale", "tsagaansar2", "job", "sport"], ["newyear", "countdown", "kids", "menu", "tips"], ["naadam", "notice", "giveaway", "course", "sale3", "tsagaansar"]]
-    tpl_wall = "".join(f'<div class="tw-col c{k}" style="--i:{k}"><div class="tw-track">{"".join(tpl_card(TBY[x]) for x in col)}{"".join(tpl_card(TBY[x], True) for x in col)}</div></div>' for k, col in enumerate(COLS))
-    def nf(key): return sum(1 for t in TPL if FKEY[t[2]] == key)
+    def wall_col(k):
+        col = [t for t in WALL_T if t[6] == k]
+        return f'<div class="tw-col c{k}" style="--i:{k}"><div class="tw-track">{"".join(tpl_card(t) for t in col)}{"".join(tpl_card(t, True) for t in col)}</div></div>'
+    tpl_wall = "".join(wall_col(k) for k in range(3))
+    tpl_credit = '<p class="tw-by">Загварын зураг: <a href="https://www.pexels.com" target="_blank" rel="noopener">Pexels</a></p>' if has_photo else ""
+    def nf(key): return sum(1 for t in WALL_T if FKEY[t[2]] == key)
     tpl_chips = (f'<button type="button" class="tf on" data-f="all" aria-pressed="true">Бүгд<small>{len(TPL)}</small></button>'
                  + "".join(f'<button type="button" class="tf" data-f="{k}" aria-pressed="false">{lab}<small>{nf(k)}</small></button>' for k, lab in (("post", "Instagram пост"), ("sq", "Квадрат"), ("story", "Story"))))
     tpl_steps = "".join(f'<li><i>{n}</i><span>{t}</span></li>' for n, t in (("01", "Загвараа сонго"), ("02", "Текст, зураг, өнгөө соль"), ("03", "Татаж аваад нийтэл")))
@@ -399,6 +423,7 @@ def build():
         <div class="sec-cta rv">{btn("/tools/templates/", "Бүх загвар", "ghost")}</div>
       </div>
       <div class="tw" id="tp-wrap" data-sp data-f="all"><div class="tw-in">{tpl_wall}</div></div>
+      {tpl_credit}
     </div>
     <div class="dk rv"><b>Илтгэл (PPT)</b>{decks}<a class="ql-all" href="/slides/">+ Бүх илтгэл</a></div>
   </section>
