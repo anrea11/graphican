@@ -139,6 +139,7 @@
     fit: '<rect x="3" y="5" width="18" height="14" rx="2"/><rect x="8" y="8" width="8" height="8" rx="1"/>', trans: '<path d="M4 12h16M14 6l6 6-6 6"/><path d="M4 6v12"/>',
     dup: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/>', del: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
     left: '<path d="M14 7l-5 5 5 5"/><path d="M20 12H9"/>', right: '<path d="M10 7l5 5-5 5"/><path d="M4 12h11"/>', edit: '<path d="M4 20h4L19 9l-4-4L4 16z"/>',
+    full: '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>', close: '<path d="M6 6l12 12M18 6L6 18"/>',
     play: '<path d="M7 4.5v15l13-7.5z"/>', pause: '<path d="M7 4h4v16H7zM13 4h4v16h-4z"/>', undo: '<path d="M9 14L4 9l5-5"/><path d="M4 9h11a5 5 0 0 1 0 10h-3"/>',
     redo: '<path d="M15 14l5-5-5-5"/><path d="M20 9H9a5 5 0 0 0 0 10h3"/>', dl: '<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>', color: '<circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18z" fill="currentColor"/>',
     replace: '<path d="M4 7h13l-3-3M20 17H7l3 3"/>', minus: '<path d="M5 12h14"/>', fitw: '<path d="M3 12h18M7 8l-4 4 4 4M17 8l4 4-4 4"/>',
@@ -199,7 +200,10 @@
     '<div class="vstage" id="v-stage"><canvas id="v-cv"></canvas><div class="guide v" id="g-v"></div><div class="guide h" id="g-h"></div>' +
     '<div class="vq" id="v-q" role="group" aria-label="Preview-ийн чанар" title="Preview-ийн чанар: гацвал «Бага» болгоно. Татах видеонд нөлөөлөхгүй."><span>Preview</span><button type="button" data-q="low">Бага</button><button type="button" data-q="mid">Дунд</button><button type="button" data-q="high">Их</button></div>' +
     '<div class="selbox" id="v-sel" hidden><i class="tl" data-hd="s"></i><i class="tr" data-hd="s"></i><i class="bl" data-hd="s"></i><i class="br" data-hd="s"></i><i class="rot" data-hd="r"></i></div>' +
-    '<div class="vempty" id="v-empty"><b>Видео, зургаа нэмээд эхлээрэй</b><span>Файлууд тань серверт очихгүй — зөвхөн энэ төхөөрөмж дээр засагдана</span><button class="btn-x" type="button" data-a="add">' + ico('plus') + 'Видео, зураг нэмэх</button></div></div>' +
+    '<div class="vempty" id="v-empty"><b>Видео эсвэл зураг нэмээд эхлээрэй.</b><span>Файлууд тань серверт очихгүй — зөвхөн энэ төхөөрөмж дээр засагдана</span><button class="btn-x" type="button" data-a="hmedia">' + ico('plus') + 'Медиа нэмэх</button></div>' +
+    '<button class="vfsb" id="v-fs" type="button" title="Бүтэн дэлгэцээр үзэх (F)" aria-label="Бүтэн дэлгэцээр үзэх">' + ico('full') + '</button>' +
+    '<div class="vfsbar" id="v-fsbar"><button class="vfsx" id="v-fsx" type="button" aria-label="Бүтэн дэлгэцээс гарах">' + ico('close') + '<span>Гарах</span></button>' +
+    '<button class="vfsp" id="v-fsp" type="button" aria-label="Тоглуулах">' + ico('play') + '</button><span class="vfst" id="v-fst"></span><input type="range" id="v-fsr" min="0" max="1000" value="0" aria-label="Байрлал"></div></div>' +
     '<div class="vtr"><div class="tgrp">' +
     '<button class="ib" id="v-tsplit" type="button" data-a="split" title="Хуваах (S)" aria-label="Хуваах">' + ico('split') + '</button>' +
     '<button class="ib" id="v-tdel" type="button" data-a="del" title="Устгах (Delete)" aria-label="Устгах">' + ico('del') + '</button>' +
@@ -217,7 +221,7 @@
     '<button class="ib" id="v-zin" type="button" title="Томруулах (+)" aria-label="Томруулах">' + ico('plus') + '</button>' +
     '<button class="ib" id="v-zfit" type="button" title="Бүхлээр харах" aria-label="Бүхлээр харах">' + ico('fitw') + '</button></div></div></div>' +
     '<aside class="vpanel" id="v-panel"><div class="ph"><b id="v-ptitle"></b><small id="v-psub"></small></div><div class="ptools" id="v-ptools"></div><div id="v-pbody"></div></aside></div>' +
-    '<div class="vtl"><div class="vtl-tracks" id="v-tracks" aria-hidden="true"></div><div class="vtl-scroll" id="v-scroll"><div class="vtl-inner" id="v-tl"></div></div><div class="vtl-head"></div></div>' +
+    '<div class="vtl"><div class="vdiv" id="v-div" role="separator" aria-orientation="horizontal" aria-label="Preview, timeline-ийн хэмжээ" title="Чирж timeline-ийг томруулах / жижигрүүлэх"><i></i></div><div class="vtl-tracks" id="v-tracks" aria-hidden="true"></div><div class="vtl-scroll" id="v-scroll"><div class="vtl-inner" id="v-tl"></div></div><div class="vtl-head"></div></div>' +
     '<nav class="vtb" id="v-tb" aria-label="Хэрэгсэл"></nav>';
   var cv = document.getElementById('v-cv'), cx = cv.getContext('2d'), stage = document.getElementById('v-stage');
   var scroller = document.getElementById('v-scroll'), tl = document.getElementById('v-tl'), tb = document.getElementById('v-tb');
@@ -243,7 +247,7 @@
     cv.style.width = Math.max(10, Math.floor(P.w * k)) + 'px'; cv.style.height = Math.max(10, Math.floor(P.h * k)) + 'px';
     draw();
   }
-  window.addEventListener('resize', function () { fitCanvas(); renderTL(); });
+  window.addEventListener('resize', function () { if (typeof applyTLH === 'function') applyTLH(); fitCanvas(); renderTL(); });
   function markQual() { document.querySelectorAll('#v-q [data-q]').forEach(function (b) { b.classList.toggle('on', b.dataset.q === qual); }); }
   document.getElementById('v-q').addEventListener('click', function (e) {
     var b = e.target.closest('[data-q]'); if (!b) return;
@@ -251,6 +255,69 @@
     markQual(); fitCanvas(); toast('Preview: ' + b.textContent + (qual === 'low' ? ' — хамгийн хөнгөн' : qual === 'high' ? ' — хамгийн тод (хүчтэй төхөөрөмжид)' : ''));
   });
   markQual();
+
+  // fullscreen preview: the stage covers the screen, tap = play / pause, ✕ / Esc closes
+  var fullOn = false, fsr = document.getElementById('v-fsr');
+  function setFull(on) {
+    fullOn = !!on; root.classList.toggle('vfull', fullOn); document.body.classList.toggle('vfull-lock', fullOn);
+    if (fullOn) { closeSheet(); selEl && (selEl.hidden = true); fsTick(); }
+    requestAnimationFrame(function () { fitCanvas(); placeSel(); });
+  }
+  function fsTick() {
+    if (!fullOn) return;
+    var D = total() || 1;
+    document.getElementById('v-fst').textContent = fmt(T) + ' / ' + fmt(total());
+    if (document.activeElement !== fsr) fsr.value = Math.round(T / D * 1000);
+    document.getElementById('v-fsp').innerHTML = ico(playing ? 'pause' : 'play');
+  }
+  document.getElementById('v-fs').addEventListener('click', function () { setFull(true); });
+  document.getElementById('v-fsx').addEventListener('click', function (e) { e.stopPropagation(); setFull(false); });
+  document.getElementById('v-fsp').addEventListener('click', function (e) { e.stopPropagation(); playing ? pause() : play(); fsTick(); });
+  fsr.addEventListener('input', function () { if (playing) pause(); seek(fsr.value / 1000 * total()); fsTick(); });
+
+  // preview ↔ timeline divider: drag to resize the timeline; tap toggles compact / expanded (remembered on this device)
+  var TLH = null; try { TLH = +localStorage.getItem('gc-video-tlh') || null; } catch (e) {}
+  function tlMax() { return Math.round(window.innerHeight * (desk.matches ? 0.6 : 0.55)); }
+  function tlMin() { return desk.matches ? 120 : 96; }
+  function applyTLH() {
+    var sc = document.getElementById('v-scroll');
+    if (TLH) sc.style.maxHeight = sc.style.height = Math.max(tlMin(), Math.min(tlMax(), TLH)) + 'px';
+    else sc.style.maxHeight = sc.style.height = '';
+  }
+  (function () {
+    var dv = document.getElementById('v-div'), y0 = 0, h0 = 0, moved = false, id = null;
+    dv.addEventListener('pointerdown', function (e) {
+      e.preventDefault(); id = e.pointerId; y0 = e.clientY; moved = false; h0 = document.getElementById('v-scroll').getBoundingClientRect().height;
+      try { dv.setPointerCapture(id); } catch (er) {} dv.classList.add('on');
+    });
+    dv.addEventListener('pointermove', function (e) {
+      if (id !== e.pointerId) return;
+      var dy = y0 - e.clientY; if (!moved && Math.abs(dy) < 4) return;
+      moved = true; TLH = Math.max(tlMin(), Math.min(tlMax(), h0 + dy)); applyTLH(); fitCanvas();
+    });
+    function end(e) {
+      if (id !== e.pointerId) return; id = null; dv.classList.remove('on');
+      if (!moved) { var cur = document.getElementById('v-scroll').getBoundingClientRect().height; TLH = cur > (tlMin() + tlMax()) / 2 ? tlMin() : tlMax(); applyTLH(); fitCanvas(); }
+      try { localStorage.setItem('gc-video-tlh', String(Math.round(TLH))); } catch (er) {}
+    }
+    dv.addEventListener('pointerup', end); dv.addEventListener('pointercancel', end);
+  })();
+
+  // after the first import into an empty project: a small "what next" card (hidden for good once dismissed)
+  function quickMenu() {
+    try { if (localStorage.getItem('gc-video-qm')) return; } catch (e) { return; }
+    if (document.getElementById('v-qm')) return;
+    var q = document.createElement('div'); q.className = 'vqm'; q.id = 'v-qm'; q.setAttribute('role', 'dialog'); q.setAttribute('aria-label', 'Дараагийн алхам');
+    q.innerHTML = '<div class="vqm-h"><b>Дараа нь юу хийх вэ?</b><button type="button" class="vqm-x" aria-label="Хаах">' + ico('close') + '</button></div>' +
+      '<div class="vqm-g"><button type="button" data-q="htext">' + ico('text') + '<span>Текст нэмэх</span></button><button type="button" data-q="hcap">' + ico('cc') + '<span>Автомат хадмал</span></button>' +
+      '<button type="button" data-q="music">' + ico('music') + '<span>Хөгжим нэмэх</span></button><button type="button" data-q="fxadd">' + ico('fx') + '<span>Эффект нэмэх</span></button></div>';
+    function gone() { q.remove(); try { localStorage.setItem('gc-video-qm', '1'); } catch (e) {} }
+    q.addEventListener('click', function (e) {
+      if (e.target.closest('.vqm-x')) { gone(); return; }
+      var b = e.target.closest('[data-q]'); if (!b) return; gone(); sel = null; refresh(); ACT[b.dataset.q]();
+    });
+    stage.appendChild(q);
+  }
 
   // ---------- drawing ----------
   var blurC = document.createElement('canvas'), blurX = blurC.getContext('2d');
@@ -877,6 +944,7 @@
   var selEl = null;
   function placeSel() {
     selEl = selEl || document.getElementById('v-sel');
+    if (fullOn) { selEl.hidden = true; return; }
     var o = selected(), b = o && (sel.k === 'over' || sel.k === 'text') && !playing && T >= o.start && T < o.end ? lastBox[o.id] : null;
     var r = cv.getBoundingClientRect(), sr = stage.getBoundingClientRect(), k = r.width / P.w;
     // a selected clip under the playhead gets a plain outline around the frame (no handles)
@@ -985,7 +1053,7 @@
     playing = false; stopAt = 0; cancelAnimationFrame(raf);
     allEls().forEach(function (el) { if (!el.paused) el.pause(); });
     document.getElementById('v-play').innerHTML = ico('play'); document.getElementById('v-play').setAttribute('aria-label', 'Тоглуулах');
-    seek(T);
+    seek(T); if (fullOn) fsTick();
   }
   // false while the clip's video under t has no frame yet (seeking) — the preview keeps its last picture instead of flashing black
   function frameReady(t) {
@@ -997,7 +1065,7 @@
   var stopAt = 0;
   function previewRange(a, len) { if (playing) pause(); seek(a); setScroll(); play(); stopAt = Math.min(total(), a + len); }
   var lastTL = '';
-  function timeLabel() { var h = '<b>' + fmt(T) + '</b> / ' + fmt(total()); if (h !== lastTL) { lastTL = h; document.getElementById('v-time').innerHTML = h; } }
+  function timeLabel() { var h = '<b>' + fmt(T) + '</b> / ' + fmt(total()); if (h !== lastTL) { lastTL = h; document.getElementById('v-time').innerHTML = h; if (fullOn) fsTick(); } }
 
   // ---------- timeline ----------
   var progScroll = false;
@@ -1061,7 +1129,8 @@
       if (i > 0 || has) h += '<button type="button" class="tr-badge' + (has ? ' on' : '') + '" data-tr="' + c.id + '" style="left:' + (x0 * pps) + 'px" title="' + (has ? 'Шилжилт: ' + esc(trName(c.tr)) : 'Шилжилт нэмэх') + '" aria-label="Шилжилт">' + (has ? ico('trans') : ico('plus')) + '</button>';
       x0 += L;
     });
-    h += '<button type="button" class="vtl-add" data-a="add" style="left:' + (clipsEnd * pps + 8) + 'px;top:0;height:' + MH + 'px" title="Видео, зураг нэмэх" aria-label="Видео, зураг нэмэх">' + ico('plus') + '</button>';
+    if (!P.clips.length) h += '<button type="button" class="vtl-empty" data-a="hmedia" style="left:0;top:0;height:' + MH + 'px"><span>Видео эсвэл зураг нэмээд эхлээрэй.</span><b>' + ico('plus') + 'Медиа нэмэх</b></button>';
+    else h += '<button type="button" class="vtl-add" data-a="add" style="left:' + (clipsEnd * pps + 8) + 'px;top:0;height:' + MH + 'px" title="Видео, зураг нэмэх" aria-label="Видео, зураг нэмэх">' + ico('plus') + '</button>';
     h += '</div>';
     top += MH + 8;
     // lane rows
@@ -1092,6 +1161,7 @@
     tracksEl.innerHTML = heads; tracksEl.style.height = top + 'px';
     progScroll = true; scroller.scrollLeft = T * pps; requestAnimationFrame(function () { progScroll = false; });
     document.getElementById('v-empty').style.display = P.clips.length || P.texts.length || P.overlays.length ? 'none' : '';
+    document.getElementById('v-fs').style.display = P.clips.length ? '' : 'none';
     timeLabel();
   }
   function beatDots(a) { return beatsOnTimeline(a).map(function (t) { return '<i class="bdot" style="left:' + ((t - a.start) * pps) + 'px"></i>'; }).join(''); }
@@ -1271,6 +1341,7 @@
   var downs = 0;
   cv.addEventListener('pointerdown', function (e) {
     if (++downs > 1) { pdrag = null; guides(false, false); return; }      // second finger: pinch (touch handlers below)
+    if (fullOn) { e.preventDefault(); playing ? pause() : play(); fsTick(); return; }
     var p = toProj(e), hit = hitAt(p);
     if (picking) { e.preventDefault(); var pk = picking; picking = null; pk(p); return; }
     // keep the selected item on top of the hit-test: tapping inside it again opens / drags it
@@ -1285,7 +1356,7 @@
         return;
       }
     }
-    if (!hit) { if (playing) pause(); else if (sel) { sel = null; refresh(); } return; }
+    if (!hit) { if (playing) pause(); else if (sel) { sel = null; refresh(); } else if (P.clips.length && e.pointerType !== 'mouse') setFull(true); return; }
     e.preventDefault(); if (playing) pause();
     var again = sel && sel.k === hit.k && sel.id === hit.o.id;
     sel = { k: hit.k, id: hit.o.id }; refreshTB(); renderTL(); draw(); kfSync(hit.o, hit.k);
@@ -1494,6 +1565,7 @@
     var files = Array.prototype.slice.call(list || []).filter(function (f) { return kindOf(f); });
     if (!files.length) { toast('Видео, зураг, дуу (mp4, mov, jpg, png, mp3…) сонгоно уу'); return Promise.resolve(); }
     toast(files.length > 1 ? files.length + ' файл нэмж байна…' : 'Нэмж байна…');
+    var wasEmpty = !P.clips.length && !P.overlays.length;
     var at = sel && sel.k === 'clip' ? P.clips.findIndex(function (c) { return c.id === sel.id; }) + 1 : P.clips.length;
     var chain = Promise.resolve(), added = 0, firstNew = null, lastOv = null;
     files.forEach(function (f) {
@@ -1514,6 +1586,7 @@
       if (firstNew) { seek(startOf(firstNew.id) + 0.01); setScroll(); }
       else if (lastOv) { seek(lastOv.start + 0.01); setScroll(); }
       toast(added + ' файл нэмэгдлээ');
+      if (wasEmpty && firstNew) setTimeout(quickMenu, 400);
     });
   }
   var pickOver = false;
@@ -1863,6 +1936,7 @@
     else if (key === 's' || e.code === 'KeyS') splitSel();
     else if (key === 'm' || e.code === 'KeyM') toggleMarker();
     else if (key === 'n' || e.code === 'KeyN') toggleSnap();
+    else if ((key === 'f' || e.code === 'KeyF') && !mod) setFull(!fullOn);
     else if (key === '=' || key === '+') setZoom(pps * 1.25);
     else if (key === '-') setZoom(pps / 1.25);
     else if (e.key === 'Home') { seek(0); setScroll(); }
@@ -1888,15 +1962,44 @@
     var bg = document.createElement('div'); bg.className = 'sheet-bg';
     var s = document.createElement('div'); s.className = 'sheet'; s.setAttribute('role', 'dialog'); s.setAttribute('aria-label', title);
     s.innerHTML = '<div class="grab"></div><h3>' + title + '<button type="button" class="done">Болсон</button></h3>' + body;
+    s.dataset.st = 'mid'; bg.dataset.st = 'mid';
     document.body.appendChild(bg); document.body.appendChild(s);
+    sheetDrag(s, bg);
     sheetClose = function () { bg.remove(); s.remove(); sheetClose = null; if (onClose) onClose(); };
     bg.addEventListener('click', closeSheet); s.querySelector('.done').addEventListener('click', closeSheet);
     return s;
   }
   function closeSheet() { if (sheetClose) sheetClose(); }
+  // phone sheets: drag the grip / title between collapsed (title only), medium and expanded; a tap on the grip steps through them
+  function sheetH(st) {
+    var vh = window.innerHeight;
+    return st === 'min' ? 62 : st === 'max' ? vh - 56 : Math.round(vh * 0.5);
+  }
+  function setSheetSt(s, bg, st) { s.dataset.st = bg.dataset.st = st; s.style.maxHeight = ''; if (st === 'min') s.scrollTop = 0; }
+  function sheetDrag(s, bg) {
+    var y0 = 0, h0 = 0, id = null, moved = false, onGrab = false;
+    s.addEventListener('pointerdown', function (e) {
+      if (!e.target.closest('.grab, h3') || e.target.closest('button, input, select, textarea')) return;
+      id = e.pointerId; y0 = e.clientY; h0 = s.getBoundingClientRect().height; moved = false; onGrab = !!e.target.closest('.grab');
+      try { s.setPointerCapture(id); } catch (er) {}
+    });
+    s.addEventListener('pointermove', function (e) {
+      if (id !== e.pointerId) return;
+      var dy = e.clientY - y0; if (!moved && Math.abs(dy) < 6) return;
+      moved = true; s.classList.add('dragging'); s.style.maxHeight = Math.max(48, Math.min(sheetH('max'), h0 - dy)) + 'px';
+    });
+    function end(e) {
+      if (id !== e.pointerId) return; id = null; s.classList.remove('dragging');
+      if (!moved) { if (onGrab) setSheetSt(s, bg, { min: 'mid', mid: 'max', max: 'min' }[s.dataset.st]); return; }
+      var h = s.getBoundingClientRect().height, best = 'mid', bd = 1e9;
+      ['min', 'mid', 'max'].forEach(function (st) { var d = Math.abs(sheetH(st) - h); if (d < bd) { bd = d; best = st; } });
+      setSheetSt(s, bg, best);
+    }
+    s.addEventListener('pointerup', end); s.addEventListener('pointercancel', end);
+  }
   document.addEventListener('keydown', function (e) {
     if (e.key !== 'Escape') return;
-    if (sheetClose) closeSheet(); else if (sel && desk.matches && !/INPUT|TEXTAREA/.test(e.target.tagName)) { sel = null; refresh(); }
+    if (fullOn) setFull(false); else if (sheetClose) closeSheet(); else if (sel && desk.matches && !/INPUT|TEXTAREA/.test(e.target.tagName)) { sel = null; refresh(); }
   });
   function opts(list, cur, attr) { return '<div class="opts">' + list.map(function (o) { return '<button type="button" class="opt' + (String(o[0]) === String(cur) ? ' on' : '') + '" data-' + attr + '="' + o[0] + '">' + o[1] + '</button>'; }).join('') + '</div>'; }
   function onOpt(s, attr, fn) { s.addEventListener('click', function (e) { var b = e.target.closest('[data-' + attr + ']'); if (!b) return; s.querySelectorAll('[data-' + attr + ']').forEach(function (x) { x.classList.toggle('on', x === b); }); fn(b.getAttribute('data-' + attr)); }); }
@@ -3092,11 +3195,11 @@
     nameIn.value = P.name; hist = []; hi = -1; T = 0;
     fitCanvas(); commit(); seek(0);
   }
-  refresh(); fitCanvas();
+  applyTLH(); refresh(); fitCanvas();
   loadSaved().then(function (rec) { if (!started) startScreen(rec && rec.p ? rec : null); });
 
   // test hook
   window.GVideo = { get P() { return P; }, media: media, seek: seek, play: play, pause: pause, total: total, addFiles: addFiles, renderFrame: renderFrame, mixAudio: mixAudio, runExport: runExport, sheetExport: sheetExport, begin: function (w, h) { P = blank(w, h); begin(); },
-    get sel() { return sel; }, set sel(v) { sel = v; refresh(); }, get T() { return T; }, commit: commit, freezeFrame: freezeFrame, extractAudio: extractAudio, addSticker: addSticker,
+    get sel() { return sel; }, set sel(v) { sel = v; refresh(); }, setFull: function (v) { setFull(v); }, get full() { return fullOn; }, get T() { return T; }, commit: commit, freezeFrame: freezeFrame, extractAudio: extractAudio, addSticker: addSticker,
     newOverlay: newOverlay, splitSel: splitSel, act: function (a) { ACT[a](); }, placeSel: placeSel, lastBox: lastBox, undo: undo };
 })();
