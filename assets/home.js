@@ -177,6 +177,24 @@
     kick();
   }
 
+  // ---------- pointer: a light that follows it in the hero / final section, and a glow on the card under it ----------
+  if (fine && !calm) {
+    var CARD = '.tc, .fb, .ht-review, .ql a, .dk a', pe = null, praf = 0, lastCard = null, lastSec = null;
+    var pframe = function () {
+      praf = 0; if (!pe) return;
+      var t = pe.target && pe.target.closest ? pe.target : null, card = t && t.closest(CARD), sec = t && t.closest('.hero, .fin'), r;
+      if (card !== lastCard) { if (lastCard) lastCard.classList.remove('gl-on'); if (card) card.classList.add('gl-on'); lastCard = card; }
+      if (card) { r = card.getBoundingClientRect(); card.style.setProperty('--gx', (pe.clientX - r.left).toFixed(0) + 'px'); card.style.setProperty('--gy', (pe.clientY - r.top).toFixed(0) + 'px'); }
+      if (sec !== lastSec) { if (lastSec) lastSec.classList.remove('lit'); if (sec) sec.classList.add('lit'); lastSec = sec; }
+      if (sec) {
+        r = sec.getBoundingClientRect(); sec.style.setProperty('--mx', (pe.clientX - r.left).toFixed(0) + 'px'); sec.style.setProperty('--my', (pe.clientY - r.top).toFixed(0) + 'px');
+        if (sec.classList.contains('fin')) sec.style.setProperty('--fx', ((pe.clientX - r.left) / r.width).toFixed(3));
+      }
+    };
+    doc.addEventListener('pointermove', function (e) { if (e.pointerType === 'touch') return; pe = e; if (!praf) praf = requestAnimationFrame(pframe); }, { passive: true });
+    doc.documentElement.addEventListener('pointerleave', function () { if (lastCard) lastCard.classList.remove('gl-on'); if (lastSec) lastSec.classList.remove('lit'); lastCard = lastSec = null; });
+  }
+
   // final CTA: four tool windows come together into the logo — once
   var fa = $('#fin-anim'), fdone = false;
   seen(fa, function (v) { if (v && !fdone) { fdone = true; fa.classList.add('in'); } }, { threshold: 0.6 });

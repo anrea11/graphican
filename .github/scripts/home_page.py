@@ -272,6 +272,12 @@ def build():
              ("edu", "Хичээл", "#fff6e5", "#ff7a1a"), ("mongolia", "Монгол аялал", "#141414", "#f4a261"), ("fine", "Fine dining", "#0b0b0b", "#c9a45c")]
     decks = "".join(f'<a href="/slides/?deck={k}"><i style="background:linear-gradient(135deg,{a1} 55%,{a2} 55%)"></i>{e(n)}</a>' for k, n, a1, a2 in DECKS)
 
+    cl = d.get("clients") or {}
+    logo_strip = ""
+    if logos:
+        logo_strip = ('<section class="lg rv" id="clients" aria-labelledby="lg-t"><p id="lg-t">' + e(cl.get("title") or "Хамтран ажилласан байгууллагууд") + '</p><div class="lg-row">' +
+                      "".join(f'<span class="lg-i"><img src="{e(thumb(x["logo"]))}" alt="{e(x.get("name", ""))}" loading="lazy" decoding="async"></span>' for x in logos) + '</div></section>')
+
     header = f"""<header class="gh header" id="gh">
   <a class="gh-logo" href="/" aria-label="Graphican — нүүр">Graphican</a>
   <nav class="gh-nav" id="gh-nav" aria-label="Үндсэн цэс">
@@ -288,6 +294,7 @@ def build():
   <section class="hero" id="top" data-sp="exit">
     <div class="fxl" aria-hidden="true"><i class="beam"></i><svg viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice"><circle cx="-120" cy="-380" r="900"/><circle cx="1620" cy="1500" r="1050"/></svg></div>
     <div class="grid-bg" aria-hidden="true"></div>
+    <i class="cur" aria-hidden="true"></i>
     <div class="hero-in">
       <div class="hero-copy">
         <h1 aria-label="Хэрэгтэйгээ шууд бүтээ."><span aria-hidden="true"><span class="nw"><span class="bl" style="--b:3">Х</span><span class="bl" style="--b:2.2">э</span><span class="bl" style="--b:1.4">р</span><span class="bl" style="--b:0.7">э</span><span class="bl" style="--b:0">г</span>тэйгээ</span><br><span class="nw">шууд бүтээ.</span></span></h1>
@@ -303,6 +310,8 @@ def build():
       </div>
     </div>
   </section>
+
+  {logo_strip}
 
   <!-- 02 MAIN 4 EDITORS -->
   <section class="sec tsw" id="switch">
@@ -356,6 +365,7 @@ def build():
   <section class="sec fin" id="start" data-sp>
     <div class="fxl" aria-hidden="true"><i class="beam"></i><svg viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice"><circle cx="720" cy="1700" r="1150" pathLength="1"/><circle cx="720" cy="1900" r="1150" pathLength="1"/></svg></div>
     <div class="grid-bg" aria-hidden="true"></div>
+    <i class="fin-bloom" aria-hidden="true"></i><i class="cur" aria-hidden="true"></i>
     <div class="fin-anim" id="fin-anim" aria-hidden="true"><i class="w1">{ic("design")}</i><i class="w2">{ic("pdf")}</i><i class="w3">{ic("ppt")}</i><i class="w4">{ic("video")}</i><b>Graphican</b></div>
     <h2 class="rv">Хийх зүйлээ<br>эхлүүл.</h2>
     <div class="fin-btns rv">
