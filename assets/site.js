@@ -75,6 +75,8 @@
     });
     if (lo) kick();
   }
+  // bundles of links: open as cards on wide screens, folded on phones
+  if (window.innerWidth >= 900) $$('details.grp:not(.fold)').forEach(function (d) { d.open = true; });
   scan();
   window.GSite = { scan: scan };
 })();

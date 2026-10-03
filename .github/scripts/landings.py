@@ -13,7 +13,7 @@ import html, json, os, re
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 SITE = "https://graphican.online"
-V = "8"  # landing.css / landing.js cache version
+V = "9"  # landing.css / landing.js cache version
 
 PDF = ".pdf,application/pdf"
 IMG = "image/*,.heic,.heif,.tif,.tiff,.webp,.avif"
@@ -292,6 +292,41 @@ def e(s):
 def strip(s):
     return re.sub(r"<[^>]+>", "", s)
 
+# every tool, bundled by what it does (the "all tools" block at the foot of each page)
+TOOL_GROUPS = [
+    ("PDF хөрвүүлэх", ["pdf-to-word", "word-to-pdf", "pdf-to-excel", "pdf-to-ppt", "pdf-to-jpg", "jpg-to-pdf", "/tools/pdf/"]),
+    ("PDF засах", ["edit-pdf", "merge-pdf", "split-pdf", "compress-pdf", "fill-pdf", "pdf-page-numbers", "watermark-pdf", "/tools/pdfedit/"]),
+    ("Гарын үсэг, хамгаалалт", ["sign-pdf", "protect-pdf", "unlock-pdf"]),
+    ("AI хэрэгсэл", ["pdf-ocr", "summarize-pdf", "translate-pdf", "/tools/upscale/", "/tools/bgremove/"]),
+    ("Дизайн", ["/editor/", "/tools/templates/", "/tools/mongol-font/", "/tools/brand-color/", "/tools/socialcrop/"]),
+]
+
+
+def tool_groups(skip=""):
+    """<details> per group: open as cards on wide screens (site.js), folded on phones."""
+    by = {x["slug"]: x for x in PAGES}
+    extra = dict(TOOL_LINKS)
+    seen, out = set(), []
+
+    def link(k):
+        if k.startswith("/"):
+            return (k, extra.get(k)) if k in extra else None
+        return (f"/tools/{k}/", by[k]["short"]) if k in by else None
+
+    groups = []
+    for name, keys in TOOL_GROUPS:
+        items = [x for x in (link(k) for k in keys) if x]
+        seen.update(u for u, _ in items)
+        groups.append((name, items))
+    rest = [(f"/tools/{x['slug']}/", x["short"]) for x in PAGES if f"/tools/{x['slug']}/" not in seen] + [(u, n) for u, n in TOOL_LINKS if u not in seen]
+    if rest:
+        groups.append(("Бусад", rest))
+    for name, items in groups:
+        items = [(u, n) for u, n in items if u != skip]
+        if items:
+            out.append(f'<details class="grp"><summary><b>{e(name)}</b><small>{len(items)}</small></summary><div class="grp-b">' + "".join(f'<a href="{u}">{e(n)}</a>' for u, n in items) + "</div></details>")
+    return '<div class="grps rv">' + "".join(out) + "</div>"
+
 
 def header_html():
     return C.header()
@@ -413,7 +448,7 @@ def page(p, header):
 
   <section class="lp-sec split lp-all">
     <h2 data-words data-sp>Бүх үнэгүй хэрэгслүүд</h2>
-    <div class="lp-links rv">{allh}</div>
+    {tool_groups(path)}
   </section>
 </main>
 
