@@ -1329,7 +1329,7 @@
   function snapPoints(exId) {
     var pts = [0, T], s = 0;
     P.clips.forEach(function (c) { if (c.id !== exId) pts.push(s); s += clipLen(c); }); pts.push(s);
-    P.texts.concat(P.overlays).forEach(function (x) { if (x.id !== exId) pts.push(x.start, x.end); });
+    P.texts.concat(P.overlays, P.effects || []).forEach(function (x) { if (x.id !== exId) pts.push(x.start, x.end); });
     P.audios.forEach(function (a) { if (a.id !== exId) pts.push(a.start, a.start + a.out - a.in); pts = pts.concat(beatsOnTimeline(a)); });
     return pts.concat(P.markers || []);
   }
@@ -1435,6 +1435,11 @@
       if (drag.h === 'l') { var ls = sn(s.start + d), nd0 = clamp(ls - s.start, lim === Infinity ? -s.start : Math.max(-s.start, -s.in), L0 - 0.2); o.start = s.start + nd0; if (lim !== Infinity) o.in = s.in + nd0; o.kf = s.kf; kfShift(o, -(o.start - s.start)); }
       else if (drag.h === 'r') o.end = clamp(sn(s.end + d), s.start + 0.2, lim === Infinity ? Infinity : s.start + (lim - s.in));
       else { o.start = moveBar(s.start, L0); o.end = o.start + L0; }
+    } else if (drag.k === 'fx') {
+      var Lx = s.end - s.start;
+      if (drag.h === 'l') o.start = clamp(sn(s.start + d), 0, s.end - 0.2);
+      else if (drag.h === 'r') o.end = Math.max(s.start + 0.2, sn(s.end + d));
+      else { o.start = moveBar(s.start, Lx); o.end = o.start + Lx; }
     } else if (drag.k === 'text' || drag.k === 'cap') {
       var L = s.end - s.start;
       if (drag.h === 'l') { o.start = clamp(sn(s.start + d), 0, s.end - 0.2); o.kf = s.kf; kfShift(o, -(o.start - s.start)); }
@@ -2545,7 +2550,8 @@
     var e = { id: uid(), fx: fx, start: a, end: Math.max(a + 0.3, b), amt: o && o.amt != null ? o.amt : 50, spd: (o && o.spd) || 1, col: (o && o.col) || null, ln: 0 };
     if (o && o.dir) e.dir = o.dir;
     P.effects = P.effects || []; P.effects.push(e); settleLane('fx', e);
-    sel = { k: 'fx', id: e.id }; commit(); previewRange(a + 0.01, Math.min(2.5, e.end - a));
+    if (playing) pause();
+    sel = { k: 'fx', id: e.id }; commit(); seek(clamp(T, e.start + 0.01, Math.max(e.start + 0.01, e.end - 0.05))); setScroll();
     // bring the «Эффект» row (the last one) into view so the new bar is seen
     requestAnimationFrame(function () {
       var el = document.querySelector('.it.e.on'), sc = el && el.closest('.vtl-scroll'); if (!sc) return;
@@ -2655,7 +2661,7 @@
     function cancel() { pv = fxPrev = null; fxHide = fxOff = null; panel(); marks(); if (playing) pause(); if (hasEd) draw(); else seek(Math.min(T0, total())); }
     function apply() {
       if (!pv) return; var p = pv, e = ED(); fxUsed(p.fx);
-      if (e) { e.fx = p.fx; e.amt = p.amt; e.spd = p.spd; e.col = p.col; if (p.dir) e.dir = p.dir; else delete e.dir; pv = fxPrev = null; fxHide = fxOff = null; commit(); panel(); marks(); prev(); return; }
+      if (e) { e.fx = p.fx; e.amt = p.amt; e.spd = p.spd; e.col = p.col; if (p.dir) e.dir = p.dir; else delete e.dir; pv = fxPrev = null; fxHide = fxOff = null; if (playing) pause(); commit(); panel(); marks(); show(e); return; }
       pv = null; tried = false; closeSheet(); addEffect(p.fx, p.start, p.end, p);
     }
     function before(on) {
@@ -2681,7 +2687,7 @@
       if (t.closest('#v-fxok')) { apply(); return; }
       if (t.closest('#v-fxno')) { cancel(); return; }
       e = cur(); if (!e) return;
-      if (t.closest('#v-fxrs')) { e.amt = 50; e.spd = 1; e.col = null; delete e.dir; dirty = false; commit(); panel(); prev(); toast('Тохиргоо анхны утгадаа орлоо'); return; }
+      if (t.closest('#v-fxrs')) { e.amt = 50; e.spd = 1; e.col = null; delete e.dir; dirty = false; commit(); panel(); show(e); toast('Тохиргоо анхны утгадаа орлоо'); return; }
       if (t.closest('#v-fxrm')) { var rid = e.id, nm = fxName(e.fx); closeSheet(); sel = { k: 'fx', id: rid }; delSel(); toast('«' + nm + '» устгагдлаа — буцаах бол ↶ товч'); return; }
       if ((x = t.closest('[data-fd]'))) { e.dir = x.dataset.fd; }
       else if ((x = t.closest('[data-fc]'))) { e.col = x.dataset.fc; }
@@ -2689,7 +2695,7 @@
       else return;
       x.parentNode.querySelectorAll('.opt, .sw').forEach(function (o) { o.classList.toggle('on', o === x); });
       if (e !== pv) commit();
-      prev();
+      if (x.hasAttribute('data-fm')) prev(); else show(e);
     });
     s.addEventListener('input', function (ev) {
       var t = ev.target, e;
@@ -2705,7 +2711,7 @@
     s.addEventListener('change', function (ev) {
       var t = ev.target; if (t.id !== 'v-fa' && t.id !== 'v-fsp' && !t.hasAttribute('data-fcp')) return;
       if (dirty) { dirty = false; commit(); }
-      prev();
+      if (t.id === 'v-fsp') prev(); else { var e2 = cur(); if (e2) show(e2); }
     });
 
     // cards: the current frame (without effects) with each effect on it; only the cards on screen animate, and not while the preview plays
