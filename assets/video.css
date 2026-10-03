@@ -623,3 +623,47 @@ details.capgen summary { cursor:pointer; font-size:13px; font-weight:700; color:
 }
 /* a selected bar is dragged, not swiped: the browser must not take the gesture for scrolling */
 .it.on, .it.lift { touch-action:none; }
+
+/* =====================================================================================================
+   Skin v3 — the site's new look carried into the video editor. Colours, radii, shadows and type only:
+   no sizes or positions change, so the timeline maths is untouched.
+   ===================================================================================================== */
+:root {
+  --bg:#0a0a10; --bg2:#111118; --bg3:#1b1b26; --bg4:#282836;
+  --text:#f5f4fa; --muted:#a6a8b8; --dim:#6d6a7a; --line:#22222e;
+  --acc:#7b64ff; --acc2:#a497ff; --acc-soft:rgba(123,100,255,.2);
+  --clip:#3b3466;
+  --ink:radial-gradient(120% 190% at 50% 50%, rgba(16,13,34,.97) 34%, rgba(58,42,160,.86) 76%, rgba(123,100,255,.9) 100%);
+  --lit:inset 0 0 0 1px rgba(185,173,255,.62), inset 0 0 16px rgba(123,100,255,.6), inset 0 -10px 22px -10px rgba(123,100,255,.55), 0 0 26px -10px rgba(109,86,250,.95);
+}
+::selection { background:rgba(123,100,255,.35); }
+/* primary actions: dark, lit from the edge */
+.btn-x, .sheet h3 .done { background:var(--ink); box-shadow:var(--lit); transition:filter .2s; }
+.btn-x:hover, .sheet h3 .done:hover { filter:brightness(1.2) saturate(1.1); }
+.chip { background:var(--bg3); box-shadow:inset 0 0 0 1px rgba(255,255,255,.06); }
+.chip:hover { background:var(--bg4); box-shadow:inset 0 0 0 1px rgba(164,151,255,.4); }
+.ib { border-radius:12px; } .ib:hover { background:rgba(164,151,255,.14); }
+.vh { background:rgba(10,10,16,.9); border-bottom-color:rgba(255,255,255,.08); }
+.vh .vname { font-family:"Inter Tight", "Inter", sans-serif; letter-spacing:-.01em; border-radius:10px; }
+/* preview: deep black with light rising from below */
+.vstage { background:radial-gradient(70% 55% at 50% 112%, rgba(109,86,250,.26), transparent 70%), #06060a; }
+.vstage canvas { border-radius:10px; box-shadow:0 0 0 1px rgba(164,151,255,.22), 0 30px 70px -30px rgba(0,0,0,.95), 0 0 70px -30px rgba(109,86,250,.7); }
+.vtl { background:#0e0e15; border-top-color:rgba(255,255,255,.08); }
+.vtl-head { background:#fff; box-shadow:0 0 0 1px rgba(10,10,16,.5), 0 0 12px rgba(164,151,255,.9); }
+/* sheets and inputs */
+.sheet { background:#111118; box-shadow:0 -1px 0 rgba(164,151,255,.28), 0 -30px 70px -30px rgba(52,34,158,.7); border-radius:20px 20px 0 0; }
+.sheet .grab { background:rgba(164,151,255,.4); }
+.sheet h3 { font-family:"Inter Tight", "Inter", sans-serif; letter-spacing:-.01em; }
+.sheet textarea:focus, .sheet input:focus, .sheet select:focus { border-color:var(--acc2); box-shadow:0 0 0 3px var(--acc-soft); }
+/* size cards */
+.size { border-radius:16px; background:linear-gradient(180deg, rgba(123,100,255,.1), rgba(255,255,255,.02) 60%); box-shadow:inset 0 0 0 1px rgba(255,255,255,.08); transition:box-shadow .25s, transform .25s cubic-bezier(.22, 1, .36, 1), background .2s; }
+.size:hover { transform:translateY(-3px); box-shadow:inset 0 0 0 1px rgba(164,151,255,.6), inset 0 0 30px rgba(109,86,250,.22), 0 20px 40px -24px rgba(109,86,250,.9); }
+.size.on { box-shadow:inset 0 0 0 1.5px var(--acc2), inset 0 0 30px rgba(109,86,250,.3); }
+.size .shape { border-color:rgba(231,227,253,.8); }
+/* start screen: the site's beam and display type */
+.vstart { background:radial-gradient(90% 60% at 10% 0%, rgba(109,86,250,.34), transparent 62%), radial-gradient(70% 50% at 100% 100%, rgba(52,34,158,.4), transparent 70%), var(--bg); }
+.vstart h2 { font:700 clamp(34px, 6vw, 56px)/1 "Inter Tight", "Inter", sans-serif; letter-spacing:-.035em; text-transform:uppercase; margin-bottom:12px; text-shadow:0 0 60px rgba(164,151,255,.3); }
+.vstart p.sub { font-size:15.5px; line-height:1.6; max-width:56ch; }
+.vstart .resume { border-radius:16px; background:rgba(255,255,255,.04); box-shadow:inset 0 0 0 1px rgba(164,151,255,.3); }
+.vstart .feat span { display:inline-flex; align-items:center; height:32px; padding:0 12px; border-radius:999px; box-shadow:inset 0 0 0 1px rgba(255,255,255,.09); background:rgba(255,255,255,.02); }
+.vstart .feat { gap:8px; }

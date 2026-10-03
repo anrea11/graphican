@@ -288,3 +288,56 @@ a[href^="/tools/translate-pdf"] { display: none !important; }
   .resume { flex-wrap:wrap; }
   .resume div { flex-basis:100%; }
 }
+
+/* =====================================================================================================
+   Skin v3 — the site's new look carried into the PDF editor. Colours, radii, shadows and type only.
+   ===================================================================================================== */
+:root {
+  --bg:#ffffff; --bg2:#f5f4fb; --bg3:#eae8f4; --canvas:#eeedf6;
+  --text:#14121c; --muted:#6a6678; --dim:#a39fb3; --line:#eceaf4; --line2:#dcd9e8;
+  --acc:#6d56fa; --acc-soft:rgba(109,86,250,.12);
+  --ink:radial-gradient(120% 190% at 50% 50%, rgba(16,13,34,.97) 34%, rgba(58,42,160,.86) 76%, rgba(123,100,255,.9) 100%);
+  --lit:inset 0 0 0 1px rgba(185,173,255,.62), inset 0 0 16px rgba(123,100,255,.6), inset 0 -10px 22px -10px rgba(123,100,255,.55), 0 0 26px -10px rgba(109,86,250,.95);
+  --shadow:0 2px 6px rgba(22,16,48,.08), 0 18px 40px -16px rgba(52,34,158,.35);
+  --page-shadow:0 1px 3px rgba(22,16,48,.1), 0 16px 40px -18px rgba(52,34,158,.4);
+}
+[data-theme="dark"] {
+  --bg:#111118; --bg2:#1a1a24; --bg3:#252532; --canvas:#0a0a10;
+  --text:#f5f4fa; --muted:#a6a8b8; --dim:#6d6a7a; --line:#20202b; --line2:#30303f;
+  --acc-soft:rgba(139,108,255,.2);
+}
+::selection { background:rgba(109,86,250,.25); }
+.btn-primary { border-radius:999px; background:var(--ink); box-shadow:var(--lit); transition:filter .2s; }
+.btn-primary:hover:not(:disabled) { filter:brightness(1.18) saturate(1.1); }
+.btn-primary:disabled { opacity:.45; }
+.btn { border-radius:10px; transition:background .15s, border-color .15s; }
+.btn:hover { border-color:rgba(109,86,250,.45); }
+.ib { border-radius:10px; }
+.tag { border-radius:999px; padding:3px 8px; font-family:"Inter Tight", "Inter", sans-serif; letter-spacing:.1em; }
+.fname { border-radius:10px; font-family:"Inter Tight", "Inter", sans-serif; letter-spacing:-.01em; }
+.zoomg { border-radius:999px; background:var(--bg2); border-color:transparent; }
+.top { border-bottom-color:var(--line); }
+/* canvas: dots and light from below */
+.body { background-color:var(--canvas); background-image:radial-gradient(72% 46% at 55% 108%, rgba(109,86,250,.18), transparent 70%), radial-gradient(circle, rgba(52,34,158,.16) 1px, transparent 1.3px); background-size:auto, 24px 24px; }
+[data-theme="dark"] .body { background-image:radial-gradient(72% 50% at 55% 112%, rgba(109,86,250,.3), transparent 70%), radial-gradient(circle, rgba(255,255,255,.08) 1px, transparent 1.3px); }
+/* empty state: a card lit from its edges */
+.drop { border:1px dashed rgba(109,86,250,.5); border-radius:22px; background:radial-gradient(120% 120% at 50% 0%, rgba(109,86,250,.1), var(--bg) 60%); box-shadow:0 30px 60px -36px rgba(52,34,158,.6); transition:border-color .2s, box-shadow .3s, background .2s; }
+.drop:hover, .drop.over { border-color:var(--acc); background:radial-gradient(120% 120% at 50% 0%, rgba(109,86,250,.2), var(--bg) 66%); box-shadow:0 0 0 4px var(--acc-soft), 0 30px 60px -30px rgba(52,34,158,.75); }
+.drop-ic { border-radius:18px; background:var(--ink); box-shadow:var(--lit), 0 14px 30px -12px rgba(109,86,250,.9); }
+.drop b { font:700 17px/1.3 "Inter Tight", "Inter", sans-serif; letter-spacing:-.01em; }
+/* rail: near-black with violet light at its foot */
+.rail { background:linear-gradient(180deg, #0c0b16 0%, #110f24 55%, #1c1650 100%); box-shadow:inset -1px 0 0 rgba(164,151,255,.16); }
+.rb { border-radius:12px; }
+.rb:hover { background:rgba(164,151,255,.14); }
+.rb.on { background:var(--ink); color:#fff; box-shadow:var(--lit); }
+.rmenu, .smenu { border-radius:16px; border-color:var(--line2); }
+.rmenu button, .smenu button { border-radius:10px; }
+/* tool dock: near-black glass with a violet rim, like the design editor */
+.dock { background:rgba(10,10,16,.93); border-color:rgba(164,151,255,.3); border-radius:20px; -webkit-backdrop-filter:blur(16px) saturate(150%); backdrop-filter:blur(16px) saturate(150%);
+  box-shadow:inset 0 0 0 1px rgba(231,227,253,.04), inset 0 0 28px rgba(109,86,250,.24), 0 26px 50px -20px rgba(52,34,158,.8), 0 2px 6px rgba(0,0,0,.2); }
+.dock .tool { color:#e9e6f3; border-radius:13px; }
+.dock .tool span { color:rgba(233,230,243,.62); }
+.dock .tool:hover { background:rgba(255,255,255,.08); }
+.dock .tool.on { background:var(--ink); box-shadow:var(--lit); color:#fff; } .dock .tool.on span { color:#fff; }
+.dock .sep { background:rgba(255,255,255,.14); }
+.th.on canvas, .th.on img { box-shadow:0 0 0 2px var(--acc), 0 10px 22px -10px rgba(109,86,250,.8); }
