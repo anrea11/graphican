@@ -365,7 +365,7 @@ def build():
   <section class="sec fin" id="start" data-sp>
     <div class="fxl" aria-hidden="true"><i class="beam"></i><svg viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice"><circle cx="720" cy="1700" r="1150" pathLength="1"/><circle cx="720" cy="1900" r="1150" pathLength="1"/></svg></div>
     <div class="grid-bg" aria-hidden="true"></div>
-    <i class="fin-bloom" aria-hidden="true"></i><i class="cur" aria-hidden="true"></i>
+    <span class="fin-bloom" aria-hidden="true"><i class="rays"></i><i class="halo"></i><i class="core"></i><i class="line"></i></span><i class="cur" aria-hidden="true"></i>
     <div class="fin-anim" id="fin-anim" aria-hidden="true"><i class="w1">{ic("design")}</i><i class="w2">{ic("pdf")}</i><i class="w3">{ic("ppt")}</i><i class="w4">{ic("video")}</i><b>Graphican</b></div>
     <h2 class="rv">Хийх зүйлээ<br>эхлүүл.</h2>
     <div class="fin-btns rv">

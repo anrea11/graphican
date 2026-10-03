@@ -179,7 +179,7 @@
 
   // ---------- pointer: a light that follows it in the hero / final section, and a glow on the card under it ----------
   if (fine && !calm) {
-    var CARD = '.tc, .fb, .ht-review, .ql a, .dk a', pe = null, praf = 0, lastCard = null, lastSec = null;
+    var CARD = '.tc, .fb, .ht-review, .ql a, .dk a, .collab', pe = null, praf = 0, lastCard = null, lastSec = null;
     var pframe = function () {
       praf = 0; if (!pe) return;
       var t = pe.target && pe.target.closest ? pe.target : null, card = t && t.closest(CARD), sec = t && t.closest('.hero, .fin'), r;
