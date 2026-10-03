@@ -11,9 +11,9 @@ import landings as L
 import chrome as C
 
 ROOT, SITE, e, ld = L.ROOT, L.SITE, L.e, L.ld
-V = "11"
+V = "12"
 TPL_V = "13"      # assets/templates.js ('path' items for the decks)
-KIT_V = "11"       # assets/slides-kit.js — «Элемент» tab in /editor/ and /slides/ (charts only in /slides/); keep editor/index.html in step
+KIT_V = "12"       # assets/slides-kit.js — «Элемент» tab in /editor/ and /slides/ (charts only in /slides/); keep editor/index.html in step
 
 
 def mn_fonts():
@@ -34,9 +34,9 @@ def font_page():
     by = {c: [f[0] for f in ok if f[1] == c] for c in cats}
     popular_no = [f for f in ["Playfair Display", "Plus Jakarta Sans", "Unbounded", "Hanken Grotesk", "Jost", "Russo One", "Tenor Sans", "Dela Gothic One",
                               "Amatic SC", "Fjalla One", "Great Vibes", "Sofia Sans", "Yanone Kaffeesatz", "Merriweather Sans", "Alumni Sans", "Prosto One", "Rubik Mono One", "Neucha"] if f in no]
-    lists = "".join(f'<h3>{cats[c]} <small>{len(by[c])}</small></h3><p class="fn-list">' +
-                    " · ".join(f'<a href="https://fonts.google.com/specimen/{x.replace(" ", "+")}" rel="noopener" target="_blank">{e(x)}</a>' for x in by[c]) + "</p>"
-                    for c in cats if by[c])
+    lists = '<div class="grps one">' + "".join(f'<details class="grp fold"><summary><b>{cats[c]}</b><small>{len(by[c])}</small></summary><p class="fn-list">' +
+                    " · ".join(f'<a href="https://fonts.google.com/specimen/{x.replace(" ", "+")}" rel="noopener" target="_blank">{e(x)}</a>' for x in by[c]) + "</p></details>"
+                    for c in cats if by[c]) + "</div>"
     faq = [
         ("Монгол хэлэнд ямар фонт тохирох вэ?", f"Кирилл үсгийн дотроос <b>Ө, Ү</b> хоёр үсэгтэй фонт хэрэгтэй. Энэ жагсаалтад Google Fonts-ын {n} фонт бүгд эдгээр үсгийг агуулж байгаа эсэхийг нэг бүрчлэн шалгасан. Гарчигт Montserrat, Manrope, Golos Text, бичвэрт Inter, Roboto, Noto Sans, PT Serif түгээмэл."),
         ("Яагаад зарим кирилл фонтод Ө, Ү гарахгүй вэ?", "Олон фонт зөвхөн орос хэлний 33 үсгийг хийдэг. Монгол хэлний Ө, Ү нь «өргөтгөсөн кирилл»-д багтдаг тул тэдгээр фонтод Ө, Ү нь өөр фонтоор солигдож, эвдэрсэн харагдана."),
@@ -111,9 +111,9 @@ def color_page():
 def templates_page():
     src = open(os.path.join(ROOT, "assets", "templates.js"), encoding="utf-8").read()
     names = re.findall(r"\{ id: '([a-z0-9]+)', name: '([^']+)', cat: '([a-z]+)', w: (\d+), h: (\d+)", src)
-    cats = {"holiday": "Баяр ёслол", "biz": "Бизнес, зар", "event": "Арга хэмжээ", "other": "Бусад"}
-    lst = "".join(f'<h3>{cats[c]}</h3><ul class="tg-list">' + "".join(
-        f'<li><a href="/editor/?tpl={i}">{e(n)}</a> <span>{w}×{h}</span></li>' for i, n, cc, w, h in names if cc == c) + "</ul>" for c in cats)
+    cats = {"holiday": "Баяр ёслол", "biz": "Бизнес, зар", "event": "Арга хэмжээ", "social": "Сошиал контент", "other": "Бусад хэмжээ"}
+    lst = '<div class="grps one">' + "".join(f'<details class="grp fold"><summary><b>{cats[c]}</b><small>{sum(1 for x in names if x[2] == c)}</small></summary><ul class="tg-list">' + "".join(
+        f'<li><a href="/editor/?tpl={i}">{e(n)}</a> <span>{w}×{h}</span></li>' for i, n, cc, w, h in names if cc == c) + "</ul></details>" for c in cats if any(x[2] == c for x in names)) + "</div>"
     faq = [
         ("Загварыг яаж засах вэ?", "Загвар дээр дарахад онлайн засварлагч нээгдэнэ. Текст дээр давхар дарж бичвэрээ сольж, өнгө, фонт, зургаа өөрчлөөд PNG, JPG, PDF-ээр татна. Бүртгэл шаардахгүй."),
         ("Монгол үсэг зөв гарах уу?", "Тийм. Бүх загварт монгол Ө, Ү үсгийг бүрэн дэмждэг фонтуудыг (Inter, Inter Tight, Geologica, Onest, Playfair, Noto Serif Display, Rubik г.м.) ашигласан."),
@@ -212,7 +212,7 @@ def render(p, header):
 {p['body'].replace('<h1>', '<h1 data-words>')}
   <section class="lp-sec split lp-all">
     <h2 data-words data-sp>Бусад үнэгүй хэрэгслүүд</h2>
-    <div class="lp-links rv">{others}</div>
+    {L.tool_groups(path)}
   </section>
 </main>
 
