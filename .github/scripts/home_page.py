@@ -115,6 +115,9 @@ def build():
          "sameAs": [s["url"] for s in socials]},
     ]}
 
+    # home shows a handful of PDF actions; the full list lives on /tools/
+    QUICK = ["pdf-to-word", "pdf-to-excel", "merge-pdf", "compress-pdf", "edit-pdf", "sign-pdf"]
+    quick = "".join(f'<a href="/tools/{u}/"><svg viewBox="0 0 24 24" aria-hidden="true">{TI[icn]}</svg>{e(n)}</a>' for q in QUICK for u, n, g, icn in TILES if u == q)
     tiles = "".join(
         f'<a class="hm-tile g{g}" href="{u if u.startswith("/") else "/tools/" + u + "/"}"><span><svg viewBox="0 0 24 24" aria-hidden="true">{TI[ic]}</svg></span><b>{e(n)}</b></a>'
         for u, n, g, ic in TILES)
@@ -234,9 +237,7 @@ def build():
         ("crop", "sm", "Сошиал хэмжээ", "Пост, story, cover хэмжээ рүү", "/tools/socialcrop/", '<span class="m m-crop"><i></i></span>'),
         ("font", "sm", "Монгол фонт", "Ө, Ү дэмждэг 178 фонт", "/tools/mongol-font/", '<span class="m m-font"><b>Аа Өө Үү</b><b>Аа Өө Үү</b></span>'),
         ("tpl", "sm", "Монгол загвар", "Цагаан сар, Наадам, зар", "/tools/templates/", '<span class="m m-tpl"><i></i><i></i><i></i></span>'),
-        ("color", "sm", "Брэндийн өнгө", "Салбарт тохирсон палитр", "/tools/brand-color/", '<span class="m m-color"><i></i><i></i><i></i><i></i><i></i></span>'),
         ("zip", "sm", "PDF шахах", "Файлын хэмжээг багасгах", "/tools/compress-pdf/", '<span class="m m-zip"><b>4.2 MB</b><b>1.1 MB</b><i><u></u></i></span>'),
-        ("ai", "sm", "AI хураангуй", "PDF-ийн гол санааг товчлох", "/tools/summarize-pdf/", '<span class="m m-ai"><i></i><i></i><i></i><i></i></span>'),
     ]
     cards = "".join(
         f'<a class="tc tc-{sz} rv" href="{u}"><span class="tc-top"><span class="tc-ic">{ic(k)}</span><span class="tc-tx"><b>{e(n)}</b><small>{e(l)}</small></span><i class="tc-go" aria-hidden="true">→</i></span><span class="tc-demo" aria-hidden="true">{demo}</span></a>'
@@ -265,6 +266,11 @@ def build():
         return (f'<a class="tp" href="/editor/?tpl={i}"><img src="/assets/home/tpl-{i}.webp" alt="{e(n)} — {e(fmt_)} загвар" width="{w}" height="{h}" loading="lazy" decoding="async">'
                 f'<span class="tp-meta"><b>{e(n)}</b><small>{e(fmt_)}</small></span><span class="tp-use">Энэ загварыг ашиглах →</span></a>')
     tpl_rows = "".join(f'<div class="tp-row r{k}"><div class="tp-track">{"".join(tpl_card(t) for t in TPL[k * 8:(k + 1) * 8])}</div></div>' for k in range(2))
+
+    # presentation decks that exist in /slides/ (two-colour swatch = the deck's palette)
+    DECKS = [("hotel", "Зочид буудал", "#0f0f0e", "#d6b67a"), ("biz", "Бизнес", "#ffffff", "#1646ff"), ("coffee", "Кофе шоп", "#1b120c", "#c8a27a"), ("realty", "Үл хөдлөх", "#ffffff", "#b08d57"),
+             ("edu", "Хичээл", "#fff6e5", "#ff7a1a"), ("mongolia", "Монгол аялал", "#141414", "#f4a261"), ("fine", "Fine dining", "#0b0b0b", "#c9a45c")]
+    decks = "".join(f'<a href="/slides/?deck={k}"><i style="background:linear-gradient(135deg,{a1} 55%,{a2} 55%)"></i>{e(n)}</a>' for k, n, a1, a2 in DECKS)
 
     header = f"""<header class="gh header" id="gh">
   <a class="gh-logo" href="/" aria-label="Graphican — нүүр">Graphican</a>
@@ -298,7 +304,7 @@ def build():
     </div>
   </section>
 
-  <!-- 02 TOOL SWITCHER -->
+  <!-- 02 MAIN 4 EDITORS -->
   <section class="sec tsw" id="switch">
     {sec_head("Юу хийх хэрэгтэй вэ?", "Хэрэгтэй зүйлээ сонгоод шууд эхэл.")}
     <div class="tsw-in rv">
@@ -307,14 +313,14 @@ def build():
     </div>
   </section>
 
-  <!-- 04 CREATIVE TOOL GRID -->
+  <!-- 03 QUICK TOOLS -->
   <section class="sec tools" id="tools">
-    {sec_head("Нэг сайт.<br>Өдөр тутмын бүтээлч ажлууд.")}
+    {sec_head("Өдөр тутмын хэрэгтэй хэрэгслүүд.")}
     <div class="tg">{cards}</div>
-    <details class="pdf-all rv"><summary>Бүх PDF хэрэгсэл <span>{len(TILES)}</span></summary><div class="pdf-tiles">{tiles}</div></details>
+    <nav class="ql rv" aria-label="PDF хэрэгслүүд"><b>PDF</b>{quick}<a class="ql-all" href="/tools/">+ Бүх хэрэгсэл</a></nav>
   </section>
 
-  <!-- 05 MONGOLIAN ADVANTAGE -->
+  <!-- 04 MONGOLIAN ADVANTAGE -->
   <section class="sec mn" id="mongol">
     <div class="mn-in">
       <div class="mn-copy rv">
@@ -327,21 +333,18 @@ def build():
     </div>
   </section>
 
-  <!-- 06 TEMPLATES -->
+  <!-- 05 TEMPLATES -->
   <section class="sec tpl" id="templates">
     {sec_head("Эхнээс нь хийх албагүй.", "Бэлэн загвараас эхлээд өөрийнхөөрөө өөрчил.")}
     <div class="tp-wrap" id="tp-wrap">{tpl_rows}</div>
-    <div class="sec-cta rv">{btn("/tools/templates/", "Бүх загвар", "ghost")}<a class="bt txt" href="/slides/"><span>Илтгэлийн загвар</span><i aria-hidden="true">→</i></a></div>
+    <div class="sec-cta rv">{btn("/tools/templates/", "Бүх загвар", "ghost")}</div>
+    <div class="dk rv"><b>Илтгэл (PPT)</b>{decks}<a class="ql-all" href="/slides/">+ Бүх илтгэл</a></div>
   </section>
 
-  <!-- 07 FAST WORKFLOW -->
-  <section class="sec flow" id="flow">
-    {sec_head('Санаа <span class="ar">→</span> Бүтээл')}
-    <ol class="fl rv">
-      <li><span class="fl-n">1</span><span class="fl-g g1" aria-hidden="true"><i></i><i class="on"></i><i></i><i></i></span><b>Сонго</b><small>Хэрэгсэл эсвэл загвараа сонго.</small></li>
-      <li><span class="fl-n">2</span><span class="fl-g g2" aria-hidden="true"><i></i><u></u></span><b>Зас</b><small>Хөтөч дээрээ шууд зас. Суулгах зүйлгүй.</small></li>
-      <li><span class="fl-n">3</span><span class="fl-g g3" aria-hidden="true"><i>{ic("dl")}</i><em>PNG</em><em>PDF</em><em>MP4</em><em>PPTX</em></span><b>Тат</b><small>Бэлэн файлаа төхөөрөмждөө тат.</small></li>
-    </ol>
+  <!-- 06 TRUST: downloads + testimonials -->
+  <section class="sec rvw" id="reviews" aria-labelledby="ht-review-title">
+    <header class="sh rv"><h2 id="ht-review-title">Хэрэглэгчдийн сэтгэгдэл</h2></header>
+    <div class="rv">{review_content}</div>
     <div class="ht-stats rv" id="downloads" aria-labelledby="ht-download-title">
       <h3 id="ht-download-title">Нийт файлын таталт</h3>
       <div class="ht-number"><strong id="ht-downloads" aria-describedby="ht-download-title">—</strong><span>удаа</span></div>
@@ -349,12 +352,7 @@ def build():
     </div>
   </section>
 
-  <section class="sec rvw" id="reviews" aria-labelledby="ht-review-title">
-    <header class="sh rv"><h2 id="ht-review-title">Хэрэглэгчдийн сэтгэгдэл</h2></header>
-    <div class="rv">{review_content}</div>
-  </section>
-
-  <!-- 08 FINAL CTA -->
+  <!-- 07 FINAL CTA -->
   <section class="sec fin" id="start">
     <div class="fxl" aria-hidden="true"><i class="beam"></i><svg viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice"><circle cx="720" cy="1700" r="1150"/></svg></div>
     <div class="grid-bg" aria-hidden="true"></div>
