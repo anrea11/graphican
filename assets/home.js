@@ -71,25 +71,6 @@
     }
   }
 
-  // tool switcher (ToolTabs)
-  var sw = $('#switch');
-  if (sw) {
-    var sd = new Demo($('.gw', sw), 7600), items = $$('.tsw-item', sw), panel = $('#tsw-panel');
-    var choose = function (it, focus) {
-      items.forEach(function (x) { var on = x === it, tb = $('.tsw-tab', x); x.classList.toggle('on', on); tb.setAttribute('aria-selected', String(on)); tb.tabIndex = on ? 0 : -1; });
-      panel.setAttribute('aria-labelledby', $('.tsw-tab', it).id);
-      sd.set(it.getAttribute('data-tool')); if (focus) $('.tsw-tab', it).focus();
-    };
-    items.forEach(function (it, i) {
-      var tb = $('.tsw-tab', it); tb.tabIndex = it.classList.contains('on') ? 0 : -1;
-      tb.addEventListener('click', function () { choose(it); });
-      tb.addEventListener('keydown', function (e) {
-        var d = e.key === 'ArrowDown' || e.key === 'ArrowRight' ? 1 : e.key === 'ArrowUp' || e.key === 'ArrowLeft' ? -1 : 0;
-        if (d) { e.preventDefault(); choose(items[(i + d + items.length) % items.length], true); }
-      });
-    });
-  }
-
   // tool cards: hover plays the little demo (CSS); on touch screens it plays while the card is on screen
   if (!fine && 'IntersectionObserver' in window) {
     var co = new IntersectionObserver(function (en) { en.forEach(function (e) { e.target.classList.toggle('play', e.isIntersecting); }); }, { threshold: 0.6 });
@@ -147,7 +128,7 @@
     });
     h.style.setProperty('--n', n);
   });
-  $$('.tg .tc').forEach(function (c, i) { c.style.setProperty('--i', i < 4 ? i % 2 : (i - 4) % 3); });
+  $$('.edg .tc').forEach(function (c, i) { c.style.setProperty('--i', i % 2); }); $$('.tg .tc').forEach(function (c, i) { c.style.setProperty('--i', i % 3); });
   $$('.fin-btns .fb').forEach(function (b, i) { b.style.setProperty('--i', i); });
   var sps = $$('[data-sp]');
   if (calm || !('IntersectionObserver' in window)) sps.forEach(function (el) { el.style.setProperty('--p', 1); el.style.setProperty('--q', 0.5); });
@@ -175,24 +156,6 @@
     sps.forEach(function (el) { lo.observe(el); });
     window.addEventListener('scroll', kick, { passive: true }); window.addEventListener('resize', kick);
     kick();
-  }
-
-  // ---------- pointer: a light that follows it in the hero / final section, and a glow on the card under it ----------
-  if (fine && !calm) {
-    var CARD = '.tc, .fb, .ht-review, .ql a, .dk a, .collab', pe = null, praf = 0, lastCard = null, lastSec = null;
-    var pframe = function () {
-      praf = 0; if (!pe) return;
-      var t = pe.target && pe.target.closest ? pe.target : null, card = t && t.closest(CARD), sec = t && t.closest('.hero, .fin'), r;
-      if (card !== lastCard) { if (lastCard) lastCard.classList.remove('gl-on'); if (card) card.classList.add('gl-on'); lastCard = card; }
-      if (card) { r = card.getBoundingClientRect(); card.style.setProperty('--gx', (pe.clientX - r.left).toFixed(0) + 'px'); card.style.setProperty('--gy', (pe.clientY - r.top).toFixed(0) + 'px'); }
-      if (sec !== lastSec) { if (lastSec) lastSec.classList.remove('lit'); if (sec) sec.classList.add('lit'); lastSec = sec; }
-      if (sec) {
-        r = sec.getBoundingClientRect(); sec.style.setProperty('--mx', (pe.clientX - r.left).toFixed(0) + 'px'); sec.style.setProperty('--my', (pe.clientY - r.top).toFixed(0) + 'px');
-        if (sec.classList.contains('fin')) sec.style.setProperty('--fx', ((pe.clientX - r.left) / r.width).toFixed(3));
-      }
-    };
-    doc.addEventListener('pointermove', function (e) { if (e.pointerType === 'touch') return; pe = e; if (!praf) praf = requestAnimationFrame(pframe); }, { passive: true });
-    doc.documentElement.addEventListener('pointerleave', function () { if (lastCard) lastCard.classList.remove('gl-on'); if (lastSec) lastSec.classList.remove('lit'); lastCard = lastSec = null; });
   }
 
   // final CTA: four tool windows come together into the logo — once
