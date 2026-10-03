@@ -9,7 +9,7 @@ import json, os
 import landings as L
 
 ROOT, SITE, e, ld = L.ROOT, L.SITE, L.e, L.ld
-V = "17"
+V = "18"
 
 # Home template wall: (photo template id, name, format, width, height, drawn fallback id) in three columns.
 # The photo previews are rendered in CI by tpl_previews.py; a slot whose preview is missing shows its fallback.
@@ -479,6 +479,7 @@ def build():
   <p class="ft-copy"><span>© Graphican · graphican.online</span><span>{soc_h}</span></p>
 </footer>
 """
+    intro_logo = open(os.path.join(os.path.dirname(__file__), "logo_word.svg"), encoding="utf-8").read().replace(' role="img" aria-label="Graphican"', "")   # the wordmark as letter outlines (from ibrand.otf), drawn on first visit
     html = f"""<!DOCTYPE html>
 <html lang="mn">
 <head>
@@ -508,8 +509,10 @@ def build():
 <link rel="preload" href="/assets/fonts/web/Inter-Regular.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/assets/fonts/web/fonts.css">
 <link rel="stylesheet" href="/assets/home.css?v={V}">
+<script>try{{if(!sessionStorage.getItem('gi')&&!matchMedia('(prefers-reduced-motion: reduce)').matches){{document.documentElement.className+=' intro';sessionStorage.setItem('gi','1')}}}}catch(e){{}}</script>
 </head>
 <body class="home-page">
+<div class="gin" aria-hidden="true"><i></i>{intro_logo}</div>
 <a class="skip" href="#main">Агуулга руу очих</a>
 <i class="sp-bar" aria-hidden="true"></i>
 <nav class="rail" id="rail" aria-label="Хуудасны хэсгүүд"></nav>
