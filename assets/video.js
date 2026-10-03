@@ -1291,7 +1291,7 @@
     ROWS.forEach(function (r) {
       var k = r[0], items = rowItems(k), maxLn = -1;
       items.forEach(function (it) { maxLn = Math.max(maxLn, it.ln || 0); });
-      var n = Math.max(1, maxLn + 1 + (drag && drag.k === k && drag.moved && !drag.h ? 1 : 0));
+      var n = Math.max(1, maxLn + 1);
       geo[k] = { top: top, n: n };
       var out = '<div class="vtl-row lanes r-' + k + '" style="left:' + p + 'px;top:' + top + 'px;width:' + (D * pps) + 'px;height:' + (n * LH) + 'px">';
       for (var li = 1; li < n; li++) out += '<i class="lsep" style="top:' + (li * LH) + 'px"></i>';
@@ -1325,7 +1325,12 @@
   // pointer: tap selects; handles trim; a selected bar drags (texts / overlays / music along the time line, clips change order);
   // the mouse can drag empty timeline to scrub; edges snap (magnet) to the playhead, other edges and markers
   var drag = null, scrub = null, tlRaf = 0;
-  function tlQ() { if (!tlRaf) tlRaf = requestAnimationFrame(function () { tlRaf = 0; renderTL(); draw(); }); }
+  function tlQ() { if (!tlRaf) tlRaf = requestAnimationFrame(function () { tlRaf = 0; renderTL(); draw(); if (drag && drag.moved && drag.k !== 'clip' && drag.k !== 'trd') keepBarSeen(); }); }
+  function keepBarSeen() {
+    var el = tl.querySelector('.it.on'); if (!el) return;
+    var r = el.getBoundingClientRect(), R = scroller.getBoundingClientRect();
+    if (r.bottom > R.bottom) scroller.scrollTop += r.bottom - R.bottom + 4; else if (r.top < R.top + 20) scroller.scrollTop -= R.top + 20 - r.top;
+  }
   function snapPoints(exId) {
     var pts = [0, T], s = 0;
     P.clips.forEach(function (c) { if (c.id !== exId) pts.push(s); s += clipLen(c); }); pts.push(s);
@@ -1388,10 +1393,11 @@
       drag.el.classList.add('lift');
     }
     var o = find(drag.k, drag.id), s = JSON.parse(drag.snap), d = dx / pps; if (!o) return;
-    // up / down: another lane (an empty one appears on top while dragging)
-    if (!drag.h && drag.k !== 'clip' && geo[drag.k]) {
-      var g = geo[drag.k], ty = e.clientY - tl.getBoundingClientRect().top, row = Math.floor((ty - g.top) / laneH());
-      o.ln = clamp(g.n - 1 - row, 0, g.n - 1);
+    // up / down: another lane, counted from where the drag began (so a sideways drag never changes it); at most one lane above the others.
+    // The row must not grow under the pointer while dragging: that pushed the bar down a lane on every frame until it left the screen.
+    if (!drag.h && drag.k !== 'clip') {
+      if (drag.top == null) { drag.top = -1; rowItems(drag.k).forEach(function (x) { if (x.id !== drag.id) drag.top = Math.max(drag.top, x.ln || 0); }); }
+      o.ln = clamp((s.ln || 0) + Math.round(-dy / laneH()), 0, drag.top + 1);
     }
     var pts = drag.pts || (drag.pts = snapPoints(drag.id)), hit = null;
     function sn(t) { var r = snapTo(t, pts); if (r != null) { hit = r; return r; } return t; }
