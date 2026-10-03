@@ -8,11 +8,12 @@ file to the PDF editor (/tools/pdfedit/?do=<action>), 3 steps, features, FAQ,
 JSON-LD (WebPage + BreadcrumbList + WebApplication + FAQPage) and links to
 every other tool page.  Run by prerender.py (also usable on its own).
 """
+import chrome as C
 import html, json, os, re
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 SITE = "https://graphican.online"
-V = "7"  # landing.css / landing.js cache version
+V = "8"  # landing.css / landing.js cache version
 
 PDF = ".pdf,application/pdf"
 IMG = "image/*,.heic,.heif,.tif,.tiff,.webp,.avif"
@@ -293,10 +294,7 @@ def strip(s):
 
 
 def header_html():
-    t = open(os.path.join(ROOT, "tools", "upscale", "index.html"), encoding="utf-8").read()
-    h = re.search(r'<header class="header".*?</header>', t, re.S).group(0)
-    h = h.replace('class="dm-item on"', 'class="dm-item"').replace(' aria-current="page"', "")
-    return h.replace('<details class="dmenu active">', '<details class="dmenu">')
+    return C.header()
 
 
 def ld(obj):
@@ -366,62 +364,65 @@ def page(p, header):
 <link rel="stylesheet" href="/assets/fonts/web/fonts.css">
 <link rel="stylesheet" href="/assets/style.css?v=36">
 <link rel="stylesheet" href="/assets/design.css?v=35">
+{C.CSS}
 <link rel="stylesheet" href="/assets/landing.css?v={V}">
 </head>
 <body class="design-page lp-page">
 
 {header}
+<div class="sp-bar" aria-hidden="true"></div>
+{C.LIGHT}
 
 <main class="lp">
   <nav class="lp-crumbs" aria-label="Breadcrumb"><a href="/">Graphican</a><span>/</span><a href="/tools/">Design tools</a><span>/</span><span aria-current="page">{e(p['h1'])}</span></nav>
 
-  <section class="lp-hero">
-    <p class="lp-kicker">ҮНЭГҮЙ · БҮРТГЭЛГҮЙ · ОНЛАЙН</p>
-    <h1>{e(p['h1'])}</h1>
-    <p class="lp-lead">{e(p['lead'])}</p>
-    <label class="lp-drop" id="lp-drop" data-do="{e(p['do'])}">
+  <section class="lp-hero two">
+    <div class="lp-copy">
+      <p class="lp-kicker">Үнэгүй · Бүртгэлгүй · Онлайн</p>
+      <h1 data-words>{e(p['h1'])}</h1>
+      <p class="lp-lead">{e(p['lead'])}</p>
+      <ul class="lp-trust"><li>Бүрэн үнэгүй</li><li>Бүртгэл шаардахгүй</li><li>Усан тэмдэггүй</li><li>Утсан дээр ажиллана</li></ul>
+    </div>
+    <label class="lp-drop gc" id="lp-drop" data-do="{e(p['do'])}">
       <input type="file" id="lp-file" accept="{e(p['accept'])}"{' multiple' if multi else ''} hidden>
       <span class="lp-drop-ic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 16V4m0 0L7 9m5-5 5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
       <span class="lp-btn">{'Файлуудаа сонгох' if multi else 'Файлаа сонгох'}</span>
       <span class="lp-drop-s">эсвэл энд чирж оруулна уу</span>
     </label>
-    <ul class="lp-trust"><li>Бүрэн үнэгүй</li><li>Бүртгэл шаардахгүй</li><li>Усан тэмдэггүй</li><li>Утсан дээр ажиллана</li></ul>
   </section>
 
-  <section class="lp-sec">
-    <h2>{e(p['h1'])} — 3 алхам</h2>
-    <ol class="lp-steps">{steps}</ol>
+  <section class="lp-sec split">
+    <h2 data-words data-sp>{e(p['h1'])} — 3 алхам</h2>
+    <ol class="lp-steps" data-sp data-stagger="3">{steps}</ol>
   </section>
 
-  <section class="lp-sec">
-    <h2>Боломжууд</h2>
-    <ul class="lp-feats">{feats}</ul>
+  <section class="lp-sec split">
+    <h2 data-words data-sp>Боломжууд</h2>
+    <ul class="lp-feats rv">{feats}</ul>
   </section>
 
-  <section class="lp-sec">
-    <h2>Түгээмэл асуултууд</h2>
-    <div class="lp-faq">{faq}</div>
+  <section class="lp-sec split">
+    <h2 data-words data-sp>Түгээмэл асуултууд</h2>
+    <div class="lp-faq rv">{faq}</div>
   </section>
 
-  <section class="lp-sec">
-    <h2>Холбоотой хэрэгслүүд</h2>
-    <div class="lp-cards">{relh}</div>
+  <section class="lp-sec split">
+    <h2 data-words data-sp>Холбоотой хэрэгслүүд</h2>
+    <div class="lp-cards rv">{relh}</div>
   </section>
 
-  <section class="lp-sec lp-all">
-    <h2>Бүх үнэгүй хэрэгслүүд</h2>
-    <div class="lp-links">{allh}</div>
+  <section class="lp-sec split lp-all">
+    <h2 data-words data-sp>Бүх үнэгүй хэрэгслүүд</h2>
+    <div class="lp-links rv">{allh}</div>
   </section>
 </main>
 
-<footer class="lp-foot">
-  <p><a href="/">Graphican</a> — брэндинг, digital design, видео. Эдгээр хэрэгслийг дизайнер Анхбаяр бүтээж, хүн бүрт үнэгүй нээлттэй болгосон.</p>
-  <p><a href="/about/#work">Ажлууд</a> · <a href="/design/">Design guide</a> · <a href="/tools/">Design tools</a> · <a href="/about/#contact">Хамтран ажиллах</a> · <a href="/support/">Дэмжих</a> · <a href="/privacy/">Нууцлал</a> · <a href="/terms/">Нөхцөл</a></p>
-</footer>
+{C.footer(TRANSLATE_ON)}
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <script src="/assets/handoff.js?v=35"></script>
 <script src="/assets/landing.js?v={V}"></script>
+{C.JS}
 </body>
 </html>
 """

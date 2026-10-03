@@ -8,9 +8,10 @@ Run by prerender.py (or on its own).
 """
 import json, os, re
 import landings as L
+import chrome as C
 
 ROOT, SITE, e, ld = L.ROOT, L.SITE, L.e, L.ld
-V = "10"
+V = "11"
 TPL_V = "13"      # assets/templates.js ('path' items for the decks)
 KIT_V = "11"       # assets/slides-kit.js — «Элемент» tab in /editor/ and /slides/ (charts only in /slides/); keep editor/index.html in step
 
@@ -196,29 +197,30 @@ def render(p, header):
 <link rel="stylesheet" href="/assets/fonts/web/fonts.css">
 <link rel="stylesheet" href="/assets/style.css?v=36">
 <link rel="stylesheet" href="/assets/design.css?v=35">
+{C.CSS}
 <link rel="stylesheet" href="/assets/landing.css?v={L.V}">
 <link rel="stylesheet" href="/assets/apps.css?v={V}">
 </head>
 <body class="design-page lp-page app-page">
 
 {header}
+<div class="sp-bar" aria-hidden="true"></div>
+{C.LIGHT}
 
 <main class="lp lp-app">
   <nav class="lp-crumbs" aria-label="Breadcrumb"><a href="/">Graphican</a><span>/</span><a href="/tools/">Design tools</a><span>/</span><span aria-current="page">{e(p['name'])}</span></nav>
-{p['body']}
-  <section class="lp-sec lp-all">
-    <h2>Бусад үнэгүй хэрэгслүүд</h2>
-    <div class="lp-links">{others}</div>
+{p['body'].replace('<h1>', '<h1 data-words>')}
+  <section class="lp-sec split lp-all">
+    <h2 data-words data-sp>Бусад үнэгүй хэрэгслүүд</h2>
+    <div class="lp-links rv">{others}</div>
   </section>
 </main>
 
-<footer class="lp-foot">
-  <p><a href="/">Graphican</a> — брэндинг, digital design, видео. Эдгээр хэрэгслийг дизайнер Анхбаяр бүтээж, хүн бүрт үнэгүй нээлттэй болгосон.</p>
-  <p><a href="/about/#work">Ажлууд</a> · <a href="/design/">Design guide</a> · <a href="/tools/">Design tools</a> · <a href="/about/#contact">Хамтран ажиллах</a> · <a href="/support/">Дэмжих</a> · <a href="/privacy/">Нууцлал</a> · <a href="/terms/">Нөхцөл</a></p>
-</footer>
+{C.footer(L.TRANSLATE_ON)}
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <script src="/assets/landing.js?v={L.V}"></script>
+{C.JS}
 {scripts}
 </body>
 </html>
