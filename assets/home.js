@@ -141,6 +141,8 @@
       for (var i = 0; i < live.length; i++) {
         var el = live[i], r = el.getBoundingClientRect();
         if (el.getAttribute('data-sp') === 'exit') { put(el, '--hp', Math.max(0, Math.min(1, -r.top / (r.height * 0.75)))); continue; }
+        // pinned story: --t runs 0 → 1 while the tall section scrolls past its sticky scene; data-st is the step shown beside it
+        if (el.getAttribute('data-sp') === 'pin') { var tt = Math.max(0, Math.min(1, -r.top / Math.max(1, r.height - vh))); put(el, '--t', tt); pinStep(el, tt); continue; }
         // --p reaches 1 when the element's top is 38% down the screen (or it is fully on screen, whichever comes first)
         var need = Math.min(vh * 0.62, r.height + vh * 0.12);
         put(el, '--p', Math.max(0, Math.min(1, (vh - r.top) / need)));
@@ -148,9 +150,10 @@
       }
     };
     var kick = function () { if (!sraf) sraf = requestAnimationFrame(frame); };
-    sps.forEach(function (el) { el.style.setProperty(el.getAttribute('data-sp') === 'exit' ? '--hp' : '--p', 0); });
+    var pinStep = function (el, tt) { var st = tt < 0.25 ? 0 : tt < 0.5 ? 1 : tt < 0.78 ? 2 : 3; if (el._st !== st) { el._st = st; el.setAttribute('data-st', st); } };
+    sps.forEach(function (el) { var m = el.getAttribute('data-sp'); el.style.setProperty(m === 'exit' ? '--hp' : m === 'pin' ? '--t' : '--p', 0); if (m === 'pin') { root.classList.add('pin'); pinStep(el, 0); } });
     var lo = new IntersectionObserver(function (en) {
-      en.forEach(function (e) { var k = live.indexOf(e.target); if (e.isIntersecting && k < 0) live.push(e.target); else if (!e.isIntersecting && k >= 0) { live.splice(k, 1); if (e.target.getAttribute('data-sp') !== 'exit' && e.boundingClientRect.top < 0) { put(e.target, '--p', 1); } } });
+      en.forEach(function (e) { var k = live.indexOf(e.target); if (e.isIntersecting && k < 0) live.push(e.target); else if (!e.isIntersecting && k >= 0) { live.splice(k, 1); if (e.target.getAttribute('data-sp') === 'pin') { var end = e.boundingClientRect.top < 0 ? 1 : 0; put(e.target, '--t', end); pinStep(e.target, end); } else if (e.target.getAttribute('data-sp') !== 'exit' && e.boundingClientRect.top < 0) { put(e.target, '--p', 1); } } });
       kick();
     }, { rootMargin: '15% 0px 15% 0px' });
     sps.forEach(function (el) { lo.observe(el); });
