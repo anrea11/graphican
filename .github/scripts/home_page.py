@@ -279,8 +279,10 @@ def build():
     cl = d.get("clients") or {}
     logo_strip = ""
     if logos:
-        logo_strip = ('<section class="lg rv" id="clients" aria-labelledby="lg-t"><p id="lg-t">' + e(cl.get("title") or "Хамтран ажилласан байгууллагууд") + '</p><div class="lg-row">' +
-                      "".join(f'<span class="lg-i"><img src="{e(thumb(x["logo"]))}" alt="{e(x.get("name", ""))}" loading="lazy" decoding="async"></span>' for x in logos) + '</div></section>')
+        logo_strip = ('<section class="lg rv" id="clients" aria-labelledby="lg-t"><p id="lg-t">' + e(cl.get("title") or "Хамтран ажилласан байгууллагууд") + '</p><div class="lg-vp"><div class="lg-row">' +
+                      "".join(f'<span class="lg-i"><img src="{e(thumb(x["logo"]))}" alt="{e(x.get("name", ""))}" loading="lazy" decoding="async"></span>' for x in logos) +
+                      # a second copy: only shown on phones, where the row runs sideways as one line
+                      "".join(f'<span class="lg-i dup" aria-hidden="true"><img src="{e(thumb(x["logo"]))}" alt="" loading="lazy" decoding="async"></span>' for x in logos) + '</div></div></section>')
 
     header = f"""<header class="gh header" id="gh">
   <a class="gh-logo" href="/" aria-label="Graphican — нүүр">Graphican</a>
