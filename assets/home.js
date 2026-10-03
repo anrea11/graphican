@@ -127,6 +127,74 @@
     }
   }
 
+  // ---------- scroll-linked motion: --p (coming in), --q (passing through) on [data-sp]; --hp on the hero; --sp page progress ----------
+  // headings are split into words so they can sharpen one by one (not in EN mode: the translator works on whole text nodes)
+  var enMode = root.getAttribute('data-lang') === 'en';
+  $$('.sh h2, .mn-copy h2, .fin h2').forEach(function (h) {
+    h.setAttribute('data-sp', '');
+    if (enMode) { h.classList.add('one'); return; }
+    var n = 0;
+    Array.prototype.slice.call(h.childNodes).forEach(function (node) {
+      if (node.nodeType === 3) {
+        var f = doc.createDocumentFragment();
+        node.nodeValue.split(/(\s+)/).forEach(function (part) {
+          if (!part) return;
+          if (/^\s+$/.test(part)) { f.appendChild(doc.createTextNode(' ')); return; }
+          var w = doc.createElement('span'); w.className = 'wd'; w.style.setProperty('--i', n++); w.textContent = part; f.appendChild(w);
+        });
+        h.replaceChild(f, node);
+      } else if (node.nodeType === 1 && node.tagName !== 'BR') { node.classList.add('wd'); node.style.setProperty('--i', n++); }
+    });
+    h.style.setProperty('--n', n);
+  });
+  $$('.tg .tc').forEach(function (c, i) { c.style.setProperty('--i', i < 4 ? i % 2 : (i - 4) % 3); });
+  $$('.fin-btns .fb').forEach(function (b, i) { b.style.setProperty('--i', i); });
+  var sps = $$('[data-sp]');
+  if (calm || !('IntersectionObserver' in window)) sps.forEach(function (el) { el.style.setProperty('--p', 1); el.style.setProperty('--q', 0.5); });
+  else {
+    var live = [], sraf = 0, bar = $('.sp-bar');
+    var put = function (el, k, v) { v = v.toFixed(3); if (el['_' + k] !== v) { el['_' + k] = v; el.style.setProperty(k, v); } };
+    var frame = function () {
+      sraf = 0; var vh = window.innerHeight, max = doc.documentElement.scrollHeight - vh;
+      if (bar) put(root, '--sp', max > 0 ? Math.min(1, window.scrollY / max) : 0);
+      for (var i = 0; i < live.length; i++) {
+        var el = live[i], r = el.getBoundingClientRect();
+        if (el.getAttribute('data-sp') === 'exit') { put(el, '--hp', Math.max(0, Math.min(1, -r.top / (r.height * 0.75)))); continue; }
+        // --p reaches 1 when the element's top is 38% down the screen (or it is fully on screen, whichever comes first)
+        var need = Math.min(vh * 0.62, r.height + vh * 0.12);
+        put(el, '--p', Math.max(0, Math.min(1, (vh - r.top) / need)));
+        put(el, '--q', Math.max(0, Math.min(1, (vh - r.top) / (vh + r.height))));
+      }
+    };
+    var kick = function () { if (!sraf) sraf = requestAnimationFrame(frame); };
+    sps.forEach(function (el) { el.style.setProperty(el.getAttribute('data-sp') === 'exit' ? '--hp' : '--p', 0); });
+    var lo = new IntersectionObserver(function (en) {
+      en.forEach(function (e) { var k = live.indexOf(e.target); if (e.isIntersecting && k < 0) live.push(e.target); else if (!e.isIntersecting && k >= 0) { live.splice(k, 1); if (e.target.getAttribute('data-sp') !== 'exit' && e.boundingClientRect.top < 0) { put(e.target, '--p', 1); } } });
+      kick();
+    }, { rootMargin: '15% 0px 15% 0px' });
+    sps.forEach(function (el) { lo.observe(el); });
+    window.addEventListener('scroll', kick, { passive: true }); window.addEventListener('resize', kick);
+    kick();
+  }
+
+  // ---------- pointer: a light that follows it in the hero / final section, and a glow on the card under it ----------
+  if (fine && !calm) {
+    var CARD = '.tc, .fb, .ht-review, .ql a, .dk a, .collab', pe = null, praf = 0, lastCard = null, lastSec = null;
+    var pframe = function () {
+      praf = 0; if (!pe) return;
+      var t = pe.target && pe.target.closest ? pe.target : null, card = t && t.closest(CARD), sec = t && t.closest('.hero, .fin'), r;
+      if (card !== lastCard) { if (lastCard) lastCard.classList.remove('gl-on'); if (card) card.classList.add('gl-on'); lastCard = card; }
+      if (card) { r = card.getBoundingClientRect(); card.style.setProperty('--gx', (pe.clientX - r.left).toFixed(0) + 'px'); card.style.setProperty('--gy', (pe.clientY - r.top).toFixed(0) + 'px'); }
+      if (sec !== lastSec) { if (lastSec) lastSec.classList.remove('lit'); if (sec) sec.classList.add('lit'); lastSec = sec; }
+      if (sec) {
+        r = sec.getBoundingClientRect(); sec.style.setProperty('--mx', (pe.clientX - r.left).toFixed(0) + 'px'); sec.style.setProperty('--my', (pe.clientY - r.top).toFixed(0) + 'px');
+        if (sec.classList.contains('fin')) sec.style.setProperty('--fx', ((pe.clientX - r.left) / r.width).toFixed(3));
+      }
+    };
+    doc.addEventListener('pointermove', function (e) { if (e.pointerType === 'touch') return; pe = e; if (!praf) praf = requestAnimationFrame(pframe); }, { passive: true });
+    doc.documentElement.addEventListener('pointerleave', function () { if (lastCard) lastCard.classList.remove('gl-on'); if (lastSec) lastSec.classList.remove('lit'); lastCard = lastSec = null; });
+  }
+
   // final CTA: four tool windows come together into the logo — once
   var fa = $('#fin-anim'), fdone = false;
   seen(fa, function (v) { if (v && !fdone) { fdone = true; fa.classList.add('in'); } }, { threshold: 0.6 });

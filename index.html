@@ -26,10 +26,11 @@
 <link rel="preload" href="/assets/fonts/web/InterTight-Bold.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/assets/fonts/web/Inter-Regular.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/assets/fonts/web/fonts.css">
-<link rel="stylesheet" href="/assets/home.css?v=11">
+<link rel="stylesheet" href="/assets/home.css?v=12">
 </head>
 <body class="home-page">
 <a class="skip" href="#main">Агуулга руу очих</a>
+<i class="sp-bar" aria-hidden="true"></i>
 <header class="gh header" id="gh">
   <a class="gh-logo" href="/" aria-label="Graphican — нүүр">Graphican</a>
   <nav class="gh-nav" id="gh-nav" aria-label="Үндсэн цэс">
@@ -42,9 +43,10 @@
 <main class="hp" id="main">
 
   <!-- 01 HERO -->
-  <section class="hero" id="top">
+  <section class="hero" id="top" data-sp="exit">
     <div class="fxl" aria-hidden="true"><i class="beam"></i><svg viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice"><circle cx="-120" cy="-380" r="900"/><circle cx="1620" cy="1500" r="1050"/></svg></div>
     <div class="grid-bg" aria-hidden="true"></div>
+    <i class="cur" aria-hidden="true"></i>
     <div class="hero-in">
       <div class="hero-copy">
         <h1 aria-label="Хэрэгтэйгээ шууд бүтээ."><span aria-hidden="true"><span class="nw"><span class="bl" style="--b:3">Х</span><span class="bl" style="--b:2.2">э</span><span class="bl" style="--b:1.4">р</span><span class="bl" style="--b:0.7">э</span><span class="bl" style="--b:0">г</span>тэйгээ</span><br><span class="nw">шууд бүтээ.</span></span></h1>
@@ -123,12 +125,14 @@
     </div>
   </section>
 
+  <section class="lg rv" id="clients" aria-labelledby="lg-t"><p id="lg-t">Хамтран ажилласан байгууллагууд</p><div class="lg-row"><span class="lg-i"><img src="/assets/uploads/_t/munkh-energy-logo.png.webp" alt="Munkh Energy" loading="lazy" decoding="async"></span><span class="lg-i"><img src="/assets/uploads/_t/way-academy-logo.png.webp" alt="Way Academy" loading="lazy" decoding="async"></span><span class="lg-i"><img src="/assets/uploads/_t/protech-logo.png.webp" alt="Protech" loading="lazy" decoding="async"></span><span class="lg-i"><img src="/assets/uploads/_t/nomadabe-logo-white.png.webp" alt="Nomadabe" loading="lazy" decoding="async"></span><span class="lg-i"><img src="/assets/uploads/_t/novanest-logo.png.webp" alt="Novanest" loading="lazy" decoding="async"></span><span class="lg-i"><img src="/assets/uploads/_t/edusmart-logo.png.webp" alt="EduSmart" loading="lazy" decoding="async"></span><span class="lg-i"><img src="/assets/uploads/_t/prelov-logo.png.webp" alt="Prelov" loading="lazy" decoding="async"></span><span class="lg-i"><img src="/assets/uploads/_t/butafter-logo.png.webp" alt="ButAfter" loading="lazy" decoding="async"></span><span class="lg-i"><img src="/assets/uploads/_t/tru-logo.png.webp" alt="Tru" loading="lazy" decoding="async"></span></div></section>
+
   <!-- 02 MAIN 4 EDITORS -->
   <section class="sec tsw" id="switch">
     <header class="sh rv "><h2>Юу хийх хэрэгтэй вэ?</h2><p class="sh-s">Хэрэгтэй зүйлээ сонгоод шууд эхэл.</p></header>
     <div class="tsw-in rv">
       <div class="tsw-list" role="tablist" aria-label="Хэрэгсэл"><div class="tsw-item on" data-tool="design"><button type="button" class="tsw-tab" role="tab" id="tsw-t-design" aria-selected="true" aria-controls="tsw-panel"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20l4.5-1 10-10-3.5-3.5-10 10z"/><path d="M13.5 7l3.5 3.5"/></svg><span>Design editor</span></button><div class="tsw-body"><p>Постер, сошиал дизайн, зарлал болон бусад контентоо browser дээрээсээ бүтээ.</p><a class="bt txt" href="/editor/"><span>Design хийх</span><i aria-hidden="true">→</i></a></div></div><div class="tsw-item" data-tool="pdf"><button type="button" class="tsw-tab" role="tab" id="tsw-t-pdf" aria-selected="false" aria-controls="tsw-panel"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg><span>PDF editor</span></button><div class="tsw-body"><p>PDF-ээ зас, хөрвүүл, нэгтгэ.</p><a class="bt txt" href="/tools/pdfedit/"><span>PDF хэрэгсэл</span><i aria-hidden="true">→</i></a></div></div><div class="tsw-item" data-tool="ppt"><button type="button" class="tsw-tab" role="tab" id="tsw-t-ppt" aria-selected="false" aria-controls="tsw-panel"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M12 16v4M8 20h8"/></svg><span>PPT editor</span></button><div class="tsw-body"><p>Танилцуулгаа эхнээс нь эсвэл бэлэн загвараас бүтээ.</p><a class="bt txt" href="/slides/"><span>PPT хийх</span><i aria-hidden="true">→</i></a></div></div><div class="tsw-item" data-tool="video"><button type="button" class="tsw-tab" role="tab" id="tsw-t-video" aria-selected="false" aria-controls="tsw-panel"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="13" height="14" rx="2"/><path d="m16 10 5-3v10l-5-3z"/></svg><span>Video editor</span></button><div class="tsw-body"><p>Бичлэгээ хурдан засаж, нийтлэхэд бэлэн контент болго.</p><a class="bt txt" href="/video/"><span>Video засах</span><i aria-hidden="true">→</i></a></div></div></div>
-      <div class="tsw-vis" id="tsw-panel" role="tabpanel" aria-labelledby="tsw-t-design"><div class="gw gw--lg" data-gw data-tool="design" aria-hidden="true">
+      <div class="tsw-vis" id="tsw-panel" data-sp role="tabpanel" aria-labelledby="tsw-t-design"><div class="gw gw--lg" data-gw data-tool="design" aria-hidden="true">
   <div class="gw-bar"><span class="gw-dots"><i></i><i></i><i></i></span>
     <span class="gw-name"><b data-t="design">Постер · Design editor</b><b data-t="pdf">Гэрээ.pdf · PDF editor</b><b data-t="ppt">Танилцуулга · PPT editor</b><b data-t="video">Reel · Video editor</b></span>
     <span class="gw-act an" style="--a:kPulse;--s:5"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11m-4.5-4.5L12 15l4.5-4.5M5 19h14"/></svg>Татах</span></div>
@@ -202,7 +206,7 @@
   </section>
 
   <!-- 04 MONGOLIAN ADVANTAGE -->
-  <section class="sec mn" id="mongol">
+  <section class="sec mn" id="mongol" data-sp>
     <div class="mn-in">
       <div class="mn-copy rv">
         <h2>Монгол контентод<br>зориулсан.</h2>
@@ -234,9 +238,10 @@
   </section>
 
   <!-- 07 FINAL CTA -->
-  <section class="sec fin" id="start">
-    <div class="fxl" aria-hidden="true"><i class="beam"></i><svg viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice"><circle cx="720" cy="1700" r="1150"/></svg></div>
+  <section class="sec fin" id="start" data-sp>
+    <div class="fxl" aria-hidden="true"><i class="beam"></i><svg viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice"><circle cx="720" cy="1700" r="1150" pathLength="1"/><circle cx="720" cy="1900" r="1150" pathLength="1"/></svg></div>
     <div class="grid-bg" aria-hidden="true"></div>
+    <span class="fin-bloom" aria-hidden="true"><i class="rays"></i><i class="halo"></i><i class="core"></i><i class="line"></i></span><i class="cur" aria-hidden="true"></i>
     <div class="fin-anim" id="fin-anim" aria-hidden="true"><i class="w1"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20l4.5-1 10-10-3.5-3.5-10 10z"/><path d="M13.5 7l3.5 3.5"/></svg></i><i class="w2"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg></i><i class="w3"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M12 16v4M8 20h8"/></svg></i><i class="w4"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="13" height="14" rx="2"/><path d="m16 10 5-3v10l-5-3z"/></svg></i><b>Graphican</b></div>
     <h2 class="rv">Хийх зүйлээ<br>эхлүүл.</h2>
     <div class="fin-btns rv">
@@ -266,7 +271,7 @@
   <p class="ft-copy"><span>© Graphican · graphican.online</span><span><a href="https://www.instagram.com/bayraara?stkn=MXB1eXNoNWF3aTlpaA==" target="_blank" rel="noopener me">Instagram</a> · <a href="https://www.facebook.com/anrea11" target="_blank" rel="noopener me">Facebook</a> · <a href="https://www.behance.net/anrea01" target="_blank" rel="noopener me">Behance</a></span></p>
 </footer>
 
-<script src="/assets/home.js?v=11" defer></script>
+<script src="/assets/home.js?v=12" defer></script>
 <script src="/assets/home-trust.js?v=2" defer></script>
 </body>
 </html>

@@ -120,7 +120,7 @@ body::after { content:""; position:fixed; inset:0; z-index:90; pointer-events:no
 .fxl svg { position:absolute; inset:0; width:100%; height:100%; }
 .fxl circle { fill:none; stroke:rgba(255,255,255,.22); stroke-width:1; vector-effect:non-scaling-stroke; }
 .fin .fxl .beam { top:38%; opacity:.38; }
-.hero-vis .gw { transform:translate3d(calc(var(--px, 0) * 8px), calc(var(--py, 0) * 8px), 0); transition:transform .5s var(--ease); }
+.hero-vis .gw { transform:translate3d(calc(var(--px, 0) * 8px), calc(var(--py, 0) * 8px), 0); transition:transform .25s var(--ease); }
 .hero-tabs { position:relative; z-index:2; margin-top:16px; display:flex; flex-wrap:wrap; gap:8px; justify-content:center; transform:translate3d(calc(var(--px, 0) * -6px), calc(var(--py, 0) * -6px), 0); transition:transform .5s var(--ease); }
 .hero-tabs button { display:inline-flex; align-items:center; gap:8px; height:40px; padding:0 15px 0 12px; border-radius:999px; border:1px solid var(--line2); background:rgba(12,14,20,.8); font-size:13.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--mut); transition:color var(--t-fast), border-color var(--t-fast), background var(--t-fast); }
 .hero-tabs svg { width:16px; height:16px; }
@@ -513,3 +513,107 @@ body::after { content:""; position:fixed; inset:0; z-index:90; pointer-events:no
   .hero-vis .gw, .hero-tabs, .tp-track { transform:none !important; }
 }
 @media (max-width:480px) { .hero-tabs { gap:6px; flex-wrap:nowrap; } .hero-tabs button { height:36px; padding:0 10px 0 8px; gap:5px; font-size:11.5px; letter-spacing:.04em; } .hero-tabs svg { width:14px; height:14px; } }
+
+/* ---------- scroll-linked motion (home.js sets --p: 0 → 1 as an element comes in, --q: 0 → 1 as it passes through, --hp: hero leaving).
+   Every rule falls back to the finished state, so the page is complete without the script. ---------- */
+.sp-bar { position:fixed; left:0; right:0; top:0; z-index:70; height:2px; background:var(--grad); transform-origin:left; transform:scaleX(var(--sp, 0)); pointer-events:none; }
+/* hero drifts apart as you leave it */
+.hero-copy { transform:translate3d(0, calc(var(--hp, 0) * -70px), 0); opacity:calc(1 - var(--hp, 0) * 1.25); }
+.hero-vis .gw { transform:translate3d(calc(var(--px, 0) * 8px), calc(var(--py, 0) * 8px + var(--hp, 0) * 50px), 0) scale(calc(1 - var(--hp, 0) * .1)); opacity:calc(1 - var(--hp, 0) * .7); }
+.hero-tabs { opacity:calc(1 - var(--hp, 0) * 2); }
+.hero .fxl .beam { translate:0 calc(var(--hp, 0) * 16vmax); }
+.hero .fxl svg { transform:rotate(calc(var(--hp, 0) * 5deg)) scale(calc(1 + var(--hp, 0) * .08)); }
+/* headings: words go from soft to sharp, one after another */
+.wd { display:inline-block; --w:clamp(0, (var(--p, 1) * (var(--n, 1) + 2) - var(--i, 0)) / 2, 1);
+  filter:blur(calc((1 - var(--w)) * .16em)); opacity:calc(.18 + var(--w) * .82); transform:translate3d(0, calc((1 - var(--w)) * .22em), 0); }
+h2.one { filter:blur(calc((1 - var(--p, 1)) * .12em)); opacity:calc(.2 + var(--p, 1) * .8); }
+.js .sh.rv { opacity:1; transform:none; }
+/* the editor window rises from a tilt */
+.tsw-vis { perspective:1400px; }
+.tsw-vis .gw { transform-origin:50% 100%; transform:translate3d(0, calc((1 - var(--p, 1)) * 70px), 0) rotateX(calc((1 - var(--p, 1)) * 16deg)) scale(calc(.9 + var(--p, 1) * .1)); opacity:calc(.35 + var(--p, 1) * .65); }
+/* tool cards come in row by row */
+.js .tc.rv { transition-delay:0s, 0s, calc(var(--i, 0) * 80ms), calc(var(--i, 0) * 80ms); }
+.js .tc.rv:not(.in) { transform:translateY(34px) scale(.97); }
+/* the light Mongolian panel opens out of the dark page; the type rows slide against each other with the scroll */
+.mn { clip-path:inset(calc((1 - var(--p, 1)) * 7%) calc((1 - var(--p, 1)) * 6%) 0 round calc((1 - var(--p, 1)) * 56px)); }
+.mn-copy { transform:translate3d(0, calc((1 - var(--p, 1)) * 40px), 0); }
+.fw-row { transform:translate3d(calc((var(--q, .5) - .5) * -180px), 0, 0); }
+.fw-row.r1 { transform:translate3d(calc((var(--q, .5) - .5) * 180px), 0, 0); }
+/* final section: the hairlines draw themselves */
+.fin .fxl circle { vector-effect:none; stroke-dasharray:1; stroke-dashoffset:calc((1 - var(--p, 1)) * .5); stroke:rgba(255,255,255,.3); }
+.fin .fxl svg { transform:rotate(calc((1 - var(--p, 1)) * -6deg)); }
+.fin .fxl .beam { translate:0 calc((1 - var(--p, 1)) * 14vmax); }
+.fin-btns .fb { transform:translate3d(0, calc((1 - var(--p, 1)) * (30px + var(--i, 0) * 16px)), 0); opacity:calc(var(--p, 1) * 1.4 - var(--i, 0) * .1); }
+@media (max-width:900px) {
+  .tsw-vis .gw { transform:translate3d(0, calc((1 - var(--p, 1)) * 40px), 0) scale(calc(.94 + var(--p, 1) * .06)); }
+  .fw-row, .fw-row.r1 { transform:translate3d(calc((var(--q, .5) - .5) * -90px), 0, 0); } .fw-row.r1 { transform:translate3d(calc((var(--q, .5) - .5) * 90px), 0, 0); }
+}
+@media (prefers-reduced-motion:reduce) {
+  .sp-bar { display:none; }
+  .wd, h2.one, .hero-copy, .hero-tabs, .mn-copy, .fw-row, .fin-btns .fb, .tsw-vis .gw { filter:none !important; opacity:1 !important; transform:none !important; }
+  .mn { clip-path:none; } .fin .fxl circle { stroke-dashoffset:0; }
+}
+
+/* ---------- client logos: one quiet row under the hero ---------- */
+.lg { position:relative; z-index:1; max-width:var(--max); margin:0 auto; padding:clamp(8px, 2vw, 24px) var(--pad) clamp(24px, 4vw, 48px); text-align:center; }
+.lg p { font-size:13.5px; color:var(--dim); margin-bottom:22px; }
+.lg-row { display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:22px clamp(20px, 2.6vw, 34px); }
+.lg-i { display:flex; align-items:center; justify-content:center; width:96px; height:34px; opacity:.55; transition:opacity var(--t) var(--ease), transform var(--t) var(--ease); }
+.lg-i img { max-width:100%; max-height:100%; width:auto; height:auto; object-fit:contain; filter:brightness(0) invert(1); }
+@media (hover:hover) { .lg-row:hover .lg-i { opacity:.28; } .lg-row .lg-i:hover { opacity:1; transform:translateY(-2px); } }
+@media (max-width:560px) { .lg-row { gap:18px 26px; } .lg-i { width:76px; height:26px; } }
+
+/* ---------- cursor light (desktop pointers; home.js sets --mx / --my on the section and --gx / --gy on a card) ---------- */
+.cur { position:absolute; left:0; top:0; z-index:0; width:620px; height:620px; margin:-310px 0 0 -310px; border-radius:50%; pointer-events:none; mix-blend-mode:screen; opacity:0;
+  background:radial-gradient(closest-side, rgba(231,227,253,.22), rgba(109,86,250,.2) 38%, rgba(109,86,250,0) 72%);
+  transform:translate3d(var(--mx, 50vw), var(--my, 40vh), 0); transition:opacity .5s var(--ease); will-change:transform; }
+.lit > .cur { opacity:1; }
+/* the workspace leans a little toward the pointer */
+.hero-vis { perspective:1600px; }
+.hero-vis .gw { transform:translate3d(calc(var(--px, 0) * 8px), calc(var(--py, 0) * 8px + var(--hp, 0) * 50px), 0) rotateY(calc(var(--px, 0) * 3.5deg)) rotateX(calc(var(--py, 0) * -3deg)) scale(calc(1 - var(--hp, 0) * .1)); }
+/* cards: a light under the pointer and along the edge nearest to it */
+.tc, .fb, .ht-review, .ql a, .dk a { position:relative; isolation:isolate; }
+.tc::before, .fb::before, .ht-review::before, .ql a::before, .dk a::before { content:""; position:absolute; inset:-1px; z-index:-1; border-radius:inherit; padding:1px; pointer-events:none; opacity:0; transition:opacity .35s var(--ease);
+  background:radial-gradient(240px circle at var(--gx, 50%) var(--gy, 50%), rgba(231,227,253,.95), rgba(164,151,255,.55) 35%, rgba(164,151,255,0) 70%);
+  -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite:xor; mask:linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0); }
+.tc::after, .fb::after, .ht-review::after { content:""; position:absolute; inset:0; z-index:-1; border-radius:inherit; pointer-events:none; opacity:0; transition:opacity .35s var(--ease);
+  background:radial-gradient(380px circle at var(--gx, 50%) var(--gy, 50%), rgba(123,100,255,.16), rgba(123,100,255,0) 65%); }
+.gl-on::before, .gl-on::after { opacity:1; }
+.tc.gl-on, .fb.gl-on { border-color:var(--line); }
+@media (prefers-reduced-motion:reduce) { .cur { display:none; } .hero-vis .gw { transform:none !important; }  }
+
+/* ---------- final section: light breaking over the horizon arc (grows with the scroll, leans toward the pointer) ---------- */
+.fin { padding-bottom:clamp(170px, 20vw, 260px); }
+.fin-bloom { position:absolute; left:50%; bottom:0; z-index:0; width:min(1100px, 120vw); height:420px; margin-left:calc(min(1100px, 120vw) / -2); pointer-events:none;
+  --k:var(--p, 1); transform:translate3d(calc((var(--fx, .5) - .5) * 16vw), 0, 0); transition:transform .8s var(--ease); }
+.fin-bloom i { position:absolute; left:50%; display:block; }
+/* the hairline: a flat arc with a hot centre */
+.fin-bloom .line { bottom:74px; width:100%; height:120px; margin-left:-50%; border-radius:50%; border-top:1.5px solid rgba(231,227,253,.9); transform:translateY(100%) scaleX(calc(.35 + var(--k) * .65));
+  -webkit-mask-image:linear-gradient(90deg, transparent, #000 30% 70%, transparent); mask-image:linear-gradient(90deg, transparent, #000 30% 70%, transparent);
+  filter:drop-shadow(0 0 6px rgba(164,151,255,.95)) drop-shadow(0 -2px 18px rgba(109,86,250,.9)); opacity:var(--k); }
+.fin-bloom .core { bottom:74px; width:230px; height:120px; margin-left:-115px; border-radius:50% 50% 0 0 / 100% 100% 0 0; mix-blend-mode:screen; filter:blur(14px);
+  background:radial-gradient(ellipse 50% 100% at 50% 100%, #fff, rgba(231,227,253,.9) 30%, rgba(164,151,255,.5) 62%, transparent 100%); transform-origin:50% 100%; transform:scale(calc(.4 + var(--k) * .6)); opacity:var(--k); }
+.fin-bloom .halo { bottom:74px; width:640px; height:300px; margin-left:-320px; mix-blend-mode:screen; filter:blur(34px);
+  background:radial-gradient(ellipse 50% 100% at 50% 100%, rgba(164,151,255,.75), rgba(109,86,250,.45) 40%, rgba(52,34,158,0) 78%); transform-origin:50% 100%; transform:scale(calc(.5 + var(--k) * .5)); opacity:calc(var(--k) * .9); }
+/* soft shafts of light fanning up from the centre */
+.fin-bloom .rays { bottom:74px; width:700px; height:350px; margin-left:-350px; mix-blend-mode:screen; filter:blur(7px); opacity:calc(var(--k) * .55);
+  background:repeating-conic-gradient(from 270deg at 50% 100%, rgba(231,227,253,0) 0deg, rgba(200,190,255,.5) 5deg, rgba(231,227,253,0) 11deg, rgba(164,151,255,.32) 17deg, rgba(231,227,253,0) 24deg);
+  -webkit-mask-image:radial-gradient(ellipse 50% 100% at 50% 100%, #000 8%, transparent 70%); mask-image:radial-gradient(ellipse 50% 100% at 50% 100%, #000 8%, transparent 70%);
+  transform-origin:50% 100%; animation:rays 9s ease-in-out infinite alternate; }
+@keyframes rays { from { transform:rotate(-5deg) scale(.96); } to { transform:rotate(5deg) scale(1.04); } }
+.fin .fxl .beam { display:none; }
+@media (max-width:700px) { .fin-bloom { height:300px; } .fin-bloom .halo { width:420px; height:210px; margin-left:-210px; } .fin-bloom .rays { width:440px; height:230px; margin-left:-220px; } .fin-bloom .core { width:160px; height:84px; margin-left:-80px; } }
+
+/* ---------- «Хамтран ажиллах»: a card lit from its edges; a highlight runs along the top edge under the pointer ---------- */
+.collab { position:relative; isolation:isolate; width:min(var(--max), calc(100% - var(--pad) * 2)); max-width:none; margin:clamp(48px, 7vw, 96px) auto; padding:clamp(28px, 4vw, 48px); border:1px solid rgba(164,151,255,.42); border-radius:22px; overflow:hidden;
+  background:radial-gradient(130% 150% at 50% 50%, rgba(10,10,16,.97) 38%, rgba(40,28,120,.5) 78%, rgba(109,86,250,.42) 100%);
+  box-shadow:inset 0 0 0 1px rgba(231,227,253,.06), inset 0 0 46px rgba(109,86,250,.38), inset 0 0 120px rgba(52,34,158,.35), 0 0 70px -28px rgba(109,86,250,.75);
+  transition:box-shadow var(--t-lg) var(--ease), border-color var(--t-lg) var(--ease); }
+.collab::before { content:""; position:absolute; top:-1px; left:var(--gx, 50%); z-index:1; width:260px; height:2px; margin-left:-130px; pointer-events:none;
+  background:linear-gradient(90deg, transparent, rgba(231,227,253,.95), transparent); filter:drop-shadow(0 0 8px rgba(164,151,255,.9)); opacity:.55; transition:opacity var(--t) var(--ease); }
+.collab::after { content:""; position:absolute; inset:0; z-index:-1; pointer-events:none; opacity:0; transition:opacity var(--t) var(--ease);
+  background:radial-gradient(420px circle at var(--gx, 50%) var(--gy, 0%), rgba(123,100,255,.26), rgba(123,100,255,0) 70%); }
+.collab.gl-on { border-color:rgba(185,173,255,.7); box-shadow:inset 0 0 0 1px rgba(231,227,253,.1), inset 0 0 60px rgba(109,86,250,.5), inset 0 0 130px rgba(52,34,158,.4), 0 0 90px -24px rgba(109,86,250,.9); }
+.collab.gl-on::before, .collab.gl-on::after { opacity:1; }
+.collab .bt.ghost { background:var(--blue); border-color:var(--blue); color:#fff; } .collab .bt.ghost:hover { background:#8f7bff; }
+@media (prefers-reduced-motion:reduce) { .fin-bloom, .fin-bloom i { transform:none; animation:none; } .fin-bloom .line { transform:translateY(100%); } }
