@@ -4,12 +4,12 @@
   "h": "b33a4bcad5bbe51f"
  },
  "/about/": {
-  "d": "2026-10-02",
-  "h": "a1383eed30e67596"
+  "d": "2026-10-04",
+  "h": "efe8e8c2bfdb8389"
  },
  "/design/": {
-  "d": "2026-10-02",
-  "h": "99a7dd775ece5ee3"
+  "d": "2026-10-04",
+  "h": "e2f9206bfb2f0b11"
  },
  "/editor/": {
   "d": "2026-10-03",
@@ -17,7 +17,7 @@
  },
  "/privacy/": {
   "d": "2026-10-04",
-  "h": "b4952a70673f1d30"
+  "h": "98f58179a7fcff50"
  },
  "/slides/": {
   "d": "2026-10-03",
@@ -25,75 +25,75 @@
  },
  "/support/": {
   "d": "2026-10-04",
-  "h": "ab8594f9a4e80e9d"
+  "h": "8e3ecd91a04cb4a7"
  },
  "/terms/": {
   "d": "2026-10-04",
-  "h": "fe27ff7744b38897"
+  "h": "309a65ebc8fdb9af"
  },
  "/tools/": {
-  "d": "2026-10-02",
-  "h": "0792575fe5cbf543"
+  "d": "2026-10-04",
+  "h": "8487cb856282e892"
  },
  "/tools/bgremove/": {
-  "d": "2026-10-02",
-  "h": "836f2d25d9a63463"
+  "d": "2026-10-04",
+  "h": "66e6c9d8fa19b2ad"
  },
  "/tools/brand-color/": {
   "d": "2026-10-04",
-  "h": "7c060482d7000420"
+  "h": "1d93f59c7ca77a62"
  },
  "/tools/compress-pdf/": {
   "d": "2026-10-04",
-  "h": "d4c6e8c1ec61c33e"
+  "h": "7c370bc7341b5719"
  },
  "/tools/edit-pdf/": {
   "d": "2026-10-04",
-  "h": "af16bea6c9e58ee8"
+  "h": "89bf64001054dc12"
  },
  "/tools/fill-pdf/": {
   "d": "2026-10-04",
-  "h": "2ffbb321cdee736e"
+  "h": "104393268076fb90"
  },
  "/tools/jpg-to-pdf/": {
   "d": "2026-10-04",
-  "h": "8b9599182a09bd96"
+  "h": "cf86b52560cd308c"
  },
  "/tools/merge-pdf/": {
   "d": "2026-10-04",
-  "h": "ca5147cf766d8ab3"
+  "h": "166f1bcd735cce43"
  },
  "/tools/mongol-font/": {
   "d": "2026-10-04",
-  "h": "c54beee8e43c9759"
+  "h": "9cb1521e54d92875"
  },
  "/tools/pdf-ocr/": {
   "d": "2026-10-04",
-  "h": "9784e20ff8ec6633"
+  "h": "0a0d87a0ba28c96d"
  },
  "/tools/pdf-page-numbers/": {
   "d": "2026-10-04",
-  "h": "0ac4f4ac93953b88"
+  "h": "0149399073336394"
  },
  "/tools/pdf-to-excel/": {
   "d": "2026-10-04",
-  "h": "a3f9f7ee6aa560da"
+  "h": "7ff66b55fe5f7233"
  },
  "/tools/pdf-to-jpg/": {
   "d": "2026-10-04",
-  "h": "2b5dd4511d99c59e"
+  "h": "a5e4e6d4e19acc83"
  },
  "/tools/pdf-to-ppt/": {
   "d": "2026-10-04",
-  "h": "36868545a39af882"
+  "h": "8e5b9fba277b82a8"
  },
  "/tools/pdf-to-word/": {
   "d": "2026-10-04",
-  "h": "48053a487ba29fac"
+  "h": "467f8a43fd9d1418"
  },
  "/tools/pdf/": {
-  "d": "2026-10-02",
-  "h": "2b48aff6aa5414ef"
+  "d": "2026-10-04",
+  "h": "af1e5b01fbc0e134"
  },
  "/tools/pdfedit/": {
   "d": "2026-09-30",
@@ -101,43 +101,43 @@
  },
  "/tools/protect-pdf/": {
   "d": "2026-10-04",
-  "h": "aeb694802aca3fca"
+  "h": "ba18307a9a94d002"
  },
  "/tools/sign-pdf/": {
   "d": "2026-10-04",
-  "h": "e690b5bb4c258ef6"
+  "h": "6363a9659c4dbb42"
  },
  "/tools/socialcrop/": {
-  "d": "2026-10-02",
-  "h": "9b45173abbc4980b"
+  "d": "2026-10-04",
+  "h": "20e9c3a1ee5426d9"
  },
  "/tools/split-pdf/": {
   "d": "2026-10-04",
-  "h": "3a299f29d6c9ed8b"
+  "h": "289a55749dbf729f"
  },
  "/tools/summarize-pdf/": {
   "d": "2026-10-04",
-  "h": "1f55607eb4789f5f"
+  "h": "36f3e07d3f4d1b0b"
  },
  "/tools/templates/": {
   "d": "2026-10-04",
-  "h": "70dfc6b9521a12d7"
+  "h": "3f85cdcd50653eb6"
  },
  "/tools/unlock-pdf/": {
   "d": "2026-10-04",
-  "h": "e75c3aae935ffa4d"
+  "h": "27265d64f2e765eb"
  },
  "/tools/upscale/": {
-  "d": "2026-10-02",
-  "h": "154134172a2fdfcf"
+  "d": "2026-10-04",
+  "h": "ff5a98b2f8d497f6"
  },
  "/tools/watermark-pdf/": {
   "d": "2026-10-04",
-  "h": "833c396eab95c19b"
+  "h": "b02eb824c064316c"
  },
  "/tools/word-to-pdf/": {
   "d": "2026-10-04",
-  "h": "af7b35ffc569572e"
+  "h": "2cfe333bdb52cc3e"
  },
  "/video/": {
   "d": "2026-10-03",

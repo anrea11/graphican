@@ -12,6 +12,7 @@ on:
       - '.github/scripts/apps.py'
       - '.github/scripts/home_page.py'
       - '.github/scripts/chrome.py'
+      - 'assets/design.js'
       - '.github/scripts/tpl_previews.py'
       - '.github/scripts/og.py'
       - 'worker/index.js'   # TRANSLATE_ON decides whether /tools/translate-pdf/ is linked and in the sitemap

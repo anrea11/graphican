@@ -1,0 +1,70 @@
+/* Graphican — the script-rendered pages (/tools/, the four image/PDF tools, /design/) in the home page's look.
+   Loaded after style.css + design.css + site.css; only restyles the page shell — the tool UIs keep their own rules. */
+.design-page main { position:relative; }
+.lp-fx { height:min(100vh, 920px); bottom:auto; } .lp-fx .beam { top:30%; opacity:.42; }
+.design-page .sec, .nx-hero, .tool-crumb { padding-left:max(var(--pad), calc((100vw - var(--max)) / 2)); padding-right:max(var(--pad), calc((100vw - var(--max)) / 2)); }
+
+/* ---------- hero (tools hub, design guide) ---------- */
+.nx-hero { position:relative; padding-top:calc(64px + clamp(40px, 7vw, 96px)); padding-bottom:clamp(48px, 7vw, 96px); }
+.nx-in { position:relative; z-index:1; }
+.lp-kicker { display:inline-flex; align-items:center; gap:10px; font:600 12px/1.4 var(--body); letter-spacing:.14em; color:var(--v2); margin:0 0 20px; text-transform:uppercase; }
+.lp-kicker::before { content:""; width:28px; height:1px; background:currentColor; opacity:.7; }
+.nx-hero h1 { font:700 clamp(44px, 8vw, 118px)/.94 var(--display); letter-spacing:-.04em; text-transform:uppercase; text-wrap:balance; max-width:12ch; text-shadow:0 0 60px rgba(164,151,255,.22); }
+.nx-hero h1 .wd { --w:1; animation:nxWord .9s var(--ease) calc(.08s + var(--i) * .09s) backwards; }
+@keyframes nxWord { from { filter:blur(.16em); opacity:.18; transform:translate3d(0, .22em, 0); } }
+.nx-lead { margin-top:26px; max-width:58ch; color:var(--muted); font-size:clamp(16px, 1.5vw, 19px); line-height:1.6; animation:nxUp .8s var(--ease) .25s backwards; }
+.nx-hero .chips { margin-top:28px; animation:nxUp .8s var(--ease) .35s backwards; }
+@keyframes nxUp { from { opacity:0; transform:translateY(22px); } }
+.chips a { padding:12px 16px; font-size:13.5px; border-color:var(--line-soft); background:rgba(255,255,255,.03); transition:background var(--t-fast), color var(--t-fast), border-color var(--t-fast), transform var(--t) var(--ease); }
+.chips a:hover { border-color:var(--v2); background:rgba(164,151,255,.1); transform:translateY(-2px); }
+.chips a.hot { background:radial-gradient(120% 190% at 50% 50%, rgba(16,13,34,.97) 34%, rgba(58,42,160,.72) 76%, rgba(123,100,255,.78) 100%); color:#fff; border-color:rgba(185,173,255,.62); font-weight:700;
+  box-shadow:inset 0 0 16px rgba(123,100,255,.6), 0 0 30px -10px rgba(109,86,250,.95); }
+
+/* ---------- sections ---------- */
+.design-page .sec { padding-top:clamp(56px, 8vw, 110px); padding-bottom:clamp(56px, 8vw, 110px); }
+.design-page .sec-head { margin-bottom:clamp(28px, 4vw, 48px); }
+.design-page .sec-meta { justify-content:flex-start; gap:10px 18px; padding:0; border:0; margin-bottom:18px; font:600 12px/1.4 var(--body); letter-spacing:.14em; color:var(--v2); }
+.design-page .sec-meta span:first-child { display:inline-flex; align-items:center; gap:10px; }
+.design-page .sec-meta span:first-child::before { content:""; width:28px; height:1px; background:currentColor; opacity:.7; }
+.design-page .sec-meta span + span { color:var(--dim); }
+.design-page .sec-title { font:700 clamp(32px, 5.4vw, 68px)/1.02 var(--display); letter-spacing:-.03em; text-transform:uppercase; text-wrap:balance; max-width:18ch; }
+.design-page h1.sec-title { font-size:clamp(38px, 6.4vw, 88px); line-height:.98; letter-spacing:-.035em; text-shadow:0 0 60px rgba(164,151,255,.22); }
+.design-page .sec-desc { margin-top:18px; font-size:clamp(16px, 1.4vw, 18px); line-height:1.6; max-width:58ch; }
+.tool-crumb { position:relative; z-index:1; padding-top:calc(64px + clamp(28px, 4vw, 48px)); }
+.tool-crumb + .sec { padding-top:clamp(20px, 3vw, 32px); }
+
+.design-page .sec-title .bl, .design-page .reveal.in .sec-title .bl { filter:blur(calc(var(--b) * .007em)); opacity:1; }
+#app > .lp-fx { z-index:0; }
+
+/* tool cards */
+.tp-grid { grid-template-columns:repeat(auto-fill, minmax(260px, 1fr)); gap:14px; perspective:1400px; }
+.tp-card { position:relative; gap:10px; padding:22px; border-radius:18px; border-color:var(--line-soft); background:linear-gradient(180deg, rgba(123,100,255,.09), rgba(255,255,255,.02) 55%); overflow:hidden; transition:border-color var(--t), transform var(--t) var(--ease), box-shadow var(--t); }
+.tp-card::before { content:""; position:absolute; top:0; left:-60%; width:60%; height:1.5px; background:linear-gradient(90deg, transparent, rgba(231,227,253,.9), transparent); opacity:0; transition:left .7s var(--ease), opacity var(--t); }
+.tp-card:hover, .tp-card:focus-visible { border-color:rgba(164,151,255,.6); transform:translateY(-4px); box-shadow:inset 0 0 40px rgba(109,86,250,.22), 0 24px 60px -30px rgba(109,86,250,.8); }
+.tp-card:hover::before { left:100%; opacity:1; }
+.tp-top .drop-ic, .drop-ic { border-radius:14px; background:rgba(164,151,255,.14); border:1px solid rgba(164,151,255,.32); color:var(--v1); }
+.tp-card b { font-size:20px; letter-spacing:-.02em; }
+.tp-what { font-size:14.5px; color:#d9d7e6; }
+.tp-when { font-size:13px; }
+.tp-go { padding-top:10px; font-size:13.5px; color:var(--v2); transition:color var(--t-fast), transform var(--t) var(--ease); }
+.tp-card:hover .tp-go { color:#fff; transform:translateX(4px); }
+.tp-flow { margin-top:22px; padding:22px 24px; border:1px solid var(--line-soft); border-radius:18px; background:rgba(255,255,255,.02); }
+.pdf-tasks { margin-top:26px; } .pdf-tasks a { border-color:var(--line-soft); transition:color var(--t-fast), border-color var(--t-fast), background var(--t-fast); } .pdf-tasks a:hover { background:rgba(164,151,255,.08); }
+
+/* the work surface: a card lit from its edges; drop zones inside it */
+.drop { min-height:220px; border-radius:16px; border:1px dashed rgba(164,151,255,.45); background:radial-gradient(70% 90% at 50% 0%, rgba(109,86,250,.18), transparent 75%); transition:border-color var(--t), background var(--t), box-shadow var(--t); }
+.drop:hover, .drop.over { border-color:rgba(231,227,253,.85); box-shadow:inset 0 0 60px rgba(109,86,250,.35), 0 0 60px -24px rgba(109,86,250,.9); }
+.drop b { font-size:18px; }
+.tg-steps li span { color:var(--v1); background:rgba(164,151,255,.16); border:1px solid rgba(164,151,255,.4); }
+.tg-steps li { font-size:14.5px; }
+.design-page .btn.solid { color:#fff; border-color:rgba(185,173,255,.62); background:radial-gradient(120% 190% at 50% 50%, rgba(16,13,34,.97) 34%, rgba(58,42,160,.72) 76%, rgba(123,100,255,.78) 100%);
+  box-shadow:inset 0 0 0 1px rgba(231,227,253,.07), inset 0 0 16px rgba(123,100,255,.6), 0 0 30px -10px rgba(109,86,250,.95); }
+.design-page .btn.solid:hover { background:radial-gradient(120% 190% at 50% 50%, rgba(22,18,48,.97) 26%, rgba(70,52,180,.8) 70%, rgba(143,123,255,.9) 100%); border-color:rgba(231,227,253,.85); box-shadow:inset 0 0 22px rgba(143,123,255,.8), 0 0 40px -8px rgba(123,100,255,1); transform:none; }
+.tool-faq summary { font-size:17px; transition:color var(--t-fast); } .tool-faq summary:hover { color:var(--v1); }
+.tool-faq summary::after { content:"+"; display:grid; place-items:center; width:28px; height:28px; border-radius:50%; border:1px solid var(--line); color:var(--v2); font-size:18px; transition:transform var(--t) var(--ease), border-color var(--t-fast); }
+.tool-faq details[open] summary::after { content:"+"; transform:rotate(45deg); border-color:var(--v2); }
+.other-tools { border-top:1px solid var(--line-soft); }
+.design-page .ft { margin-top:0; }
+
+@media (max-width:720px) { .tp-grid { grid-template-columns:1fr; } }
+@media (prefers-reduced-motion:reduce) { .nx-hero h1 .wd, .nx-lead, .nx-hero .chips { animation:none; } }
