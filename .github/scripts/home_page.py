@@ -147,7 +147,7 @@ def build():
   <div class="gw-stage">
     <div class="gx gx-design">
       <span class="dz-layers an" {A('kFade', 1)}><i class="on"><u>T</u>Гарчиг</i><i><u>▣</u>Зураг</i><i><u>◼</u>Дэвсгэр</i></span>
-      <span class="dz-props an" {A('kFade', 2)}><b>Фонт</b><i class="f an" {A('kOut', 4)}>Manrope</i><i class="f on an" {A('kIn', 4)}>Playfair</i><b>Өнгө</b><span class="sw"><u style="background:#3570FA"></u><u style="background:#f3efe6"></u><u style="background:#0e1424"></u><u style="background:#ffb648"></u></span></span>
+      <span class="dz-props an" {A('kFade', 2)}><b>Фонт</b><i class="f an" {A('kOut', 4)}>Inter Tight</i><i class="f on an" {A('kIn', 4)}>Playfair</i><b>Өнгө</b><span class="sw"><u style="background:#7b64ff"></u><u style="background:#f3efe6"></u><u style="background:#12101f"></u><u style="background:#ffb648"></u></span></span>
       <span class="chip c-png an" {A('kPop', 5)}>PNG · JPG · PDF</span>
     </div>
     <div class="gx gx-pdf">
@@ -278,12 +278,13 @@ def build():
 
   <!-- 01 HERO -->
   <section class="hero" id="top">
+    <div class="fxl" aria-hidden="true"><i class="beam"></i><svg viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice"><circle cx="-120" cy="-380" r="900"/><circle cx="1620" cy="1500" r="1050"/></svg></div>
     <div class="grid-bg" aria-hidden="true"></div>
     <div class="hero-in">
       <div class="hero-copy">
         <p class="hero-k"><span>Үнэгүй</span><span>Бүртгэлгүй</span><span>Суулгах шаардлагагүй</span></p>
-        <h1>Бүтээ.<br>Зас.<br><span>Шууд ашигла.</span></h1>
-        <p class="hero-s">Дизайн, PDF, PPT, Video болон өдөр тутмын хэрэгтэй бүтээлч хэрэгслүүд нэг дор.</p>
+        <h1 aria-label="Бүтээ. Зас. Шууд ашигла."><span aria-hidden="true"><span class="bl" style="--b:3.2">Б</span><span class="bl" style="--b:2.4">ү</span><span class="bl" style="--b:1.5">т</span><span class="bl" style="--b:0.7">э</span><span class="bl" style="--b:0">э</span><span class="bl" style="--b:0">.</span><br>Зас.<br><span class="nw">Шууд ашигла.</span></span></h1>
+        <p class="hero-s"><span class="lav">Дизайн, PDF, PPT, Video</span> болон өдөр тутмын хэрэгтэй бүтээлч хэрэгслүүд <span class="lav">нэг дор.</span></p>
         <div class="hero-cta">{btn("/editor/", "Үнэгүй эхлэх")}<a class="bt ghost" href="#tools"><span>Бүх хэрэгсэл</span></a></div>
       </div>
       <div class="hero-vis" id="hero-vis">
@@ -367,6 +368,7 @@ def build():
 
   <!-- 08 FINAL CTA -->
   <section class="sec fin" id="start">
+    <div class="fxl" aria-hidden="true"><i class="beam"></i><svg viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice"><circle cx="720" cy="1700" r="1150"/></svg></div>
     <div class="grid-bg" aria-hidden="true"></div>
     <div class="fin-anim" id="fin-anim" aria-hidden="true"><i class="w1">{ic("design")}</i><i class="w2">{ic("pdf")}</i><i class="w3">{ic("ppt")}</i><i class="w4">{ic("video")}</i><b>Graphican</b></div>
     <h2 class="rv">Хийх зүйлээ<br>эхлүүл.</h2>
@@ -420,10 +422,11 @@ def build():
 {ld(graph)}
 <script>(function(){{var h=location.hash;if(location.hostname==='www.graphican.online'){{location.replace('https://graphican.online'+location.pathname+location.search+h);return}}if(/^#(work|reels|services|about|contact|project\\/)/.test(h))location.replace('/about/'+h)}})()</script>
 <script src="/assets/i18n.js?v=1"></script>
-<meta name="theme-color" content="#07080c">
+<meta name="theme-color" content="#0a0a10">
 <link rel="icon" href="/favicon.ico" sizes="48x48"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="/apple-touch-icon.png">
-<link rel="preload" href="/assets/fonts/web/Manrope-Bold.woff" as="font" type="font/woff" crossorigin>
-<link rel="preload" href="/assets/fonts/web/Manrope-Medium.woff" as="font" type="font/woff" crossorigin>
+<link rel="preload" href="/assets/fonts/web/InterTight-Bold.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/assets/fonts/web/Inter-Regular.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/assets/fonts/web/fonts.css">
 <link rel="stylesheet" href="/assets/home.css?v={V}">
 </head>
 <body class="home-page">
