@@ -631,3 +631,83 @@ h2.one { filter:blur(calc((1 - var(--p, 1)) * .12em)); opacity:calc(.2 + var(--p
   .collab-b .bt.txt { justify-content:center; min-height:44px; }
 }
 @media (max-width:760px) and (prefers-reduced-motion:reduce) { .lg-row { animation:none; } .lg-vp { overflow-x:auto; scrollbar-width:none; } .lg-i.dup { display:none; } }
+
+/* ---------- scroll story (#flow): one scene, pinned, built by the scroll.
+   --t 0 → 1 (home.js). Steps: a 0–.25 the empty page is drawn · b .25–.5 it is filled · c .5–.78 it branches into the four editors · d .78–1 the files leave.
+   Without the script (or with reduced motion) the scene is not pinned and shows its finished state with the four steps listed. ---------- */
+.fp { --t:1; position:relative; z-index:1; padding:clamp(48px, 8vw, 110px) var(--pad);
+  --a:clamp(0, calc(var(--t) / .25), 1); --b:clamp(0, calc((var(--t) - .25) / .25), 1); --c:clamp(0, calc((var(--t) - .5) / .28), 1); --d:clamp(0, calc((var(--t) - .78) / .2), 1); }
+.fp-in { max-width:var(--max); margin:0 auto; display:grid; grid-template-columns:minmax(0, 5fr) minmax(0, 7fr); gap:clamp(20px, 4vw, 64px); align-items:center; }
+.fp-k { font:600 13px/1.4 var(--f); letter-spacing:.16em; text-transform:uppercase; color:var(--v2); margin-bottom:22px; }
+.fp-steps { list-style:none; display:grid; gap:22px; }
+.fp-steps span { font-size:13px; font-weight:600; letter-spacing:.12em; color:var(--dim); }
+.fp-steps h3 { font:700 clamp(30px, 4vw, 52px)/1.02 var(--display); letter-spacing:-.03em; text-transform:uppercase; margin:4px 0 8px; }
+.fp-steps p { color:var(--mut); font-size:clamp(15px, 1.4vw, 18px); max-width:32ch; }
+.fp-prog { display:none; }
+.fp-svg { width:100%; height:auto; max-height:86vh; overflow:visible; font-family:var(--f); }
+.fp-svg .dl { fill:none; stroke-dasharray:1; }
+.fp-frame { stroke:rgba(245,244,250,.9); stroke-width:1.5; stroke-dashoffset:calc(1 - clamp(0, var(--a) * 2.2, 1)); }
+.fp-crop path { fill:none; stroke:rgba(245,244,250,.55); stroke-width:1; opacity:clamp(0, var(--a) * 3, 1); }
+.fp-guide path { fill:none; stroke:var(--v2); stroke-width:1; stroke-dasharray:4 5; opacity:calc(clamp(0, var(--a) * 3 - .6, 1) * (1 - clamp(0, var(--b) * 3, 1)) * .8); }
+.fp-ph .dl { stroke:rgba(245,244,250,.5); stroke-width:1; stroke-dashoffset:calc(1 - clamp(0, var(--a) * 3 - 1, 1)); }
+.fp-ph { opacity:calc(1 - clamp(0, var(--b) * 4 - 1, 1)); }
+.fp-bars rect { fill:rgba(245,244,250,.22); }
+.fp-bars { opacity:calc(clamp(0, var(--a) * 3 - 2, 1) * (1 - clamp(0, var(--b) * 4 - 2, 1))); }
+.fp-bg { opacity:clamp(0, var(--b) * 3, 1); }
+.fp-img { opacity:clamp(0, var(--b) * 4 - 1, 1); }
+.fp-txt { opacity:clamp(0, var(--b) * 4 - 2, 1); transform:translateY(calc((1 - clamp(0, var(--b) * 4 - 2, 1)) * 10px)); }
+.fp-txt .k { font-size:11px; font-weight:600; letter-spacing:.2em; fill:#d5ceff; }
+.fp-txt .h { font:700 38px/1 var(--display); letter-spacing:-.03em; fill:#fff; }
+.fp-tag { transform-box:fill-box; transform-origin:50% 50%; transform:scale(clamp(0, var(--b) * 4 - 3, 1)); }
+.fp-tag text { font:700 17px/1 var(--display); fill:#12101f; }
+.fp-sel { opacity:calc(clamp(0, var(--b) * 4 - 2.4, 1) * (1 - clamp(0, var(--c) * 5, 1))); }
+.fp-sel rect { fill:none; stroke:var(--v2); stroke-width:1.5; } .fp-sel path { fill:#fff; stroke:var(--v3); stroke-width:1; }
+.fp-dim { opacity:calc(clamp(0, var(--a) * 3 - 1.6, 1) * (1 - clamp(0, var(--c) * 5, 1))); }
+.fp-dim path { fill:none; stroke:rgba(245,244,250,.45); stroke-width:1; } .fp-dim text { font-size:13px; font-weight:500; fill:var(--mut); letter-spacing:.06em; }
+.fp-board { transform-origin:400px 60px; transform:scale(calc(1 - var(--c) * .38)); }
+.fp-n { --l:clamp(0, calc(var(--c) * 6.8 - 2 - var(--i) * .8), 1); }
+.fp-con { stroke:var(--v2); stroke-width:1.5; stroke-dashoffset:calc(1 - var(--l)); opacity:.75; }
+.fp-out { stroke:rgba(245,244,250,.85); stroke-width:1.5; stroke-dashoffset:calc(1 - clamp(0, calc(var(--c) * 6.8 - 2.6 - var(--i) * .8), 1)); }
+.fp-fill, .fp-lab { opacity:clamp(0, calc(var(--c) * 6.8 - 3.2 - var(--i) * .8), 1); }
+.fp-lab { font-size:15px; font-weight:600; fill:var(--text); }
+.fp-chip { opacity:clamp(0, calc(var(--d) * 4 - var(--i) * .6), 1); transform:translateY(calc((1 - clamp(0, calc(var(--d) * 4 - var(--i) * .6), 1)) * -14px)); }
+.fp-chip rect { fill:rgba(109,86,250,.28); stroke:var(--v2); stroke-width:1; } .fp-chip path { fill:none; stroke:#fff; stroke-width:1.6; stroke-linecap:round; stroke-linejoin:round; }
+.fp-chip text { font-size:11.5px; font-weight:700; letter-spacing:.06em; fill:#fff; }
+.fp-dot { fill:#fff; opacity:0; filter:drop-shadow(0 0 5px var(--v2)); }
+.fp[data-st="3"] .fp-dot { animation:fpRun 2.2s linear calc(var(--i) * .35s) infinite; }
+@keyframes fpRun { 0% { offset-distance:0%; opacity:0; } 12% { opacity:1; } 88% { opacity:1; } 100% { offset-distance:100%; opacity:0; } }
+@media (max-width:900px) { .fp-in { grid-template-columns:minmax(0, 1fr); } .fp-svg { max-width:520px; margin:0 auto; } }
+/* pinned (script on, motion allowed): the section is tall, the scene sticks, one step is shown at a time */
+@media (prefers-reduced-motion:no-preference) {
+  .pin .fp { height:420vh; padding-top:0; padding-bottom:0; }
+  .pin .fp-in { position:sticky; top:0; height:100vh; height:100svh; padding-top:76px; padding-bottom:20px; }
+  .pin .fp-copy { position:relative; }
+  .pin .fp-steps { position:relative; display:block; height:clamp(170px, 20vw, 230px); }
+  .pin .fp-steps li { position:absolute; left:0; right:0; top:0; opacity:0; filter:blur(10px); transform:translateY(18px); transition:opacity var(--t-lg) var(--ease), filter var(--t-lg) var(--ease), transform var(--t-lg) var(--ease); }
+  .pin .fp[data-st="0"] li:nth-child(1), .pin .fp[data-st="1"] li:nth-child(2), .pin .fp[data-st="2"] li:nth-child(3), .pin .fp[data-st="3"] li:nth-child(4) { opacity:1; filter:none; transform:none; }
+  .pin .fp-prog { display:flex; gap:6px; margin-top:26px; max-width:260px; }
+  .pin .fp-prog i { flex:1; height:2px; background:rgba(255,255,255,.14); position:relative; overflow:hidden; }
+  .pin .fp-prog i::after { content:""; position:absolute; inset:0; background:var(--v2); transform-origin:left; transform:scaleX(var(--a)); }
+  .pin .fp-prog i:nth-child(2)::after { transform:scaleX(var(--b)); } .pin .fp-prog i:nth-child(3)::after { transform:scaleX(var(--c)); } .pin .fp-prog i:nth-child(4)::after { transform:scaleX(var(--d)); }
+  .pin .fp-svg { max-height:calc(100vh - 110px); max-height:calc(100svh - 110px); }
+}
+@media (prefers-reduced-motion:no-preference) and (max-width:900px) {
+  .pin .fp { height:360vh; }
+  .pin .fp-in { align-content:start; gap:10px; padding-top:78px; }
+  .pin .fp-k { margin-bottom:10px; font-size:11.5px; }
+  .pin .fp-steps { height:118px; } .pin .fp-steps h3 { font-size:30px; margin:2px 0 4px; } .pin .fp-steps p { font-size:14.5px; }
+  .pin .fp-prog { margin-top:8px; }
+  .pin .fp-svg { max-height:calc(100svh - 290px); }
+}
+@media (prefers-reduced-motion:reduce) { .fp-dot { display:none; } }
+
+/* ---------- footer wordmark: drawn as an outline on its construction lines when it scrolls in ---------- */
+.ft-word { display:block; width:100%; height:auto; max-width:var(--max); margin:0 auto clamp(28px, 5vw, 56px); overflow:visible; }
+.ft-word text { font:400 250px/1 var(--brand); fill:rgba(245,244,250,calc(clamp(0, var(--p, 1) * 3 - 2, 1) * .06)); stroke:rgba(245,244,250,.62); stroke-width:1.2; stroke-dasharray:900; stroke-dashoffset:calc((1 - var(--p, 1)) * 900); }
+.ft-word .gd path { fill:none; stroke:rgba(164,151,255,.4); stroke-width:1; stroke-dasharray:3 6; opacity:clamp(0, var(--p, 1) * 2, 1); }
+.ft-word .gd path + path { stroke:rgba(245,244,250,.6); stroke-dasharray:none; }
+@media (max-width:900px) {
+  .fp-lab { font-size:24px; } .fp-dim text { font-size:18px; }
+  .fp-chip { transform-box:fill-box; transform-origin:50% 0; transform:translateY(calc(12px + (1 - clamp(0, calc(var(--d) * 4 - var(--i) * .6), 1)) * -14px)) scale(1.5); }
+}
+@media (prefers-reduced-motion:no-preference) and (max-width:900px) { .pin .fp-in { align-content:center; } }

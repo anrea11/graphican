@@ -9,7 +9,7 @@ import json, os
 import landings as L
 
 ROOT, SITE, e, ld = L.ROOT, L.SITE, L.e, L.ld
-V = "13"
+V = "14"
 
 ICON = {
     "pdf": '<path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5"/><path d="m9 17 1-3 5-5 2 2-5 5z" fill="currentColor"/>',
@@ -284,6 +284,39 @@ def build():
                       # a second copy: only shown on phones, where the row runs sideways as one line
                       "".join(f'<span class="lg-i dup" aria-hidden="true"><img src="{e(thumb(x["logo"]))}" alt="" loading="lazy" decoding="async"></span>' for x in logos) + '</div></div></section>')
 
+    story = """<section class="fp" id="flow" data-sp="pin" data-st="3" aria-labelledby="fp-t">
+    <div class="fp-in">
+      <div class="fp-copy">
+        <h2 class="fp-k" id="fp-t">Санаанаас бүтээл хүртэл</h2>
+        <ol class="fp-steps">
+          <li><span>01</span><h3>Эхлэ.</h3><p>Хэмжээгээ сонго — хоосон хуудас эсвэл бэлэн загвар.</p></li>
+          <li><span>02</span><h3>Бүтээ.</h3><p>Зураг, текст, монгол фонтоо нэмээд өөрийнхөөрөө зас.</p></li>
+          <li><span>03</span><h3>Өргөжүүл.</h3><p>Постер, PDF, илтгэл, видео — дөрвөн editor нэг дор.</p></li>
+          <li><span>04</span><h3>Тат.</h3><p>PNG, PDF, PPTX, MP4 — шууд төхөөрөмждөө.</p></li>
+        </ol>
+        <div class="fp-prog" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+      </div>
+      <svg class="fp-svg" viewBox="0 0 800 820" aria-hidden="true">
+        <defs><clipPath id="fp-clip"><rect x="250" y="60" width="300" height="375" rx="6"/></clipPath>
+          <linearGradient id="fp-vg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#34229e"/><stop offset="1" stop-color="#a497ff"/></linearGradient></defs>
+        <g class="fp-nodes"><g class="fp-n" style="--i:0"><path class="fp-con dl" pathLength="1" d="M400 300C400 430, 115 441, 115 563"/><circle class="fp-dot" r="3.5" style="offset-path:path('M400 300C400 430, 115 441, 115 563')"/><clipPath id="fp-c0"><rect x="60" y="571" width="110" height="138" rx="5"/></clipPath><g class="fp-fill" clip-path="url(#fp-c0)"><rect x="60" y="571" width="110" height="138" fill="#12101f"/><polygon points="60,668 170,640 170,709 60,709" fill="#7b64ff"/><rect x="70" y="583" width="90" height="48" rx="2" fill="#3b3560"/><rect x="70" y="646" width="56" height="7" rx="2" fill="#fff"/><rect x="70" y="658" width="40" height="7" rx="2" fill="#fff"/></g><rect class="fp-out dl" pathLength="1" x="60" y="571" width="110" height="138" rx="5"/><text class="fp-lab" x="115" y="748" text-anchor="middle">Design</text><g class="fp-chip"><rect x="81" y="766" width="68" height="28" rx="14"/><path d="M95 775v8m-3.5-3.5 3.5 3.5 3.5-3.5"/><text x="120" y="785" text-anchor="middle">PNG</text></g></g><g class="fp-n" style="--i:1"><path class="fp-con dl" pathLength="1" d="M400 300C400 440, 305 436, 305 558"/><circle class="fp-dot" r="3.5" style="offset-path:path('M400 300C400 440, 305 436, 305 558')"/><clipPath id="fp-c1"><rect x="253" y="566" width="104" height="147" rx="5"/></clipPath><g class="fp-fill" clip-path="url(#fp-c1)"><rect x="253" y="566" width="104" height="147" fill="#f5f4fa"/><rect x="265" y="580" width="34" height="8" rx="2" fill="#12101f"/><g fill="#c9c6d8"><rect x="265" y="598" width="80" height="4" rx="2"/><rect x="265" y="608" width="80" height="4" rx="2"/><rect x="265" y="618" width="52" height="4" rx="2"/><rect x="265" y="634" width="80" height="4" rx="2"/><rect x="265" y="644" width="66" height="4" rx="2"/></g><path d="M266 686c8-14 12-14 14-4s6 6 11-4 7-5 9 3 8 5 14-1" fill="none" stroke="#7b64ff" stroke-width="2" stroke-linecap="round"/><rect x="325" y="575" width="24" height="12" rx="3" fill="#7b64ff"/></g><rect class="fp-out dl" pathLength="1" x="253" y="566" width="104" height="147" rx="5"/><text class="fp-lab" x="305" y="748" text-anchor="middle">PDF</text><g class="fp-chip"><rect x="271" y="766" width="68" height="28" rx="14"/><path d="M285 775v8m-3.5-3.5 3.5 3.5 3.5-3.5"/><text x="310" y="785" text-anchor="middle">PDF</text></g></g><g class="fp-n" style="--i:2"><path class="fp-con dl" pathLength="1" d="M400 300C400 430, 495 468, 495 590"/><circle class="fp-dot" r="3.5" style="offset-path:path('M400 300C400 430, 495 468, 495 590')"/><clipPath id="fp-c2"><rect x="420" y="598" width="150" height="84" rx="5"/></clipPath><g class="fp-fill" clip-path="url(#fp-c2)"><rect x="420" y="598" width="150" height="84" fill="#12101f"/><polygon points="504,598 570,598 570,682 478,682" fill="#f5f4fa"/><rect x="432" y="614" width="40" height="7" rx="2" fill="#fff"/><rect x="432" y="626" width="28" height="7" rx="2" fill="#fff"/><g fill="#7b64ff"><rect x="520" y="650" width="8" height="22" rx="1" opacity=".45"/><rect x="532" y="640" width="8" height="32" rx="1" opacity=".7"/><rect x="544" y="624" width="8" height="48" rx="1"/></g></g><rect class="fp-out dl" pathLength="1" x="420" y="598" width="150" height="84" rx="5"/><text class="fp-lab" x="495" y="748" text-anchor="middle">PPT</text><g class="fp-chip"><rect x="461" y="766" width="68" height="28" rx="14"/><path d="M475 775v8m-3.5-3.5 3.5 3.5 3.5-3.5"/><text x="500" y="785" text-anchor="middle">PPTX</text></g></g><g class="fp-n" style="--i:3"><path class="fp-con dl" pathLength="1" d="M400 300C400 440, 685 435, 685 557"/><circle class="fp-dot" r="3.5" style="offset-path:path('M400 300C400 440, 685 435, 685 557')"/><clipPath id="fp-c3"><rect x="643" y="565" width="84" height="150" rx="5"/></clipPath><g class="fp-fill" clip-path="url(#fp-c3)"><rect x="643" y="565" width="84" height="150" fill="url(#fp-vg)"/><circle cx="685" cy="632" r="15" fill="rgba(10,10,16,.55)"/><path d="M680 624v16l13-8z" fill="#fff"/><rect x="653" y="686" width="64" height="12" rx="3" fill="#fff"/><rect x="653" y="703" width="64" height="3" rx="1.5" fill="rgba(255,255,255,.35)"/><rect x="653" y="703" width="38" height="3" rx="1.5" fill="#fff"/></g><rect class="fp-out dl" pathLength="1" x="643" y="565" width="84" height="150" rx="5"/><text class="fp-lab" x="685" y="748" text-anchor="middle">Video</text><g class="fp-chip"><rect x="651" y="766" width="68" height="28" rx="14"/><path d="M665 775v8m-3.5-3.5 3.5 3.5 3.5-3.5"/><text x="690" y="785" text-anchor="middle">MP4</text></g></g></g>
+        <g class="fp-board">
+          <g clip-path="url(#fp-clip)"><rect class="fp-bg" x="250" y="60" width="300" height="375" fill="#12101f"/><polygon class="fp-bg" points="250,332 550,250 550,435 250,435" fill="#7b64ff"/>
+            <image class="fp-img" href="/assets/home/photo-a.webp" x="274" y="84" width="252" height="160" preserveAspectRatio="xMidYMid slice"/></g>
+          <g class="fp-crop"><path d="M236 60h-16M250 46v-16M564 60h16M550 46v-16M236 435h-16M250 449v16M564 435h16M550 449v16"/></g>
+          <g class="fp-guide"><path d="M400 34v427M224 247h352"/></g>
+          <g class="fp-ph"><rect class="dl" pathLength="1" x="274" y="84" width="252" height="160" rx="3"/><path class="dl" pathLength="1" d="M274 84l252 160"/><path class="dl" pathLength="1" d="M526 84l-252 160"/></g>
+          <g class="fp-bars"><rect x="274" y="276" width="170" height="18" rx="3"/><rect x="274" y="304" width="120" height="18" rx="3"/><rect x="274" y="342" width="90" height="8" rx="3"/></g>
+          <g class="fp-txt"><text class="k" x="274" y="282">ШИНЭ ЦУГЛУУЛГА</text><text class="h" x="273" y="322">Зуны</text><text class="h" x="273" y="362">хямдрал</text></g>
+          <g class="fp-tag"><circle cx="502" cy="254" r="30" fill="#ffb648"/><text x="502" y="260" text-anchor="middle">−30%</text></g>
+          <g class="fp-sel"><rect x="265" y="290" width="186" height="82"/><path d="M262 287h6v6h-6zM448 287h6v6h-6zM262 369h6v6h-6zM448 369h6v6h-6z"/></g>
+          <rect class="fp-frame dl" pathLength="1" x="250" y="60" width="300" height="375" rx="6"/>
+          <g class="fp-dim"><path d="M250 474h300M250 468v12M550 468v12"/><text x="400" y="498" text-anchor="middle">1080 × 1350</text></g>
+        </g>
+      </svg>
+    </div>
+  </section>"""
+
     header = f"""<header class="gh header" id="gh">
   <a class="gh-logo" href="/" aria-label="Graphican — нүүр">Graphican</a>
   <nav class="gh-nav" id="gh-nav" aria-label="Үндсэн цэс">
@@ -317,6 +350,9 @@ def build():
   </section>
 
   {logo_strip}
+
+  <!-- scroll story: an empty page is drawn, filled, branches into the four editors and leaves as files -->
+  {story}
 
   <!-- 02 MAIN 4 EDITORS -->
   <section class="sec eds" id="editors">
@@ -386,6 +422,7 @@ def build():
 </main>
 
 <footer class="ft">
+  <svg class="ft-word" viewBox="0 0 1200 300" data-sp aria-hidden="true"><g class="gd"><path d="M30 64h1140M30 236h1140M60 30v240M1140 30v240"/><path d="M52 64h16M60 56v16M1132 64h16M1140 56v16M52 236h16M60 228v16M1132 236h16M1140 228v16"/></g><text x="600" y="236" text-anchor="middle" textLength="1060" lengthAdjust="spacingAndGlyphs">Graphican</text></svg>
   <div class="ft-top"><a class="gh-logo" href="/" aria-label="Graphican — нүүр">Graphican</a><p>Дизайн, PDF, PPT, Video — үнэгүй, бүртгэлгүй, монгол хэлээр.</p></div>
   <div class="ft-cols">
     <div><b>Хэрэгслүүд</b><a href="/editor/">Design editor</a><a href="/tools/pdfedit/">PDF засварлагч</a><a href="/slides/">Илтгэл (PPT)</a><a href="/video/">Видео засварлагч</a><a href="/tools/bgremove/">Дэвсгэр арилгах</a><a href="/tools/upscale/">AI томруулах</a><a href="/tools/socialcrop/">Сошиал хэмжээ</a><a href="/tools/">Бүх хэрэгсэл</a></div>
