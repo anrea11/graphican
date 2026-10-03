@@ -4,7 +4,7 @@ The home page carries the same rules in home.css / home.js."""
 import html, json, os
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
-CV = "1"   # site.css / site.js cache version
+CV = "2"   # site.css / site.js cache version
 
 
 def e(s):

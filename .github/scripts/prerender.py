@@ -21,6 +21,7 @@ TODAY = datetime.date.today().isoformat()
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import landings  # noqa: E402  (search landing pages for the free tools)
 import apps  # noqa: E402  (font finder, brand colours, templates)
+import chrome  # noqa: E402  (shared header / footer)
 import home_page  # noqa: E402  (tools-first home page)
 import og  # noqa: E402  (per-page share images)
 LANDING_LINKS = " · ".join(['<a href="/tools/mongol-font/">Монгол фонт хайгч</a>', '<a href="/tools/brand-color/">Брэндийн өнгө үүсгэгч</a>', '<a href="/tools/templates/">Монгол сошиал загвар</a>']
@@ -417,12 +418,40 @@ def sync_editor_menu():
                 with open(path, "w", encoding="utf-8") as f:
                     f.write(updated)
 
+# ------------------------------------------------------------------ shared chrome on the hand-written pages
+CHROME_PAGES = ["tools/index.html", "tools/upscale/index.html", "tools/bgremove/index.html", "tools/socialcrop/index.html", "tools/pdf/index.html", "design/index.html", "about/index.html"]
+
+
+def chrome_sync():
+    """Header, footer, site.css and site.js of the script-rendered pages (the generated ones get them from chrome.py directly)."""
+    fa, fb = "<!-- chrome:footer:start -->", "<!-- chrome:footer:end -->"
+    for rel in CHROME_PAGES:
+        p = os.path.join(ROOT, rel)
+        t = open(p, encoding="utf-8").read()
+        bar = '\n<div class="sp-bar" aria-hidden="true"></div>'
+        t2 = re.sub(r'<header class="(?:header|gh)" id="(?:header|gh)">.*?</header>(?:\n<div class="sp-bar" aria-hidden="true"></div>)?', lambda m: chrome.header() + bar, t, count=1, flags=re.S)
+        foot = f"{fa}\n{chrome.footer(landings.TRANSLATE_ON)}\n{fb}"
+        if fa in t2:
+            t2 = re.sub(re.escape(fa) + r".*?" + re.escape(fb), lambda m: foot, t2, flags=re.S)
+        else:
+            t2 = t2.replace("</main>", "</main>\n\n" + foot, 1)
+        t2 = re.sub(r'\n<link rel="stylesheet" href="/assets/(?:site|pages)\.css\?v=\d+">', "", t2)
+        links = chrome.CSS + ("" if rel.startswith("about") else f'\n<link rel="stylesheet" href="/assets/pages.css?v={chrome.CV}">')
+        last = list(re.finditer(r'<link rel="stylesheet" href="/assets/(?:style|design)\.css\?v=\d+">', t2))[-1]
+        t2 = t2[:last.end()] + "\n" + links + t2[last.end():]
+        t2 = re.sub(r'<script src="/assets/site\.js\?v=\d+"></script>\n', "", t2)
+        first = re.search(r'<script src="/assets/(?:handoff|design|app)\.js', t2)
+        t2 = t2[:first.start()] + chrome.JS + "\n" + t2[first.start():]
+        if t2 != t:
+            open(p, "w", encoding="utf-8").write(t2)
+
 
 if __name__ == "__main__":
     sync_editor_menu()   # source headers used by the page generators
     og.build()            # per-page share images (before the pages that link them)
     _, projects = home()   # the portfolio → /about/
     home_page.build()      # tools hub → /
+    chrome_sync()
     dd = design()
     tools_page(dd)
     landings.build()

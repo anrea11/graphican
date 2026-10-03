@@ -420,25 +420,16 @@
   var GUIDE_CHIPS = '<a href="#fonts">Фонт</a><a href="#colors">Өнгө</a><a class="hot" href="#kit">Нэг товшилтоор татах ↓</a><a class="brand" href="#guide"><span class="dp-orb" aria-hidden="true"></span>Graphican брэнд гайд</a><a href="/tools/">Design tools →</a>';
   var TOOLS_CHIPS = '<a class="hot" href="/tools/upscale/">AI томруулагч ✦</a><a href="/tools/bgremove/">Дэвсгэр арилгагч</a><a href="/tools/socialcrop/">Сошиал тайрагч</a><a href="/video/">Видео засварлагч</a><a href="/tools/pdfedit/">PDF засварлагч</a><a href="/tools/pdf/">PDF хөрвүүлэгч</a><a href="/editor/">Засварлагч ↗</a><a class="brand" href="/design/"><span class="dp-orb" aria-hidden="true"></span>Design guide →</a>';
 
+  var LIGHT = '<div class="fxl lp-fx" aria-hidden="true"><i class="beam"></i><svg viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice"><circle cx="-120" cy="-380" r="900"/><circle cx="1620" cy="1500" r="1050"/></svg></div>';
   function hero(h, page) {
     var tools = page === 'tools';
     return (
-      '<section class="hero d-hero" id="top">' + fx('hero') +
-        '<div class="frame">' +
-          '<div class="corner tl">GRAPHICAN — ' + esc(h.kicker || 'DESIGN SYSTEM') + '</div>' +
-          '<div class="corner tr">DESIGN <span class="plus">+</span></div>' +
-          '<div class="hero-center">' +
-            '<h1 class="mega" aria-label="' + esc((h.title_line1 || '') + ' ' + (h.title_line2 || '')) + '">' +
-              '<span class="line">' + blurText(h.title_line1, 0.8) + '</span>' +
-              '<span class="line l2">' + blurText(h.title_line2, 0.45) + '<span class="dot"></span></span>' +
-            '</h1>' +
-          '</div>' +
-          '<div class="hero-copy">' +
-            '<p class="lead">' + esc(h.text) + '</p>' +
-            '<div class="chips">' + (tools ? TOOLS_CHIPS : GUIDE_CHIPS) + '</div>' +
-          '</div>' +
-          '<div class="corner bl">' + (tools ? '01 UPSCALE · 02 BACKGROUND · 03 SOCIAL · 04 PDF · 05 EDITOR' : '01 TYPE · 02 COLOR · 03 KIT · 04 BRAND') + '</div>' +
-          '<div class="corner br">' + new Date().getFullYear() + '<br>' + (tools ? 'TOOLS' : 'GUIDE') + '</div>' +
+      '<section class="nx-hero" id="top">' + LIGHT +
+        '<div class="nx-in">' +
+          '<p class="lp-kicker">Graphican — ' + esc(h.kicker || 'Design system') + '</p>' +
+          '<h1 data-words>' + esc(h.title_line1 || '') + ' ' + esc(h.title_line2 || '') + '.</h1>' +
+          '<p class="nx-lead">' + esc(h.text) + '</p>' +
+          '<div class="chips">' + (tools ? TOOLS_CHIPS : GUIDE_CHIPS) + '</div>' +
         '</div>' +
       '</section>'
     );
@@ -1551,9 +1542,7 @@
     });
   }
 
-  function footer() {
-    return '<footer class="footer"><span>© ' + new Date().getFullYear() + ' GRAPHICAN</span><span class="mark" aria-hidden="true"></span><a href="/">← graphican.online</a></footer>';
-  }
+  function footer() { return ''; }   // the footer is part of the page (chrome.py)
 
   // ---------- builder behaviour ----------
 
@@ -1670,19 +1659,7 @@
 
   function enhance() {
     document.documentElement.classList.add('js');
-    var header = document.getElementById('header');
-    function onScroll() { header.classList.toggle('scrolled', window.scrollY > 30); }
-    onScroll();
-    window.addEventListener('scroll', onScroll, { passive: true });
-
-    var toggle = document.getElementById('menu-toggle');
-    toggle.addEventListener('click', function () {
-      var open = header.classList.toggle('menu-open');
-      toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
-    });
-    header.querySelectorAll('.nav a').forEach(function (a) {
-      a.addEventListener('click', function () { header.classList.remove('menu-open'); toggle.setAttribute('aria-expanded', 'false'); });
-    });
+    if (window.GSite) window.GSite.scan();   // header, reveal and scroll motion live in site.js
 
     requestAnimationFrame(function () { document.documentElement.classList.add('ready'); });
 
@@ -1765,7 +1742,7 @@
         // the page's own FAQ (written by the SEO prerender) stays on the page, under the tool
         var faqEl = app.querySelector('.seo-faq');
         var faq = faqEl ? '<section class="sec tool-faq reveal"><div class="sec-meta"><span>ТҮГЭЭМЭЛ АСУУЛТ</span><span>FAQ +</span></div>' + faqEl.innerHTML.replace(/<h2>[\s\S]*?<\/h2>/, '') + '</section>' : '';
-        app.innerHTML = toolCrumb(TOOL) + tv.view(d) + faq + otherTools(TOOL) + footer();
+        app.innerHTML = LIGHT + toolCrumb(TOOL) + tv.view(d) + faq + otherTools(TOOL) + footer();
         enhance();
         tv.setup();
         receiveHandoff();

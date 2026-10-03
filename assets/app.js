@@ -362,9 +362,7 @@
     );
   }
 
-  function footer(f) {
-    return '<footer class="footer"><span>' + esc(f.copyright) + '</span><span class="mark" aria-hidden="true"></span><span>' + esc(f.tagline) + '</span></footer>';
-  }
+  function footer(f) { return ''; }   // the footer is part of the page (chrome.py)
 
   // ---------- behaviour ----------
 
@@ -502,9 +500,12 @@
     document.documentElement.classList.add('js');
 
     var header = document.getElementById('header');
-    function onScroll() { header.classList.toggle('scrolled', window.scrollY > 30); }
-    onScroll();
-    window.addEventListener('scroll', onScroll, { passive: true });
+    if (window.GSite) window.GSite.scan();   // new header: site.js
+    if (header) {
+      var onScroll = function () { header.classList.toggle('scrolled', window.scrollY > 30); };
+      onScroll();
+      window.addEventListener('scroll', onScroll, { passive: true });
+    }
 
     // mobile menu
     var toggle = document.getElementById('menu-toggle');
