@@ -563,47 +563,45 @@ h2.one { filter:blur(calc((1 - var(--p, 1)) * .12em)); opacity:calc(.2 + var(--p
   box-shadow:inset 0 0 0 1px rgba(231,227,253,.1), inset 0 0 22px rgba(143,123,255,.8), inset 0 -10px 26px -8px rgba(143,123,255,.7), 0 0 40px -8px rgba(123,100,255,1); }
 @media (prefers-reduced-motion:reduce) { .bt.pri::before { animation:none; left:30%; } }
 
-/* ---------- final section: light breaking over a horizon, mirrored on the surface below it ---------- */
-.fin { padding-bottom:clamp(250px, 27vw, 350px); }
+/* ---------- final section: light rising over a curved horizon, mirrored softly below it ---------- */
+.fin { padding-bottom:clamp(270px, 28vw, 370px); }
 .fin .fxl .beam { display:none; }
-.fin-bloom { --k:var(--p, 1); --h:150px; position:absolute; left:50%; bottom:0; z-index:0; width:1100px; height:600px; margin-left:-550px; pointer-events:none; transform-origin:50% 100%; }
+.fin-bloom { --k:var(--p, 1); --h:170px; position:absolute; left:50%; bottom:0; z-index:0; width:1200px; height:680px; margin-left:-600px; pointer-events:none;
+  transform-origin:50% calc(100% - var(--h)); transform:scale(calc(.62 + var(--k) * .38)); opacity:var(--k); }
 .fin-bloom i, .fin-bloom span, .fin-bloom b { position:absolute; display:block; }
-.fin-bloom > i { left:50%; bottom:var(--h); }
-/* above the line */
-.fin-bloom .rays { width:760px; height:380px; margin-left:-380px; mix-blend-mode:screen; filter:blur(6px); opacity:calc(var(--k) * .6); transform-origin:50% 100%;
-  background:repeating-conic-gradient(from 270deg at 50% 100%, rgba(231,227,253,0) 0deg, rgba(210,200,255,.55) 4deg, rgba(231,227,253,0) 9deg, rgba(164,151,255,.3) 15deg, rgba(231,227,253,0) 21deg);
-  -webkit-mask-image:radial-gradient(ellipse 50% 100% at 50% 100%, #000 6%, transparent 68%); mask-image:radial-gradient(ellipse 50% 100% at 50% 100%, #000 6%, transparent 68%);
-  animation:rays 11s ease-in-out infinite alternate; }
-@keyframes rays { from { rotate:-7deg; scale:.95; } to { rotate:7deg; scale:1.06; } }
-.fin-bloom .halo { width:700px; height:320px; margin-left:-350px; mix-blend-mode:screen; filter:blur(36px); transform-origin:50% 100%; transform:scale(calc(.45 + var(--k) * .55)); opacity:calc(var(--k) * .95);
-  background:radial-gradient(ellipse 50% 100% at 50% 100%, rgba(185,173,255,.85), rgba(109,86,250,.5) 40%, rgba(52,34,158,0) 78%); animation:breath 5.5s ease-in-out infinite alternate; }
-.fin-bloom .core { width:260px; height:130px; margin-left:-130px; border-radius:50% 50% 0 0 / 100% 100% 0 0; mix-blend-mode:screen; filter:blur(12px); transform-origin:50% 100%; transform:scale(calc(.35 + var(--k) * .65)); opacity:var(--k);
-  background:radial-gradient(ellipse 50% 100% at 50% 100%, #fff 8%, rgba(245,243,255,.95) 26%, rgba(185,173,255,.6) 58%, transparent 100%); animation:breath 3.8s ease-in-out infinite alternate; }
-@keyframes breath { from { scale:.93; filter:blur(12px) brightness(.92); } to { scale:1.07; filter:blur(12px) brightness(1.12); } }
-.fin-bloom .halo { animation-name:breathH; } @keyframes breathH { from { scale:.95; } to { scale:1.06; } }
-/* a thin flare along the horizon and the hairline itself */
-.fin-bloom .streak { width:84%; height:5px; margin:0 0 -2px -42%; border-radius:50%; mix-blend-mode:screen; filter:blur(2.5px); opacity:calc(var(--k) * .9);
-  background:linear-gradient(90deg, transparent, rgba(164,151,255,.6) 28%, #fff 50%, rgba(164,151,255,.6) 72%, transparent); animation:flare 4.6s ease-in-out infinite alternate; }
-@keyframes flare { from { scale:.82 1; opacity:.55; } to { scale:1.04 1; opacity:.95; } }
-.fin-bloom .line { width:100%; height:1px; margin-left:-50%; opacity:var(--k); transform:scaleX(calc(.3 + var(--k) * .7));
-  background:linear-gradient(90deg, transparent, rgba(185,173,255,.55) 22%, rgba(245,243,255,1) 50%, rgba(185,173,255,.55) 78%, transparent); box-shadow:0 0 12px rgba(164,151,255,.9), 0 0 2px #fff; }
-/* the reflection: the same light, upside down, fading and rippling */
-.fin-bloom .refl { left:0; right:0; bottom:0; height:var(--h); overflow:hidden; opacity:calc(var(--k) * .85);
-  -webkit-mask-image:linear-gradient(180deg, #000, rgba(0,0,0,.5) 35%, transparent 92%); mask-image:linear-gradient(180deg, #000, rgba(0,0,0,.5) 35%, transparent 92%); }
-.fin-bloom .rh { left:50%; top:0; width:620px; height:150px; margin-left:-310px; mix-blend-mode:screen; filter:blur(26px); transform-origin:50% 0;
-  background:radial-gradient(ellipse 50% 100% at 50% 0, rgba(164,151,255,.6), rgba(109,86,250,.3) 45%, rgba(52,34,158,0) 80%); animation:breathH 5.5s ease-in-out infinite alternate; }
-.fin-bloom .rc { left:50%; top:0; width:150px; height:150px; margin-left:-75px; mix-blend-mode:screen; filter:blur(9px); transform-origin:50% 0;
-  background:radial-gradient(ellipse 50% 100% at 50% 0, rgba(255,255,255,.95), rgba(231,227,253,.6) 28%, rgba(164,151,255,.28) 60%, transparent 100%); animation:wob 4.2s ease-in-out infinite alternate; }
-@keyframes wob { from { scale:.8 .9; translate:-5px 0; } to { scale:1.15 1.08; translate:5px 0; } }
-.fin-bloom .rip { inset:0; background:repeating-linear-gradient(180deg, rgba(10,10,16,.62) 0 2px, rgba(10,10,16,0) 2px 7px); background-size:100% 28px; animation:rip 2.4s linear infinite; }
-@keyframes rip { to { background-position:0 28px; } }
+.fin-bloom > i { left:50%; bottom:var(--h); mix-blend-mode:screen; transform-origin:50% 100%; }
+/* soft tongues of light, each swaying at its own pace */
+.fin-bloom .pl { width:var(--w); height:var(--hh); margin-left:calc(var(--w) / -2); border-radius:50%; filter:blur(24px); rotate:var(--r);
+  background:radial-gradient(ellipse 50% 100% at 50% 100%, rgba(var(--c), var(--a)), rgba(var(--c), calc(var(--a) * .45)) 38%, rgba(var(--c), 0) 74%);
+  animation:plume var(--t) ease-in-out infinite alternate; }
+@keyframes plume { from { rotate:calc(var(--r) - 6deg); scale:.9 .86; } to { rotate:calc(var(--r) + 6deg); scale:1.08 1.1; } }
+.fin-bloom .halo { width:1000px; height:250px; margin-left:-500px; filter:blur(44px);
+  background:radial-gradient(ellipse 50% 100% at 50% 100%, rgba(140,120,255,.6), rgba(98,76,240,.3) 42%, rgba(52,34,158,0) 76%); animation:breathH 6s ease-in-out infinite alternate; }
+.fin-bloom .core { width:330px; height:170px; margin-left:-165px; border-radius:50% 50% 0 0 / 100% 100% 0 0; filter:blur(16px);
+  background:radial-gradient(ellipse 50% 100% at 50% 100%, #fff 14%, rgba(244,240,255,.95) 34%, rgba(190,176,255,.55) 62%, rgba(150,130,255,0) 100%); animation:breath 4.2s ease-in-out infinite alternate; }
+.fin-bloom .hot { width:190px; height:74px; margin-left:-95px; border-radius:50% 50% 0 0 / 100% 100% 0 0; filter:blur(7px); background:radial-gradient(ellipse 50% 100% at 50% 100%, #fff 40%, rgba(255,255,255,.7) 66%, rgba(255,255,255,0) 100%); animation:breath 3.1s ease-in-out infinite alternate; }
+@keyframes breath { from { scale:.94; opacity:.86; } to { scale:1.07; opacity:1; } }
+@keyframes breathH { from { scale:.95 .92; opacity:.8; } to { scale:1.05 1.08; opacity:1; } }
+/* the horizon: a long thin flare on a gently curved hairline */
+.fin-bloom .streak { width:96%; height:7px; margin:0 0 -3px -48%; border-radius:50%; filter:blur(3px); transform-origin:50% 50%;
+  background:linear-gradient(90deg, rgba(123,100,255,0), rgba(140,120,255,.55) 22%, rgba(236,230,255,.95) 42%, #fff 50%, rgba(236,230,255,.95) 58%, rgba(140,120,255,.55) 78%, rgba(123,100,255,0)); animation:flare 5s ease-in-out infinite alternate; }
+@keyframes flare { from { scale:.86 1; opacity:.7; } to { scale:1.03 1.25; opacity:1; } }
+.fin-bloom .line { width:100%; height:90px; margin:0 0 -90px -50%; border-radius:50%; border-top:1.5px solid rgba(240,236,255,.95); mix-blend-mode:normal;
+  -webkit-mask-image:linear-gradient(90deg, transparent 4%, #000 34% 66%, transparent 96%); mask-image:linear-gradient(90deg, transparent 4%, #000 34% 66%, transparent 96%);
+  filter:drop-shadow(0 0 5px rgba(190,176,255,1)) drop-shadow(0 -1px 16px rgba(123,100,255,.95)); }
+/* below the line: the planet's dark edge, with the light mirrored on it */
+.fin-bloom .refl { left:0; right:0; bottom:0; height:var(--h); overflow:hidden;
+  -webkit-mask-image:linear-gradient(180deg, #000 0, rgba(0,0,0,.55) 30%, transparent 88%); mask-image:linear-gradient(180deg, #000 0, rgba(0,0,0,.55) 30%, transparent 88%); }
+.fin-bloom .refl i { left:50%; top:0; mix-blend-mode:screen; transform-origin:50% 0; }
+.fin-bloom .rh { width:860px; height:170px; margin-left:-430px; filter:blur(30px); background:radial-gradient(ellipse 50% 100% at 50% 0, rgba(140,120,255,.5), rgba(98,76,240,.22) 48%, rgba(52,34,158,0) 82%); animation:breathH 6s ease-in-out infinite alternate; }
+.fin-bloom .rc { width:260px; height:120px; margin-left:-130px; filter:blur(16px); background:radial-gradient(ellipse 50% 100% at 50% 0, rgba(255,255,255,.75), rgba(214,204,255,.4) 36%, rgba(150,130,255,0) 86%); animation:breath 4.2s ease-in-out infinite alternate; }
 /* a few motes of light drifting up */
-.fin-bloom .sparks { left:50%; bottom:var(--h); width:0; height:0; opacity:var(--k); }
-.fin-bloom .sparks b { left:var(--x); bottom:0; width:3px; height:3px; border-radius:50%; background:#fff; box-shadow:0 0 8px 2px rgba(185,173,255,.9); opacity:0; animation:mote var(--t) linear var(--d) infinite; }
-@keyframes mote { 0% { transform:translate3d(0, 0, 0) scale(.6); opacity:0; } 12% { opacity:.95; } 70% { opacity:.5; } 100% { transform:translate3d(calc(var(--x) * .35), -260px, 0) scale(.2); opacity:0; } }
-@media (max-width:900px) { .fin-bloom { scale:.72; } .fin { padding-bottom:230px; } }
-@media (max-width:520px) { .fin-bloom { scale:.56; } .fin { padding-bottom:200px; } }
-@media (prefers-reduced-motion:reduce) { .fin-bloom *, .fin-bloom { animation:none !important; } .fin-bloom .sparks { display:none; } }
+.fin-bloom .sparks { left:50%; bottom:var(--h); width:0; height:0; }
+.fin-bloom .sparks b { left:var(--x); bottom:0; width:2px; height:2px; border-radius:50%; background:#fff; box-shadow:0 0 7px 2px rgba(190,176,255,.85); opacity:0; animation:mote var(--t) linear var(--d) infinite; }
+@keyframes mote { 0% { transform:translate3d(0, 0, 0); opacity:0; } 15% { opacity:.9; } 70% { opacity:.4; } 100% { transform:translate3d(calc(var(--x) * .4), -300px, 0); opacity:0; } }
+@media (max-width:900px) { .fin-bloom { scale:.7; --h:140px; } .fin { padding-bottom:300px; } }
+@media (max-width:520px) { .fin-bloom { scale:.52; --h:110px; } .fin { padding-bottom:250px; } }
+@media (prefers-reduced-motion:reduce) { .fin-bloom, .fin-bloom * { animation:none !important; } .fin-bloom .sparks { display:none; } }
 
 /* ---------- «Хамтран ажиллах»: a card lit from its edges, with a highlight travelling along the top edge ---------- */
 .collab { position:relative; isolation:isolate; width:min(var(--max), calc(100% - var(--pad) * 2)); max-width:none; margin:clamp(48px, 7vw, 96px) auto; padding:clamp(28px, 4vw, 48px); border:1px solid rgba(164,151,255,.42); border-radius:22px; overflow:hidden;
