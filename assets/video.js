@@ -208,6 +208,7 @@
   root.innerHTML =
     '<header class="vh"><a class="logo" href="/tools/" title="Бүх хэрэгсэл"><span class="orb" aria-hidden="true"></span><span>Graphican</span></a>' +
     '<input class="vname" id="v-name" value="" aria-label="Видеоны нэр" spellcheck="false">' +
+    '<button type="button" class="vsave" id="v-save" role="status" aria-live="polite" hidden></button>' +
     '<button class="chip" id="v-size" type="button" title="Хэмжээ солих"></button>' +
     '<button class="btn-x" id="v-export" type="button">' + ico('dl') + '<span>Татах</span></button></header>' +
     '<div class="vmain"><nav class="vrail" id="v-rail" aria-label="Нэмэх"></nav><div class="vcenter">' +
@@ -936,11 +937,13 @@
   }
   function ovOrder() { return P.overlays.map(function (o, i) { return [o, i]; }).sort(function (a, b) { return ((a[0].ln || 0) - (b[0].ln || 0)) || (a[1] - b[1]); }).map(function (x) { return x[0]; }); }
   // one frame at time t, in project pixels scaled by k: video layer (+ effects) → overlays → texts
-  var limPx = 720;
+  var limPx = 720, LITE = false;
   function renderFrame(ctx, k, t, still) {
     limPx = ctx.canvas === cv ? Math.min(720, QUAL[qual] * 0.75) : 720;
+    // while something is being dragged the preview skips the heavy work (effects track, a fresh person cut-out); export never does
+    LITE = ctx.canvas === cv && !!((drag && drag.moved) || (pdrag && pdrag.moved));
     ctx.setTransform(k, 0, 0, k, 0, 0); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; ctx.filter = 'none';
-    var E = activeFx(t);
+    var E = LITE ? [] : activeFx(t);
     if (!E.length) drawMain(ctx, t);
     else {
       var L = layerFor(ctx); L.x.setTransform(k, 0, 0, k, 0, 0); L.x.globalAlpha = 1; L.x.globalCompositeOperation = 'source-over'; L.x.filter = 'none';
@@ -1478,28 +1481,50 @@
     return DB;
   }
   function idb(store, mode, fn) { return db().then(function (d) { return new Promise(function (res, rej) { var tx = d.transaction(store, mode), st = tx.objectStore(store), out = fn(st); tx.oncomplete = function () { res(out && out.result); }; tx.onerror = function () { rej(tx.error); }; }); }); }
-  var saveT = 0;
+  // autosave into this browser's storage (IndexedDB) — nothing goes to a server. The status only says «Хадгалагдсан»
+  // after the project (and its new media files) really were written; a newer edit restarts it.
+  var saveT = 0, saveGen = 0, savedSnap = null, saveState = 'idle', saveEl = document.getElementById('v-save');
+  var SAVE_TXT = { saving: 'Хадгалж байна...', saved: 'Хадгалагдсан', partial: 'Хэсэгчлэн хадгалагдсан', error: 'Хадгалж чадсангүй' };
+  var SAVE_TIP = { saving: 'Энэ төхөөрөмжийн хөтөч дотор хадгалж байна', saved: 'Энэ төхөөрөмжийн хөтөч дотор хадгалагдсан (сервер, cloud руу явахгүй)',
+    partial: 'Төсөл хадгалагдсан, гэхдээ том видео файл хадгалагдаагүй — хуудсыг дахин нээвэл тэр видеог дахин нэмнэ', error: 'Хөтчийн санд бичиж чадсангүй (сан дүүрсэн эсвэл хаалттай байж магадгүй). Дарж дахин оролдоно.' };
+  function setSave(st) {
+    saveState = st; if (!saveEl) return;
+    saveEl.hidden = st === 'idle'; saveEl.className = 'vsave ' + st;
+    saveEl.innerHTML = '<i></i><span>' + (SAVE_TXT[st] || '') + '</span>'; saveEl.title = SAVE_TIP[st] || '';
+  }
+  if (saveEl) saveEl.addEventListener('click', function () { if (saveState === 'error') save(); else toast(SAVE_TIP[saveState] || '', 4000); });
   function save() {
     clearTimeout(saveT);
+    var gen = ++saveGen;
+    if (started) setSave('saving');
     saveT = setTimeout(function () {
-      if (!started) return;
-      var used = {}; P.clips.concat(P.audios, P.overlays).forEach(function (c) { if (c.mid) used[c.mid] = 1; });
-      idb('kv', 'readwrite', function (st) { st.put({ p: snap(), t: Date.now(), mids: Object.keys(used) }, 'project'); }).catch(function () {});
+      if (!started) { setSave('idle'); return; }
+      var used = {}, sp = snap(), skipped = false; P.clips.concat(P.audios, P.overlays).forEach(function (c) { if (c.mid) used[c.mid] = 1; });
+      var kv = idb('kv', 'readwrite', function (st) { st.put({ p: sp, t: Date.now(), mids: Object.keys(used) }, 'project'); });
       // media files are copied into the browser's storage a few seconds later, so adding / playing is not slowed down;
       // Safari copies big files very slowly — over 150 MB they are not kept (the project still is)
       var fresh = Object.keys(media).some(function (id) { return used[id] && !media[id].saved; });
-      setTimeout(function () {
-        idb('media', 'readwrite', function (st) {
+      var med = new Promise(function (res) { setTimeout(res, fresh ? (SAFARI ? 6000 : 2500) : 0); }).then(function () {
+        var put = [];
+        return idb('media', 'readwrite', function (st) {
           Object.keys(media).forEach(function (id) {
             var m = media[id]; if (!used[id] || m.saved) return;
             if (SAFARI && m.file && m.file.size > 150 * 1048576) { m.saved = 'skip'; if (!save.warned) { save.warned = 1; toast('Том видеог Safari хадгалахгүй: хуудсыг дахин нээвэл энэ видеог дахин нэмэх хэрэгтэй', 5000); } return; }
-            st.put({ id: id, kind: m.kind, name: m.name, file: m.file }, id); m.saved = 1;
+            st.put({ id: id, kind: m.kind, name: m.name, file: m.file }, id); put.push(m);
           });
           var rq = st.getAllKeys(); rq.onsuccess = function () { rq.result.forEach(function (k) { if (!used[k]) st.delete(k); }); };
-        }).catch(function () {});
-      }, fresh ? (SAFARI ? 6000 : 2500) : 0);
+        }).then(function () { put.forEach(function (m) { m.saved = 1; }); });
+      });
+      Promise.all([kv, med]).then(function () {
+        if (gen !== saveGen) return;
+        skipped = Object.keys(used).some(function (id) { return media[id] && media[id].saved === 'skip'; });
+        savedSnap = sp; setSave(skipped ? 'partial' : 'saved');
+      }).catch(function () { if (gen === saveGen) setSave('error'); });
     }, 800);
   }
+  // leaving / reloading with something not yet written: the browser asks first (never when everything is stored)
+  function unsaved() { return started && (saveState === 'saving' || saveState === 'error' || savedSnap === null || snap() !== savedSnap); }
+  window.addEventListener('beforeunload', function (e) { if (!unsaved()) return; e.preventDefault(); e.returnValue = ''; return ''; });
   function loadSaved() { return idb('kv', 'readonly', function (st) { return st.get('project'); }).catch(function () { return null; }); }
   function resume(rec) {
     var o = JSON.parse(rec.p);
@@ -1771,7 +1796,7 @@
     sheet('Товчлол', '<div class="phint" style="display:block"><dl><dt>Space</dt><dd>Тоглуулах / зогсоох</dd><dt>S</dt><dd>Шугам дээр хуваах</dd><dt>M</dt><dd>Тэмдэг тавих</dd><dt>N</dt><dd>Соронз асаах / унтраах</dd><dt>Delete</dt><dd>Устгах</dd><dt>Ctrl+Z</dt><dd>Буцаах</dd><dt>Ctrl+D</dt><dd>Хувилах</dd><dt>← →</dt><dd>Нэг кадр (Shift: 1 сек)</dd><dt>Ctrl+хүрд</dt><dd>Timeline томруулах</dd><dt>Esc</dt><dd>Сонголт болих</dd></dl></div>');
   }
   function newProject() {
-    if (!confirm('Шинэ төсөл эхлүүлэх үү? Одоогийн төсөл энэ төхөөрөмжөөс устна (эхлээд «Татах»-аар видеогоо хадгалаарай).')) return;
+    if (!confirm('Шинэ төсөл эхлүүлэх үү? Одоогийн төсөл энэ төхөөрөмжөөс устна (эхлээд «Татах»-аар видеогоо хадгалаарай).' + (unsaved() ? '\n\nСүүлийн өөрчлөлтүүд хараахан хадгалагдаагүй байна.' : ''))) return;
     pause(); sel = null; startScreen(null, true);
   }
   // per selection kind: the main actions, the rest under «Бусад»
@@ -1844,7 +1869,7 @@
   function ctxTools(o) {
     var m = media[o.mid] || {};
     if (o.gap) return [];
-    if (sel.k === 'clip') return (m.kind === 'video' ? [['speed', 'speed', 'Хурд'], ['vol', 'vol', 'Дуу']] : []).concat([['color', 'filter', 'Өнгө'], ['fx', 'fx', 'Эффект'], ['fit', 'crop', 'Байрлал'], ['trans', 'trans', 'Шилжилт'], ['cut', 'person', 'Дэвсгэр'], ['kf', 'kf', 'Keyframe']]);
+    if (sel.k === 'clip') return (m.kind === 'video' ? [['speed', 'speed', 'Хурд'], ['vol', 'vol', 'Дуу']] : []).concat([['anim', 'anim', 'Хөдлөл'], ['color', 'filter', 'Өнгө'], ['fx', 'fx', 'Эффект'], ['fit', 'crop', 'Байрлал'], ['trans', 'trans', 'Шилжилт'], ['cut', 'person', 'Дэвсгэр'], ['kf', 'kf', 'Keyframe'], ['replace', 'replace', 'Солих'], ['cmore', 'more', 'Бусад']]);
     if (sel.k === 'over') return [['oedit', 'shape', 'Тохиргоо']].concat(o.kind === 'emoji' ? [] : [['color', 'filter', 'Өнгө'], ['cut', 'person', 'Дэвсгэр арилгах']]).concat(m.kind === 'video' ? [['ovol', 'vol', 'Дуу']] : []).concat([['kf', 'kf', 'Keyframe']]);
     if (sel.k === 'text') return [['tedit', 'edit', 'Засах'], ['kf', 'kf', 'Keyframe']];
     if (sel.k === 'fx') return [['fxe', 'fx', 'Эффект']];
@@ -2856,6 +2881,7 @@
     var c = SEG.cache.get(el), key = el.tagName === 'VIDEO' ? el.currentTime : 'img';
     if (!c) { var cc = document.createElement('canvas'); c = { c: cc, x: cc.getContext('2d'), t: null }; SEG.cache.set(el, c); }
     if (c.t === key && c.c.width) return c.c;
+    if (LITE && c.c.width) return c.c;
     var k = Math.min(1, limPx / Math.max(sw, sh)), w = Math.max(1, Math.round(sw * k)), h = Math.max(1, Math.round(sh * k));
     var r;
     try { r = SEG.s.segmentForVideo(el, ++SEG.ts); } catch (e) { return null; }
@@ -3406,7 +3432,10 @@
       sizeCards(null) +
       '<div class="feat"><span>Файл серверт очихгүй</span><span>Монгол фонт</span><span>Үнэгүй видео, зургийн сан</span><span>Дуу бичих</span><span>MP4 татах</span><span>Бүртгэлгүй, үнэгүй</span></div></div>';
     document.body.appendChild(s);
-    bindSizes(s, function (w, h) { P = blank(w, h); s.remove(); begin(); });
+    bindSizes(s, function (w, h) {
+      if (saved && !confirm('Шинэ төсөл эхлүүлбэл «' + JSON.parse(saved.p).name + '» төсөл энэ төхөөрөмжөөс устна. Үргэлжлүүлэх үү?')) return;
+      P = blank(w, h); s.remove(); begin();
+    });
     var r = s.querySelector('#v-res');
     if (r) r.addEventListener('click', function () { r.disabled = true; r.textContent = 'Нээж байна…'; resume(saved).then(function () { s.remove(); }); });
   }

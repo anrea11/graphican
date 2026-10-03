@@ -528,3 +528,15 @@ body.vfull-lock { overflow:hidden; }
 details.capgen { margin-top:14px; border-top:1px solid var(--line); padding-top:10px; }
 details.capgen summary { cursor:pointer; font-size:13px; font-weight:700; color:var(--text); padding:4px 0; }
 .capst[data-stage=done] { color:#86efac; } .capst[data-stage=error] { color:#fca5a5; }
+
+/* autosave status (this device only) */
+.vsave { flex:none; display:inline-flex; align-items:center; gap:6px; height:28px; padding:0 10px; border-radius:999px; font-size:12px; font-weight:600; color:var(--muted); background:transparent; white-space:nowrap; }
+.vsave[hidden] { display:none; }
+.vsave i { width:7px; height:7px; border-radius:50%; background:var(--dim); flex:none; }
+.vsave.saving i { background:#facc15; animation:svPulse 1s ease-in-out infinite; }
+.vsave.saved i { background:#4ade80; }
+.vsave.partial i { background:#fb923c; } .vsave.partial { color:#fdba74; }
+.vsave.error i { background:#f87171; } .vsave.error { color:#fca5a5; background:rgba(248,113,113,.12); cursor:pointer; }
+.vsave:hover { background:var(--bg2); }
+@keyframes svPulse { 50% { opacity:.35; } }
+@media (max-width:480px) { .vh .vname { display:none; } .vh .chip { margin-left:auto; } .vh .vsave { padding:0 6px; font-size:11px; } }
