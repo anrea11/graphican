@@ -494,7 +494,8 @@
   // ---------- effects track: effect items stack (applied in lane order) over the video layer ----------
   function fxTime(e, t) { return (t - e.start) * (e.spd || 1); }
   function fxAmt(e) { return (e.amt == null ? 50 : e.amt) / 50; }
-  function activeFx(t) { return (P.effects || []).filter(function (e) { return e.fx && e.fx !== 'none' && t >= e.start && t < e.end; }).sort(function (a, b) { return (a.ln || 0) - (b.ln || 0); }); }
+  var fxPrev = null;   // an effect tried in the picker: drawn, never stored
+  function activeFx(t) { return (P.effects || []).concat(fxPrev ? [fxPrev] : []).filter(function (e) { return e.fx && e.fx !== 'none' && t >= e.start && t < e.end; }).sort(function (a, b) { return (a.ln || 0) - (b.ln || 0); }); }
   // movement effects transform the layer, colour effects return a filter string
   function fxPre(ctx, e, t, W, H) {
     var fx = e.fx, lt = fxTime(e, t), A = fxAmt(e), L = (e.end - e.start) * (e.spd || 1);
@@ -2134,7 +2135,7 @@
     var c = selected(); if (!c || sel.k !== 'clip') return;
     var i = P.clips.indexOf(c), d0 = Math.round((c.trd || TR) * 10);
     var s = sheet('Шилжилт', '<p class="note" style="margin:0 0 4px">' + (i > 0 ? 'Өмнөх клипээс энэ клип рүү шилжинэ.' : 'Эхний клип — дэвсгэр өнгөнөөс гарч ирнэ.') + '</p>' +
-      TRGROUPS.map(function (g) { return '<label class="lbl">' + g[0] + '</label>' + opts(g[1], c.tr || 'none', 'tr'); }).join('') +
+      TRGROUPS.map(function (g) { return '<label class="lbl">' + g[0] + '</label><div class="tiles">' + g[1].map(function (o) { return '<button type="button" class="tile' + ((c.tr || 'none') === o[0] ? ' on' : '') + '" data-tr="' + o[0] + '"><span class="trv tv-' + o[0] + '"><i></i><i></i></span><em>' + o[1] + '</em></button>'; }).join('') + '</div>'; }).join('') +
       '<div id="v-trset"><label class="lbl">Хугацаа</label><div class="rowv"><input type="range" id="v-trd" min="1" max="20" value="' + d0 + '"><b id="v-trdv">' + (d0 / 10).toFixed(1) + 'с</b></div>' +
       '<div id="v-trdir"><label class="lbl">Чиглэл</label>' + opts([['left', '← Зүүн'], ['right', '→ Баруун'], ['up', '↑ Дээш'], ['down', '↓ Доош']], c.trdir || 'left', 'tdir') + '</div>' +
       '<div id="v-trcol"><label class="lbl">Өнгө</label>' + swatches(c.trc || (c.tr === 'dipb' ? '#000000' : '#ffffff'), 'tc') + '</div>' +
@@ -2312,7 +2313,28 @@
   }
   // effects: add over the selected clip (or from the playhead), then each effect bar has its own settings
   function fxGrid(cur) {
-    return FXCATS.map(function (g) { return '<label class="lbl">' + g[0] + '</label><div class="opts">' + g[1].map(function (f) { return '<button type="button" class="opt' + (cur === f[0] ? ' on' : '') + '" data-fx="' + f[0] + '">' + f[1] + '</button>'; }).join('') + '</div>'; }).join('');
+    return FXCATS.map(function (g) { return '<label class="lbl">' + g[0] + '</label><div class="tiles">' + g[1].map(function (f) { return '<button type="button" class="tile' + (cur === f[0] ? ' on' : '') + '" data-fx="' + f[0] + '"><canvas width="96" height="64"></canvas><em>' + f[1] + '</em></button>'; }).join('') + '</div>'; }).join('');
+  }
+  // effect tiles: the current preview frame with the effect applied (one still, drawn once when the sheet opens)
+  function fxThumbs(s) {
+    var base = document.createElement('canvas'); base.width = 96; base.height = 64;
+    var bx = base.getContext('2d'), k = Math.max(96 / cv.width, 64 / cv.height);
+    bx.fillStyle = P.bg; bx.fillRect(0, 0, 96, 64);
+    try { bx.drawImage(cv, (96 - cv.width * k) / 2, (64 - cv.height * k) / 2, cv.width * k, cv.height * k); } catch (e) {}
+    var list = Array.prototype.slice.call(s.querySelectorAll('[data-fx] canvas'));
+    (function step() {
+      var n = list.splice(0, 6); if (!n.length) return;
+      n.forEach(function (cn) {
+        var fx = cn.parentNode.dataset.fx, x = cn.getContext('2d'), e = { fx: fx, start: 0, end: 2, amt: 70, spd: 1 }, t = 0.42;
+        try {
+          x.save(); x.fillStyle = P.bg; x.fillRect(0, 0, 96, 64);
+          var f = fxPre(x, e, t, 96, 64);
+          filtered(x, f || '', function (x2) { x2.drawImage(base, 0, 0); }); x.restore();
+          x.save(); postFx(x, fx, fxTime(e, t), fxAmt(e), 96, 64, FX_COL[fx] || null); x.restore();
+        } catch (er) { x.restore(); x.drawImage(base, 0, 0); }
+      });
+      requestAnimationFrame(step);
+    })();
   }
   function addEffect(fx, a, b) {
     var e = { id: uid(), fx: fx, start: a, end: Math.max(a + 0.3, b), amt: 50, spd: 1, col: null, ln: 0 };
@@ -2327,11 +2349,21 @@
     else { var D = total(); a = D > 0 && T < D - 0.3 ? T : 0; b = D > 0 ? Math.min(D, a + 3) : a + 3; if (b - a < 0.5) a = Math.max(0, b - 3); }
     (P.effects || []).forEach(function (e) { if (e.start < b && e.end > a) here.push(e); });
     var s = sheet('Эффект нэмэх', (here.length ? '<label class="lbl" style="margin-top:0">Энэ хэсэгт байгаа</label><div class="opts">' + here.map(function (e) { return '<button type="button" class="opt" data-fxsel="' + e.id + '">✦ ' + esc(fxName(e.fx)) + '</button>'; }).join('') + '</div>' : '') +
-      '<p class="note" style="margin-top:' + (here.length ? 10 : 0) + 'px">' + fmt(a) + ' – ' + fmt(b) + ' хэсэгт нэмэгдэнэ. Нэг хэсэгт хэд ч эффект давхарлаж болно.</p>' + fxGrid(''));
+      '<p class="note" style="margin-top:' + (here.length ? 10 : 0) + 'px">Дарж үзээд «Нэмэх»-ийг дарна. ' + fmt(a) + ' – ' + fmt(b) + ' хэсэгт нэмэгдэнэ, нэг хэсэгт хэд ч эффект давхарлаж болно.</p>' + fxGrid('') +
+      '<div class="stick"><button type="button" class="btn-x" id="v-fxadd" disabled>' + ico('plus') + '<span>Эффект сонгоно уу</span></button></div>', function () { fxPrev = null; draw(); });
+    var addB = s.querySelector('#v-fxadd'), pick = null;
+    fxThumbs(s);
     s.addEventListener('click', function (e) {
-      var b2 = e.target.closest('[data-fx]'); if (b2) { closeSheet(); addEffect(b2.dataset.fx, a, b); return; }
+      var b2 = e.target.closest('[data-fx]');
+      if (b2) {
+        pick = b2.dataset.fx; s.querySelectorAll('[data-fx]').forEach(function (q) { q.classList.toggle('on', q === b2); });
+        addB.disabled = false; addB.querySelector('span').textContent = '«' + fxName(pick) + '» нэмэх';
+        fxPrev = { id: '_pv', fx: pick, start: a, end: b, amt: 50, spd: 1, ln: 99 };
+        previewRange(a + 0.01, Math.min(2.5, b - a)); return;
+      }
       var x = e.target.closest('[data-fxsel]'); if (x) { closeSheet(); sel = { k: 'fx', id: x.dataset.fxsel }; refresh(); }
     });
+    addB.addEventListener('click', function () { var f = pick; if (!f) return; closeSheet(); addEffect(f, a, b); });
   }
   function sheetFxItem() {
     var e = selected(); if (!e || sel.k !== 'fx') return;
@@ -2341,6 +2373,7 @@
       '<label class="lbl">Хурд</label><div class="rowv"><input type="range" id="v-fsp" min="25" max="300" step="5" value="' + spd + '"><b id="v-fspv">' + (spd / 100) + '×</b></div>' +
       '<div id="v-fxcol"><label class="lbl">Өнгө</label>' + swatches(e.col || FX_COL[e.fx] || '#ffffff', 'fc') + '</div>' +
       '<div class="opts" style="margin-top:12px"><button type="button" class="opt" id="v-ffprev">▶ Дахин үзэх</button></div></div>', commit);
+    fxThumbs(s);
     function show() { s.querySelector('#v-fxcol').hidden = !FX_COL[e.fx]; }
     function prev() { previewRange(e.start + 0.01, Math.min(2.5, e.end - e.start)); }
     onOpt(s, 'fx', function (v) { e.fx = v; if (e.col && !FX_COL[v]) e.col = null; show(); renderTL(); prev(); });
@@ -2641,54 +2674,169 @@
     return out;
   }
   var capQ = { lang: 'mn', sty: 'bold', len: 'mid', pos: 'low', voice: true };
-  function sheetCaptions() {
-    if (!total()) return toast('Эхлээд яриатай видео нэмнэ үү');
-    var s = sheet('Автомат хадмал', '<p class="note" style="margin:0">Видеоны яриаг таньж, үг бүр нь цагтаа тодорч гарах хадмал хийнэ. Зөвхөн дуу нь танигдахаар илгээгдэнэ, видео тань хаашаа ч очихгүй.</p>' +
-      '<label class="lbl">Хэл</label>' + opts([['mn', 'Монгол'], ['en', 'English'], ['ru', 'Русский'], ['', 'Автомат']], capQ.lang, 'cl') +
-      '<label class="lbl">Загвар</label>' + opts(CAP_STY.map(function (c) { return [c[0], c[1]]; }), capQ.sty, 'cs') +
-      '<label class="lbl">Нэг удаад</label>' + opts([['one', '1 үг'], ['short', 'Богино'], ['mid', 'Дунд'], ['long', 'Урт']], capQ.len, 'cln') +
-      '<label class="lbl">Байрлал</label>' + opts([['low', 'Доор'], ['mid', 'Дунд'], ['high', 'Дээр']], capQ.pos, 'cp') +
-      '<label class="chk"><input type="checkbox" id="v-cvoice"' + (capQ.voice ? ' checked' : '') + '> Хөгжмийг тооцохгүй (зөвхөн яриа)</label>' +
-      '<div id="v-cout"><button type="button" class="btn-x" id="v-cgo" style="width:100%;margin-top:12px;height:46px">' + ico('text') + 'Хадмал үүсгэх</button></div>' +
-      '<p class="note">Монгол хэлний танилт төгс биш — үүссэн хадмал бүрийг дарж засаж болно. Дахин үүсгэвэл өмнөх автомат хадмал солигдоно.</p>');
-    onOpt(s, 'cl', function (v) { capQ.lang = v; }); onOpt(s, 'cs', function (v) { capQ.sty = v; }); onOpt(s, 'cln', function (v) { capQ.len = v; }); onOpt(s, 'cp', function (v) { capQ.pos = v; });
-    s.querySelector('#v-cvoice').addEventListener('change', function () { capQ.voice = this.checked; });
-    s.querySelector('#v-cgo').addEventListener('click', function () { runCaptions(s); });
-  }
-  function runCaptions(s) {
-    var out = s.querySelector('#v-cout'), D = total();
-    out.innerHTML = '<div class="xprog"><i id="v-cbar"></i></div><p class="note" id="v-cst">Дууг бэлтгэж байна…</p>';
-    var bar = out.querySelector('#v-cbar'), st = out.querySelector('#v-cst');
-    mixAudio(D, { voice: capQ.voice, sr: 16000, ch: 1 }).then(function (buf) {
+  // ---------- speech-to-text boundary ----------
+  // The editor only knows transcribeVideo(); the provider behind it can be swapped (e.g. Chimege for Mongolian) without touching the UI.
+  // A provider takes a 16 kHz mono WAV blob + language and resolves to { words: [{ w, s, e }] } with times in seconds inside that blob.
+  var STT = {
+    name: 'workers-ai-whisper',
+    chunk: 45,
+    transcribe: function (wav, lang) {
+      return fetch('/api/ai/transcribe?lang=' + encodeURIComponent(lang || ''), { method: 'POST', headers: { 'content-type': 'audio/wav' }, body: wav })
+        .then(function (r) { return r.json().catch(function () { return {}; }).then(function (d) { if (!r.ok) throw new Error(d.error || 'http ' + r.status); return d; }); });
+    }
+  };
+  // the project's mixed sound → timed words for the whole timeline; onStage(stage, progress 0..1) reports real progress only
+  function transcribeVideo(media, language, onStage) {
+    var D = media.duration, st = onStage || function () {};
+    st('audio', 0);
+    return mixAudio(D, { voice: media.voiceOnly, sr: 16000, ch: 1 }).then(function (buf) {
       if (!buf) throw new Error('Видеонд дуу алга');
-      var CH = 45, parts = [], words = [];
+      var CH = STT.chunk, parts = [], words = [];
       for (var a = 0; a < D; a += CH) parts.push([a, Math.min(D, a + CH + 0.5)]);
       return parts.reduce(function (p, pr, i) {
         return p.then(function () {
-          st.textContent = 'Яриаг таньж байна… ' + (i + 1) + ' / ' + parts.length; bar.style.width = Math.round(i / parts.length * 90 + 5) + '%';
-          return fetch('/api/ai/transcribe?lang=' + capQ.lang, { method: 'POST', headers: { 'content-type': 'audio/wav' }, body: wavBlob(sliceBuf(buf, pr[0], pr[1])) })
-            .then(function (r) { return r.json().then(function (d) { if (!r.ok) throw new Error(d.error || 'http ' + r.status); return d; }); })
-            .then(function (d) { (d.words || []).forEach(function (w) { var ws = w.s + pr[0], we = w.e + pr[0]; if (i > 0 && ws < pr[0] + 0.25) return; if (ws < D) words.push({ w: w.w, s: ws, e: Math.min(D, Math.max(we, ws + 0.08)) }); }); });
+          st('recognize', i / parts.length, i + 1, parts.length);
+          return STT.transcribe(wavBlob(sliceBuf(buf, pr[0], pr[1])), language).then(function (d) {
+            (d.words || []).forEach(function (w) { var ws = w.s + pr[0], we = w.e + pr[0]; if (i > 0 && ws < pr[0] + 0.25) return; if (ws < D) words.push({ w: w.w, s: ws, e: Math.min(D, Math.max(we, ws + 0.08)) }); });
+          });
         });
       }, Promise.resolve()).then(function () { return words; });
-    }).then(function (words) {
-      if (!words.length) throw new Error('Яриа танигдсангүй');
-      var lim = { one: [1, 14], short: [3, 18], mid: [5, 28], long: [8, 42] }[capQ.len], groups = groupWords(words, lim[0], lim[1]);
-      var sty = CAP_STY.filter(function (c) { return c[0] === capQ.sty; })[0][2], y = { low: P.h > P.w ? 0.74 : 0.82, mid: 0.5, high: 0.2 }[capQ.pos];
-      P.texts = P.texts.filter(function (x) { return !x.cap; });
-      groups.forEach(function (g, i) {
-        var nx = groups[i + 1], end = Math.min(nx ? nx.start : D, g.end + 0.6);
-        var x = { id: uid(), cap: true, text: g.words.map(function (w) { return w.w; }).join(' '), start: g.start, end: Math.max(end, g.start + 0.3), x: 0.5, y: y, rot: 0, words: g.words.map(function (w) { return { w: w.w, s: w.s, e: w.e }; }) };
-        Object.keys(sty).forEach(function (k) { x[k] = sty[k]; });
-        if (capQ.len === 'one') x.size *= 1.5;
-        P.texts.push(x);
-      });
-      loadFont(sty.font); sel = null; commit(); closeSheet();
-      toast(groups.length + ' хадмал нэмэгдлээ — «Текст» мөрөнд байгаа, дээр нь дарж засна', 4000);
-    }).catch(function (e) {
-      var m = (e && e.message) || ''; out.innerHTML = '<p class="note" style="color:#fca5a5">Хадмал үүсгэж чадсангүй: ' + esc(m === 'no_ai' ? 'AI түр ажиллахгүй байна' : m === 'too_large' ? 'дуу хэт урт' : m) + '</p><button type="button" class="btn-x" id="v-cgo" style="width:100%;margin-top:10px">Дахин оролдох</button>';
-      out.querySelector('#v-cgo').addEventListener('click', function () { runCaptions(s); });
     });
+  }
+  var CAP_STAGE = { audio: 'Аудио бэлтгэж байна...', recognize: 'Яриаг таньж байна...', build: 'Хадмал үүсгэж байна...', done: 'Бэлэн боллоо', error: 'Алдаа гарлаа' };
+  function capList() { return P.texts.filter(function (x) { return x.cap; }).sort(function (a, b) { return a.start - b.start; }); }
+  function capStyle(id) { return (CAP_STY.filter(function (c) { return c[0] === id; })[0] || CAP_STY[1])[2]; }
+  function capY() { return { low: P.h > P.w ? 0.74 : 0.82, mid: 0.5, high: 0.2 }[capQ.pos]; }
+  function newCapSeg(start, end, text, words) {
+    var x = { id: uid(), cap: true, text: text, start: start, end: Math.max(end, start + 0.3), x: 0.5, y: capY(), rot: 0, words: words || null }, sty = capStyle(capQ.sty);
+    Object.keys(sty).forEach(function (k) { x[k] = sty[k]; });
+    if (!words && x.anim === 'karaoke') x.anim = 'fade';
+    if (capQ.len === 'one') x.size *= 1.5;
+    return x;
+  }
+  function sheetCaptions() {
+    var D = total(), has = capList().length;
+    var gen = '<label class="lbl"' + (has ? '' : ' style="margin-top:0"') + '>Хэл</label>' + opts([['mn', 'Монгол хэл'], ['en', 'English'], ['ru', 'Русский'], ['', 'Автомат']], capQ.lang, 'cl') +
+      '<label class="lbl">Нэг удаад</label>' + opts([['one', '1 үг'], ['short', 'Богино'], ['mid', 'Дунд'], ['long', 'Урт']], capQ.len, 'cln') +
+      '<label class="lbl">Байрлал</label>' + opts([['low', 'Доор'], ['mid', 'Дунд'], ['high', 'Дээр']], capQ.pos, 'cp') +
+      '<label class="chk"><input type="checkbox" id="v-cvoice"' + (capQ.voice ? ' checked' : '') + '> Хөгжмийг тооцохгүй (зөвхөн яриа)</label>' +
+      '<div id="v-cout"></div>' +
+      '<div class="capbtns"><button type="button" class="btn-x" id="v-cgo">' + ico('cc') + 'Хадмал үүсгэх</button><button type="button" class="opt" id="v-cman">' + ico('plus') + 'Гараар нэмэх</button></div>' +
+      '<p class="note">Зөвхөн дуу нь танигдахаар илгээгдэнэ, видео тань хаашаа ч очихгүй. Танилт төгс биш — мөр бүрийг доор засаж болно.' + (has ? ' Дахин үүсгэвэл одоогийн хадмал солигдоно.' : '') + '</p>';
+    var s = sheet('Хадмал',
+      '<div id="v-cempty" class="empty"' + (has ? ' hidden' : '') + '><b>Видеондоо хадмал нэмээрэй.</b><div class="capbtns"><button type="button" class="btn-x" data-cgo="auto">' + ico('cc') + 'Автоматаар үүсгэх</button><button type="button" class="opt" data-cgo="man">Гараар нэмэх</button></div></div>' +
+      '<div id="v-cseg"' + (has ? '' : ' hidden') + '><div class="caph"><b id="v-ccount"></b><button type="button" class="opt" id="v-cadd">' + ico('plus') + 'Мөр нэмэх</button></div>' +
+      '<label class="lbl">Загвар (бүх хадмалд)</label>' + opts(CAP_STY.map(function (c) { return [c[0], c[1]]; }), capQ.sty, 'cs') +
+      '<div class="caplist" id="v-clist"></div></div>' +
+      '<details class="capgen" id="v-cgen"' + (has ? '' : ' hidden') + '><summary>' + (has ? 'Дахин автоматаар үүсгэх' : 'Автоматаар үүсгэх') + '</summary>' + gen + '</details>', function () { if (dirty) commit(); });
+    var dirty = false, list = s.querySelector('#v-clist'), genEl = s.querySelector('#v-cgen');
+    function mark() { dirty = true; renderTL(); draw(); }
+    function render() {
+      var cs = capList(), n = cs.length;
+      s.querySelector('#v-cempty').hidden = !!n; s.querySelector('#v-cseg').hidden = !n;
+      s.querySelector('#v-ccount').textContent = n + ' мөр хадмал';
+      list.innerHTML = cs.map(function (x, i) {
+        return '<div class="caprow' + (T >= x.start && T < x.end ? ' cur' : '') + '" data-cid="' + x.id + '">' +
+          '<div class="capt"><input type="number" step="0.1" min="0" data-ct="s" value="' + x.start.toFixed(1) + '" aria-label="Эхлэх (с)"><span>–</span><input type="number" step="0.1" min="0" data-ct="e" value="' + x.end.toFixed(1) + '" aria-label="Дуусах (с)">' +
+          '<button type="button" class="cib" data-cx="go" title="Энд очих" aria-label="Энд очих">' + ico('play') + '</button>' +
+          '<button type="button" class="cib" data-cx="split" title="Хуваах (шугамаар эсвэл голоор)" aria-label="Хуваах">' + ico('split') + '</button>' +
+          (i < n - 1 ? '<button type="button" class="cib" data-cx="merge" title="Дараагийнхтай нийлүүлэх" aria-label="Дараагийнхтай нийлүүлэх">' + ico('chain') + '</button>' : '') +
+          '<button type="button" class="cib danger" data-cx="del" title="Устгах" aria-label="Устгах">' + ico('del') + '</button></div>' +
+          '<textarea rows="1" data-ctx aria-label="Хадмалын текст">' + esc(x.text) + '</textarea></div>';
+      }).join('');
+    }
+    function capOf(el) { var r = el.closest('[data-cid]'); return r && P.texts.filter(function (x) { return x.id === r.dataset.cid; })[0]; }
+    function addManual() {
+      var D2 = total(); if (!D2) { toast('Эхлээд видео нэмнэ үү'); return; }
+      var st = Math.min(T, Math.max(0, D2 - 0.5)), nx = capList().filter(function (x) { return x.start > st + 0.05; })[0];
+      var x = newCapSeg(st, Math.min(D2, nx ? nx.start : st + 2, st + 2), 'Хадмал');
+      P.texts.push(x); settleLane('cap', x); mark(); render();
+      var ta = list.querySelector('[data-cid="' + x.id + '"] textarea'); if (ta) { ta.focus(); ta.select(); ta.scrollIntoView({ block: 'nearest' }); }
+    }
+    s.addEventListener('click', function (e) {
+      var g = e.target.closest('[data-cgo]');
+      if (g) { if (g.dataset.cgo === 'man') { addManual(); return; } genEl.hidden = false; genEl.open = true; genEl.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); return; }
+      if (e.target.closest('#v-cman') || e.target.closest('#v-cadd')) { addManual(); return; }
+      if (e.target.closest('#v-cgo')) { run(); return; }
+      var b = e.target.closest('[data-cx]'); if (!b) return;
+      var x = capOf(b); if (!x) return;
+      var a = b.dataset.cx, cs = capList(), i = cs.indexOf(x);
+      if (a === 'go') { if (playing) pause(); seek(x.start + 0.01); setScroll(); render(); return; }
+      if (a === 'del') { P.texts = P.texts.filter(function (q) { return q !== x; }); if (sel && sel.id === x.id) sel = null; mark(); render(); return; }
+      if (a === 'merge' && cs[i + 1]) {
+        var y = cs[i + 1];
+        x.text = (x.text + ' ' + y.text).replace(/\s+/g, ' ').trim(); x.end = Math.max(x.end, y.end);
+        x.words = x.words && y.words ? x.words.concat(y.words) : null;
+        P.texts = P.texts.filter(function (q) { return q !== y; }); mark(); render(); return;
+      }
+      if (a === 'split') {
+        var cut = T > x.start + 0.15 && T < x.end - 0.15 ? T : (x.start + x.end) / 2, w1, w2, t1, t2;
+        if (x.words && x.words.length > 1) {
+          w1 = x.words.filter(function (w) { return w.s < cut; }); w2 = x.words.filter(function (w) { return w.s >= cut; });
+          if (!w1.length || !w2.length) { var h = Math.ceil(x.words.length / 2); w1 = x.words.slice(0, h); w2 = x.words.slice(h); cut = w2[0].s; }
+          t1 = w1.map(function (w) { return w.w; }).join(' '); t2 = w2.map(function (w) { return w.w; }).join(' ');
+        } else {
+          var ws = x.text.split(/\s+/).filter(Boolean); if (ws.length < 2) { toast('Ганц үгтэй мөрийг хуваах боломжгүй'); return; }
+          var hh = Math.ceil(ws.length / 2); t1 = ws.slice(0, hh).join(' '); t2 = ws.slice(hh).join(' '); w1 = w2 = null;
+        }
+        var nx2 = JSON.parse(JSON.stringify(x)); nx2.id = uid(); nx2.start = cut; nx2.text = t2; nx2.words = w2;
+        x.end = cut; x.text = t1; x.words = w1;
+        P.texts.push(nx2); mark(); render(); return;
+      }
+    });
+    s.addEventListener('input', function (e) {
+      var x = capOf(e.target); if (!x) return;
+      if (e.target.hasAttribute('data-ctx')) {
+        x.text = e.target.value;
+        // the karaoke word timing only survives while the words still match
+        if (x.words && x.text.split(/\s+/).filter(Boolean).length !== x.words.length) { x.words = null; if (x.anim === 'karaoke') x.anim = 'fade'; }
+        mark();
+      }
+    });
+    s.addEventListener('change', function (e) {
+      var x = capOf(e.target); if (!x || !e.target.dataset.ct) return;
+      var v = parseFloat(e.target.value), D2 = total();
+      if (isNaN(v)) { render(); return; }
+      if (e.target.dataset.ct === 's') x.start = clamp(v, 0, x.end - 0.1); else x.end = clamp(v, x.start + 0.1, Math.max(D2, x.start + 0.1));
+      if (x.words) x.words = x.words.filter(function (w) { return w.s >= x.start - 0.05 && w.s < x.end; });
+      if (x.words && !x.words.length) x.words = null;
+      mark(); render();
+    });
+    onOpt(s, 'cs', function (v) {
+      capQ.sty = v; var sty = capStyle(v);
+      capList().forEach(function (x) { Object.keys(sty).forEach(function (k) { x[k] = sty[k]; }); if (!x.words && x.anim === 'karaoke') x.anim = 'fade'; });
+      loadFont(sty.font); mark();
+    });
+    onOpt(s, 'cl', function (v) { capQ.lang = v; }); onOpt(s, 'cln', function (v) { capQ.len = v; }); onOpt(s, 'cp', function (v) { capQ.pos = v; });
+    s.querySelector('#v-cvoice').addEventListener('change', function () { capQ.voice = this.checked; });
+    function run() {
+      var out = s.querySelector('#v-cout'), go = s.querySelector('#v-cgo'), D2 = total();
+      if (!D2) { toast('Эхлээд яриатай видео нэмнэ үү'); return; }
+      go.disabled = true;
+      out.innerHTML = '<div class="xprog"><i id="v-cbar"></i></div><p class="note capst" id="v-cst"></p>';
+      var bar = out.querySelector('#v-cbar'), st = out.querySelector('#v-cst');
+      function stage(k, p, i, n) { st.textContent = CAP_STAGE[k] + (k === 'recognize' && n > 1 ? ' ' + i + ' / ' + n : ''); st.dataset.stage = k; if (p != null) bar.style.width = Math.round(5 + p * 85) + '%'; }
+      transcribeVideo({ duration: D2, voiceOnly: capQ.voice }, capQ.lang, stage).then(function (words) {
+        if (!words.length) throw new Error('Яриа танигдсангүй');
+        stage('build', 1);
+        var lim = { one: [1, 14], short: [3, 18], mid: [5, 28], long: [8, 42] }[capQ.len], groups = groupWords(words, lim[0], lim[1]);
+        P.texts = P.texts.filter(function (x) { return !x.cap; });
+        groups.forEach(function (g, i) {
+          var nx = groups[i + 1], end = Math.min(nx ? nx.start : D2, g.end + 0.6);
+          P.texts.push(newCapSeg(g.start, end, g.words.map(function (w) { return w.w; }).join(' '), g.words.map(function (w) { return { w: w.w, s: w.s, e: w.e }; })));
+        });
+        loadFont(capStyle(capQ.sty).font); sel = null; dirty = true; commit(); dirty = false;
+        bar.style.width = '100%'; stage('done'); go.disabled = false; genEl.open = false; genEl.hidden = false;
+        genEl.querySelector('summary').textContent = 'Дахин автоматаар үүсгэх';
+        render();
+        toast(groups.length + ' мөр хадмал нэмэгдлээ — доорх жагсаалтаас засна', 3500);
+      }).catch(function (e) {
+        var m = (e && e.message) || ''; go.disabled = false;
+        st.dataset.stage = 'error'; bar.style.width = '0';
+        st.innerHTML = '<b>' + CAP_STAGE.error + '</b>: ' + esc(m === 'no_ai' ? 'AI түр ажиллахгүй байна' : m === 'too_large' ? 'дуу хэт урт' : m || 'тодорхойгүй алдаа') + '. «Хадмал үүсгэх»-ийг дахин дарж оролдоно уу.';
+      });
+    }
+    render();
   }
 
   // ---------- person cut-out (MediaPipe selfie segmenter, on the device) ----------
