@@ -90,22 +90,6 @@
     });
   }
 
-  // problem → result: the step nearest the middle of the screen drives the sticky window (no scroll hijacking)
-  var story = $('#story');
-  if (story) {
-    var st = new Demo($('.gw', story), 7600), steps = $$('.st-step', story);
-    if ('IntersectionObserver' in window) {
-      var so = new IntersectionObserver(function (en) {
-        en.forEach(function (e) {
-          if (!e.isIntersecting) return;
-          steps.forEach(function (s) { s.classList.toggle('on', s === e.target); });
-          var t = e.target.getAttribute('data-tool'); if (t !== st.tool) st.set(t);
-        });
-      }, { rootMargin: '-45% 0px -45% 0px', threshold: 0 });
-      steps.forEach(function (s) { so.observe(s); });
-    } else steps.forEach(function (s) { s.classList.add('on'); });
-  }
-
   // tool cards: hover plays the little demo (CSS); on touch screens it plays while the card is on screen
   if (!fine && 'IntersectionObserver' in window) {
     var co = new IntersectionObserver(function (en) { en.forEach(function (e) { e.target.classList.toggle('play', e.isIntersecting); }); }, { threshold: 0.6 });

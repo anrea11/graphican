@@ -171,6 +171,7 @@ def build():
         <u class="head an" {A('kHead', 0)}></u>
       </span>
     </div>
+    <i class="gw-rule t"></i><i class="gw-rule l"></i>
     <div class="gw-frame">
       <div class="gl gl-design">
         <i class="p-bg an" {A('kWipe', 0)}></i>
@@ -198,6 +199,7 @@ def build():
         <i class="v-prog"><u class="an" {A('kBar', 0, '--k:5')}></u></i>
       </div>
     </div>
+    <span class="gw-sel"><u></u><u></u><u></u><u></u><em></em></span>
     <i class="gw-cur"></i>
   </div>
 </div>"""
@@ -302,19 +304,6 @@ def build():
     <div class="tsw-in rv">
       <div class="tsw-list" role="tablist" aria-label="Хэрэгсэл">{tabs}</div>
       <div class="tsw-vis" id="tsw-panel" role="tabpanel" aria-labelledby="tsw-t-design">{demo_window("gw--lg")}</div>
-    </div>
-  </section>
-
-  <!-- 03 PROBLEM → RESULT -->
-  <section class="sec story" id="story">
-    {sec_head("Хийх зүйлээсээ эхэл.")}
-    <div class="st-in">
-      <div class="st-steps">
-        <article class="st-step on" data-tool="design"><span class="st-n">01</span><h3>Постер хэрэгтэй юу?</h3><p>Загвар → текст → зураг → бэлэн постер.</p>{btn("/editor/", "Шууд бүтээ", "txt")}</article>
-        <article class="st-step" data-tool="pdf"><span class="st-n">02</span><h3>PDF-ээ хөрвүүлэх үү?</h3><p>Upload → Convert → Download</p>{btn("/tools/pdf-to-word/", "Хөрвүүлэх", "txt")}</article>
-        <article class="st-step" data-tool="video"><span class="st-n">03</span><h3>Бичлэгээ контент болгох уу?</h3><p>Босоо бичлэг → timeline → бэлэн reel.</p>{btn("/video/", "Video editor", "txt")}</article>
-      </div>
-      <div class="st-vis"><div class="st-sticky">{demo_window("gw--lg gw--story")}</div></div>
     </div>
   </section>
 
