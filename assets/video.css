@@ -621,3 +621,5 @@ details.capgen summary { cursor:pointer; font-size:13px; font-weight:700; color:
   .fxsheet.has .fxset { margin-top:8px; }
   .fxsheet.has .fxn { height:32px; padding-left:8px; } .fxsheet.has .fxn span { font-size:11.5px; } .fxsheet.has .fxfav { width:30px; height:30px; }
 }
+/* a selected bar is dragged, not swiped: the browser must not take the gesture for scrolling */
+.it.on, .it.lift { touch-action:none; }
