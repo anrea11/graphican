@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 """
-Tools-first home page (/). Fully static, visible HTML: one "drop any file" box that suggests
-what to do with it, then the tools grouped as PDF · Зураг · Дизайн, and a short band that leads
-to the collaboration page (/about/). The portfolio lives on /about/ (rendered by app.js).
+Home page (/): a motion-first landing for the creative tools. Fully static, visible HTML — hero with a
+morphing product window, tool switcher, problem → result scroll story, tool grid, Mongolian fonts,
+templates, workflow and the final call to action. Styles: assets/home.css · behaviour: assets/home.js.
+The portfolio lives on /about/ (rendered by app.js).
 """
 import json, os
 import landings as L
 
 ROOT, SITE, e, ld = L.ROOT, L.SITE, L.e, L.ld
-V = "10"
+V = "11"
 
 ICON = {
     "pdf": '<path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5"/><path d="m9 17 1-3 5-5 2 2-5 5z" fill="currentColor"/>',
@@ -69,6 +70,24 @@ TILES = [
 ]
 TILES = [t for t in TILES if L.TRANSLATE_ON or t[0] != "translate-pdf"]
 
+# icons of the new home (24px, stroke)
+GI = {
+    "design": '<path d="M4 20l4.5-1 10-10-3.5-3.5-10 10z"/><path d="M13.5 7l3.5 3.5"/>',
+    "pdf": '<path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 13h6M9 17h4"/>',
+    "ppt": '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M12 16v4M8 20h8"/>',
+    "video": '<rect x="3" y="5" width="13" height="14" rx="2"/><path d="m16 10 5-3v10l-5-3z"/>',
+    "bg": '<rect x="3" y="4" width="18" height="16" rx="2" stroke-dasharray="3 2"/><circle cx="12" cy="10" r="3"/><path d="M6.5 20c1-3 3-4.5 5.5-4.5s4.5 1.5 5.5 4.5"/>',
+    "up": '<path d="M4 14v6h6M20 10V4h-6M14 10l6-6M4 20l6-6"/>',
+    "crop": '<path d="M6 2v14a2 2 0 0 0 2 2h14"/><path d="M18 22V8a2 2 0 0 0-2-2H2"/>',
+    "font": '<path d="M4 20 9 5h2l5 15M6 15h8"/><circle cx="19" cy="7" r="2.5"/>',
+    "tpl": '<rect x="3.5" y="3.5" width="7" height="9" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="5" rx="1.5"/><rect x="13.5" y="11.5" width="7" height="9" rx="1.5"/><rect x="3.5" y="15.5" width="7" height="5" rx="1.5"/>',
+    "color": '<circle cx="12" cy="12" r="8.5"/><path d="M12 3.5v17a8.5 8.5 0 0 0 0-17z" fill="currentColor"/>',
+    "zip": '<path d="M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7"/>',
+    "ai": '<path d="M12 3l1.8 4.6L18.5 9l-4.7 1.4L12 15l-1.8-4.6L5.5 9l4.7-1.4z"/><path d="M18 15l.8 1.9 1.9.8-1.9.8L18 20.4l-.8-1.9-1.9-.8 1.9-.8z"/>',
+    "dl": '<path d="M12 4v11m-4.5-4.5L12 15l4.5-4.5M5 19h14"/>',
+    "play": '<path d="M8 5.5v13l11-6.5z" fill="currentColor" stroke="none"/>',
+}
+
 
 def build():
     d = json.load(open(os.path.join(ROOT, "content", "site.json"), encoding="utf-8"))
@@ -108,173 +127,274 @@ def build():
         return f'<figure class="ht-review"><div class="ht-review-top"><span class="ht-tool">{e(x.get("tool", ""))}</span><span class="ht-quote" aria-hidden="true">“</span></div><blockquote>{e(x["text"])}</blockquote><figcaption>{photo}<span><b>{e(x["name"])}</b><small>Graphican хэрэглэгч</small></span></figcaption></figure>'
     review_cards = "".join(review_card(x) for x in reviews if x.get("approved") is True and x.get("text") and x.get("name"))
     review_content = ('<div class="ht-reviews">' + review_cards + '</div>') if review_cards else '<p class="ht-review-empty">Та Graphican ашиглаж үзсэн үү? Юу бүтээснээ, аль хэрэгсэл танд тусалсныг хуваалцаарай.</p>'
-    TR_LINK = '<a href="/tools/translate-pdf/">Орчуулах</a>' if L.TRANSLATE_ON else ""   # PDF translation can be switched off
+    TR_LINK = '<a href="/tools/translate-pdf/">PDF орчуулах</a>' if L.TRANSLATE_ON else ""   # PDF translation can be switched off
+
+    # ---------- reusable pieces ----------
+    def A(name, step, extra=""):          # one step of a product demo: keyframe name + its place in the sequence
+        return f'style="--a:{name};--s:{step}{";" + extra if extra else ""}"'
+
+    def ic(k):
+        return f'<svg viewBox="0 0 24 24" aria-hidden="true">{GI[k]}</svg>'
+
+    photo_a, photo_b = "/assets/home/photo-a.webp", "/assets/home/photo-b.webp"   # crops of a client product photo, without the ad text
+
+    def demo_window(cls):
+        """DemoWindow — one software window whose artboard morphs between the four tools (data-tool on .gw)."""
+        return f"""<div class="gw {cls}" data-gw data-tool="design" aria-hidden="true">
+  <div class="gw-bar"><span class="gw-dots"><i></i><i></i><i></i></span>
+    <span class="gw-name"><b data-t="design">Постер · Design editor</b><b data-t="pdf">Гэрээ.pdf · PDF editor</b><b data-t="ppt">Танилцуулга · PPT editor</b><b data-t="video">Reel · Video editor</b></span>
+    <span class="gw-act an" {A('kPulse', 5)}>{ic('dl')}Татах</span></div>
+  <div class="gw-stage">
+    <div class="gx gx-design">
+      <span class="dz-layers an" {A('kFade', 1)}><i class="on"><u>T</u>Гарчиг</i><i><u>▣</u>Зураг</i><i><u>◼</u>Дэвсгэр</i></span>
+      <span class="dz-props an" {A('kFade', 2)}><b>Фонт</b><i class="f an" {A('kOut', 4)}>Manrope</i><i class="f on an" {A('kIn', 4)}>Playfair</i><b>Өнгө</b><span class="sw"><u style="background:#3570FA"></u><u style="background:#f3efe6"></u><u style="background:#0e1424"></u><u style="background:#ffb648"></u></span></span>
+      <span class="chip c-png an" {A('kPop', 5)}>PNG · JPG · PDF</span>
+    </div>
+    <div class="gx gx-pdf">
+      <span class="pg p1 an" {A('kPop', 1)}><i></i><i></i><i></i><em>1</em></span>
+      <span class="pg p2 an" {A('kSwapR', 3)}><i></i><i></i><i></i><em>3</em></span>
+      <span class="pg p3 an" {A('kSwapL', 3)}><i></i><i></i><i></i><em>2</em></span>
+      <span class="pg p4 an" {A('kPop', 2)}><i></i><i></i><i></i><em>4</em></span>
+      <span class="cv an" {A('kPop', 4)}><b>PDF → Word</b><i><u class="an" {A('kBar', 4.4)}></u></i></span>
+      <span class="chip c-ok an" {A('kPop', 5.6)}>✓ Татахад бэлэн</span>
+    </div>
+    <div class="gx gx-ppt">
+      <span class="strip"><i class="on an" {A('kPop', 0)}></i><i class="an" {A('kPop', 1)}></i><i class="an" {A('kPop', 1.4)}></i><i class="an" {A('kPop', 1.8)}></i><i class="add an" {A('kPop', 2.2)}>+</i></span>
+      <span class="chip c-tr an" {A('kPop', 4)}>⇄ Шилжилт · Анимэйшн</span>
+      <span class="chip c-pp an" {A('kPop', 5)}>PowerPoint · PDF</span>
+    </div>
+    <div class="gx gx-video">
+      <span class="tl">
+        <span class="row clips"><i class="c1 an" {A('kTrim', 2)}><img src="{photo_b}" alt="" loading="lazy"></i><i class="c2 an" {A('kSlideL', 1)}><img src="{photo_a}" alt="" loading="lazy"></i><i class="c3 an" {A('kSlideL', 1.5)}></i><u class="cut an" {A('kPop', 3)}></u></span>
+        <span class="row txt"><i class="an" {A('kGrow', 3.6)}>T · Шинэ цуглуулга</i></span>
+        <span class="row aud"><i class="an" {A('kGrow', 4.4)}></i></span>
+        <u class="head an" {A('kHead', 0)}></u>
+      </span>
+    </div>
+    <div class="gw-frame">
+      <div class="gl gl-design">
+        <i class="p-bg an" {A('kWipe', 0)}></i>
+        <span class="p-img an" {A('kDrop', 1.2)}><img src="{photo_a}" alt="" loading="lazy"></span>
+        <span class="p-kick an" {A('kUp', 2.2)}>Шинэ цуглуулга</span>
+        <span class="p-title an" {A('kUp', 2.6)}><b class="f1 an" {A('kOut', 4)}>Зуны<br>хямдрал</b><b class="f2 an" {A('kIn', 4)}>Зуны<br>хямдрал</b><i class="p-sel an" {A('kFade', 3.2)}><u></u><u></u><u></u><u></u></i></span>
+        <span class="p-tag an" {A('kPop', 3)}>−30%</span>
+        <span class="p-foot">graphican.online</span>
+      </div>
+      <div class="gl gl-pdf">
+        <b class="d-h an" {A('kUp', 0)}>Гэрээ</b>
+        <i class="an" {A('kLine', .4)}></i><i class="an" {A('kLine', .6)}></i><i class="s an" {A('kLine', .8)}></i><i class="an" {A('kLine', 1)}></i><i class="an" {A('kLine', 1.2)}></i><i class="s an" {A('kLine', 1.4)}></i>
+        <svg class="d-sign an" {A('kFade', 2)} viewBox="0 0 120 40"><path d="M4 30c14-22 20-22 22-8s8 10 16-6 10-8 12 4 12 8 22-2 14-6 28 2" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>
+        <span class="d-badge"><em class="a an" {A('kOut', 5)}>PDF</em><em class="b an" {A('kIn', 5)}>DOCX</em></span>
+      </div>
+      <div class="gl gl-ppt">
+        <i class="s-bg an" {A('kWipe', 0)}></i>
+        <span class="s-copy"><small class="an" {A('kUp', 1)}>2026 · Тайлан</small><b class="an" {A('kUp', 1.4)}>Борлуулалт<br>+48%<u class="caret an" {A('kBlink', 3)}></u></b><em class="an" {A('kUp', 1.9)}>Улирлын үр дүн</em></span>
+        <span class="s-chart"><i class="an" {A('kBarUp', 2.4)} ></i><i class="an" {A('kBarUp', 2.6)}></i><i class="an" {A('kBarUp', 2.8)}></i><i class="an" {A('kBarUp', 3)}></i><i class="an" {A('kBarUp', 3.2)}></i></span>
+      </div>
+      <div class="gl gl-video">
+        <img src="{photo_b}" alt="" loading="lazy">
+        <span class="v-cap an" {A('kPop', 3.8)}>Шинэ цуглуулга</span>
+        <span class="v-play">{ic('play')}</span>
+        <i class="v-prog"><u class="an" {A('kBar', 0, '--k:5')}></u></i>
+      </div>
+    </div>
+    <i class="gw-cur"></i>
+  </div>
+</div>"""
+
+    def sec_head(h2, sub="", kicker="", cls=""):
+        """SectionHeader"""
+        return (f'<header class="sh rv {cls}">' + (f'<p class="sh-k">{kicker}</p>' if kicker else "") + f'<h2>{h2}</h2>' + (f'<p class="sh-s">{sub}</p>' if sub else "") + '</header>')
+
+    def btn(href, label, kind="pri"):
+        """PrimaryButton / CTAButton"""
+        return f'<a class="bt {kind}" href="{href}"><span>{label}</span><i aria-hidden="true">→</i></a>'
+
+    TOOLS4 = [
+        ("design", "Design editor", "Постер, сошиал дизайн, зарлал болон бусад контентоо browser дээрээсээ бүтээ.", "/editor/", "Design хийх"),
+        ("pdf", "PDF editor", "PDF-ээ зас, хөрвүүл, нэгтгэ.", "/tools/pdfedit/", "PDF хэрэгсэл"),
+        ("ppt", "PPT editor", "Танилцуулгаа эхнээс нь эсвэл бэлэн загвараас бүтээ.", "/slides/", "PPT хийх"),
+        ("video", "Video editor", "Бичлэгээ хурдан засаж, нийтлэхэд бэлэн контент болго.", "/video/", "Video засах"),
+    ]
+    tabs = "".join(
+        f'<div class="tsw-item{" on" if i == 0 else ""}" data-tool="{k}"><button type="button" class="tsw-tab" role="tab" id="tsw-t-{k}" aria-selected="{"true" if i == 0 else "false"}" aria-controls="tsw-panel">{ic(k)}<span>{n}</span></button>'
+        f'<div class="tsw-body"><p>{d}</p>{btn(u, c, "txt")}</div></div>'
+        for i, (k, n, d, u, c) in enumerate(TOOLS4))
+
+    # tool grid: only tools that exist. (key, size, name, line, url, demo html)
+    CARDS = [
+        ("design", "xl", "Design editor", "Пост, постер, зар, нэрийн хуудас", "/editor/", '<span class="m m-design"><i class="cv"></i><b>Гарчиг</b><u></u></span>'),
+        ("pdf", "lg", "PDF хэрэгслүүд", "Засах · хөрвүүлэх · нэгтгэх · гарын үсэг", "/tools/pdfedit/", '<span class="m m-pdf"><i></i><i></i><i></i></span>'),
+        ("ppt", "lg", "PPT editor", "Слайд, илтгэл · PowerPoint, PDF", "/slides/", '<span class="m m-ppt"><i></i><i></i><i></i></span>'),
+        ("video", "xl", "Video editor", "Reels, Story, TikTok · MP4", "/video/", '<span class="m m-video"><i class="a"></i><i class="b"></i><i class="c"></i><u></u></span>'),
+        ("bg", "sm", "Дэвсгэр арилгах", "Зургийн дэвсгэрийг AI-аар", "/tools/bgremove/", f'<span class="m m-bg"><img src="{e(thumb("/assets/uploads/butafter-shampoo.webp"))}" alt="" loading="lazy"><i></i></span>'),
+        ("up", "sm", "AI томруулах", "Зургийг 2×, 4× тод болгох", "/tools/upscale/", '<span class="m m-up"><b>2×</b><b>4×</b></span>'),
+        ("crop", "sm", "Сошиал хэмжээ", "Пост, story, cover хэмжээ рүү", "/tools/socialcrop/", '<span class="m m-crop"><i></i></span>'),
+        ("font", "sm", "Монгол фонт", "Ө, Ү дэмждэг 178 фонт", "/tools/mongol-font/", '<span class="m m-font"><b>Аа Өө Үү</b><b>Аа Өө Үү</b></span>'),
+        ("tpl", "sm", "Монгол загвар", "Цагаан сар, Наадам, зар", "/tools/templates/", '<span class="m m-tpl"><i></i><i></i><i></i></span>'),
+        ("color", "sm", "Брэндийн өнгө", "Салбарт тохирсон палитр", "/tools/brand-color/", '<span class="m m-color"><i></i><i></i><i></i><i></i><i></i></span>'),
+        ("zip", "sm", "PDF шахах", "Файлын хэмжээг багасгах", "/tools/compress-pdf/", '<span class="m m-zip"><b>4.2 MB</b><b>1.1 MB</b><i><u></u></i></span>'),
+        ("ai", "sm", "AI хураангуй", "PDF-ийн гол санааг товчлох", "/tools/summarize-pdf/", '<span class="m m-ai"><i></i><i></i><i></i><i></i></span>'),
+    ]
+    cards = "".join(
+        f'<a class="tc tc-{sz} rv" href="{u}"><span class="tc-top"><span class="tc-ic">{ic(k)}</span><span class="tc-tx"><b>{e(n)}</b><small>{e(l)}</small></span><i class="tc-go" aria-hidden="true">→</i></span><span class="tc-demo" aria-hidden="true">{demo}</span></a>'
+        for k, sz, n, l, u, demo in CARDS)
+
+    # font wall: real Mongolian-ready fonts from the editor's font set (subset files in /assets/fonts/web/wall/)
+    WALL = [
+        [("Монгол", "Playfair Display", "playfairdisplay"), ("Ө", "Oswald", "oswald"), ("Дизайн", "Montserrat", "montserrat"), ("Контент", "Lora", "lora"), ("Ү", "Merriweather", "merriweather"), ("Бүтээл", "Nunito", "nunito")],
+        [("Өнгө", "Lato", "lato"), ("Загвар", "Oswald", "oswald"), ("Ү", "Playfair Display", "playfairdisplay"), ("Монгол", "Roboto", "roboto"), ("Үсэг", "Mulish", "mulish"), ("Ө", "Lora", "lora")],
+        [("Контент", "Source Sans 3", "sourcesans3"), ("Аа Өө Үү", "Merriweather", "merriweather"), ("Дизайн", "Playfair Display", "playfairdisplay"), ("Ө", "Montserrat", "montserrat"), ("Монгол", "Oswald", "oswald"), ("Үсэг", "Nunito", "nunito")],
+    ]
+    def wall_row(row, i):
+        items = "".join(f'<span class="fw-i" style="font-family:\'GW {slug}\',var(--f)" tabindex="0"><b>{e(t)}</b><small>{e(name)}</small></span>' for t, name, slug in row)
+        return f'<div class="fw-row r{i}"><div class="fw-track">{items}{items}</div></div>'
+    wall = "".join(wall_row(r, i) for i, r in enumerate(WALL))
+
+    # templates: real templates from /tools/templates/ (previews rendered from the template specs)
+    TPL = [("naadam2", "Наадам — story", "Story", 300, 533), ("sale", "Хямдрал — acid", "Instagram пост", 300, 375), ("tsagaansar2", "Цагаан сар — минимал", "Квадрат пост", 300, 300),
+           ("newyear", "Шинэ он — aurora", "Instagram пост", 300, 375), ("job", "Ажлын зар", "Instagram пост", 300, 375), ("kids", "Хүүхдийн баяр 6.1", "Квадрат пост", 300, 300),
+           ("naadam", "Наадам — bold", "Instagram пост", 300, 375), ("menu", "Кафе цэс", "Instagram пост", 300, 375),
+           ("countdown", "Тоолол — story", "Story", 300, 533), ("notice", "Мэдэгдэл", "Квадрат пост", 300, 300), ("sport", "Спорт тэмцээн", "Instagram пост", 300, 375),
+           ("course", "Сургалтын бүртгэл", "Квадрат пост", 300, 300), ("tips", "Зөвлөгөө", "Instagram пост", 300, 375), ("giveaway", "Бэлэгтэй тоглоом", "Instagram пост", 300, 375),
+           ("sale3", "Хямдрал — neon", "Instagram пост", 300, 375), ("tsagaansar", "Цагаан сар — хаан хөх", "Instagram пост", 300, 375)]
+    def tpl_card(t):
+        i, n, fmt_, w, h = t
+        return (f'<a class="tp" href="/editor/?tpl={i}"><img src="/assets/home/tpl-{i}.webp" alt="{e(n)} — {e(fmt_)} загвар" width="{w}" height="{h}" loading="lazy" decoding="async">'
+                f'<span class="tp-meta"><b>{e(n)}</b><small>{e(fmt_)}</small></span><span class="tp-use">Энэ загварыг ашиглах →</span></a>')
+    tpl_rows = "".join(f'<div class="tp-row r{k}"><div class="tp-track">{"".join(tpl_card(t) for t in TPL[k * 8:(k + 1) * 8])}</div></div>' for k in range(2))
+
+    header = f"""<header class="gh header" id="gh">
+  <a class="gh-logo" href="/" aria-label="Graphican — нүүр">Graphican</a>
+  <nav class="gh-nav" id="gh-nav" aria-label="Үндсэн цэс">
+    <a href="/tools/">Хэрэгслүүд</a><a href="/tools/templates/">Загварууд</a><a href="/tools/mongol-font/">Фонт</a><a href="/design/">Нөөц</a>
+  </nav>
+  <a class="bt pri sm header-cta" href="/editor/"><span>Үнэгүй эхлэх</span><i aria-hidden="true">→</i></a>
+  <button class="gh-menu" id="gh-menu" type="button" aria-label="Цэс" aria-expanded="false" aria-controls="gh-nav"><i></i><i></i></button>
+</header>"""
+
     body = f"""
-<div id="hero-slot"><section class="hero hero-v2 hm-hero-ph" aria-hidden="true"></section></div>
+<main class="hp" id="main">
 
-<main class="hm" id="main">
-  <section class="hm-tools" id="tools">
-    <p class="hm-kicker">ҮНЭГҮЙ · БҮРТГЭЛГҮЙ · МОНГОЛ ХЭЛЭЭР</p>
-    <h1>Дизайн хэрэгслүүд</h1>
-    <p class="hm-lead">PDF · зураг · дизайн — бүгд үнэгүй, бүртгэлгүй.</p>
-    <nav class="hm-jump"><a href="#editor">Design editor</a><a href="#ppt">Илтгэл</a><a href="#pdf">PDF</a><a href="#image">Зураг</a><a href="#design">Дизайн</a></nav>
-  </section>
-
-  <section class="ht-stats" id="downloads" aria-labelledby="ht-download-title">
-    <div class="ht-stat-value">
-      <span class="ht-download-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5"/></svg></span>
-      <div><h2 id="ht-download-title">Нийт файлын таталт</h2><div class="ht-number"><strong id="ht-downloads" aria-describedby="ht-download-title">—</strong><span>удаа</span></div></div>
-    </div>
-    <div class="ht-stat-copy"><p>Graphican дээр бэлдсэн файлуудаа<br>хэрэглэгчид төхөөрөмждөө татсан тоо.</p><small id="ht-stat-note" aria-live="polite">Таталтын тоог ачаалж байна…</small></div>
-  </section>
-
-  <section class="hm-sec hm-editor" id="editor">
-    <div class="he-copy">
-      <p class="hm-kicker">DESIGN EDITOR · ҮНЭГҮЙ</p>
-      <h2>Пост, постероо<br><em>өөрөө хий.</em></h2>
-      <p class="he-lead">Instagram пост, story, зар, мэндчилгээ, нэрийн хуудас, илтгэлийн слайдыг програм суулгалгүй хөтөч дээрээ бүтээгээд PNG, PDF-ээр татаарай.</p>
-      <ul class="he-feats">
-        <li><span>{svg("tpl")}</span><b>60+ бэлэн загвар</b><small>Цагаан сар, Наадам, зар</small></li>
-        <li><span>{svg("font")}</span><b>178 монгол фонт</b><small>Ө, Ү эвдрэхгүй</small></li>
-        <li><span>{svg("bg")}</span><b>AI хэрэгсэл</b><small>Нүүр засах, дэвсгэр арилгах</small></li>
-        <li><span>{svg("img")}</span><b>Үнэгүй зураг</b><small>Сая сая фото, видео</small></li>
-      </ul>
-      <div class="he-btns"><a class="hm-btn" href="/editor/">Засварлагч нээх <i>→</i></a><a class="hm-btn ghost" href="/tools/templates/">Загвараас эхлэх</a><a class="hm-btn ghost" href="/slides/">▶ Илтгэл (PPT) бэлдэх</a></div>
-    </div>
-    <a class="he-mock" href="/editor/?tpl=tsagaansar" aria-label="Цагаан сарын загварыг засварлагчид нээх">
-      <span class="em">
-        <span class="em-top"><i class="em-logo"></i><b>Цагаан сарын мэнд</b><span class="grow"></span><em>65%</em><strong>Татах</strong></span>
-        <span class="em-body">
-          <span class="em-left"><span class="em-tabs"><i class="on">Давхарга</i><i>Нэмэх</i><i>Загвар</i></span>
-            <span class="em-ly on"><u>T</u>САР ШИНЭДЭЭ…</span><span class="em-ly"><u>T</u>Баярын мэнд</span><span class="em-ly"><u>◇</u>Чимэглэл</span><span class="em-ly"><u>▢</u>Хүрээ</span><span class="em-ly"><u>▢</u>Хүрээ</span></span>
-          <span class="em-canvas">
-            <span class="em-poster"><i class="b1"></i><i class="b2"></i><i class="dia"></i>
-              <span class="em-title">САР ШИНЭДЭЭ<br>САЙХАН ШИНЭЛЖ<br>БАЙНА УУ<span class="em-selbox"><i></i><i></i><i></i><i></i></span></span>
-              <i class="ln"></i><span class="em-sub">Цагаан сарын баярын мэнд хүргэе!</span><span class="em-org">БАЙГУУЛЛАГЫН НЭР</span></span>
-            <i class="em-cursor"></i>
-          </span>
-          <span class="em-right"><b>Текст</b><span class="em-field">Montserrat <small>Ө Ү ✓</small></span><span class="em-row2"><span class="em-field">Bold</span><span class="em-field">88</span></span>
-            <b>Өнгө</b><span class="em-sws"><i style="background:#f6e7c1"></i><i style="background:#e0a526"></i><i style="background:#13306b"></i><i style="background:#c8102e"></i><i style="background:#fff"></i></span>
-            <b>Эффект</b><span class="em-field">Сүүдэр</span><span class="em-field">Градиент</span></span>
-        </span>
-        <span class="em-dock"><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
-      </span>
-      <span class="he-chip c1">✦ AI дэвсгэр арилгах</span>
-      <span class="he-chip c2">Аа Өө Үү · монгол фонт</span>
-      <span class="he-chip c3">PNG · JPG · PDF</span>
-    </a>
-    <div class="he-sizes"><span>Хэмжээгээ сонгоод эхэл:</span>
-      <a href="/editor/?size=1080x1350"><i style="aspect-ratio:4/5"></i>Instagram пост</a>
-      <a href="/editor/?size=1080x1920"><i style="aspect-ratio:9/16"></i>Story</a>
-      <a href="/editor/?size=1200x630"><i style="aspect-ratio:1.9"></i>Facebook пост</a>
-      <a href="/editor/?size=1280x720"><i style="aspect-ratio:16/9"></i>YouTube</a>
-      <a href="/editor/?size=1240x1754"><i style="aspect-ratio:1/1.41"></i>A4 постер</a>
-      <a href="/editor/?size=1050x600"><i style="aspect-ratio:1.75"></i>Нэрийн хуудас</a>
+  <!-- 01 HERO -->
+  <section class="hero" id="top">
+    <div class="grid-bg" aria-hidden="true"></div>
+    <div class="hero-in">
+      <div class="hero-copy">
+        <p class="hero-k"><span>Үнэгүй</span><span>Бүртгэлгүй</span><span>Суулгах шаардлагагүй</span></p>
+        <h1>Бүтээ.<br>Зас.<br><span>Шууд ашигла.</span></h1>
+        <p class="hero-s">Дизайн, PDF, PPT, Video болон өдөр тутмын хэрэгтэй бүтээлч хэрэгслүүд нэг дор.</p>
+        <div class="hero-cta">{btn("/editor/", "Үнэгүй эхлэх")}<a class="bt ghost" href="#tools"><span>Бүх хэрэгсэл</span></a></div>
+      </div>
+      <div class="hero-vis" id="hero-vis">
+        <div class="hero-glow" aria-hidden="true"></div>
+        {demo_window("gw--hero")}
+        <div class="hero-tabs" role="group" aria-label="Жишээ харах хэрэгсэл">
+          <button type="button" data-tool="design" class="on" aria-pressed="true">{ic("design")}Design</button><button type="button" data-tool="pdf" aria-pressed="false">{ic("pdf")}PDF</button><button type="button" data-tool="ppt" aria-pressed="false">{ic("ppt")}PPT</button><button type="button" data-tool="video" aria-pressed="false">{ic("video")}Video</button>
+        </div>
+      </div>
     </div>
   </section>
 
-  <section class="hm-sec hm-ppt" id="ppt">
-    <a class="pm" href="/slides/?deck=hotel" aria-label="Илтгэл бэлдэх — зочид буудлын загвараар эхлэх">
-      <span class="pm-win">
-        <span class="pm-top"><i class="em-logo"></i><b>Тансаг зочид буудал</b><span class="grow"></span><em>Шилжилт: Бүдгэрэх</em><strong>▶ Үзүүлэх</strong></span>
-        <span class="pm-main">
-          <span class="pm-slide s1"><img src="https://images.pexels.com/photos/919/night-dark-hotel-luxury.jpg?auto=compress&amp;cs=tinysrgb&amp;w=900" alt="" loading="lazy"><span class="pm-t"><small>ТАНЫ ЛОГО</small><b>Тансаг</b><i>З О Ч И Д &nbsp; Б У У Д А Л</i></span></span>
-          <span class="pm-slide s2"><img src="https://images.pexels.com/photos/776538/pexels-photo-776538.jpeg?auto=compress&amp;cs=tinysrgb&amp;w=900" alt="" loading="lazy"><span class="pm-t l"><small>РЕСТОРАН &amp; БАР</small><b>Орой бүр<br>амьд хөгжим</b></span></span>
-          <span class="pm-slide s3"><span class="pm-biz"><b>Үр дүн тоогоор</b><span><em>+240%</em><em>12K</em><em>98%</em></span><span class="bars"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span></span></span>
-        </span>
-        <span class="pm-strip"><i class="on"><img src="https://images.pexels.com/photos/919/night-dark-hotel-luxury.jpg?auto=compress&amp;cs=tinysrgb&amp;w=900" alt="" loading="lazy"></i><i><img src="https://images.pexels.com/photos/6758532/pexels-photo-6758532.jpeg?auto=compress&amp;cs=tinysrgb&amp;w=900" alt="" loading="lazy"></i><i><img src="https://images.pexels.com/photos/776538/pexels-photo-776538.jpeg?auto=compress&amp;cs=tinysrgb&amp;w=900" alt="" loading="lazy"></i><i class="w"></i><i><img src="https://images.pexels.com/photos/769289/pexels-photo-769289.jpeg?auto=compress&amp;cs=tinysrgb&amp;w=900" alt="" loading="lazy"></i><i class="add">+</i></span>
-      </span>
-      <span class="he-chip c1">⇄ 9 төрлийн шилжилт</span>
-      <span class="he-chip c2">✦ Анимэйшн</span>
-      <span class="he-chip c3">PowerPoint · PDF</span>
-    </a>
-    <div class="he-copy">
-      <p class="hm-kicker">ИЛТГЭЛ · PPT · ҮНЭГҮЙ</p>
-      <h2>Илтгэлээ<br><em>минутанд бэлд.</em></h2>
-      <p class="he-lead">Бэлэн загвараас эхэлж слайдаа засаад бүтэн дэлгэцээр үзүүл, эсвэл PowerPoint, PDF-ээр татаж ав. Видео байршуулж болно — Canva шиг хялбар, монгол фонттой.</p>
-      <ul class="he-feats">
-        <li><span>{svg("tpl")}</span><b>240+ слайд загвар</b><small>31 илтгэл · 7 нь видеотой</small></li>
-        <li><span>{svg("img")}</span><b>Шилжилт, анимэйшн</b><small>9 шилжилт · 12 эффект</small></li>
-        <li><span>{svg("bg")}</span><b>Бүтэн дэлгэцээр</b><small>Тэмдэглэл, таймер, автомат</small></li>
-        <li><span>{svg("pdf")}</span><b>PowerPoint · PDF</b><small>Текст нь засагдана</small></li>
-      </ul>
-      <div class="he-btns"><a class="hm-btn" href="/slides/">Илтгэл бэлдэх <i>→</i></a><a class="hm-btn ghost" href="/slides/?deck=pitch">Видеотой загвар</a></div>
-    </div>
-    <div class="he-sizes pm-decks"><span>Загвараас эхэл:</span>
-      <a href="/slides/?deck=hotel"><i style="background:linear-gradient(135deg,#0f0f0e 55%,#d6b67a 55%)"></i>Зочид буудал</a>
-      <a href="/slides/?deck=fine"><i style="background:linear-gradient(135deg,#0b0b0b 55%,#c9a45c 55%)"></i>Fine dining</a>
-      <a href="/slides/?deck=coffee"><i style="background:linear-gradient(135deg,#1b120c 55%,#c8a27a 55%)"></i>Кофе шоп</a>
-      <a href="/slides/?deck=biz"><i style="background:linear-gradient(135deg,#ffffff 55%,#1646ff 55%)"></i>Бизнес</a>
-      <a href="/slides/?deck=realty"><i style="background:linear-gradient(135deg,#ffffff 55%,#b08d57 55%)"></i>Үл хөдлөх</a>
-      <a href="/slides/?deck=edu"><i style="background:linear-gradient(135deg,#fff6e5 55%,#ff7a1a 55%)"></i>Хичээл</a>
-      <a href="/slides/?deck=mongolia"><i style="background:linear-gradient(135deg,#141414 55%,#f4a261 55%)"></i>Монгол аялал</a>
+  <!-- 02 TOOL SWITCHER -->
+  <section class="sec tsw" id="switch">
+    {sec_head("Юу хийх хэрэгтэй вэ?", "Хэрэгтэй зүйлээ сонгоод шууд эхэл.")}
+    <div class="tsw-in rv">
+      <div class="tsw-list" role="tablist" aria-label="Хэрэгсэл">{tabs}</div>
+      <div class="tsw-vis" id="tsw-panel" role="tabpanel" aria-labelledby="tsw-t-design">{demo_window("gw--lg")}</div>
     </div>
   </section>
 
-  <section class="hm-sec" id="pdf">
-    <header class="hm-head"><h2>PDF</h2><a class="hm-link" href="/tools/pdfedit/">Засварлагч нээх →</a></header>
-    <a class="hm-feat" href="/tools/pdfedit/">
-      <span class="hm-feat-t"><span class="hm-ic">{svg("pdf")}</span><b>PDF засварлагч</b><span>Засах · хөрвүүлэх · гарын үсэг · орчуулах</span><em class="hm-cta">Нээх</em></span>
-      <span class="hm-doc" aria-hidden="true"><i></i><i></i><i class="s"></i><i></i><i class="hl"></i><i class="s"></i><em>Гарын үсэг</em></span>
-    </a>
-    <div class="hm-tiles">{tiles}</div>
-  </section>
-
-  <section class="hm-sec" id="image">
-    <header class="hm-head"><h2>Зураг</h2><span class="hm-note">AI · таны төхөөрөмж дээр</span></header>
-    <div class="hm-imgs">
-      <a class="hm-card img" href="/tools/upscale/">
-        <span class="hm-shot up"><img src="{e(thumb('/assets/uploads/edusmart-logo-mockup.webp'))}" alt="" loading="lazy"><span class="blur"></span><em>2× · 4×</em></span>
-        <span class="hm-row"><b>AI томруулах</b><i>→</i></span></a>
-      <a class="hm-card img" href="/tools/bgremove/">
-        <span class="hm-shot bg"><img src="{e(thumb('/assets/uploads/butafter-shampoo.webp'))}" alt="" loading="lazy"></span>
-        <span class="hm-row"><b>Дэвсгэр арилгах</b><i>→</i></span></a>
-      <a class="hm-card img" href="/tools/socialcrop/">
-        <span class="hm-shot crop"><img src="{e(thumb('/assets/uploads/novanest-dining-table.webp'))}" alt="" loading="lazy"><i class="f1"></i><i class="f2"></i><i class="f3"></i></span>
-        <span class="hm-row"><b>Сошиал хэмжээ</b><i>→</i></span></a>
-      <a class="hm-card img" href="/video/">
-        <span class="hm-shot vid" aria-hidden="true"><i class="ph"></i><i class="bar"><b></b><b></b><b></b></i><em>▶ Reels · Story</em></span>
-        <span class="hm-row"><b>Видео засварлагч</b><i>→</i></span></a>
+  <!-- 03 PROBLEM → RESULT -->
+  <section class="sec story" id="story">
+    {sec_head("Хийх зүйлээсээ эхэл.")}
+    <div class="st-in">
+      <div class="st-steps">
+        <article class="st-step on" data-tool="design"><span class="st-n">01</span><h3>Постер хэрэгтэй юу?</h3><p>Загвар → текст → зураг → бэлэн постер.</p>{btn("/editor/", "Шууд бүтээ", "txt")}</article>
+        <article class="st-step" data-tool="pdf"><span class="st-n">02</span><h3>PDF-ээ хөрвүүлэх үү?</h3><p>Upload → Convert → Download</p>{btn("/tools/pdf-to-word/", "Хөрвүүлэх", "txt")}</article>
+        <article class="st-step" data-tool="video"><span class="st-n">03</span><h3>Бичлэгээ контент болгох уу?</h3><p>Босоо бичлэг → timeline → бэлэн reel.</p>{btn("/video/", "Video editor", "txt")}</article>
+      </div>
+      <div class="st-vis"><div class="st-sticky">{demo_window("gw--lg gw--story")}</div></div>
     </div>
   </section>
 
-  <section class="hm-sec" id="design">
-    <header class="hm-head"><h2>Дизайн</h2><a class="hm-link" href="/design/">Design guide →</a></header>
-    <div class="hm-des">
-      <a class="hm-card" href="/tools/templates/">
-        <span class="hm-tpls" aria-hidden="true"><i style="background:#13306b"><b style="color:#e0a526">САР ШИНЭ</b></i><i style="background:#f6f0e4"><b style="color:#1f4e9c">НААДАМ</b></i><i style="background:#0b0b14"><b style="color:#816dfb">−30%</b></i><i style="background:#facc15"><b style="color:#111">МЭДЭГДЭЛ</b></i></span>
-        <span class="hm-row"><b>Монгол загвар</b><i>→</i></span></a>
-      <a class="hm-card" href="/tools/mongol-font/">
-        <span class="hm-font" aria-hidden="true">Аа Өө Үү</span>
-        <span class="hm-row"><b>Монгол фонт</b><i>→</i></span></a>
-      <a class="hm-card" href="/tools/brand-color/">
-        <span class="hm-sw" aria-hidden="true"><i style="background:#1F4E9C"></i><i style="background:#C8102E"></i><i style="background:#E0A526"></i><i style="background:#2B1B12"></i><i style="background:#F6F0E4"></i></span>
-        <span class="hm-row"><b>Брэндийн өнгө</b><i>→</i></span></a>
-      <a class="hm-card" href="/design/">
-        <span class="hm-guide" aria-hidden="true"><b>Aa</b><span><i></i><i></i><i></i></span></span>
-        <span class="hm-row"><b>Design guide</b><i>→</i></span></a>
+  <!-- 04 CREATIVE TOOL GRID -->
+  <section class="sec tools" id="tools">
+    {sec_head("Нэг сайт.<br>Өдөр тутмын бүтээлч ажлууд.")}
+    <div class="tg">{cards}</div>
+    <details class="pdf-all rv"><summary>Бүх PDF хэрэгсэл <span>{len(TILES)}</span></summary><div class="pdf-tiles">{tiles}</div></details>
+  </section>
+
+  <!-- 05 MONGOLIAN ADVANTAGE -->
+  <section class="sec mn" id="mongol">
+    <div class="mn-in">
+      <div class="mn-copy rv">
+        <h2>Монгол контентод<br>зориулсан.</h2>
+        <p>Монгол хэл дээр ажиллахад хэрэгтэй фонт, загвар, хэрэгслүүдийг нэг дор.</p>
+        <div class="mn-num"><strong id="mn-count" data-to="178">178</strong><span>монгол фонт<small>Ө, Ү үсэг эвдрэхгүй</small></span></div>
+        {btn("/tools/mongol-font/", "Монгол фонтууд", "dark")}
+      </div>
+      <div class="fw" id="fw" aria-label="Монгол фонтын жишээ">{wall}</div>
     </div>
   </section>
 
-  <section class="hm-collab" id="collab">
-    <div><p class="hm-kicker">GRAPHICAN</p><h2>Мэргэжлийн дизайн хэрэгтэй юу?</h2><p>Лого · брэнд айдентити · сошиал дизайн · видео</p></div>
-    <div class="hm-btns"><a class="hm-btn" href="/about/">Хамтран ажиллах <i>→</i></a><a class="hm-btn ghost" href="/about/#work">Ажлууд</a></div>
+  <!-- 06 TEMPLATES -->
+  <section class="sec tpl" id="templates">
+    {sec_head("Эхнээс нь хийх албагүй.", "Бэлэн загвараас эхлээд өөрийнхөөрөө өөрчил.")}
+    <div class="tp-wrap" id="tp-wrap">{tpl_rows}</div>
+    <div class="sec-cta rv">{btn("/tools/templates/", "Бүх загвар", "ghost")}<a class="bt txt" href="/slides/"><span>Илтгэлийн загвар</span><i aria-hidden="true">→</i></a></div>
   </section>
 
-  <section class="ht-trust" id="reviews" aria-labelledby="ht-review-title">
-    <div class="ht-review-heading"><div><p class="hm-kicker">PDF · ДИЗАЙН · ИЛТГЭЛ</p><h2 id="ht-review-title">Хэрэглэгчдийн сэтгэгдэл</h2></div><p>Graphican ашигласан<br>хэрэглэгчдийн санал.</p></div>
-    {review_content}
+  <!-- 07 FAST WORKFLOW -->
+  <section class="sec flow" id="flow">
+    {sec_head('Санаа <span class="ar">→</span> Бүтээл')}
+    <ol class="fl rv">
+      <li><span class="fl-n">1</span><span class="fl-g g1" aria-hidden="true"><i></i><i class="on"></i><i></i><i></i></span><b>Сонго</b><small>Хэрэгсэл эсвэл загвараа сонго.</small></li>
+      <li><span class="fl-n">2</span><span class="fl-g g2" aria-hidden="true"><i></i><u></u></span><b>Зас</b><small>Хөтөч дээрээ шууд зас. Суулгах зүйлгүй.</small></li>
+      <li><span class="fl-n">3</span><span class="fl-g g3" aria-hidden="true"><i>{ic("dl")}</i><em>PNG</em><em>PDF</em><em>MP4</em><em>PPTX</em></span><b>Тат</b><small>Бэлэн файлаа төхөөрөмждөө тат.</small></li>
+    </ol>
+    <div class="ht-stats rv" id="downloads" aria-labelledby="ht-download-title">
+      <h3 id="ht-download-title">Нийт файлын таталт</h3>
+      <div class="ht-number"><strong id="ht-downloads" aria-describedby="ht-download-title">—</strong><span>удаа</span></div>
+      <small id="ht-stat-note" aria-live="polite">Таталтын тоог ачаалж байна…</small>
+    </div>
+  </section>
+
+  <section class="sec rvw" id="reviews" aria-labelledby="ht-review-title">
+    <header class="sh rv"><h2 id="ht-review-title">Хэрэглэгчдийн сэтгэгдэл</h2></header>
+    <div class="rv">{review_content}</div>
+  </section>
+
+  <!-- 08 FINAL CTA -->
+  <section class="sec fin" id="start">
+    <div class="grid-bg" aria-hidden="true"></div>
+    <div class="fin-anim" id="fin-anim" aria-hidden="true"><i class="w1">{ic("design")}</i><i class="w2">{ic("pdf")}</i><i class="w3">{ic("ppt")}</i><i class="w4">{ic("video")}</i><b>Graphican</b></div>
+    <h2 class="rv">Хийх зүйлээ<br>эхлүүл.</h2>
+    <div class="fin-btns rv">
+      <a class="fb" href="/editor/">{ic("design")}<span>Design хийх</span><i aria-hidden="true">→</i></a>
+      <a class="fb" href="/tools/pdfedit/">{ic("pdf")}<span>PDF засах</span><i aria-hidden="true">→</i></a>
+      <a class="fb" href="/slides/">{ic("ppt")}<span>PPT хийх</span><i aria-hidden="true">→</i></a>
+      <a class="fb" href="/video/">{ic("video")}<span>Video засах</span><i aria-hidden="true">→</i></a>
+    </div>
+    <p class="fin-url">graphican.online</p>
+  </section>
+
+  <section class="collab" id="collab">
+    <div><h2>Мэргэжлийн дизайн хэрэгтэй юу?</h2><p>Лого · брэнд айдентити · сошиал дизайн · видео</p></div>
+    <div class="collab-b"><a class="bt ghost" href="/about/"><span>Хамтран ажиллах</span><i aria-hidden="true">→</i></a><a class="bt txt" href="/about/#work"><span>Ажлууд</span><i aria-hidden="true">→</i></a></div>
   </section>
 </main>
 
-<footer class="hm-foot">
-  <div class="hm-fcols">
-    <div><b>PDF</b><a href="/tools/pdfedit/">PDF засварлагч</a><a href="/tools/pdf-to-word/">PDF → Word</a><a href="/tools/merge-pdf/">PDF нэгтгэх</a><a href="/tools/compress-pdf/">Шахах</a>{TR_LINK}</div>
-    <div><b>Зураг</b><a href="/tools/upscale/">AI томруулах</a><a href="/tools/bgremove/">Дэвсгэр арилгах</a><a href="/tools/socialcrop/">Сошиал хэмжээ</a><a href="/video/">Видео засварлагч</a><a href="/tools/pdf/">PDF ⇄ зураг</a></div>
-    <div><b>Дизайн</b><a href="/editor/">Design editor</a><a href="/slides/">Илтгэл (PPT)</a><a href="/tools/templates/">Монгол загвар</a><a href="/tools/mongol-font/">Монгол фонт</a><a href="/tools/brand-color/">Брэндийн өнгө</a></div>
-    <div><b>Graphican</b><a href="/about/">Хамтран ажиллах</a><a href="/about/#work">Ажлууд</a><a href="/support/">Дэмжих</a><a href="/privacy/">Нууцлал</a><a href="/terms/">Нөхцөл</a>{f'<a href="mailto:{e(email)}">{e(email)}</a>' if email else ''}{f'<a href="tel:+976{e(phone)}">{e(phone)}</a>' if phone else ''}</div>
+<footer class="ft">
+  <div class="ft-top"><a class="gh-logo" href="/" aria-label="Graphican — нүүр">Graphican</a><p>Дизайн, PDF, PPT, Video — үнэгүй, бүртгэлгүй, монгол хэлээр.</p></div>
+  <div class="ft-cols">
+    <div><b>Хэрэгслүүд</b><a href="/editor/">Design editor</a><a href="/tools/pdfedit/">PDF засварлагч</a><a href="/slides/">Илтгэл (PPT)</a><a href="/video/">Видео засварлагч</a><a href="/tools/bgremove/">Дэвсгэр арилгах</a><a href="/tools/upscale/">AI томруулах</a><a href="/tools/socialcrop/">Сошиал хэмжээ</a><a href="/tools/">Бүх хэрэгсэл</a></div>
+    <div><b>PDF</b><a href="/tools/pdf-to-word/">PDF → Word</a><a href="/tools/merge-pdf/">PDF нэгтгэх</a><a href="/tools/compress-pdf/">PDF шахах</a><a href="/tools/sign-pdf/">Гарын үсэг</a><a href="/tools/pdf/">PDF ⇄ зураг</a>{TR_LINK}</div>
+    <div><b>Нөөц</b><a href="/tools/templates/">Монгол загвар</a><a href="/tools/mongol-font/">Монгол фонт</a><a href="/tools/brand-color/">Брэндийн өнгө</a><a href="/design/">Design guide</a></div>
+    <div><b>Graphican</b><a href="/about/">Хамтран ажиллах</a><a href="/about/#work">Ажлууд</a><a href="/support/">Дэмжих</a>{f'<a href="mailto:{e(email)}">{e(email)}</a>' if email else ''}{f'<a href="tel:+976{e(phone)}">{e(phone)}</a>' if phone else ''}</div>
+    <div><b>Эрх зүй</b><a href="/privacy/">Нууцлал</a><a href="/terms/">Нөхцөл</a></div>
   </div>
-  <p class="hm-copy">© GRAPHICAN · {soc_h}</p>
+  <p class="ft-copy"><span>© Graphican · graphican.online</span><span>{soc_h}</span></p>
 </footer>
 """
     html = f"""<!DOCTYPE html>
@@ -300,21 +420,17 @@ def build():
 {ld(graph)}
 <script>(function(){{var h=location.hash;if(location.hostname==='www.graphican.online'){{location.replace('https://graphican.online'+location.pathname+location.search+h);return}}if(/^#(work|reels|services|about|contact|project\\/)/.test(h))location.replace('/about/'+h)}})()</script>
 <script src="/assets/i18n.js?v=1"></script>
-<meta name="theme-color" content="#0a0a10">
+<meta name="theme-color" content="#07080c">
 <link rel="icon" href="/favicon.ico" sizes="48x48"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="apple-touch-icon" href="/apple-touch-icon.png">
-<link rel="preload" href="/assets/fonts/web/InterTight-Bold.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="/assets/fonts/web/Inter-Regular.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="stylesheet" href="/assets/fonts/web/fonts.css">
-<link rel="stylesheet" href="/assets/style.css?v=36">
-<link rel="stylesheet" href="/assets/design.css?v=35">
+<link rel="preload" href="/assets/fonts/web/Manrope-Bold.woff" as="font" type="font/woff" crossorigin>
+<link rel="preload" href="/assets/fonts/web/Manrope-Medium.woff" as="font" type="font/woff" crossorigin>
 <link rel="stylesheet" href="/assets/home.css?v={V}">
 </head>
 <body class="home-page">
-
-{L.header_html()}
+<a class="skip" href="#main">Агуулга руу очих</a>
+{header}
 {body}
-<div class="toast" id="toast" role="status" aria-live="polite"></div>
-<script src="/assets/app.js?v=38"></script>
+<script src="/assets/home.js?v={V}" defer></script>
 <script src="/assets/home-trust.js?v=2" defer></script>
 </body>
 </html>
