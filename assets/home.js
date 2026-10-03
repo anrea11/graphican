@@ -72,7 +72,7 @@
   }
 
   // tool cards: hover plays the little demo (CSS); on touch screens it plays while the card is on screen
-  if (!fine && 'IntersectionObserver' in window) {
+  if (!calm && 'IntersectionObserver' in window) {
     var co = new IntersectionObserver(function (en) { en.forEach(function (e) { e.target.classList.toggle('play', e.isIntersecting); }); }, { threshold: 0.6 });
     $$('.tc').forEach(function (c) { co.observe(c); });
   }
@@ -153,12 +153,27 @@
     var pinStep = function (el, tt) { var st = tt < 0.25 ? 0 : tt < 0.5 ? 1 : tt < 0.78 ? 2 : 3; if (el._st !== st) { el._st = st; el.setAttribute('data-st', st); } };
     sps.forEach(function (el) { var m = el.getAttribute('data-sp'); el.style.setProperty(m === 'exit' ? '--hp' : m === 'pin' ? '--t' : '--p', 0); if (m === 'pin') { root.classList.add('pin'); pinStep(el, 0); } });
     var lo = new IntersectionObserver(function (en) {
-      en.forEach(function (e) { var k = live.indexOf(e.target); if (e.isIntersecting && k < 0) live.push(e.target); else if (!e.isIntersecting && k >= 0) { live.splice(k, 1); if (e.target.getAttribute('data-sp') === 'pin') { var end = e.boundingClientRect.top < 0 ? 1 : 0; put(e.target, '--t', end); pinStep(e.target, end); } else if (e.target.getAttribute('data-sp') !== 'exit' && e.boundingClientRect.top < 0) { put(e.target, '--p', 1); } } });
+      en.forEach(function (e) { var k = live.indexOf(e.target); if (e.isIntersecting && k < 0) live.push(e.target); else if (!e.isIntersecting) { if (k >= 0) live.splice(k, 1); if (e.target.getAttribute('data-sp') === 'pin') { var end = e.boundingClientRect.top < 0 ? 1 : 0; put(e.target, '--t', end); pinStep(e.target, end); } else if (e.target.getAttribute('data-sp') !== 'exit' && e.boundingClientRect.top < 0) { put(e.target, '--p', 1); } } });
       kick();
     }, { rootMargin: '15% 0px 15% 0px' });
     sps.forEach(function (el) { lo.observe(el); });
     window.addEventListener('scroll', kick, { passive: true }); window.addEventListener('resize', kick);
     kick();
+  }
+
+  // section rail: a dot per section; the one on screen is marked
+  var rail = $('#rail');
+  if (rail && 'IntersectionObserver' in window) {
+    var RAIL = [['top', 'Эхлэл'], ['flow', 'Санаанаас бүтээл хүртэл'], ['editors', '4 editor'], ['tools', 'Хэрэгслүүд'], ['mongol', 'Монгол фонт'], ['templates', 'Загварууд'], ['reviews', 'Сэтгэгдэл'], ['start', 'Эхлүүл']];
+    rail.innerHTML = RAIL.map(function (r) { return doc.getElementById(r[0]) ? '<a href="#' + r[0] + '" data-r="' + r[0] + '" aria-label="' + r[1] + '"><span>' + r[1] + '</span></a>' : ''; }).join('');
+    var ro2 = new IntersectionObserver(function (en) {
+      en.forEach(function (e) {
+        if (!e.isIntersecting) return;
+        $$('a', rail).forEach(function (a2) { a2.classList.toggle('on', a2.getAttribute('data-r') === e.target.id); });
+        rail.classList.toggle('light', e.target.id === 'mongol');
+      });
+    }, { rootMargin: '-48% 0px -48% 0px', threshold: 0 });
+    RAIL.forEach(function (r) { var el = doc.getElementById(r[0]); if (el) ro2.observe(el); });
   }
 
   // final CTA: four tool windows come together into the logo — once

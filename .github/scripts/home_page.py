@@ -9,7 +9,7 @@ import json, os
 import landings as L
 
 ROOT, SITE, e, ld = L.ROOT, L.SITE, L.e, L.ld
-V = "14"
+V = "15"
 
 ICON = {
     "pdf": '<path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5"/><path d="m9 17 1-3 5-5 2 2-5 5z" fill="currentColor"/>',
@@ -129,7 +129,7 @@ def build():
         photo = f'<span class="ht-avatar ht-avatar-{e(x.get("portrait", ""))}"><img src="{e(x["photo"])}" alt="{e(x["name"])}" width="56" height="56" loading="lazy" decoding="async"></span>' if x.get("photo") else ""
         return f'<figure class="ht-review"><div class="ht-review-top"><span class="ht-tool">{e(x.get("tool", ""))}</span><span class="ht-quote" aria-hidden="true">“</span></div><blockquote>{e(x["text"])}</blockquote><figcaption>{photo}<span><b>{e(x["name"])}</b><small>Graphican хэрэглэгч</small></span></figcaption></figure>'
     review_cards = "".join(review_card(x) for x in reviews if x.get("approved") is True and x.get("text") and x.get("name"))
-    review_content = ('<div class="ht-reviews">' + review_cards + '</div>') if review_cards else '<p class="ht-review-empty">Та Graphican ашиглаж үзсэн үү? Юу бүтээснээ, аль хэрэгсэл танд тусалсныг хуваалцаарай.</p>'
+    review_content = ('<div class="ht-reviews" data-sp>' + review_cards + '</div>') if review_cards else '<p class="ht-review-empty">Та Graphican ашиглаж үзсэн үү? Юу бүтээснээ, аль хэрэгсэл танд тусалсныг хуваалцаарай.</p>'
     TR_LINK = '<a href="/tools/translate-pdf/">PDF орчуулах</a>' if L.TRANSLATE_ON else ""   # PDF translation can be switched off
 
     # ---------- reusable pieces ----------
@@ -229,7 +229,7 @@ def build():
     }
     # the four editors: one large card each (the morphing workspace lives in the hero only)
     editors = "".join(
-        f'<a class="tc ed rv" href="{u}"><span class="tc-demo" aria-hidden="true">{EDEMO[k]}</span>'
+        f'<a class="tc ed" href="{u}"><span class="tc-demo" aria-hidden="true">{EDEMO[k]}</span>'
         f'<span class="ed-b"><span class="tc-ic">{ic(k)}</span><span class="tc-tx"><b>{n}</b><small>{d}</small></span></span>'
         f'<span class="ed-go">{c}<i aria-hidden="true">→</i></span></a>'
         for k, n, d, u, c in TOOLS4)
@@ -244,7 +244,7 @@ def build():
         ("zip", "sm", "PDF шахах", "Файлын хэмжээг багасгах", "/tools/compress-pdf/", '<span class="m m-zip"><b>4.2 MB</b><b>1.1 MB</b><i><u></u></i></span>'),
     ]
     cards = "".join(
-        f'<a class="tc tc-{sz} rv" href="{u}"><span class="tc-top"><span class="tc-ic">{ic(k)}</span><span class="tc-tx"><b>{e(n)}</b><small>{e(l)}</small></span><i class="tc-go" aria-hidden="true">→</i></span><span class="tc-demo" aria-hidden="true">{demo}</span></a>'
+        f'<a class="tc tc-{sz}" href="{u}"><span class="tc-top"><span class="tc-ic">{ic(k)}</span><span class="tc-tx"><b>{e(n)}</b><small>{e(l)}</small></span><i class="tc-go" aria-hidden="true">→</i></span><span class="tc-demo" aria-hidden="true">{demo}</span></a>'
         for k, sz, n, l, u, demo in CARDS)
 
     # font wall: real Mongolian-ready fonts from the editor's font set (subset files in /assets/fonts/web/wall/)
@@ -279,7 +279,7 @@ def build():
     cl = d.get("clients") or {}
     logo_strip = ""
     if logos:
-        logo_strip = ('<section class="lg rv" id="clients" aria-labelledby="lg-t"><p id="lg-t">' + e(cl.get("title") or "Хамтран ажилласан байгууллагууд") + '</p><div class="lg-vp"><div class="lg-row">' +
+        logo_strip = ('<section class="lg rv" id="clients" data-sp aria-labelledby="lg-t"><p id="lg-t">' + e(cl.get("title") or "Хамтран ажилласан байгууллагууд") + '</p><div class="lg-vp"><div class="lg-row">' +
                       "".join(f'<span class="lg-i"><img src="{e(thumb(x["logo"]))}" alt="{e(x.get("name", ""))}" loading="lazy" decoding="async"></span>' for x in logos) +
                       # a second copy: only shown on phones, where the row runs sideways as one line
                       "".join(f'<span class="lg-i dup" aria-hidden="true"><img src="{e(thumb(x["logo"]))}" alt="" loading="lazy" decoding="async"></span>' for x in logos) + '</div></div></section>')
@@ -298,7 +298,7 @@ def build():
       </div>
       <svg class="fp-svg" viewBox="0 0 800 820" aria-hidden="true">
         <defs><clipPath id="fp-clip"><rect x="250" y="60" width="300" height="375" rx="6"/></clipPath>
-          <linearGradient id="fp-vg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#34229e"/><stop offset="1" stop-color="#a497ff"/></linearGradient></defs>
+          <linearGradient id="fp-vg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#34229e"/><stop offset="1" stop-color="#a497ff"/></linearGradient><radialGradient id="fp-gl"><stop offset="0" stop-color="#6d56fa" stop-opacity=".55"/><stop offset=".55" stop-color="#34229e" stop-opacity=".22"/><stop offset="1" stop-color="#34229e" stop-opacity="0"/></radialGradient></defs><ellipse class="fp-glow" cx="400" cy="250" rx="380" ry="300" fill="url(#fp-gl)"/>
         <g class="fp-nodes"><g class="fp-n" style="--i:0"><path class="fp-con dl" pathLength="1" d="M400 300C400 430, 115 441, 115 563"/><circle class="fp-dot" r="3.5" style="offset-path:path('M400 300C400 430, 115 441, 115 563')"/><clipPath id="fp-c0"><rect x="60" y="571" width="110" height="138" rx="5"/></clipPath><g class="fp-fill" clip-path="url(#fp-c0)"><rect x="60" y="571" width="110" height="138" fill="#12101f"/><polygon points="60,668 170,640 170,709 60,709" fill="#7b64ff"/><rect x="70" y="583" width="90" height="48" rx="2" fill="#3b3560"/><rect x="70" y="646" width="56" height="7" rx="2" fill="#fff"/><rect x="70" y="658" width="40" height="7" rx="2" fill="#fff"/></g><rect class="fp-out dl" pathLength="1" x="60" y="571" width="110" height="138" rx="5"/><text class="fp-lab" x="115" y="748" text-anchor="middle">Design</text><g class="fp-chip"><rect x="81" y="766" width="68" height="28" rx="14"/><path d="M95 775v8m-3.5-3.5 3.5 3.5 3.5-3.5"/><text x="120" y="785" text-anchor="middle">PNG</text></g></g><g class="fp-n" style="--i:1"><path class="fp-con dl" pathLength="1" d="M400 300C400 440, 305 436, 305 558"/><circle class="fp-dot" r="3.5" style="offset-path:path('M400 300C400 440, 305 436, 305 558')"/><clipPath id="fp-c1"><rect x="253" y="566" width="104" height="147" rx="5"/></clipPath><g class="fp-fill" clip-path="url(#fp-c1)"><rect x="253" y="566" width="104" height="147" fill="#f5f4fa"/><rect x="265" y="580" width="34" height="8" rx="2" fill="#12101f"/><g fill="#c9c6d8"><rect x="265" y="598" width="80" height="4" rx="2"/><rect x="265" y="608" width="80" height="4" rx="2"/><rect x="265" y="618" width="52" height="4" rx="2"/><rect x="265" y="634" width="80" height="4" rx="2"/><rect x="265" y="644" width="66" height="4" rx="2"/></g><path d="M266 686c8-14 12-14 14-4s6 6 11-4 7-5 9 3 8 5 14-1" fill="none" stroke="#7b64ff" stroke-width="2" stroke-linecap="round"/><rect x="325" y="575" width="24" height="12" rx="3" fill="#7b64ff"/></g><rect class="fp-out dl" pathLength="1" x="253" y="566" width="104" height="147" rx="5"/><text class="fp-lab" x="305" y="748" text-anchor="middle">PDF</text><g class="fp-chip"><rect x="271" y="766" width="68" height="28" rx="14"/><path d="M285 775v8m-3.5-3.5 3.5 3.5 3.5-3.5"/><text x="310" y="785" text-anchor="middle">PDF</text></g></g><g class="fp-n" style="--i:2"><path class="fp-con dl" pathLength="1" d="M400 300C400 430, 495 468, 495 590"/><circle class="fp-dot" r="3.5" style="offset-path:path('M400 300C400 430, 495 468, 495 590')"/><clipPath id="fp-c2"><rect x="420" y="598" width="150" height="84" rx="5"/></clipPath><g class="fp-fill" clip-path="url(#fp-c2)"><rect x="420" y="598" width="150" height="84" fill="#12101f"/><polygon points="504,598 570,598 570,682 478,682" fill="#f5f4fa"/><rect x="432" y="614" width="40" height="7" rx="2" fill="#fff"/><rect x="432" y="626" width="28" height="7" rx="2" fill="#fff"/><g fill="#7b64ff"><rect x="520" y="650" width="8" height="22" rx="1" opacity=".45"/><rect x="532" y="640" width="8" height="32" rx="1" opacity=".7"/><rect x="544" y="624" width="8" height="48" rx="1"/></g></g><rect class="fp-out dl" pathLength="1" x="420" y="598" width="150" height="84" rx="5"/><text class="fp-lab" x="495" y="748" text-anchor="middle">PPT</text><g class="fp-chip"><rect x="461" y="766" width="68" height="28" rx="14"/><path d="M475 775v8m-3.5-3.5 3.5 3.5 3.5-3.5"/><text x="500" y="785" text-anchor="middle">PPTX</text></g></g><g class="fp-n" style="--i:3"><path class="fp-con dl" pathLength="1" d="M400 300C400 440, 685 435, 685 557"/><circle class="fp-dot" r="3.5" style="offset-path:path('M400 300C400 440, 685 435, 685 557')"/><clipPath id="fp-c3"><rect x="643" y="565" width="84" height="150" rx="5"/></clipPath><g class="fp-fill" clip-path="url(#fp-c3)"><rect x="643" y="565" width="84" height="150" fill="url(#fp-vg)"/><circle cx="685" cy="632" r="15" fill="rgba(10,10,16,.55)"/><path d="M680 624v16l13-8z" fill="#fff"/><rect x="653" y="686" width="64" height="12" rx="3" fill="#fff"/><rect x="653" y="703" width="64" height="3" rx="1.5" fill="rgba(255,255,255,.35)"/><rect x="653" y="703" width="38" height="3" rx="1.5" fill="#fff"/></g><rect class="fp-out dl" pathLength="1" x="643" y="565" width="84" height="150" rx="5"/><text class="fp-lab" x="685" y="748" text-anchor="middle">Video</text><g class="fp-chip"><rect x="651" y="766" width="68" height="28" rx="14"/><path d="M665 775v8m-3.5-3.5 3.5 3.5 3.5-3.5"/><text x="690" y="785" text-anchor="middle">MP4</text></g></g></g>
         <g class="fp-board">
           <g clip-path="url(#fp-clip)"><rect class="fp-bg" x="250" y="60" width="300" height="375" fill="#12101f"/><polygon class="fp-bg" points="250,332 550,250 550,435 250,435" fill="#7b64ff"/>
@@ -357,13 +357,13 @@ def build():
   <!-- 02 MAIN 4 EDITORS -->
   <section class="sec eds" id="editors">
     {sec_head("Юу хийх хэрэгтэй вэ?", "Хэрэгтэй зүйлээ сонгоод шууд эхэл.")}
-    <div class="edg">{editors}</div>
+    <div class="edg" data-sp>{editors}</div>
   </section>
 
   <!-- 03 QUICK TOOLS -->
   <section class="sec tools" id="tools">
     {sec_head("Өдөр тутмын хэрэгтэй хэрэгслүүд.")}
-    <div class="tg">{cards}</div>
+    <div class="tg" data-sp>{cards}</div>
     <nav class="ql rv" aria-label="PDF хэрэгслүүд"><b>PDF</b>{quick}<a class="ql-all" href="/tools/">+ Бүх хэрэгсэл</a></nav>
   </section>
 
@@ -383,7 +383,7 @@ def build():
   <!-- 05 TEMPLATES -->
   <section class="sec tpl" id="templates">
     {sec_head("Эхнээс нь хийх албагүй.", "Бэлэн загвараас эхлээд өөрийнхөөрөө өөрчил.")}
-    <div class="tp-wrap" id="tp-wrap">{tpl_rows}</div>
+    <div class="tp-wrap" id="tp-wrap" data-sp>{tpl_rows}</div>
     <div class="sec-cta rv">{btn("/tools/templates/", "Бүх загвар", "ghost")}</div>
     <div class="dk rv"><b>Илтгэл (PPT)</b>{decks}<a class="ql-all" href="/slides/">+ Бүх илтгэл</a></div>
   </section>
@@ -391,7 +391,7 @@ def build():
   <!-- 06 TRUST: downloads + testimonials -->
   <section class="sec rvw" id="reviews" aria-labelledby="ht-review-title">
     <header class="sh rv"><h2 id="ht-review-title">Хэрэглэгчдийн сэтгэгдэл</h2></header>
-    <div class="rv">{review_content}</div>
+    <div class="rvw-b">{review_content}</div>
     <div class="ht-stats rv" id="downloads" aria-labelledby="ht-download-title">
       <h3 id="ht-download-title">Нийт файлын таталт</h3>
       <div class="ht-number"><strong id="ht-downloads" aria-describedby="ht-download-title">—</strong><span>удаа</span></div>
@@ -415,7 +415,7 @@ def build():
     <p class="fin-url">graphican.online</p>
   </section>
 
-  <section class="collab" id="collab">
+  <section class="collab" id="collab" data-sp>
     <div><h2>Мэргэжлийн дизайн хэрэгтэй юу?</h2><p>Лого · брэнд айдентити · сошиал дизайн · видео</p></div>
     <div class="collab-b"><a class="bt pri" href="/about/"><span>Хамтран ажиллах</span><i aria-hidden="true">→</i></a><a class="bt txt" href="/about/#work"><span>Ажлууд</span><i aria-hidden="true">→</i></a></div>
   </section>
@@ -424,7 +424,7 @@ def build():
 <footer class="ft">
   <svg class="ft-word" viewBox="0 0 1200 300" data-sp aria-hidden="true"><g class="gd"><path d="M30 64h1140M30 236h1140M60 30v240M1140 30v240"/><path d="M52 64h16M60 56v16M1132 64h16M1140 56v16M52 236h16M60 228v16M1132 236h16M1140 228v16"/></g><text x="600" y="236" text-anchor="middle" textLength="1060" lengthAdjust="spacingAndGlyphs">Graphican</text></svg>
   <div class="ft-top"><a class="gh-logo" href="/" aria-label="Graphican — нүүр">Graphican</a><p>Дизайн, PDF, PPT, Video — үнэгүй, бүртгэлгүй, монгол хэлээр.</p></div>
-  <div class="ft-cols">
+  <div class="ft-cols rv">
     <div><b>Хэрэгслүүд</b><a href="/editor/">Design editor</a><a href="/tools/pdfedit/">PDF засварлагч</a><a href="/slides/">Илтгэл (PPT)</a><a href="/video/">Видео засварлагч</a><a href="/tools/bgremove/">Дэвсгэр арилгах</a><a href="/tools/upscale/">AI томруулах</a><a href="/tools/socialcrop/">Сошиал хэмжээ</a><a href="/tools/">Бүх хэрэгсэл</a></div>
     <div><b>PDF</b><a href="/tools/pdf-to-word/">PDF → Word</a><a href="/tools/merge-pdf/">PDF нэгтгэх</a><a href="/tools/compress-pdf/">PDF шахах</a><a href="/tools/sign-pdf/">Гарын үсэг</a><a href="/tools/pdf/">PDF ⇄ зураг</a>{TR_LINK}</div>
     <div><b>Нөөц</b><a href="/tools/templates/">Монгол загвар</a><a href="/tools/mongol-font/">Монгол фонт</a><a href="/tools/brand-color/">Брэндийн өнгө</a><a href="/design/">Design guide</a></div>
@@ -467,10 +467,11 @@ def build():
 <body class="home-page">
 <a class="skip" href="#main">Агуулга руу очих</a>
 <i class="sp-bar" aria-hidden="true"></i>
+<nav class="rail" id="rail" aria-label="Хуудасны хэсгүүд"></nav>
 {header}
 {body}
 <script src="/assets/home.js?v={V}" defer></script>
-<script src="/assets/home-trust.js?v=2" defer></script>
+<script src="/assets/home-trust.js?v=3" defer></script>
 </body>
 </html>
 """
