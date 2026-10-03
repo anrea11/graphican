@@ -551,3 +551,73 @@ details.capgen summary { cursor:pointer; font-size:13px; font-weight:700; color:
 .mpanel { grid-column:1 / -1; display:grid; grid-template-columns:repeat(3, 1fr); gap:4px; }
 .mpanel .tb.danger .i, .mpanel .tb.danger { color:#f87171; }
 @media (max-width:430px) { .vtr .ib { width:34px; height:36px; } .vtr .time { white-space:nowrap; font-size:11.5px; padding-left:2px; } .vtr .play { flex:none; } }
+
+/* effects browser: search, category pills, effect cards, settings of the picked effect */
+.fxsr { position:relative; margin-bottom:10px; }
+.fxsr .i { position:absolute; left:12px; top:50%; width:18px; height:18px; transform:translateY(-50%); color:var(--dim); pointer-events:none; }
+.sheet .fxsr input { width:100%; height:42px; padding:0 12px 0 38px; border-radius:12px; background:var(--bg3); border:1px solid var(--line); font-size:16px; color:var(--text); outline:none; -webkit-appearance:none; appearance:none; }
+.sheet .fxsr input:focus { border-color:var(--acc); }
+.fxcats { margin:0 -16px; padding:2px 16px 10px; }
+.fxcats .chip2 { display:inline-flex; align-items:center; gap:5px; color:var(--muted); }
+.fxcats .chip2.on { color:#fff; }
+.fxcats .chip2 .i { width:14px; height:14px; }
+.sheet.dock .fxcats { margin:0; padding:2px 0 10px; flex-wrap:wrap; overflow:visible; }
+.fxhere { display:flex; align-items:center; gap:6px; overflow-x:auto; padding-bottom:10px; font-size:12px; color:var(--muted); scrollbar-width:none; }
+.fxhere::-webkit-scrollbar { display:none; }
+.fxhere span { flex:none; }
+.fxgrid { display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:10px; }
+.fxgrid.none { display:block; }
+.fxnone { padding:28px 10px; text-align:center; color:var(--muted); font-size:13px; }
+.fxc { position:relative; border-radius:12px; background:var(--bg3); border:2px solid transparent; overflow:hidden; cursor:pointer; min-width:0; }
+.fxp { display:block; width:100%; position:relative; }
+.fxp canvas { display:block; width:100%; height:auto; aspect-ratio:16/10; background:#000; }
+.fxn { display:flex; align-items:center; gap:2px; padding:0 2px 0 10px; height:38px; }
+.fxn span { flex:1; min-width:0; font-size:12.5px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.fxfav { flex:none; width:36px; height:36px; display:flex; align-items:center; justify-content:center; color:var(--dim); border-radius:8px; }
+.fxfav .i { width:17px; height:17px; }
+.fxfav.on { color:#ff5a7a; } .fxfav.on .i { fill:currentColor; }
+.fxb { position:absolute; display:none; font-style:normal; font-weight:700; }
+.fxb.pvb { left:6px; top:6px; padding:3px 7px; border-radius:6px; background:rgba(0,0,0,.72); color:#fff; font-size:10px; letter-spacing:.05em; text-transform:uppercase; }
+.fxb.apb { right:6px; top:6px; width:20px; height:20px; border-radius:50%; background:var(--acc); color:#fff; font-size:12px; align-items:center; justify-content:center; }
+.fxc.pv { border-color:var(--acc2); border-style:dashed; } .fxc.pv .pvb { display:block; }
+.fxc.ap .apb { display:flex; }
+.fxc.on { border-color:var(--acc); box-shadow:0 0 0 3px var(--acc-soft); }
+.fxset { position:sticky; bottom:-16px; z-index:3; margin:12px -16px -16px; padding:10px 16px calc(12px + env(safe-area-inset-bottom, 0px)); background:var(--bg2); border-top:1px solid var(--line); box-shadow:0 -12px 24px rgba(0,0,0,.35); }
+.fxset[hidden] { display:none; }
+/* desktop side panel: the settings sit between the categories and the cards, so the grid keeps its room */
+.sheet.dock.fxsheet { display:flex; flex-direction:column; }
+.sheet.dock .fxgrid { order:2; }
+.sheet.dock .fxset { order:1; position:static; margin:0 0 12px; padding:10px 12px 12px; border:1px solid var(--line); border-radius:12px; background:var(--bg3); box-shadow:none; }
+.sheet.dock .fxset .fxba, .sheet.dock .fxset .btn-g { background:var(--bg4); }
+.fxhd { display:flex; align-items:center; gap:8px; min-height:34px; margin-bottom:2px; }
+.fxhd b { font-size:14px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
+.fxst { flex:none; font-size:11px; font-weight:700; padding:3px 8px; border-radius:999px; white-space:nowrap; }
+.fxst.pv { color:var(--text); border:1px dashed var(--acc2); }
+.fxst.ap { background:var(--acc); color:#fff; border:1px solid var(--acc); }
+.fxba { margin-left:auto; flex:none; height:32px; padding:0 12px; border-radius:999px; background:var(--bg3); font-size:12px; font-weight:600; touch-action:none; -webkit-user-select:none; user-select:none; -webkit-touch-callout:none; }
+.fxba.on { background:#fff; color:#000; }
+.fxrow { display:flex; align-items:center; gap:10px; min-height:36px; }
+.fxrow > span { flex:none; width:56px; font-size:12px; color:var(--muted); }
+.fxrow > input[type=range] { flex:1; min-width:0; }
+.fxrow > b { flex:none; min-width:42px; text-align:right; font-size:12.5px; font-variant-numeric:tabular-nums; }
+.fxrow .opts { gap:6px; flex:1; min-width:0; }
+.fxrow .opt { min-height:32px; padding:4px 12px; font-size:12.5px; }
+.fxrow .sw { width:28px; height:28px; }
+.fxact { display:flex; gap:8px; margin-top:10px; }
+.fxact button { flex:1; height:44px; padding:0 12px; }
+.fxact .danger { color:#ff6b81; } .fxact .i { width:18px; height:18px; }
+.fxempty { display:flex; flex-direction:column; align-items:center; gap:8px; padding:30px 16px; text-align:center; color:var(--muted); font-size:13px; }
+.fxempty .i { width:32px; height:32px; color:var(--dim); } .fxempty b { color:var(--text); font-size:15px; }
+@media (hover:hover) { .fxc:hover { background:var(--bg4); } .fxfav:hover { color:var(--text); } .fxfav.on:hover { color:#ff5a7a; } }
+@media (min-width:560px) and (max-width:1023px) { .fxgrid { grid-template-columns:repeat(3, minmax(0, 1fr)); } }
+/* phone, an effect picked: the cards become one sideways row so the picture above and the settings below both stay in view */
+@media (max-width:1023px) {
+  .fxsheet.has .fxsr { display:none; }
+  .fxsheet.has .fxgrid:not(.none) { display:flex; overflow-x:auto; margin:0 -16px; padding:0 16px 2px; scrollbar-width:none; scroll-snap-type:x proximity; }
+  .fxsheet.has .fxgrid::-webkit-scrollbar { display:none; }
+  .fxsheet.has .fxc { flex:0 0 112px; scroll-snap-align:center; }
+  .fxsheet.has[data-sz=mid] { max-height:min(62vh, 520px); max-height:min(62dvh, 520px); }
+  .fxsheet.has .fxset .note { display:none; }
+  .fxsheet.has .fxset { margin-top:8px; }
+  .fxsheet.has .fxn { height:32px; padding-left:8px; } .fxsheet.has .fxn span { font-size:11.5px; } .fxsheet.has .fxfav { width:30px; height:30px; }
+}

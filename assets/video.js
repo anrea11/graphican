@@ -40,17 +40,38 @@
     ['Хэлбэр', [['wipe', 'Арчих'], ['diag', 'Налуу'], ['circle', 'Дугуй'], ['doors', 'Хаалга'], ['stripes', 'Хөшиг']]],
     ['Эффект', [['glitch', 'Глитч'], ['pixel', 'Пиксел']]]];
   var TR_DIR = { slide: 1, cover: 1, wipe: 1 }, TR_COL = { dipb: 1, flash: 1 };
-  var FX_COL = { flash: '#ffffff', leak: '#ff9640', duotone: '#7b64ff', sparkle: '#ffffff', snow: '#ffffff', frame: '#ffffff', cinema: '#000000', strobe: '#000000' };
+  var FX_COL = { flash: '#ffffff', leak: '#ff9640', duotone: '#7b64ff', sparkle: '#ffffff', snow: '#ffffff', frame: '#ffffff', cinema: '#000000', strobe: '#000000', flare: '#ffe7b8' };
   // colour presets = canvas filter strings (warmth, vignette and the sliders are added on top in filterOf / drawTone)
   var FILTERS = [['none', 'Байхгүй', ''], ['vivid', 'Тод', 'saturate(1.45) contrast(1.08)'], ['warm', 'Дулаан', 'sepia(.22) saturate(1.3) hue-rotate(-6deg)'],
     ['cool', 'Сэрүүн', 'saturate(1.05) hue-rotate(10deg) brightness(1.04)'], ['bw', 'Хар цагаан', 'grayscale(1) contrast(1.1)'], ['vintage', 'Хуучин', 'sepia(.45) contrast(.92) brightness(1.05) saturate(.85)'],
     ['film', 'Кино', 'contrast(1.15) saturate(.8) brightness(.96)'], ['fade', 'Бүдэг', 'contrast(.84) brightness(1.1) saturate(.75)'], ['drama', 'Драм', 'contrast(1.35) saturate(1.15) brightness(.9)'],
     ['dream', 'Зүүд', 'brightness(1.12) saturate(1.25) contrast(.9)'], ['noir', 'Нуар', 'grayscale(1) contrast(1.55) brightness(.85)'], ['sunset', 'Нар жаргах', 'sepia(.35) saturate(1.6) hue-rotate(-16deg) contrast(1.05)']];
-  var FXCATS = [['Хөдөлгөөн', [['shake', 'Чичиргээ'], ['pulse', 'Цохилт'], ['zoomp', 'Томрох цохилт'], ['swing', 'Савлах'], ['spin', 'Эргэлдэх']]],
-    ['Гэрэл', [['flash', 'Анивчих'], ['strobe', 'Стробо'], ['leak', 'Гэрлийн туяа'], ['glow', 'Гэрэлтэх'], ['sparkle', 'Од гялалзах'], ['snow', 'Цас']]],
-    ['Ретро', [['vhs', 'VHS'], ['oldfilm', 'Хуучин кино'], ['grain', 'Ширхэг'], ['glitch', 'Глитч'], ['rgb', 'RGB салах']]],
-    ['Өнгө', [['bwflash', 'Хар цагаан анивчих'], ['fadebw', 'Өнгө алдах'], ['rainbow', 'Солонго'], ['duotone', 'Хоёр өнгө'], ['invert', 'Урвуу']]],
-    ['Дэлгэц', [['mirror', 'Толин'], ['grid', '4 дэлгэц'], ['split3', '3 дэлгэц'], ['pixel', 'Пиксел'], ['cinema', 'Кино хүрээ'], ['frame', 'Цагаан хүрээ'], ['blurpulse', 'Бүдэгрэх']]]];
+  // effects. The ids are what projects store — never rename them; only the display name / category may change.
+  // [id, name, categories, controls (i intensity · s speed · c colour · d direction), default length in seconds (0 = the whole clip), search aliases]
+  var FXCATN = [['trend', 'Trending'], ['recent', 'Recent'], ['fav', 'Favorites'], ['motion', 'Motion'], ['camera', 'Camera'], ['light', 'Light'], ['blur', 'Blur'], ['glitch', 'Glitch'], ['retro', 'Retro'], ['style', 'Stylize']];
+  var FXTREND = ['shake', 'zoomp', 'pulse', 'mblur', 'flash', 'glow', 'leak', 'rgb', 'vhs', 'grain'];
+  var FXDEF = [
+    ['shake', 'Camera Shake', 'motion', 'is', 1.5, 'чичиргээ сэгсрэх'], ['handheld', 'Handheld Shake', 'motion camera', 'is', 0, 'гар камер чичиргээ shake'],
+    ['zoomp', 'Zoom Punch', 'motion', 'is', 1, 'томрох цохилт'], ['pulse', 'Zoom Pulse', 'motion', 'is', 2, 'цохилт beat'], ['bounce', 'Bounce', 'motion', 'is', 2, 'үсрэх'],
+    ['whip', 'Whip Motion', 'motion blur', 'isd', 1, 'whip pan шилжих'], ['swing', 'Swing', 'motion', 'is', 0, 'савлах'], ['spin', 'Spin', 'motion', 'is', 2, 'эргэлдэх rotate'],
+    ['dzoom', 'Digital Zoom', 'camera', 'i', 0, 'zoom in томрох'], ['focus', 'Focus Pull', 'camera blur', 'i', 1.5, 'фокус'], ['lensblur', 'Lens Blur', 'camera blur', 'i', 0, 'захын бүдэг tilt'],
+    ['mblur', 'Motion Blur', 'camera blur', 'id', 0, 'хөдөлгөөний бүдэг'], ['chroma', 'Chromatic Aberration', 'camera glitch', 'i', 0, 'өнгө салах'], ['cinema', 'Cinema Bars', 'camera', 'ic', 0, 'кино хүрээ letterbox'],
+    ['flash', 'Flash', 'light', 'isc', 1, 'анивчих гялбаа'], ['strobe', 'Strobe', 'light', 'isc', 1.5, 'стробо'], ['glow', 'Glow', 'light style', 'i', 0, 'soft glow гэрэлтэх'],
+    ['leak', 'Light Leak', 'light', 'isc', 0, 'гэрлийн туяа'], ['flare', 'Lens Flare', 'light', 'isc', 2.5, 'нарны туяа'], ['flicker', 'Flicker', 'light retro', 'is', 2, 'анивчих'],
+    ['sparkle', 'Sparkle', 'light', 'isc', 0, 'од гялалзах'], ['snow', 'Snow', 'light style', 'isc', 0, 'цас'],
+    ['blurpulse', 'Blur Pulse', 'blur', 'is', 2, 'бүдэгрэх'], ['dreamy', 'Dreamy Blur', 'blur style', 'i', 0, 'зүүд soft'],
+    ['rgb', 'RGB Split', 'glitch', 'is', 1.5, 'rgb салах'], ['glitch', 'Digital Glitch', 'glitch', 'is', 1.5, 'глитч'], ['signal', 'Signal Distortion', 'glitch retro', 'is', 1.5, 'дохио гажих'],
+    ['pixel', 'Pixelate', 'glitch', 'i', 1.5, 'пиксел mosaic'], ['invert', 'Invert', 'glitch style', 'i', 1, 'урвуу negative'],
+    ['vhs', 'VHS', 'retro', 'is', 0, 'кассет'], ['grain', 'Film Grain', 'retro', 'i', 0, 'ширхэг noise'], ['oldfilm', 'Old Film', 'retro', 'is', 0, 'хуучин кино sepia'],
+    ['camcorder', 'Camcorder', 'retro', 'i', 0, 'rec камер'], ['crt', 'CRT Scanline', 'retro', 'i', 0, 'телевиз tv'],
+    ['bwfilm', 'B&W Film', 'style retro', 'i', 0, 'хар цагаан кино noir'], ['duotone', 'Duotone', 'style', 'ic', 0, 'хоёр өнгө'], ['posterize', 'Posterize', 'style', 'i', 0, 'постер'],
+    ['bwflash', 'B&W Flash', 'style', 's', 2, 'хар цагаан анивчих'], ['fadebw', 'Fade to B&W', 'style', '', 0, 'өнгө алдах'], ['rainbow', 'Rainbow', 'style', 'i', 0, 'солонго hue'],
+    ['mirror', 'Mirror', 'style', '', 0, 'толин'], ['grid', '4 Screens', 'style', '', 0, '4 дэлгэц grid'], ['split3', '3 Screens', 'style', '', 0, '3 дэлгэц split'], ['frame', 'Frame', 'style', 'ic', 0, 'цагаан хүрээ border']
+  ].map(function (r) {
+    var cats = r[2].split(' ').concat(FXTREND.indexOf(r[0]) >= 0 ? ['trend'] : []);
+    return { id: r[0], n: r[1], c: cats, ctl: r[3], len: r[4], s: (r[1] + ' ' + r[0] + ' ' + cats.map(function (c) { for (var i = 0; i < FXCATN.length; i++) if (FXCATN[i][0] === c) return FXCATN[i][1]; return c; }).join(' ') + ' ' + r[5]).toLowerCase() };
+  });
+  var FXMAP = {}; FXDEF.forEach(function (d) { FXMAP[d.id] = d; });
   var MOTIONS = [['none', 'Хөдөлгөөнгүй'], ['in', 'Томрох'], ['out', 'Холдох'], ['left', 'Зүүн тийш'], ['right', 'Баруун тийш'], ['up', 'Дээш']];
   var OANIMS = [['none', 'Байхгүй'], ['fade', 'Бүдгэрэх'], ['pop', 'Үсрэх'], ['slide', 'Доороос'], ['zoom', 'Томрох'], ['spin', 'Эргэх']];
   var TPRESETS = [
@@ -497,8 +518,14 @@
   // ---------- effects track: effect items stack (applied in lane order) over the video layer ----------
   function fxTime(e, t) { return (t - e.start) * (e.spd || 1); }
   function fxAmt(e) { return (e.amt == null ? 50 : e.amt) / 50; }
-  var fxPrev = null;   // an effect tried in the picker: drawn, never stored
-  function activeFx(t) { return (P.effects || []).concat(fxPrev ? [fxPrev] : []).filter(function (e) { return e.fx && e.fx !== 'none' && t >= e.start && t < e.end; }).sort(function (a, b) { return (a.ln || 0) - (b.ln || 0); }); }
+  // fxPrev: an effect tried in the picker (drawn, never stored) · fxHide: the stored effect it would replace · fxOff: hidden while «Before» is held · fxNone: a clean frame for the picker's thumbnails
+  var fxPrev = null, fxHide = null, fxOff = null, fxNone = false;
+  function activeFx(t) {
+    if (fxNone) return [];
+    return (P.effects || []).filter(function (e) { return e.id !== fxHide && e.id !== fxOff; }).concat(fxPrev && fxOff !== fxPrev.id ? [fxPrev] : []).filter(function (e) { return e.fx && e.fx !== 'none' && t >= e.start && t < e.end; }).sort(function (a, b) { return (a.ln || 0) - (b.ln || 0); });
+  }
+  function fxEase(p) { p = clamp(p, 0, 1); return p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2; }
+  function whipG(lt) { var g = Math.max(0, 1 - (lt % 1) / 0.35); return g * g; }
   // movement effects transform the layer, colour effects return a filter string
   function fxPre(ctx, e, t, W, H) {
     var fx = e.fx, lt = fxTime(e, t), A = fxAmt(e), L = (e.end - e.start) * (e.spd || 1);
@@ -507,6 +534,16 @@
     else if (fx === 'zoomp') zoomAt(ctx, W, H, 1 + 0.2 * A * Math.pow(Math.max(0, 1 - (lt % 1) / 0.3), 2));
     else if (fx === 'swing') { ctx.translate(W / 2, H / 2); ctx.rotate(Math.sin(lt * 3) * 0.07 * A); ctx.scale(1.12, 1.12); ctx.translate(-W / 2, -H / 2); }
     else if (fx === 'spin') { ctx.translate(W / 2, H / 2); ctx.rotate(lt * 0.5 * A); var sz = Math.hypot(W, H) / Math.min(W, H); ctx.scale(sz, sz); ctx.translate(-W / 2, -H / 2); }
+    else if (fx === 'handheld') { ctx.translate((Math.sin(lt * 1.7) * 0.009 + Math.sin(lt * 2.9 + 1) * 0.005) * W * A, (Math.cos(lt * 1.3) * 0.008 + Math.sin(lt * 3.1) * 0.004) * H * A); ctx.translate(W / 2, H / 2); ctx.rotate(Math.sin(lt * 1.1) * 0.008 * A); ctx.scale(1 + 0.06 * A, 1 + 0.06 * A); ctx.translate(-W / 2, -H / 2); }
+    else if (fx === 'bounce') { ctx.translate(0, -Math.abs(Math.sin(lt * Math.PI * 2)) * H * 0.028 * A); zoomAt(ctx, W, H, 1 + 0.065 * A); }
+    else if (fx === 'whip') { var wg = whipG(lt), wv = e.dir === 'v'; ctx.translate(wv ? 0 : wg * W * 0.05 * A, wv ? wg * H * 0.05 * A : 0); zoomAt(ctx, W, H, 1 + 0.11 * A * wg); }
+    else if (fx === 'dzoom') zoomAt(ctx, W, H, 1 + 0.35 * A * fxEase(lt / Math.max(0.2, L)));
+    if (fx === 'focus') { var fb = Math.pow(1 - fxEase(lt / Math.max(0.2, L * 0.85)), 2) * 16 * A * W / 1080; return fb > 0.05 ? 'blur(' + fb.toFixed(2) + 'px)' : ''; }
+    if (fx === 'flicker') return 'brightness(' + (1 + (rnd(Math.floor(lt * 18)) - 0.55) * 0.6 * A).toFixed(3) + ')';
+    if (fx === 'bwfilm') return 'grayscale(1) contrast(' + (1.1 + 0.15 * A).toFixed(2) + ') brightness(.97)';
+    if (fx === 'camcorder') return 'saturate(.85) contrast(1.06)';
+    if (fx === 'crt') return 'saturate(1.15) contrast(1.08)';
+    if (fx === 'dreamy') return 'saturate(1.12) brightness(1.04)';
     if (fx === 'bwflash') return Math.floor(lt * 2) % 2 === 1 ? 'grayscale(1) contrast(1.25)' : '';
     if (fx === 'vhs') return 'saturate(.8) contrast(1.1)';
     if (fx === 'oldfilm') return 'sepia(.65) contrast(1.12) brightness(' + (0.9 + 0.1 * rnd(Math.floor(lt * 12))).toFixed(3) + ')';
@@ -578,23 +615,115 @@
   }
 
   function rnd(n) { var x = Math.sin(n * 12.9898) * 43758.5453; return x - Math.floor(x); }
-  function copyFrame(ctx) {
-    var cvv = ctx.canvas; if (fxC.width !== cvv.width || fxC.height !== cvv.height) { fxC.width = cvv.width; fxC.height = cvv.height; }
-    fxX.globalCompositeOperation = 'copy'; fxX.drawImage(cvv, 0, 0); fxX.globalCompositeOperation = 'source-over'; return fxC;
+  // scratch canvases, one set per target (preview / export / small thumbnails) so they are not resized back and forth
+  var scrs = {};
+  function scr(ctx, n) {
+    var cvv = ctx.canvas, key = n + (cvv === cv ? 'p' : cvv.width <= 400 ? 't' : 'x'), S = scrs[key];
+    if (!S) { var c = document.createElement('canvas'); S = scrs[key] = { c: c, x: c.getContext('2d') }; }
+    if (S.c.width !== cvv.width || S.c.height !== cvv.height) { S.c.width = cvv.width; S.c.height = cvv.height; }
+    return S;
   }
-  // the red channel shifted sideways: cut red out of the frame (multiply by cyan) and add a shifted red-only copy back
-  function rgbSplit(ctx, off) {
+  function copyFrame(ctx) {
+    var S = scr(ctx, 'f'); fxC = S.c; fxX = S.x;
+    fxX.globalCompositeOperation = 'copy'; fxX.drawImage(ctx.canvas, 0, 0); fxX.globalCompositeOperation = 'source-over'; return fxC;
+  }
+  // one colour channel shifted sideways: cut it out of the frame (multiply by its complement) and add a shifted copy of that channel back
+  function chanShift(ctx, keep, cut, off) {
     var cvv = ctx.canvas, w = cvv.width, h = cvv.height;
-    copyFrame(ctx); fxX.globalCompositeOperation = 'multiply'; fxX.fillStyle = '#ff0000'; fxX.fillRect(0, 0, w, h); fxX.globalCompositeOperation = 'source-over';
+    copyFrame(ctx); fxX.globalCompositeOperation = 'multiply'; fxX.fillStyle = keep; fxX.fillRect(0, 0, w, h); fxX.globalCompositeOperation = 'source-over';
     ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
-    ctx.globalCompositeOperation = 'multiply'; ctx.fillStyle = '#00ffff'; ctx.fillRect(0, 0, w, h);
+    ctx.globalCompositeOperation = 'multiply'; ctx.fillStyle = cut; ctx.fillRect(0, 0, w, h);
     ctx.globalCompositeOperation = 'lighter'; ctx.drawImage(fxC, off, 0);
+    ctx.restore();
+  }
+  function rgbSplit(ctx, off) { chanShift(ctx, '#ff0000', '#00ffff', off); }
+  // directional blur: the frame averaged with copies of itself along (dx, dy)
+  function smear(ctx, dx, dy, n) {
+    if (Math.abs(dx) + Math.abs(dy) < 1) return;
+    copyFrame(ctx); ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
+    for (var i = 1; i <= n; i++) { var f = (i / n) * (i % 2 ? 1 : -1); ctx.globalAlpha = 1 / (i + 1); ctx.drawImage(fxC, dx * f, dy * f); }
+    ctx.restore();
+  }
+  function vignette(ctx, W, H, col, a, inner) {
+    var g = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * inner, W / 2, H / 2, Math.hypot(W, H) / 2); g.addColorStop(0, hexA(col, 0)); g.addColorStop(1, hexA(col, a));
+    ctx.save(); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H); ctx.restore();
+  }
+  function scanlines(ctx, rows, a) {
+    var w = ctx.canvas.width, h = ctx.canvas.height, step = Math.max(1, Math.round(h / rows));
+    ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.fillStyle = 'rgba(0,0,0,' + a.toFixed(3) + ')';
+    for (var y = 0; y < h; y += step * 2) ctx.fillRect(0, y, w, step);
     ctx.restore();
   }
   var pixC = document.createElement('canvas'), pixX = pixC.getContext('2d');
   // effects drawn on top of the finished clip frame (device pixels: they work the same in preview and export)
-  function postFx(ctx, fx, lt, A, W, H, FC) {
-    var cvv = ctx.canvas, w = cvv.width, h = cvv.height, k = w / W, i;
+  function postFx(ctx, fx, lt, A, W, H, FC, e) {
+    var cvv = ctx.canvas, w = cvv.width, h = cvv.height, k = w / W, i, vert = !!e && e.dir === 'v';
+    if (fx === 'mblur') return smear(ctx, vert ? 0 : w * 0.028 * A, vert ? h * 0.028 * A : 0, 12);
+    if (fx === 'whip') { var wg = whipG(lt); return smear(ctx, vert ? 0 : w * 0.09 * A * wg, vert ? h * 0.09 * A * wg : 0, 14); }
+    if (fx === 'chroma') { var co = Math.max(1, Math.round(w * 0.0045 * A)); chanShift(ctx, '#ff0000', '#00ffff', co); chanShift(ctx, '#0000ff', '#ffff00', -co); return; }
+    if (fx === 'lensblur') {
+      var M = scr(ctx, 'm'), mx = M.x; mx.setTransform(1, 0, 0, 1, 0, 0); mx.globalCompositeOperation = 'source-over'; mx.clearRect(0, 0, w, h);
+      filtered(mx, 'blur(' + Math.max(1, w * 0.011 * A).toFixed(1) + 'px)', function (x2) { x2.drawImage(cvv, 0, 0); });
+      var mg = mx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.22, w / 2, h / 2, Math.hypot(w, h) * 0.5); mg.addColorStop(0, 'rgba(0,0,0,0)'); mg.addColorStop(1, 'rgba(0,0,0,1)');
+      mx.globalCompositeOperation = 'destination-in'; mx.fillStyle = mg; mx.fillRect(0, 0, w, h); mx.globalCompositeOperation = 'source-over';
+      ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.drawImage(M.c, 0, 0); ctx.restore(); return;
+    }
+    if (fx === 'dreamy') {
+      copyFrame(ctx); ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalCompositeOperation = 'screen'; ctx.globalAlpha = Math.min(0.95, 0.6 * A);
+      filtered(ctx, 'blur(' + Math.max(1, Math.round(w * 0.03)) + 'px)', function (x2) { x2.drawImage(fxC, 0, 0); }); ctx.restore();
+      ctx.fillStyle = 'rgba(255,240,250,' + Math.min(0.2, 0.06 * A).toFixed(3) + ')'; ctx.fillRect(0, 0, W, H); return;
+    }
+    if (fx === 'flare') {
+      var fpx = ((lt * 0.3) % 1.4 - 0.2) * W, fpy = H * 0.27, fu = Math.min(W, H), fa = Math.min(1, 0.6 * A), fc = FC || '#ffe7b8', fg;
+      ctx.save(); ctx.globalCompositeOperation = 'screen';
+      fg = ctx.createRadialGradient(fpx, fpy, 0, fpx, fpy, fu * 0.5); fg.addColorStop(0, hexA('#ffffff', fa)); fg.addColorStop(0.12, hexA(fc, fa * 0.7)); fg.addColorStop(1, hexA(fc, 0));
+      ctx.fillStyle = fg; ctx.fillRect(0, 0, W, H);
+      ctx.save(); ctx.translate(fpx, fpy); ctx.scale(1, 0.035); fg = ctx.createRadialGradient(0, 0, 0, 0, 0, fu * 1.1); fg.addColorStop(0, hexA('#ffffff', fa)); fg.addColorStop(1, hexA(fc, 0));
+      ctx.fillStyle = fg; ctx.beginPath(); ctx.arc(0, 0, fu * 1.1, 0, 6.2832); ctx.fill(); ctx.restore();
+      [[0.55, 0.05, 0.3], [1.25, 0.09, 0.2], [1.7, 0.045, 0.28], [2.05, 0.13, 0.12]].forEach(function (gh) {
+        var gx = fpx + (W / 2 - fpx) * gh[0], gy = fpy + (H / 2 - fpy) * gh[0], gr = fu * gh[1];
+        fg = ctx.createRadialGradient(gx, gy, gr * 0.5, gx, gy, gr); fg.addColorStop(0, hexA(fc, fa * gh[2] * 0.5)); fg.addColorStop(0.85, hexA(fc, fa * gh[2])); fg.addColorStop(1, hexA(fc, 0));
+        ctx.fillStyle = fg; ctx.beginPath(); ctx.arc(gx, gy, gr, 0, 6.2832); ctx.fill();
+      });
+      ctx.restore(); return;
+    }
+    if (fx === 'signal') {
+      var st = Math.max(2, Math.round(h / 150)), sd = Math.floor(lt * 20);
+      copyFrame(ctx); ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
+      for (var yy = 0; yy < h; yy += st) {
+        var band = Math.floor(yy / (h * 0.07)), so = Math.sin(yy / h * 20 + lt * 9) * w * 0.005 * A + (rnd(sd + band * 3.1) > 0.84 ? (rnd(sd * 1.3 + band) - 0.5) * w * 0.07 * A : 0);
+        ctx.drawImage(fxC, 0, yy, w, st, Math.round(so), yy, w, st);
+      }
+      ctx.fillStyle = 'rgba(255,255,255,.09)'; ctx.fillRect(0, ((lt * 0.5) % 1.2 - 0.1) * h, w, h * 0.035);
+      ctx.restore(); return rgbSplit(ctx, Math.round(w * 0.003 * A));
+    }
+    if (fx === 'crt') {
+      chanShift(ctx, '#ff0000', '#00ffff', Math.max(1, Math.round(w * 0.002 * A)));
+      scanlines(ctx, 220, Math.min(0.5, 0.2 * A)); vignette(ctx, W, H, '#000000', Math.min(0.75, 0.5 * A), 0.32);
+      ctx.fillStyle = 'rgba(255,255,255,' + (0.035 * rnd(Math.floor(lt * 30))).toFixed(3) + ')'; ctx.fillRect(0, 0, W, H); return;
+    }
+    if (fx === 'bwfilm') { grainOver(ctx, W, H, Math.min(0.8, 0.3 * A), lt); vignette(ctx, W, H, '#000000', Math.min(0.7, 0.4 * A), 0.35); return; }
+    if (fx === 'camcorder') {
+      var u = Math.min(W, H) / 1080, m = 64 * u, cl = 70 * u, tsec = Math.max(0, lt), ff = Math.floor((tsec % 1) * 30), ss = Math.floor(tsec) % 60, mm = Math.floor(tsec / 60);
+      function p2(n) { return (n < 10 ? '0' : '') + n; }
+      grainOver(ctx, W, H, Math.min(0.5, 0.14 * A), lt); scanlines(ctx, 300, Math.min(0.3, 0.09 * A));
+      ctx.save(); ctx.globalAlpha = Math.min(1, 0.55 + 0.35 * A); ctx.strokeStyle = '#ffffff'; ctx.fillStyle = '#ffffff'; ctx.lineWidth = Math.max(1, 5 * u); ctx.lineCap = 'square';
+      ctx.shadowColor = 'rgba(0,0,0,.45)'; ctx.shadowBlur = 6 * u;
+      [[m, m, 1, 1], [W - m, m, -1, 1], [m, H - m, 1, -1], [W - m, H - m, -1, -1]].forEach(function (c) { ctx.beginPath(); ctx.moveTo(c[0] + c[2] * cl, c[1]); ctx.lineTo(c[0], c[1]); ctx.lineTo(c[0], c[1] + c[3] * cl); ctx.stroke(); });
+      ctx.beginPath(); ctx.moveTo(W / 2 - 22 * u, H / 2); ctx.lineTo(W / 2 + 22 * u, H / 2); ctx.moveTo(W / 2, H / 2 - 22 * u); ctx.lineTo(W / 2, H / 2 + 22 * u); ctx.stroke();
+      ctx.font = '700 ' + Math.round(40 * u) + 'px "Inter", system-ui, sans-serif'; ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+      var ty = m + 58 * u; ctx.fillText('REC', m + 66 * u, ty);
+      if (Math.floor(tsec * 1.6) % 2 === 0) { ctx.fillStyle = '#ff2d2d'; ctx.beginPath(); ctx.arc(m + 38 * u, ty, 13 * u, 0, 6.2832); ctx.fill(); ctx.fillStyle = '#ffffff'; }
+      ctx.fillText(p2(mm) + ':' + p2(ss) + ':' + p2(ff), m + 26 * u, H - m - 52 * u);
+      var bx = W - m - 110 * u, by2 = m + 40 * u; ctx.strokeRect(bx, by2, 76 * u, 36 * u); ctx.fillRect(bx + 76 * u, by2 + 10 * u, 7 * u, 16 * u); ctx.fillRect(bx + 7 * u, by2 + 7 * u, 44 * u, 22 * u);
+      ctx.restore(); return;
+    }
+    if (fx === 'posterize') {
+      var lv = Math.max(2, Math.round(7 - 2.2 * A)), ps = 255 / (lv - 1), lut = new Uint8ClampedArray(256);
+      for (i = 0; i < 256; i++) lut[i] = Math.round(Math.round(i / ps) * ps);
+      try { var pd = ctx.getImageData(0, 0, w, h), pp = pd.data; for (i = 0; i < pp.length; i += 4) { pp[i] = lut[pp[i]]; pp[i + 1] = lut[pp[i + 1]]; pp[i + 2] = lut[pp[i + 2]]; } ctx.putImageData(pd, 0, 0); } catch (er) {}
+      return;
+    }
     if (fx === 'flash') { var fa = Math.max(0, 1 - (lt % 1) / 0.18) * 0.75 * Math.min(1.3, A); if (fa > 0.01) { ctx.fillStyle = hexA(FC || '#ffffff', Math.min(1, fa)); ctx.fillRect(0, 0, W, H); } return; }
     if (fx === 'strobe') { if (Math.floor(lt * 10) % 2 === 0) { ctx.fillStyle = hexA(FC || '#000000', Math.min(0.85, 0.35 * A)); ctx.fillRect(0, 0, W, H); } return; }
     if (fx === 'rgb') return rgbSplit(ctx, Math.round(w * (0.006 + 0.004 * Math.sin(lt * 6)) * A));
@@ -954,7 +1083,7 @@
       ctx.save(); var add = [];
       E.forEach(function (e) { var f = fxPre(ctx, e, t, P.w, P.h); if (f) add.push(f); });
       filtered(ctx, add.join(' '), function (x2) { x2.drawImage(L.c, 0, 0, P.w, P.h); }); ctx.restore();
-      E.forEach(function (e) { postFx(ctx, e.fx, fxTime(e, t), fxAmt(e), P.w, P.h, e.col || FX_COL[e.fx] || null); });
+      E.forEach(function (e) { postFx(ctx, e.fx, fxTime(e, t), fxAmt(e), P.w, P.h, e.col || FX_COL[e.fx] || null, e); });
     }
     ovOrder().forEach(function (o) { if (t >= o.start && t < o.end) drawOver(ctx, o, t, still); });
     P.texts.forEach(function (x) { if (t >= x.start && t < x.end) drawText(ctx, x, t, still); });
@@ -1191,7 +1320,7 @@
   function beatDots(a) { return beatsOnTimeline(a).map(function (t) { return '<i class="bdot" style="left:' + ((t - a.start) * pps) + 'px"></i>'; }).join(''); }
   function kfDots(o) { return (o.kf || []).map(function (q) { return '<i class="kfd" style="left:' + (q.t * pps) + 'px"></i>'; }).join(''); }
   function trName(id) { var n = ''; TRGROUPS.forEach(function (g) { g[1].forEach(function (t) { if (t[0] === id) n = t[1]; }); }); return n; }
-  function fxName(id) { var n = id; FXCATS.forEach(function (g) { g[1].forEach(function (t) { if (t[0] === id) n = t[1]; }); }); return n; }
+  function fxName(id) { return FXMAP[id] ? FXMAP[id].n : id; }
 
   // pointer: tap selects; handles trim; a selected bar drags (texts / overlays / music along the time line, clips change order);
   // the mouse can drag empty timeline to scrub; edges snap (magnet) to the playhead, other edges and markers
@@ -1472,6 +1601,7 @@
     var o = JSON.parse(s); P.name = o.name; P.w = o.w; P.h = o.h; P.bg = o.bg; P.clips = o.clips; P.texts = o.texts; P.audios = o.audios; P.overlays = o.overlays || []; P.markers = o.markers || []; P.effects = o.effects || []; P.magnet = o.magnet;
     if (sel && !selected()) sel = null;
     fitCanvas(); refresh(); seek(Math.min(T, total())); save();
+    if (fxSync) fxSync();
   }
   function undo() { if (hi > 0) { hi--; restore(hist[hi]); } }
   function redo() { if (hi < hist.length - 1) { hi++; restore(hist[hi]); } }
@@ -1831,7 +1961,7 @@
   // the clip under the playhead (for hub shortcuts that need a clip)
   function clipHere() { var at = P.clips.length ? clipAt(T) : null; return at && !at.c.gap ? at : null; }
   function hubFx() {
-    hubSheet('Эффект', '<div class="hub">' + hubBtn('fxadd', 'fx', 'Видео эффект', 'Чичиргээ, гэрэл, ретро…', 'pri') + hubBtn('hfilter', 'filter', 'Шүүлтүүр', 'Өнгө, гэрэлтүүлэг') + hubBtn('htrans', 'trans', 'Шилжилт', 'Клипүүдийн заагт') + '</div>' +
+    hubSheet('Эффект', '<div class="hub">' + hubBtn('fxadd', 'fx', 'Видео эффект', 'Shake, Zoom, Glow, VHS…', 'pri') + hubBtn('hfilter', 'filter', 'Шүүлтүүр', 'Өнгө, гэрэлтүүлэг') + hubBtn('htrans', 'trans', 'Шилжилт', 'Клипүүдийн заагт') + '</div>' +
       '<p class="note">Шүүлтүүр, шилжилт нь шугамын доорх клипт хэрэглэгдэнэ.</p>');
   }
   function hubMore() {
@@ -2004,7 +2134,7 @@
     desel: function () { sel = null; refresh(); }, split: splitSel, del: delSel, dup: dupSel,
     msel: function () { if (multi) multiEnd(); else multiStart(); }, mdone: multiEnd, mall: multiAll, mdel: delMulti,
     speed: function () { sheetSpeed(); }, vol: function () { sheetVol(); }, avol: function () { sheetVol(); }, ovol: function () { sheetVol(); }, fit: function () { sheetPos(); }, trans: function () { sheetTrans(); },
-    tedit: function () { sheetText(selected()); }, color: function () { sheetColor(); }, filter: function () { sheetColor(); }, adj: function () { sheetColor(); }, fx: function () { sheetFx(); }, fxadd: function () { sel = null; refresh(); sheetFx(); }, fxe: function () { sheetFxItem(); }, cap: function () { sheetCaptions(); }, kf: function () { sheetKf(); }, beat: function () { sheetBeat(); }, cut: function () { sheetCut(); },
+    tedit: function () { sheetText(selected()); }, color: function () { sheetColor(); }, filter: function () { sheetColor(); }, adj: function () { sheetColor(); }, fx: function () { sheetFx(); }, fxadd: function () { sel = null; refresh(); sheetFx(); }, fxe: function () { sheetFx(sel && sel.k === 'fx' ? sel.id : null); }, cap: function () { sheetCaptions(); }, kf: function () { sheetKf(); }, beat: function () { sheetBeat(); }, cut: function () { sheetCut(); },
     hmedia: hubMedia, htext: hubText, haudio: hubAudio, hcap: function () { sheetCaptions(); }, hfx: hubFx, hmore: hubMore,
     upv: function () { pick('video/*'); }, upi: function () { pick('image/*'); }, upa: function () { pick('audio/*'); },
     hfilter: function () { pickClipHere(sheetColor); }, htrans: transHere, hkeys: sheetKeys, newp: newProject,
@@ -2397,79 +2527,227 @@
     var all = s.querySelector('#v-adall');
     if (all) all.addEventListener('click', function () { P.clips.forEach(function (c) { c.filter = o.filter; c.fstr = o.fstr; c.adj = JSON.parse(JSON.stringify(o.adj)); }); draw(); toast('Бүх клипт хэрэглэлээ'); });
   }
-  // effects: add over the selected clip (or from the playhead), then each effect bar has its own settings
-  function fxGrid(cur) {
-    return FXCATS.map(function (g) { return '<label class="lbl">' + g[0] + '</label><div class="tiles">' + g[1].map(function (f) { return '<button type="button" class="tile' + (cur === f[0] ? ' on' : '') + '" data-fx="' + f[0] + '"><canvas width="96" height="64"></canvas><em>' + f[1] + '</em></button>'; }).join('') + '</div>'; }).join('');
+  // ---------- effects browser: categories, search, favourites / recent, animated cards, preview → apply, per-effect settings ----------
+  var fxCat = 'trend', fxSync = null;
+  var FX_HEART = '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20s-7.5-4.6-7.5-10A4.2 4.2 0 0 1 12 7.6 4.2 4.2 0 0 1 19.5 10c0 5.4-7.5 10-7.5 10z"/></svg>';
+  var FX_FIND = '<svg class="i" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.3-4.3"/></svg>';
+  function fxLS(k) { try { var r = JSON.parse(localStorage.getItem('gc-video-fx' + k) || '[]'); return Array.isArray(r) ? r.filter(function (id) { return FXMAP[id]; }) : []; } catch (e) { return []; } }
+  function fxLSset(k, v) { try { localStorage.setItem('gc-video-fx' + k, JSON.stringify(v)); } catch (e) {} }
+  function fxUsed(id) { var r = fxLS('rec').filter(function (x) { return x !== id; }); r.unshift(id); fxLSset('rec', r.slice(0, 12)); }
+  function fxList(cat, q) {
+    q = (q || '').trim().toLowerCase();
+    if (q) return FXDEF.filter(function (d) { return d.s.indexOf(q) >= 0; });
+    if (cat === 'trend') return FXTREND.map(function (id) { return FXMAP[id]; });
+    if (cat === 'fav' || cat === 'recent') return fxLS(cat === 'fav' ? 'fav' : 'rec').map(function (id) { return FXMAP[id]; });
+    return FXDEF.filter(function (d) { return d.c.indexOf(cat) >= 0; });
   }
-  // effect tiles: the current preview frame with the effect applied (one still, drawn once when the sheet opens)
-  function fxThumbs(s) {
-    var base = document.createElement('canvas'); base.width = 96; base.height = 64;
-    var bx = base.getContext('2d'), k = Math.max(96 / cv.width, 64 / cv.height);
-    bx.fillStyle = P.bg; bx.fillRect(0, 0, 96, 64);
-    try { bx.drawImage(cv, (96 - cv.width * k) / 2, (64 - cv.height * k) / 2, cv.width * k, cv.height * k); } catch (e) {}
-    var list = Array.prototype.slice.call(s.querySelectorAll('[data-fx] canvas'));
-    (function step() {
-      var n = list.splice(0, 6); if (!n.length) return;
-      n.forEach(function (cn) {
-        var fx = cn.parentNode.dataset.fx, x = cn.getContext('2d'), e = { fx: fx, start: 0, end: 2, amt: 70, spd: 1 }, t = 0.42;
-        try {
-          x.save(); x.fillStyle = P.bg; x.fillRect(0, 0, 96, 64);
-          var f = fxPre(x, e, t, 96, 64);
-          filtered(x, f || '', function (x2) { x2.drawImage(base, 0, 0); }); x.restore();
-          x.save(); postFx(x, fx, fxTime(e, t), fxAmt(e), 96, 64, FX_COL[fx] || null); x.restore();
-        } catch (er) { x.restore(); x.drawImage(base, 0, 0); }
-      });
-      requestAnimationFrame(step);
-    })();
-  }
-  function addEffect(fx, a, b) {
-    var e = { id: uid(), fx: fx, start: a, end: Math.max(a + 0.3, b), amt: 50, spd: 1, col: null, ln: 0 };
+  function addEffect(fx, a, b, o) {
+    var e = { id: uid(), fx: fx, start: a, end: Math.max(a + 0.3, b), amt: o && o.amt != null ? o.amt : 50, spd: (o && o.spd) || 1, col: (o && o.col) || null, ln: 0 };
+    if (o && o.dir) e.dir = o.dir;
     P.effects = P.effects || []; P.effects.push(e); settleLane('fx', e);
     sel = { k: 'fx', id: e.id }; commit(); previewRange(a + 0.01, Math.min(2.5, e.end - a));
-    toast('«' + fxName(fx) + '» эффект нэмэгдлээ — «Эффект» мөрөнд захаас нь чирж уртасгана');
+    // bring the «Эффект» row (the last one) into view so the new bar is seen
+    requestAnimationFrame(function () {
+      var el = document.querySelector('.it.e.on'), sc = el && el.closest('.vtl-scroll'); if (!sc) return;
+      var r = el.getBoundingClientRect(), R = sc.getBoundingClientRect();
+      if (r.bottom > R.bottom) sc.scrollTop += r.bottom - R.bottom + 6; else if (r.top < R.top) sc.scrollTop -= R.top - r.top + 6;
+    });
+    toast('«' + fxName(fx) + '» нэмэгдлээ — «Эффект» мөрөнд чирж зөөнө, захаас нь сунгана');
     return e;
   }
-  function sheetFx() {
-    var c = selected(), a, b, here = [];
-    if (c && sel.k === 'clip') { a = startOf(c.id); b = a + clipLen(c); }
-    else { var D = total(); a = D > 0 && T < D - 0.3 ? T : 0; b = D > 0 ? Math.min(D, a + 3) : a + 3; if (b - a < 0.5) a = Math.max(0, b - 3); }
-    (P.effects || []).forEach(function (e) { if (e.start < b && e.end > a) here.push(e); });
-    var s = sheet('Эффект нэмэх', (here.length ? '<label class="lbl" style="margin-top:0">Энэ хэсэгт байгаа</label><div class="opts">' + here.map(function (e) { return '<button type="button" class="opt" data-fxsel="' + e.id + '">✦ ' + esc(fxName(e.fx)) + '</button>'; }).join('') + '</div>' : '') +
-      '<p class="note" style="margin-top:' + (here.length ? 10 : 0) + 'px">Дарж үзээд «Нэмэх»-ийг дарна. ' + fmt(a) + ' – ' + fmt(b) + ' хэсэгт нэмэгдэнэ, нэг хэсэгт хэд ч эффект давхарлаж болно.</p>' + fxGrid('') +
-      '<div class="stick"><button type="button" class="btn-x" id="v-fxadd" disabled>' + ico('plus') + '<span>Эффект сонгоно уу</span></button></div>', function () { fxPrev = null; draw(); });
-    var addB = s.querySelector('#v-fxadd'), pick = null;
-    fxThumbs(s);
-    s.addEventListener('click', function (e) {
-      var b2 = e.target.closest('[data-fx]');
-      if (b2) {
-        pick = b2.dataset.fx; s.querySelectorAll('[data-fx]').forEach(function (q) { q.classList.toggle('on', q === b2); });
-        addB.disabled = false; addB.querySelector('span').textContent = '«' + fxName(pick) + '» нэмэх';
-        fxPrev = { id: '_pv', fx: pick, start: a, end: b, amt: 50, spd: 1, ln: 99 };
-        previewRange(a + 0.01, Math.min(2.5, b - a)); return;
+  // editId: the effect bar being edited (its settings, swap its type, reset / remove); without it: pick → preview → «Нэмэх»
+  function sheetFx(editId) {
+    var hasEd = !!(editId && find('fx', editId));
+    function ED() { return hasEd ? find('fx', editId) : null; }
+    if (!hasEd && !P.clips.some(function (c) { return !c.gap; })) {
+      sheet('Эффект нэмэх', '<div class="fxempty">' + ico('fx') + '<b>Эффект нэмэхийн тулд видео сонгоно уу.</b><span>Эхлээд видео эсвэл зургаа нэмээрэй.</span></div>');
+      return;
+    }
+    // where a new effect goes: the selected clip, else the clip under the playhead
+    var c = selected(), a = 0, b = 0, T0 = T;
+    if (!hasEd) {
+      if (!(c && sel.k === 'clip' && !c.gap)) { var at = clipAt(Math.min(T, Math.max(0, total() - 0.01))); c = at && !at.c.gap ? at.c : null; }
+      if (c) { a = startOf(c.id); b = a + clipLen(c); }
+      else { var D = total(); a = T < D - 0.3 ? T : 0; b = Math.min(D, a + 3); if (b - a < 0.5) a = Math.max(0, b - 3); }
+    }
+    var cat = hasEd ? (FXMAP[ED().fx] || { c: ['trend'] }).c[0] : fxCat, q = '', pv = null, mode = 'clip', alive = true, dirty = false, tried = false, qT = 0;
+    var TW = 160, TH = 100, base = null, io = null, calm = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    function up() { if (fxOff) before(false); }
+    var s = sheet(hasEd ? 'Эффект' : 'Эффект нэмэх',
+      '<div class="fxsr">' + FX_FIND + '<input type="search" id="v-fxq" placeholder="Effect хайх" aria-label="Effect хайх" autocomplete="off" enterkeyhint="search"></div>' +
+      '<div class="chips fxcats" id="v-fxcats"></div><div id="v-fxhere"></div><div class="fxgrid" id="v-fxgrid"></div><div class="fxset" id="v-fxset" hidden></div>',
+      function () {
+        alive = false; fxSync = null; fxPrev = null; fxHide = fxOff = null; if (io) io.disconnect(); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', up);
+        if (dirty) { dirty = false; commit(); }
+        if (tried) { if (playing) pause(); seek(Math.min(T0, total())); } else draw();
+      });
+    s.classList.add('fxsheet');
+    window.addEventListener('pointerup', up); window.addEventListener('pointercancel', up);
+    function cur() { return pv || ED(); }
+    function range() { var e = ED(); return e ? [e.start, e.end] : [a, b]; }
+    function rangeFor(d) {
+      if (mode === 'clip' || !d.len) return [a, b];
+      var st = T0 >= a && T0 < b - 0.2 ? T0 : a; return [st, Math.max(st + 0.3, Math.min(total(), st + d.len))];
+    }
+    function inside(e) { return T >= e.start && T < e.end - 0.02; }
+    function prev() { var e = cur(); if (e) previewRange(e.start + 0.01, Math.min(2.5, e.end - e.start)); }
+    // paused outside the effect: step into it so a change is visible
+    function show(e) { if (!playing && !inside(e)) seek(e.start + Math.min((e.end - e.start) / 2, 0.42)); else draw(); }
+
+    function cats() {
+      s.querySelector('#v-fxcats').innerHTML = FXCATN.map(function (c2) { return '<button type="button" class="chip2' + (!q && cat === c2[0] ? ' on' : '') + '" data-cat="' + c2[0] + '">' + (c2[0] === 'fav' ? FX_HEART : '') + c2[1] + '</button>'; }).join('');
+    }
+    function here() {
+      var r = range(), L = hasEd ? [] : (P.effects || []).filter(function (e) { return e.start < r[1] && e.end > r[0]; });
+      s.querySelector('#v-fxhere').innerHTML = L.length ? '<div class="fxhere"><span>Энэ хэсэгт:</span>' + L.map(function (e) { return '<button type="button" class="chip2" data-fxsel="' + e.id + '">✦ ' + esc(fxName(e.fx)) + '</button>'; }).join('') + '</div>' : '';
+    }
+    function marks() {
+      var r = range(), ap = {}, e = ED();
+      (P.effects || []).forEach(function (x) { if (x.start < r[1] && x.end > r[0]) ap[x.fx] = 1; });
+      s.querySelectorAll('.fxc').forEach(function (el) {
+        var id = el.dataset.fx;
+        el.classList.toggle('pv', !!pv && pv.fx === id); el.classList.toggle('on', !pv && !!e && e.fx === id); el.classList.toggle('ap', !!ap[id]);
+      });
+      s.classList.toggle('has', !!cur());
+    }
+    function grid() {
+      var list = fxList(cat, q), g = s.querySelector('#v-fxgrid'), fav = fxLS('fav');
+      if (io) io.disconnect();
+      if (!list.length) {
+        g.className = 'fxgrid none';
+        g.innerHTML = '<p class="fxnone">' + (q ? '«' + esc(q) + '» — илэрц олдсонгүй.' : cat === 'fav' ? 'Дуртай эффект алга. Картын ♡ дээр дарж хадгална.' : cat === 'recent' ? 'Саяхан хэрэглэсэн эффект алга.' : 'Энд эффект алга.') + '</p>';
+        return;
       }
-      var x = e.target.closest('[data-fxsel]'); if (x) { closeSheet(); sel = { k: 'fx', id: x.dataset.fxsel }; refresh(); }
+      g.className = 'fxgrid';
+      g.innerHTML = list.map(function (d) {
+        var on = fav.indexOf(d.id) >= 0;
+        return '<div class="fxc" data-fx="' + d.id + '"><button type="button" class="fxp" aria-label="' + d.n + '"><canvas width="' + TW + '" height="' + TH + '"></canvas><i class="fxb pvb">Preview</i><i class="fxb apb">✓</i></button>' +
+          '<div class="fxn"><span>' + d.n + '</span><button type="button" class="fxfav' + (on ? ' on' : '') + '" data-fav="' + d.id + '" aria-label="Дуртайд нэмэх" aria-pressed="' + on + '">' + FX_HEART + '</button></div></div>';
+      }).join('');
+      marks(); thumbs();
+    }
+    function srow(label, id, min, max, step, v, txt) { return '<label class="fxrow"><span>' + label + '</span><input type="range" id="' + id + '" min="' + min + '" max="' + max + '" step="' + step + '" value="' + v + '"><b>' + txt + '</b></label>'; }
+    function panel() {
+      var box = s.querySelector('#v-fxset'), e = cur();
+      if (!e) { box.hidden = true; box.innerHTML = ''; return; }
+      var d = FXMAP[e.fx] || { n: e.fx, ctl: 'is', len: 0 }, amt = e.amt == null ? 50 : e.amt, spd = Math.round((e.spd || 1) * 100), isPv = e === pv;
+      box.hidden = false;
+      box.innerHTML = '<div class="fxhd"><b title="' + esc(d.n) + '">' + esc(d.n) + '</b><span class="fxst ' + (isPv ? 'pv' : 'ap') + '">' + (isPv ? 'Туршилт' : '✓ Нэмэгдсэн') + '</span>' +
+        '<button type="button" class="fxba" id="v-fxba" title="Дарж барихад эффектгүй харагдана">Өмнөх</button></div>' +
+        (d.ctl.indexOf('i') >= 0 ? srow('Хүч', 'v-fa', 5, 100, 1, amt, amt + '%') : '') +
+        (d.ctl.indexOf('s') >= 0 ? srow('Хурд', 'v-fsp', 25, 300, 5, spd, (spd / 100) + '×') : '') +
+        (d.ctl.indexOf('d') >= 0 ? '<div class="fxrow"><span>Чиглэл</span>' + opts([['h', '↔ Хэвтээ'], ['v', '↕ Босоо']], e.dir || 'h', 'fd') + '</div>' : '') +
+        (d.ctl.indexOf('c') >= 0 ? '<div class="fxrow"><span>Өнгө</span>' + swatches(e.col || FX_COL[e.fx] || '#ffffff', 'fc') + '</div>' : '') +
+        (isPv && !hasEd && d.len ? '<div class="fxrow"><span>Хугацаа</span>' + opts([['short', d.len + ' сек'], ['clip', 'Бүтэн клип']], mode, 'fm') + '</div>' : '') +
+        (!d.ctl ? '<p class="note" style="margin:2px 0 0">Энэ эффектэд тохиргоо байхгүй.</p>' : '') +
+        (!isPv ? '<p class="note" style="margin:6px 0 0">' + fmt(e.start) + ' – ' + fmt(e.end) + ' · «Эффект» мөрөнд чирж зөөнө, захаас нь сунгана.</p>' : '') +
+        '<div class="fxact">' + (isPv ? '<button type="button" class="btn-g" id="v-fxno">Болих</button><button type="button" class="btn-x" id="v-fxok">' + ico('plus') + '<span>' + (hasEd ? 'Солих' : 'Нэмэх') + '</span></button>'
+          : '<button type="button" class="btn-g" id="v-fxrs">Анхны утга</button><button type="button" class="btn-g danger" id="v-fxrm">' + ico('del') + '<span>Устгах</span></button>') + '</div>';
+    }
+    function pickFx(id) {
+      var e = ED(), d = FXMAP[id]; if (!d) return;
+      if (e && e.fx === id) { if (pv) cancel(); else prev(); return; }       // the applied one: back to it / replay
+      if (e) pv = { id: '_pv', fx: id, start: e.start, end: e.end, amt: e.amt == null ? 50 : e.amt, spd: e.spd || 1, col: null, ln: e.ln || 0 };
+      else { mode = d.len ? 'short' : 'clip'; var r = rangeFor(d); pv = { id: '_pv', fx: id, start: r[0], end: r[1], amt: 50, spd: 1, col: null, ln: 99 }; }
+      fxPrev = pv; fxHide = e ? e.id : null; tried = !hasEd; panel(); marks(); prev();
+      var el = s.querySelector('.fxc.pv'); if (el && el.scrollIntoView) requestAnimationFrame(function () { if (alive) el.scrollIntoView({ block: 'nearest', inline: 'center' }); });
+    }
+    function cancel() { pv = fxPrev = null; fxHide = fxOff = null; panel(); marks(); if (playing) pause(); if (hasEd) draw(); else seek(Math.min(T0, total())); }
+    function apply() {
+      if (!pv) return; var p = pv, e = ED(); fxUsed(p.fx);
+      if (e) { e.fx = p.fx; e.amt = p.amt; e.spd = p.spd; e.col = p.col; if (p.dir) e.dir = p.dir; else delete e.dir; pv = fxPrev = null; fxHide = fxOff = null; commit(); panel(); marks(); prev(); return; }
+      pv = null; tried = false; closeSheet(); addEffect(p.fx, p.start, p.end, p);
+    }
+    function before(on) {
+      var e = cur(); fxOff = on && e ? e.id : null;
+      var bb = s.querySelector('#v-fxba'); if (bb) { bb.classList.toggle('on', !!on); bb.textContent = on ? 'Эффектгүй' : 'Өмнөх'; }
+      if (e) show(e); else draw();
+    }
+    s.addEventListener('pointerdown', function (ev) { if (ev.target.closest('#v-fxba')) { ev.preventDefault(); before(true); } });
+    s.addEventListener('keydown', function (ev) { if (ev.target.id === 'v-fxba' && (ev.key === ' ' || ev.key === 'Enter')) { ev.preventDefault(); ev.stopPropagation(); if (!fxOff) before(true); } });
+    s.addEventListener('keyup', function (ev) { if (ev.target.id === 'v-fxba') { ev.preventDefault(); ev.stopPropagation(); before(false); } });
+    s.addEventListener('click', function (ev) {
+      var t = ev.target, x, e;
+      if ((x = t.closest('[data-fav]'))) {
+        var id = x.dataset.fav, f = fxLS('fav'), i = f.indexOf(id);
+        if (i >= 0) f.splice(i, 1); else f.unshift(id);
+        fxLSset('fav', f); x.classList.toggle('on', i < 0); x.setAttribute('aria-pressed', String(i < 0));
+        if (cat === 'fav' && !q) grid();
+        return;
+      }
+      if ((x = t.closest('[data-cat]'))) { cat = x.dataset.cat; if (!hasEd) fxCat = cat; q = ''; s.querySelector('#v-fxq').value = ''; cats(); grid(); return; }
+      if ((x = t.closest('[data-fxsel]'))) { var sid = x.dataset.fxsel; closeSheet(); sel = { k: 'fx', id: sid }; refresh(); if (!desk.matches) { sheetFx(sid); } return; }
+      if ((x = t.closest('.fxc'))) { pickFx(x.dataset.fx); return; }
+      if (t.closest('#v-fxok')) { apply(); return; }
+      if (t.closest('#v-fxno')) { cancel(); return; }
+      e = cur(); if (!e) return;
+      if (t.closest('#v-fxrs')) { e.amt = 50; e.spd = 1; e.col = null; delete e.dir; dirty = false; commit(); panel(); prev(); toast('Тохиргоо анхны утгадаа орлоо'); return; }
+      if (t.closest('#v-fxrm')) { var rid = e.id, nm = fxName(e.fx); closeSheet(); sel = { k: 'fx', id: rid }; delSel(); toast('«' + nm + '» устгагдлаа — буцаах бол ↶ товч'); return; }
+      if ((x = t.closest('[data-fd]'))) { e.dir = x.dataset.fd; }
+      else if ((x = t.closest('[data-fc]'))) { e.col = x.dataset.fc; }
+      else if ((x = t.closest('[data-fm]'))) { mode = x.dataset.fm; var r = rangeFor(FXMAP[e.fx]); e.start = r[0]; e.end = r[1]; }
+      else return;
+      x.parentNode.querySelectorAll('.opt, .sw').forEach(function (o) { o.classList.toggle('on', o === x); });
+      if (e !== pv) commit();
+      prev();
     });
-    addB.addEventListener('click', function () { var f = pick; if (!f) return; closeSheet(); addEffect(f, a, b); });
-  }
-  function sheetFxItem() {
-    var e = selected(); if (!e || sel.k !== 'fx') return;
-    var amt = e.amt == null ? 50 : e.amt, spd = Math.round((e.spd || 1) * 100);
-    var s = sheet('Эффект', '<p class="note" style="margin:0">' + fmt(e.start) + ' – ' + fmt(e.end) + ' · «Эффект» мөрөнд чирж зөөж, захаас нь сунгана.</p>' + fxGrid(e.fx) +
-      '<div class="agrp"><b>Тохиргоо</b><label class="lbl">Хүч</label><div class="rowv"><input type="range" id="v-fa" min="5" max="100" value="' + amt + '"><b id="v-fav">' + amt + '</b></div>' +
-      '<label class="lbl">Хурд</label><div class="rowv"><input type="range" id="v-fsp" min="25" max="300" step="5" value="' + spd + '"><b id="v-fspv">' + (spd / 100) + '×</b></div>' +
-      '<div id="v-fxcol"><label class="lbl">Өнгө</label>' + swatches(e.col || FX_COL[e.fx] || '#ffffff', 'fc') + '</div>' +
-      '<div class="opts" style="margin-top:12px"><button type="button" class="opt" id="v-ffprev">▶ Дахин үзэх</button></div></div>', commit);
-    fxThumbs(s);
-    function show() { s.querySelector('#v-fxcol').hidden = !FX_COL[e.fx]; }
-    function prev() { previewRange(e.start + 0.01, Math.min(2.5, e.end - e.start)); }
-    onOpt(s, 'fx', function (v) { e.fx = v; if (e.col && !FX_COL[v]) e.col = null; show(); renderTL(); prev(); });
-    s.querySelector('#v-fa').addEventListener('input', function () { e.amt = +this.value; s.querySelector('#v-fav').textContent = this.value; draw(); });
-    s.querySelector('#v-fsp').addEventListener('input', function () { e.spd = this.value / 100; s.querySelector('#v-fspv').textContent = e.spd + '×'; draw(); });
-    s.querySelector('#v-fsp').addEventListener('change', prev);
-    onOpt(s, 'fc', function (v) { e.col = v; prev(); });
-    s.querySelector('[data-fcp]').addEventListener('input', function () { e.col = this.value; draw(); });
-    s.querySelector('#v-ffprev').addEventListener('click', prev);
-    show();
+    s.addEventListener('input', function (ev) {
+      var t = ev.target, e;
+      if (t.id === 'v-fxq') { clearTimeout(qT); qT = setTimeout(function () { if (!alive) return; q = t.value.trim(); cats(); grid(); }, 140); return; }
+      e = cur(); if (!e) return;
+      if (t.id === 'v-fa') { e.amt = +t.value; t.nextElementSibling.textContent = t.value + '%'; }
+      else if (t.id === 'v-fsp') { e.spd = t.value / 100; t.nextElementSibling.textContent = e.spd + '×'; }
+      else if (t.hasAttribute('data-fcp')) e.col = t.value;
+      else return;
+      if (e !== pv) dirty = true;
+      show(e);
+    });
+    s.addEventListener('change', function (ev) {
+      var t = ev.target; if (t.id !== 'v-fa' && t.id !== 'v-fsp' && !t.hasAttribute('data-fcp')) return;
+      if (dirty) { dirty = false; commit(); }
+      prev();
+    });
+
+    // cards: the current frame (without effects) with each effect on it; only the cards on screen animate, and not while the preview plays
+    var baseT = -1, baseOk = false;
+    function frameReady() { var at = P.clips.length ? clipAt(T) : null, m = at && media[at.c.mid]; return !(m && m.kind === 'video' && m.el && (m.el.readyState < 2 || m.el.seeking)); }
+    function mkBase() {
+      if (!base) { base = document.createElement('canvas'); base.width = TW; base.height = TH; }
+      baseT = T; baseOk = frameReady();
+      var bx = base.getContext('2d'), k = Math.max(TW / cv.width, TH / cv.height);
+      bx.fillStyle = P.bg; bx.fillRect(0, 0, TW, TH);
+      fxNone = true;
+      try { renderFrame(cx, cv.width / P.w, T, !playing); bx.drawImage(cv, (TW - cv.width * k) / 2, (TH - cv.height * k) / 2, cv.width * k, cv.height * k); } catch (er) {}
+      fxNone = false; draw();
+    }
+    function drawThumb(cn, t) {
+      var id = cn.parentNode.parentNode.dataset.fx, x = cn.getContext('2d'), e = { id: '_t', fx: id, start: 0, end: 2, amt: 70, spd: 1 };
+      x.setTransform(1, 0, 0, 1, 0, 0); x.globalAlpha = 1; x.globalCompositeOperation = 'source-over'; x.filter = 'none';
+      try {
+        x.save(); x.fillStyle = P.bg; x.fillRect(0, 0, TW, TH);
+        var f = fxPre(x, e, t, TW, TH);
+        filtered(x, f || '', function (x2) { x2.drawImage(base, 0, 0); }); x.restore();
+        x.save(); postFx(x, id, fxTime(e, t), fxAmt(e), TW, TH, FX_COL[id] || null, e); x.restore();
+      } catch (er) { x.setTransform(1, 0, 0, 1, 0, 0); x.filter = 'none'; x.globalAlpha = 1; x.globalCompositeOperation = 'source-over'; x.drawImage(base, 0, 0); }
+    }
+    function thumbs() {
+      if (!base) mkBase();
+      s.querySelectorAll('.fxc canvas').forEach(function (cn) { cn._v = !io; if (io) io.observe(cn); drawThumb(cn, 0.42); });
+    }
+    if ('IntersectionObserver' in window) io = new IntersectionObserver(function (en) { en.forEach(function (n) { n.target._v = n.isIntersecting; }); });
+    (function tick() {
+      if (!alive) return; setTimeout(tick, 90);
+      if (playing || document.hidden || !base) return;
+      // the playhead moved (or the frame had not arrived yet): the cards follow the picture
+      if (baseT !== T || (!baseOk && frameReady())) { mkBase(); s.querySelectorAll('.fxc canvas').forEach(function (cn) { drawThumb(cn, 0.42); }); }
+      if (calm) return;
+      var t = (performance.now() / 1000) % 2;
+      s.querySelectorAll('.fxc canvas').forEach(function (cn) { if (cn._v) drawThumb(cn, t); });
+    })();
+
+    // undo / redo while the sheet is open: the stored effect may have changed under it
+    fxSync = function () { if (!alive) return; if (pv && hasEd && !ED()) { pv = fxPrev = null; fxHide = null; } here(); panel(); marks(); };
+    cats(); here(); grid(); panel();
   }
 
 
