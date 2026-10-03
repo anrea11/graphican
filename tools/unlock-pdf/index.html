@@ -28,85 +28,82 @@
 <link rel="stylesheet" href="/assets/fonts/web/fonts.css">
 <link rel="stylesheet" href="/assets/style.css?v=36">
 <link rel="stylesheet" href="/assets/design.css?v=35">
-<link rel="stylesheet" href="/assets/landing.css?v=7">
+<link rel="stylesheet" href="/assets/site.css?v=1">
+<link rel="stylesheet" href="/assets/landing.css?v=8">
 </head>
 <body class="design-page lp-page">
 
-<header class="header" id="header">
-  <a class="logo" href="/" aria-label="Graphican — нүүр">Graphican</a>
-
-  <nav class="nav" aria-label="Үндсэн цэс">
-    <a href="/#editor">Design editor</a>
-    <a href="/slides/">Илтгэл</a>
-    <a href="/#pdf">PDF</a>
-    <a href="/#image">Зураг</a>
-    <a href="/#design">Дизайн</a>
-    <a href="/about/">Тухай</a>
+<header class="gh" id="gh">
+  <a class="gh-logo" href="/" aria-label="Graphican — нүүр">Graphican</a>
+  <nav class="gh-nav" id="gh-nav" aria-label="Үндсэн цэс">
+    <a href="/tools/">Хэрэгслүүд</a><a href="/tools/templates/">Загварууд</a><a href="/tools/mongol-font/">Фонт</a><a href="/design/">Нөөц</a>
   </nav>
-
-  <details class="dmenu">
-    <summary class="design-pill active" aria-label="Design цэс"><span class="dp-orb" aria-hidden="true"></span><span class="dp-main">Design</span><span class="dp-caret" aria-hidden="true"></span></summary>
-    <div class="dm-panel">
-      <a class="dm-item" href="/tools/pdfedit/"><span class="dm-ic"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3h9l4 4v14H6zM14 3v5h5M9 12h6M9 16h6"/></svg></span><span><b>PDF editor</b><small>PDF засах, Word болгох</small></span></a>
-      <a class="dm-item" href="/editor/"><span class="dm-ic"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20l4.5-1 10-10-3.5-3.5-10 10zM13.5 7l3.5 3.5"/></svg></span><span><b>Design editor</b><small>Пост, постер, дизайн бүтээх</small></span></a>
-      <a class="dm-item" href="/slides/"><span class="dm-ic"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M12 16v4M8 20h8"/></svg></span><span><b>PPT editor</b><small>Слайд, илтгэл бэлдэх</small></span></a>
-      <a class="dm-item" href="/video/"><span class="dm-ic"><svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="13" height="14" rx="2"/><path d="m16 10 5-3v10l-5-3z"/></svg></span><span><b>Video editor</b><small>Видео эвлүүлэх, MP4 татах</small></span></a>
-    </div>
-  </details>
-  <script>(function(){var d=document.querySelector(".dmenu");if(!d)return;document.addEventListener("click",function(e){if(d.open&&!d.contains(e.target))d.open=false});document.addEventListener("keydown",function(e){if(e.key==="Escape")d.open=false})})()</script>
-  <a class="header-cta" href="/about/">Хамтран ажиллах <span aria-hidden="true">+</span></a>
-  <button class="menu-toggle" id="menu-toggle" type="button" aria-label="Цэс" aria-expanded="false"><span></span><span></span></button>
+  <a class="bt pri sm gh-cta" href="/editor/"><span>Үнэгүй эхлэх</span><i aria-hidden="true">→</i></a>
+  <button class="gh-menu" id="gh-menu" type="button" aria-label="Цэс" aria-expanded="false" aria-controls="gh-nav"><i></i><i></i></button>
 </header>
+<div class="sp-bar" aria-hidden="true"></div>
+<div class="fxl lp-fx" aria-hidden="true"><i class="beam"></i><svg viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice"><circle cx="-120" cy="-380" r="900"/><circle cx="1620" cy="1500" r="1050"/></svg></div>
 
 <main class="lp">
   <nav class="lp-crumbs" aria-label="Breadcrumb"><a href="/">Graphican</a><span>/</span><a href="/tools/">Design tools</a><span>/</span><span aria-current="page">PDF-ийн нууц үг арилгах</span></nav>
 
-  <section class="lp-hero">
-    <p class="lp-kicker">ҮНЭГҮЙ · БҮРТГЭЛГҮЙ · ОНЛАЙН</p>
-    <h1>PDF-ийн нууц үг арилгах</h1>
-    <p class="lp-lead">Банкны хуулга, цахим төлбөрийн баримт зэрэг нууц үгтэй PDF-ийг нээх бүрт нууц үг асуухаас залхсан уу? Нууц үгээ нэг удаа оруулаад, нууц үггүй хувилбарыг нь хадгална.</p>
-    <label class="lp-drop" id="lp-drop" data-do="unpw">
+  <section class="lp-hero two">
+    <div class="lp-copy">
+      <p class="lp-kicker">Үнэгүй · Бүртгэлгүй · Онлайн</p>
+      <h1 data-words>PDF-ийн нууц үг арилгах</h1>
+      <p class="lp-lead">Банкны хуулга, цахим төлбөрийн баримт зэрэг нууц үгтэй PDF-ийг нээх бүрт нууц үг асуухаас залхсан уу? Нууц үгээ нэг удаа оруулаад, нууц үггүй хувилбарыг нь хадгална.</p>
+      <ul class="lp-trust"><li>Бүрэн үнэгүй</li><li>Бүртгэл шаардахгүй</li><li>Усан тэмдэггүй</li><li>Утсан дээр ажиллана</li></ul>
+    </div>
+    <label class="lp-drop gc" id="lp-drop" data-do="unpw">
       <input type="file" id="lp-file" accept=".pdf,application/pdf" hidden>
       <span class="lp-drop-ic" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 16V4m0 0L7 9m5-5 5 5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M4 15v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg></span>
       <span class="lp-btn">Файлаа сонгох</span>
       <span class="lp-drop-s">эсвэл энд чирж оруулна уу</span>
     </label>
-    <ul class="lp-trust"><li>Бүрэн үнэгүй</li><li>Бүртгэл шаардахгүй</li><li>Усан тэмдэггүй</li><li>Утсан дээр ажиллана</li></ul>
   </section>
 
-  <section class="lp-sec">
-    <h2>PDF-ийн нууц үг арилгах — 3 алхам</h2>
-    <ol class="lp-steps"><li><span class="lp-n">1</span><p>Нууц үгтэй PDF-ээ оруулах</p></li><li><span class="lp-n">2</span><p>Нууц үгээ бичиж нээх</p></li><li><span class="lp-n">3</span><p>Нууц үггүй PDF-ээ татаж авна</p></li></ol>
+  <section class="lp-sec split">
+    <h2 data-words data-sp>PDF-ийн нууц үг арилгах — 3 алхам</h2>
+    <ol class="lp-steps" data-sp data-stagger="3"><li><span class="lp-n">1</span><p>Нууц үгтэй PDF-ээ оруулах</p></li><li><span class="lp-n">2</span><p>Нууц үгээ бичиж нээх</p></li><li><span class="lp-n">3</span><p>Нууц үггүй PDF-ээ татаж авна</p></li></ol>
   </section>
 
-  <section class="lp-sec">
-    <h2>Боломжууд</h2>
-    <ul class="lp-feats"><li><b>Нэг товшилт</b><span>Нээгдсэн файлын түгжээг арилгана</span></li><li><b>Эх чанар</b><span>Агуулга, чанар өөрчлөгдөхгүй</span></li><li><b>Засах боломж</b><span>Нээсний дараа засаж, нэгтгэж болно</span></li><li><b>Нууцлал</b><span>Нууц үг хаашаа ч илгээгдэхгүй</span></li></ul>
+  <section class="lp-sec split">
+    <h2 data-words data-sp>Боломжууд</h2>
+    <ul class="lp-feats rv"><li><b>Нэг товшилт</b><span>Нээгдсэн файлын түгжээг арилгана</span></li><li><b>Эх чанар</b><span>Агуулга, чанар өөрчлөгдөхгүй</span></li><li><b>Засах боломж</b><span>Нээсний дараа засаж, нэгтгэж болно</span></li><li><b>Нууцлал</b><span>Нууц үг хаашаа ч илгээгдэхгүй</span></li></ul>
   </section>
 
-  <section class="lp-sec">
-    <h2>Түгээмэл асуултууд</h2>
-    <div class="lp-faq"><details class="lp-q"><summary>Нууц үг мэдэхгүй бол арилгаж болох уу?</summary><p>Үгүй. Энэ хэрэгсэл зөвхөн нууц үгээ мэддэг, өөрийн эрхтэй файлд зориулагдсан.</p></details><details class="lp-q"><summary>Файл минь аюулгүй юу?</summary><p>Тийм. Файл таны хөтөч (browser) дотор боловсруулагддаг — сервер рүү илгээгдэхгүй, хаана ч хадгалагдахгүй. Хуудсаа хаавал бүх зүйл устана.</p></details><details class="lp-q"><summary>Үнэгүй юу? Бүртгүүлэх шаардлагатай юу?</summary><p>Бүрэн үнэгүй. Бүртгэл, имэйл шаардахгүй, усан тэмдэг нэмэхгүй, ашиглах тоо хязгааргүй.</p></details></div>
+  <section class="lp-sec split">
+    <h2 data-words data-sp>Түгээмэл асуултууд</h2>
+    <div class="lp-faq rv"><details class="lp-q"><summary>Нууц үг мэдэхгүй бол арилгаж болох уу?</summary><p>Үгүй. Энэ хэрэгсэл зөвхөн нууц үгээ мэддэг, өөрийн эрхтэй файлд зориулагдсан.</p></details><details class="lp-q"><summary>Файл минь аюулгүй юу?</summary><p>Тийм. Файл таны хөтөч (browser) дотор боловсруулагддаг — сервер рүү илгээгдэхгүй, хаана ч хадгалагдахгүй. Хуудсаа хаавал бүх зүйл устана.</p></details><details class="lp-q"><summary>Үнэгүй юу? Бүртгүүлэх шаардлагатай юу?</summary><p>Бүрэн үнэгүй. Бүртгэл, имэйл шаардахгүй, усан тэмдэг нэмэхгүй, ашиглах тоо хязгааргүй.</p></details></div>
   </section>
 
-  <section class="lp-sec">
-    <h2>Холбоотой хэрэгслүүд</h2>
-    <div class="lp-cards"><a class="lp-card" href="/tools/protect-pdf/"><b>PDF-д нууц үг тавих</b><span>PDF файлаа нууц үгээр түгжиж, зөвхөн нууц үг мэдэх хүн нээдэг болгоно.</span></a><a class="lp-card" href="/tools/merge-pdf/"><b>PDF нэгтгэх</b><span>Хэд хэдэн PDF, зураг, Word файлыг нэг PDF болгож нэгтгэнэ.</span></a><a class="lp-card" href="/tools/edit-pdf/"><b>PDF засах, PDF дээр бичих</b><span>PDF доторх бичгийг шууд засах, үг хайж солих, текст, зураг, тодруулга нэмэх, хуудас эргүүлэх, устгах.</span></a><a class="lp-card" href="/tools/compress-pdf/"><b>PDF-ийн хэмжээ багасгах</b><span>Том PDF-ийг имэйл, E-Mongolia, цахим өргөдөлд тохирох хэмжээнд шахаж жижигрүүлнэ.</span></a></div>
+  <section class="lp-sec split">
+    <h2 data-words data-sp>Холбоотой хэрэгслүүд</h2>
+    <div class="lp-cards rv"><a class="lp-card" href="/tools/protect-pdf/"><b>PDF-д нууц үг тавих</b><span>PDF файлаа нууц үгээр түгжиж, зөвхөн нууц үг мэдэх хүн нээдэг болгоно.</span></a><a class="lp-card" href="/tools/merge-pdf/"><b>PDF нэгтгэх</b><span>Хэд хэдэн PDF, зураг, Word файлыг нэг PDF болгож нэгтгэнэ.</span></a><a class="lp-card" href="/tools/edit-pdf/"><b>PDF засах, PDF дээр бичих</b><span>PDF доторх бичгийг шууд засах, үг хайж солих, текст, зураг, тодруулга нэмэх, хуудас эргүүлэх, устгах.</span></a><a class="lp-card" href="/tools/compress-pdf/"><b>PDF-ийн хэмжээ багасгах</b><span>Том PDF-ийг имэйл, E-Mongolia, цахим өргөдөлд тохирох хэмжээнд шахаж жижигрүүлнэ.</span></a></div>
   </section>
 
-  <section class="lp-sec lp-all">
-    <h2>Бүх үнэгүй хэрэгслүүд</h2>
-    <div class="lp-links"><a href="/tools/pdf-to-word/">PDF → Word</a><a href="/tools/word-to-pdf/">Word → PDF</a><a href="/tools/pdf-to-excel/">PDF → Excel</a><a href="/tools/pdf-to-ppt/">PDF → PowerPoint</a><a href="/tools/pdf-to-jpg/">PDF → JPG</a><a href="/tools/jpg-to-pdf/">Зураг → PDF</a><a href="/tools/merge-pdf/">PDF нэгтгэх</a><a href="/tools/split-pdf/">PDF задлах</a><a href="/tools/compress-pdf/">PDF шахах</a><a href="/tools/sign-pdf/">Гарын үсэг</a><a href="/tools/protect-pdf/">Нууц үг тавих</a><a href="/tools/pdf-ocr/">Текст таних (OCR)</a><a href="/tools/edit-pdf/">PDF засах</a><a href="/tools/fill-pdf/">Маягт бөглөх</a><a href="/tools/pdf-page-numbers/">Хуудасны дугаар</a><a href="/tools/watermark-pdf/">Усан тэмдэг</a><a href="/tools/summarize-pdf/">PDF хураангуйлах</a><a href="/tools/mongol-font/">Монгол фонт хайгч</a><a href="/tools/brand-color/">Брэндийн өнгө үүсгэгч</a><a href="/tools/templates/">Монгол сошиал загвар</a><a href="/tools/pdfedit/">PDF засварлагч</a><a href="/tools/upscale/">Зураг томруулах (AI)</a><a href="/tools/bgremove/">Зургийн дэвсгэр арилгах</a><a href="/tools/socialcrop/">Сошиал хэмжээ рүү тайрах</a><a href="/tools/pdf/">PDF ⇄ зураг хөрвүүлэгч</a><a href="/editor/">Онлайн дизайн засварлагч</a></div>
+  <section class="lp-sec split lp-all">
+    <h2 data-words data-sp>Бүх үнэгүй хэрэгслүүд</h2>
+    <div class="lp-links rv"><a href="/tools/pdf-to-word/">PDF → Word</a><a href="/tools/word-to-pdf/">Word → PDF</a><a href="/tools/pdf-to-excel/">PDF → Excel</a><a href="/tools/pdf-to-ppt/">PDF → PowerPoint</a><a href="/tools/pdf-to-jpg/">PDF → JPG</a><a href="/tools/jpg-to-pdf/">Зураг → PDF</a><a href="/tools/merge-pdf/">PDF нэгтгэх</a><a href="/tools/split-pdf/">PDF задлах</a><a href="/tools/compress-pdf/">PDF шахах</a><a href="/tools/sign-pdf/">Гарын үсэг</a><a href="/tools/protect-pdf/">Нууц үг тавих</a><a href="/tools/pdf-ocr/">Текст таних (OCR)</a><a href="/tools/edit-pdf/">PDF засах</a><a href="/tools/fill-pdf/">Маягт бөглөх</a><a href="/tools/pdf-page-numbers/">Хуудасны дугаар</a><a href="/tools/watermark-pdf/">Усан тэмдэг</a><a href="/tools/summarize-pdf/">PDF хураангуйлах</a><a href="/tools/mongol-font/">Монгол фонт хайгч</a><a href="/tools/brand-color/">Брэндийн өнгө үүсгэгч</a><a href="/tools/templates/">Монгол сошиал загвар</a><a href="/tools/pdfedit/">PDF засварлагч</a><a href="/tools/upscale/">Зураг томруулах (AI)</a><a href="/tools/bgremove/">Зургийн дэвсгэр арилгах</a><a href="/tools/socialcrop/">Сошиал хэмжээ рүү тайрах</a><a href="/tools/pdf/">PDF ⇄ зураг хөрвүүлэгч</a><a href="/editor/">Онлайн дизайн засварлагч</a></div>
   </section>
 </main>
 
-<footer class="lp-foot">
-  <p><a href="/">Graphican</a> — брэндинг, digital design, видео. Эдгээр хэрэгслийг дизайнер Анхбаяр бүтээж, хүн бүрт үнэгүй нээлттэй болгосон.</p>
-  <p><a href="/about/#work">Ажлууд</a> · <a href="/design/">Design guide</a> · <a href="/tools/">Design tools</a> · <a href="/about/#contact">Хамтран ажиллах</a> · <a href="/support/">Дэмжих</a> · <a href="/privacy/">Нууцлал</a> · <a href="/terms/">Нөхцөл</a></p>
+<footer class="ft">
+  <svg class="ft-word" viewBox="0 0 1200 300" data-sp aria-hidden="true"><g class="gd"><path d="M30 64h1140M30 236h1140M60 30v240M1140 30v240"/><path d="M52 64h16M60 56v16M1132 64h16M1140 56v16M52 236h16M60 228v16M1132 236h16M1140 228v16"/></g><text x="600" y="236" text-anchor="middle" textLength="1060" lengthAdjust="spacingAndGlyphs">Graphican</text></svg>
+  <div class="ft-top"><a class="gh-logo" href="/" aria-label="Graphican — нүүр">Graphican</a><p>Дизайн, PDF, PPT, Video — үнэгүй, бүртгэлгүй, монгол хэлээр.</p></div>
+  <div class="ft-cols rv">
+    <div><b>Хэрэгслүүд</b><a href="/editor/">Design editor</a><a href="/tools/pdfedit/">PDF засварлагч</a><a href="/slides/">Илтгэл (PPT)</a><a href="/video/">Видео засварлагч</a><a href="/tools/bgremove/">Дэвсгэр арилгах</a><a href="/tools/upscale/">AI томруулах</a><a href="/tools/socialcrop/">Сошиал хэмжээ</a><a href="/tools/">Бүх хэрэгсэл</a></div>
+    <div><b>PDF</b><a href="/tools/pdf-to-word/">PDF → Word</a><a href="/tools/merge-pdf/">PDF нэгтгэх</a><a href="/tools/compress-pdf/">PDF шахах</a><a href="/tools/sign-pdf/">Гарын үсэг</a><a href="/tools/pdf/">PDF ⇄ зураг</a></div>
+    <div><b>Нөөц</b><a href="/tools/templates/">Монгол загвар</a><a href="/tools/mongol-font/">Монгол фонт</a><a href="/tools/brand-color/">Брэндийн өнгө</a><a href="/design/">Design guide</a></div>
+    <div><b>Graphican</b><a href="/about/">Хамтран ажиллах</a><a href="/about/#work">Ажлууд</a><a href="/support/">Дэмжих</a><a href="mailto:Graphican.mn@gmail.com">Graphican.mn@gmail.com</a><a href="tel:+97680750675">80750675</a></div>
+    <div><b>Эрх зүй</b><a href="/privacy/">Нууцлал</a><a href="/terms/">Нөхцөл</a></div>
+  </div>
+  <p class="ft-copy"><span>© Graphican · graphican.online</span><span><a href="https://www.instagram.com/bayraara?stkn=MXB1eXNoNWF3aTlpaA==" target="_blank" rel="noopener me">Instagram</a> · <a href="https://www.facebook.com/anrea11" target="_blank" rel="noopener me">Facebook</a> · <a href="https://www.behance.net/anrea01" target="_blank" rel="noopener me">Behance</a></span></p>
 </footer>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 <script src="/assets/handoff.js?v=35"></script>
-<script src="/assets/landing.js?v=7"></script>
+<script src="/assets/landing.js?v=8"></script>
+<script src="/assets/site.js?v=1"></script>
 </body>
 </html>
