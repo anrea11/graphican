@@ -102,15 +102,13 @@ body::after { content:""; position:fixed; inset:0; z-index:90; pointer-events:no
 /* ---------- 01 hero ---------- */
 .hero { position:relative; padding:calc(64px + clamp(28px, 6vw, 84px)) var(--pad) clamp(56px, 8vw, 110px); overflow:hidden; }
 .hero-in { position:relative; z-index:1; max-width:1320px; margin:0 auto; display:grid; grid-template-columns:minmax(0, 11fr) minmax(0, 13fr); gap:clamp(28px, 4vw, 64px); align-items:center; }
-.hero-k { display:flex; flex-wrap:wrap; gap:6px 8px; margin-bottom:22px; font-size:12.5px; color:var(--mut); }
-.hero-k span { padding:5px 11px; border-radius:999px; border:1px solid var(--line); }
 .hero h1 .nw { white-space:nowrap; }
-.hero h1 { font-size:clamp(44px, 5.5vw, 82px); line-height:.98; letter-spacing:-.035em; font-weight:700; text-transform:uppercase; text-shadow:0 0 60px rgba(164,151,255,.22); }
+.hero h1 { font-size:clamp(40px, 5vw, 74px); line-height:.98; letter-spacing:-.035em; font-weight:700; text-transform:uppercase; text-shadow:0 0 60px rgba(164,151,255,.22); }
 /* the signature blurred → sharp type: the first letters stay soft, like the "Graphic + Can." wordmark */
 .hero h1 .bl { display:inline-block; filter:blur(calc(var(--b) * .02em)); opacity:calc(1 - var(--b) * .04); }
 .js .hero h1 .bl { animation:blIn 1.5s cubic-bezier(.2, .7, .2, 1) .15s backwards; }
 @keyframes blIn { from { filter:blur(.16em); opacity:.35; } }
-.hero-s .lav { color:var(--text); }
+.hero-s b { display:block; margin-bottom:6px; font:600 clamp(15px, 1.3vw, 17px)/1.4 var(--f); letter-spacing:.04em; color:var(--v2); }
 .hero-s { margin-top:24px; max-width:36ch; color:var(--mut); font-size:clamp(16px, 1.5vw, 19px); }
 .hero-cta { margin-top:32px; display:flex; flex-wrap:wrap; gap:10px; }
 .hero-vis { position:relative; }
@@ -129,14 +127,13 @@ body::after { content:""; position:fixed; inset:0; z-index:90; pointer-events:no
 .hero-tabs button:hover { color:#fff; }
 .hero-tabs button.on { color:#fff; border-color:var(--v2); background:rgba(109,86,250,.26); }
 /* load sequence */
-.js .hero-k, .js .hero h1, .js .hero-s, .js .hero-cta, .js .hero-vis { opacity:0; transform:translateY(18px); animation:hIn .6s var(--ease) forwards; }
-.js .hero-k { animation-delay:.1s; } .js .hero h1 { animation-delay:.15s; } .js .hero-s { animation-delay:.3s; } .js .hero-cta { animation-delay:.4s; } .js .hero-vis { animation-delay:.5s; animation-duration:.8s; }
+.js .hero h1, .js .hero-s, .js .hero-cta, .js .hero-vis { opacity:0; transform:translateY(18px); animation:hIn .6s var(--ease) forwards; }
+.js .hero h1 { animation-delay:.15s; } .js .hero-s { animation-delay:.3s; } .js .hero-cta { animation-delay:.4s; } .js .hero-vis { animation-delay:.5s; animation-duration:.8s; }
 @keyframes hIn { to { opacity:1; transform:none; } }
 @media (max-width:900px) {
   .hero-in { grid-template-columns:minmax(0, 1fr); }
-  .hero h1 { font-size:clamp(34px, 12vw, 78px); }
+  .hero h1 { font-size:clamp(30px, 10.4vw, 72px); }
   .hero-vis { width:min(100%, 620px); margin:8px auto 0; }
-  .hero-k { margin-bottom:16px; }
   .hero-s { margin-top:18px; } .hero-cta { margin-top:24px; }
   .hero-cta .bt { flex:1 1 auto; }
 }
@@ -534,7 +531,7 @@ body::after { content:""; position:fixed; inset:0; z-index:90; pointer-events:no
 @media (prefers-reduced-motion:reduce) {
   html { scroll-behavior:auto; }
   *, *::before, *::after { animation:none !important; transition-duration:.01ms !important; }
-  .js .rv, .js .tp, .js .hero-k, .js .hero h1, .js .hero-s, .js .hero-cta, .js .hero-vis { opacity:1 !important; transform:none !important; }
+  .js .rv, .js .tp, .js .hero h1, .js .hero-s, .js .hero-cta, .js .hero-vis { opacity:1 !important; transform:none !important; }
   .js .fin-anim i { opacity:0 !important; } .js .fin-anim b { opacity:1 !important; }
   .hero-vis .gw, .hero-tabs, .tp-track { transform:none !important; }
 }

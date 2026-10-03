@@ -282,9 +282,8 @@ def build():
     <div class="grid-bg" aria-hidden="true"></div>
     <div class="hero-in">
       <div class="hero-copy">
-        <p class="hero-k"><span>Үнэгүй</span><span>Бүртгэлгүй</span><span>Суулгах шаардлагагүй</span></p>
-        <h1 aria-label="Бүтээ. Зас. Шууд ашигла."><span aria-hidden="true"><span class="bl" style="--b:3.2">Б</span><span class="bl" style="--b:2.4">ү</span><span class="bl" style="--b:1.5">т</span><span class="bl" style="--b:0.7">э</span><span class="bl" style="--b:0">э</span><span class="bl" style="--b:0">.</span><br>Зас.<br><span class="nw">Шууд ашигла.</span></span></h1>
-        <p class="hero-s"><span class="lav">Дизайн, PDF, PPT, Video</span> болон өдөр тутмын хэрэгтэй бүтээлч хэрэгслүүд <span class="lav">нэг дор.</span></p>
+        <h1 aria-label="Хэрэгтэйгээ шууд бүтээ."><span aria-hidden="true"><span class="nw"><span class="bl" style="--b:3">Х</span><span class="bl" style="--b:2.2">э</span><span class="bl" style="--b:1.4">р</span><span class="bl" style="--b:0.7">э</span><span class="bl" style="--b:0">г</span>тэйгээ</span><br><span class="nw">шууд бүтээ.</span></span></h1>
+        <p class="hero-s"><b>Design · PDF · PPT · Video</b>Бүтээх, засах, хөрвүүлэх хэрэгслүүд нэг дор.</p>
         <div class="hero-cta">{btn("/editor/", "Үнэгүй эхлэх")}<a class="bt ghost" href="#tools"><span>Бүх хэрэгсэл</span></a></div>
       </div>
       <div class="hero-vis" id="hero-vis">
