@@ -90,22 +90,16 @@
     }, { threshold: 0.6 });
   }
 
-  // templates: staggered entrance; on desktop the two rows drift a little in opposite directions with the scroll
+  // templates: the size chips light up the matching templates on the wall
   var tw = $('#tp-wrap');
   if (tw) {
-    $$('.tp-row', tw).forEach(function (r) { $$('.tp', r).forEach(function (c, i) { c.style.setProperty('--i', i); }); });
-    var once = false;
-    seen(tw, function (v) { if (v && !once) { once = true; tw.classList.add('in'); setTimeout(function () { tw.classList.add('done'); }, 1400); } }, { threshold: 0.12 });
-    if (fine && !calm && window.innerWidth >= 900) {
-      var tr = $$('.tp-track', tw), on = false, rf = 0;
-      var move = function () {
-        rf = 0; var r = tw.getBoundingClientRect(), p = (window.innerHeight - r.top) / (window.innerHeight + r.height);   // 0 → 1 while passing through
-        p = Math.max(0, Math.min(1, p));
-        tr.forEach(function (t, i) { var over = Math.max(0, t.scrollWidth - tw.clientWidth + 96), span = Math.min(160, over); t.style.setProperty('--tx', (i ? -span + span * p : -span * p).toFixed(1) + 'px'); });
-      };
-      seen(tw, function (v) { on = v; if (v) move(); }, { threshold: 0 });
-      window.addEventListener('scroll', function () { if (on && !rf) rf = requestAnimationFrame(move); }, { passive: true });
-    }
+    var tfs = $$('.tf');
+    tfs.forEach(function (bt) {
+      bt.addEventListener('click', function () {
+        tw.setAttribute('data-f', bt.getAttribute('data-f'));
+        tfs.forEach(function (o) { var on = o === bt; o.classList.toggle('on', on); o.setAttribute('aria-pressed', on ? 'true' : 'false'); });
+      });
+    });
   }
 
   // ---------- scroll-linked motion: --p (coming in), --q (passing through) on [data-sp]; --hp on the hero; --sp page progress ----------

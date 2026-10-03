@@ -9,7 +9,7 @@ import json, os
 import landings as L
 
 ROOT, SITE, e, ld = L.ROOT, L.SITE, L.e, L.ld
-V = "15"
+V = "16"
 
 ICON = {
     "pdf": '<path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5"/><path d="m9 17 1-3 5-5 2 2-5 5z" fill="currentColor"/>',
@@ -265,11 +265,20 @@ def build():
            ("countdown", "Тоолол — story", "Story", 300, 533), ("notice", "Мэдэгдэл", "Квадрат пост", 300, 300), ("sport", "Спорт тэмцээн", "Instagram пост", 300, 375),
            ("course", "Сургалтын бүртгэл", "Квадрат пост", 300, 300), ("tips", "Зөвлөгөө", "Instagram пост", 300, 375), ("giveaway", "Бэлэгтэй тоглоом", "Instagram пост", 300, 375),
            ("sale3", "Хямдрал — neon", "Instagram пост", 300, 375), ("tsagaansar", "Цагаан сар — хаан хөх", "Instagram пост", 300, 375)]
-    def tpl_card(t):
+    FKEY = {"Instagram пост": "post", "Квадрат пост": "sq", "Story": "story"}
+    def tpl_card(t, dup=False):
         i, n, fmt_, w, h = t
-        return (f'<a class="tp" href="/editor/?tpl={i}"><img src="/assets/home/tpl-{i}.webp" alt="{e(n)} — {e(fmt_)} загвар" width="{w}" height="{h}" loading="lazy" decoding="async">'
+        extra = ' aria-hidden="true" tabindex="-1"' if dup else ""
+        return (f'<a class="tp" data-f="{FKEY[fmt_]}" href="/editor/?tpl={i}"{extra}><img src="/assets/home/tpl-{i}.webp" alt="{"" if dup else e(n) + " — " + e(fmt_) + " загвар"}" width="{w}" height="{h}" loading="lazy" decoding="async">'
                 f'<span class="tp-meta"><b>{e(n)}</b><small>{e(fmt_)}</small></span><span class="tp-use">Энэ загварыг ашиглах →</span></a>')
-    tpl_rows = "".join(f'<div class="tp-row r{k}"><div class="tp-track">{"".join(tpl_card(t) for t in TPL[k * 8:(k + 1) * 8])}</div></div>' for k in range(2))
+    # the wall: three columns of near-equal height, each one a seamless loop (the set is repeated once)
+    TBY = {t[0]: t for t in TPL}
+    COLS = [["naadam2", "sale", "tsagaansar2", "job", "sport"], ["newyear", "countdown", "kids", "menu", "tips"], ["naadam", "notice", "giveaway", "course", "sale3", "tsagaansar"]]
+    tpl_wall = "".join(f'<div class="tw-col c{k}" style="--i:{k}"><div class="tw-track">{"".join(tpl_card(TBY[x]) for x in col)}{"".join(tpl_card(TBY[x], True) for x in col)}</div></div>' for k, col in enumerate(COLS))
+    def nf(key): return sum(1 for t in TPL if FKEY[t[2]] == key)
+    tpl_chips = (f'<button type="button" class="tf on" data-f="all" aria-pressed="true">Бүгд<small>{len(TPL)}</small></button>'
+                 + "".join(f'<button type="button" class="tf" data-f="{k}" aria-pressed="false">{lab}<small>{nf(k)}</small></button>' for k, lab in (("post", "Instagram пост"), ("sq", "Квадрат"), ("story", "Story"))))
+    tpl_steps = "".join(f'<li><i>{n}</i><span>{t}</span></li>' for n, t in (("01", "Загвараа сонго"), ("02", "Текст, зураг, өнгөө соль"), ("03", "Татаж аваад нийтэл")))
 
     # presentation decks that exist in /slides/ (two-colour swatch = the deck's palette)
     DECKS = [("hotel", "Зочид буудал", "#0f0f0e", "#d6b67a"), ("biz", "Бизнес", "#ffffff", "#1646ff"), ("coffee", "Кофе шоп", "#1b120c", "#c8a27a"), ("realty", "Үл хөдлөх", "#ffffff", "#b08d57"),
@@ -382,9 +391,15 @@ def build():
 
   <!-- 05 TEMPLATES -->
   <section class="sec tpl" id="templates">
-    {sec_head("Эхнээс нь хийх албагүй.", "Бэлэн загвараас эхлээд өөрийнхөөрөө өөрчил.")}
-    <div class="tp-wrap" id="tp-wrap" data-sp>{tpl_rows}</div>
-    <div class="sec-cta rv">{btn("/tools/templates/", "Бүх загвар", "ghost")}</div>
+    <div class="tpl-g">
+      <div class="tpl-copy">
+        {sec_head("Эхнээс нь хийх албагүй.", "Бэлэн загвараас эхлээд өөрийнхөөрөө өөрчил.")}
+        <ol class="tpl-steps rv">{tpl_steps}</ol>
+        <div class="tfs rv" role="group" aria-label="Загварын хэмжээ">{tpl_chips}</div>
+        <div class="sec-cta rv">{btn("/tools/templates/", "Бүх загвар", "ghost")}</div>
+      </div>
+      <div class="tw" id="tp-wrap" data-sp data-f="all"><div class="tw-in">{tpl_wall}</div></div>
+    </div>
     <div class="dk rv"><b>Илтгэл (PPT)</b>{decks}<a class="ql-all" href="/slides/">+ Бүх илтгэл</a></div>
   </section>
 
