@@ -9,7 +9,7 @@ import json, os
 import landings as L
 
 ROOT, SITE, e, ld = L.ROOT, L.SITE, L.e, L.ld
-V = "11"
+V = "12"
 
 ICON = {
     "pdf": '<path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5"/><path d="m9 17 1-3 5-5 2 2-5 5z" fill="currentColor"/>',
@@ -285,7 +285,7 @@ def build():
 <main class="hp" id="main">
 
   <!-- 01 HERO -->
-  <section class="hero" id="top">
+  <section class="hero" id="top" data-sp="exit">
     <div class="fxl" aria-hidden="true"><i class="beam"></i><svg viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice"><circle cx="-120" cy="-380" r="900"/><circle cx="1620" cy="1500" r="1050"/></svg></div>
     <div class="grid-bg" aria-hidden="true"></div>
     <div class="hero-in">
@@ -309,7 +309,7 @@ def build():
     {sec_head("Юу хийх хэрэгтэй вэ?", "Хэрэгтэй зүйлээ сонгоод шууд эхэл.")}
     <div class="tsw-in rv">
       <div class="tsw-list" role="tablist" aria-label="Хэрэгсэл">{tabs}</div>
-      <div class="tsw-vis" id="tsw-panel" role="tabpanel" aria-labelledby="tsw-t-design">{demo_window("gw--lg")}</div>
+      <div class="tsw-vis" id="tsw-panel" data-sp role="tabpanel" aria-labelledby="tsw-t-design">{demo_window("gw--lg")}</div>
     </div>
   </section>
 
@@ -321,7 +321,7 @@ def build():
   </section>
 
   <!-- 04 MONGOLIAN ADVANTAGE -->
-  <section class="sec mn" id="mongol">
+  <section class="sec mn" id="mongol" data-sp>
     <div class="mn-in">
       <div class="mn-copy rv">
         <h2>Монгол контентод<br>зориулсан.</h2>
@@ -353,8 +353,8 @@ def build():
   </section>
 
   <!-- 07 FINAL CTA -->
-  <section class="sec fin" id="start">
-    <div class="fxl" aria-hidden="true"><i class="beam"></i><svg viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice"><circle cx="720" cy="1700" r="1150"/></svg></div>
+  <section class="sec fin" id="start" data-sp>
+    <div class="fxl" aria-hidden="true"><i class="beam"></i><svg viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice"><circle cx="720" cy="1700" r="1150" pathLength="1"/><circle cx="720" cy="1900" r="1150" pathLength="1"/></svg></div>
     <div class="grid-bg" aria-hidden="true"></div>
     <div class="fin-anim" id="fin-anim" aria-hidden="true"><i class="w1">{ic("design")}</i><i class="w2">{ic("pdf")}</i><i class="w3">{ic("ppt")}</i><i class="w4">{ic("video")}</i><b>Graphican</b></div>
     <h2 class="rv">Хийх зүйлээ<br>эхлүүл.</h2>
@@ -417,6 +417,7 @@ def build():
 </head>
 <body class="home-page">
 <a class="skip" href="#main">Агуулга руу очих</a>
+<i class="sp-bar" aria-hidden="true"></i>
 {header}
 {body}
 <script src="/assets/home.js?v={V}" defer></script>

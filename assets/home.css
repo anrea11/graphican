@@ -120,7 +120,7 @@ body::after { content:""; position:fixed; inset:0; z-index:90; pointer-events:no
 .fxl svg { position:absolute; inset:0; width:100%; height:100%; }
 .fxl circle { fill:none; stroke:rgba(255,255,255,.22); stroke-width:1; vector-effect:non-scaling-stroke; }
 .fin .fxl .beam { top:38%; opacity:.38; }
-.hero-vis .gw { transform:translate3d(calc(var(--px, 0) * 8px), calc(var(--py, 0) * 8px), 0); transition:transform .5s var(--ease); }
+.hero-vis .gw { transform:translate3d(calc(var(--px, 0) * 8px), calc(var(--py, 0) * 8px), 0); transition:transform .25s var(--ease); }
 .hero-tabs { position:relative; z-index:2; margin-top:16px; display:flex; flex-wrap:wrap; gap:8px; justify-content:center; transform:translate3d(calc(var(--px, 0) * -6px), calc(var(--py, 0) * -6px), 0); transition:transform .5s var(--ease); }
 .hero-tabs button { display:inline-flex; align-items:center; gap:8px; height:40px; padding:0 15px 0 12px; border-radius:999px; border:1px solid var(--line2); background:rgba(12,14,20,.8); font-size:13.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--mut); transition:color var(--t-fast), border-color var(--t-fast), background var(--t-fast); }
 .hero-tabs svg { width:16px; height:16px; }
@@ -513,3 +513,43 @@ body::after { content:""; position:fixed; inset:0; z-index:90; pointer-events:no
   .hero-vis .gw, .hero-tabs, .tp-track { transform:none !important; }
 }
 @media (max-width:480px) { .hero-tabs { gap:6px; flex-wrap:nowrap; } .hero-tabs button { height:36px; padding:0 10px 0 8px; gap:5px; font-size:11.5px; letter-spacing:.04em; } .hero-tabs svg { width:14px; height:14px; } }
+
+/* ---------- scroll-linked motion (home.js sets --p: 0 → 1 as an element comes in, --q: 0 → 1 as it passes through, --hp: hero leaving).
+   Every rule falls back to the finished state, so the page is complete without the script. ---------- */
+.sp-bar { position:fixed; left:0; right:0; top:0; z-index:70; height:2px; background:var(--grad); transform-origin:left; transform:scaleX(var(--sp, 0)); pointer-events:none; }
+/* hero drifts apart as you leave it */
+.hero-copy { transform:translate3d(0, calc(var(--hp, 0) * -70px), 0); opacity:calc(1 - var(--hp, 0) * 1.25); }
+.hero-vis .gw { transform:translate3d(calc(var(--px, 0) * 8px), calc(var(--py, 0) * 8px + var(--hp, 0) * 50px), 0) scale(calc(1 - var(--hp, 0) * .1)); opacity:calc(1 - var(--hp, 0) * .7); }
+.hero-tabs { opacity:calc(1 - var(--hp, 0) * 2); }
+.hero .fxl .beam { translate:0 calc(var(--hp, 0) * 16vmax); }
+.hero .fxl svg { transform:rotate(calc(var(--hp, 0) * 5deg)) scale(calc(1 + var(--hp, 0) * .08)); }
+/* headings: words go from soft to sharp, one after another */
+.wd { display:inline-block; --w:clamp(0, (var(--p, 1) * (var(--n, 1) + 2) - var(--i, 0)) / 2, 1);
+  filter:blur(calc((1 - var(--w)) * .16em)); opacity:calc(.18 + var(--w) * .82); transform:translate3d(0, calc((1 - var(--w)) * .22em), 0); }
+h2.one { filter:blur(calc((1 - var(--p, 1)) * .12em)); opacity:calc(.2 + var(--p, 1) * .8); }
+.js .sh.rv { opacity:1; transform:none; }
+/* the editor window rises from a tilt */
+.tsw-vis { perspective:1400px; }
+.tsw-vis .gw { transform-origin:50% 100%; transform:translate3d(0, calc((1 - var(--p, 1)) * 70px), 0) rotateX(calc((1 - var(--p, 1)) * 16deg)) scale(calc(.9 + var(--p, 1) * .1)); opacity:calc(.35 + var(--p, 1) * .65); }
+/* tool cards come in row by row */
+.js .tc.rv { transition-delay:0s, 0s, calc(var(--i, 0) * 80ms), calc(var(--i, 0) * 80ms); }
+.js .tc.rv:not(.in) { transform:translateY(34px) scale(.97); }
+/* the light Mongolian panel opens out of the dark page; the type rows slide against each other with the scroll */
+.mn { clip-path:inset(calc((1 - var(--p, 1)) * 7%) calc((1 - var(--p, 1)) * 6%) 0 round calc((1 - var(--p, 1)) * 56px)); }
+.mn-copy { transform:translate3d(0, calc((1 - var(--p, 1)) * 40px), 0); }
+.fw-row { transform:translate3d(calc((var(--q, .5) - .5) * -180px), 0, 0); }
+.fw-row.r1 { transform:translate3d(calc((var(--q, .5) - .5) * 180px), 0, 0); }
+/* final section: the hairlines draw themselves */
+.fin .fxl circle { vector-effect:none; stroke-dasharray:1; stroke-dashoffset:calc((1 - var(--p, 1)) * .5); stroke:rgba(255,255,255,.3); }
+.fin .fxl svg { transform:rotate(calc((1 - var(--p, 1)) * -6deg)); }
+.fin .fxl .beam { translate:0 calc((1 - var(--p, 1)) * 14vmax); }
+.fin-btns .fb { transform:translate3d(0, calc((1 - var(--p, 1)) * (30px + var(--i, 0) * 16px)), 0); opacity:calc(var(--p, 1) * 1.4 - var(--i, 0) * .1); }
+@media (max-width:900px) {
+  .tsw-vis .gw { transform:translate3d(0, calc((1 - var(--p, 1)) * 40px), 0) scale(calc(.94 + var(--p, 1) * .06)); }
+  .fw-row, .fw-row.r1 { transform:translate3d(calc((var(--q, .5) - .5) * -90px), 0, 0); } .fw-row.r1 { transform:translate3d(calc((var(--q, .5) - .5) * 90px), 0, 0); }
+}
+@media (prefers-reduced-motion:reduce) {
+  .sp-bar { display:none; }
+  .wd, h2.one, .hero-copy, .hero-tabs, .mn-copy, .fw-row, .fin-btns .fb, .tsw-vis .gw { filter:none !important; opacity:1 !important; transform:none !important; }
+  .mn { clip-path:none; } .fin .fxl circle { stroke-dashoffset:0; }
+}
