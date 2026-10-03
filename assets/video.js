@@ -190,6 +190,7 @@
     '<button class="btn-x" id="v-export" type="button">' + ico('dl') + '<span>Татах</span></button></header>' +
     '<div class="vmain"><nav class="vrail" id="v-rail" aria-label="Нэмэх"></nav><div class="vcenter">' +
     '<div class="vstage" id="v-stage"><canvas id="v-cv"></canvas><div class="guide v" id="g-v"></div><div class="guide h" id="g-h"></div>' +
+    '<div class="vq" id="v-q" role="group" aria-label="Preview-ийн чанар" title="Preview-ийн чанар: гацвал «Бага» болгоно. Татах видеонд нөлөөлөхгүй."><span>Preview</span><button type="button" data-q="low">Бага</button><button type="button" data-q="mid">Дунд</button><button type="button" data-q="high">Их</button></div>' +
     '<div class="selbox" id="v-sel" hidden><i class="tl" data-hd="s"></i><i class="tr" data-hd="s"></i><i class="bl" data-hd="s"></i><i class="br" data-hd="s"></i><i class="rot" data-hd="r"></i></div>' +
     '<div class="vempty" id="v-empty"><b>Видео, зургаа нэмээд эхлээрэй</b><span>Файлууд тань серверт очихгүй — зөвхөн энэ төхөөрөмж дээр засагдана</span><button class="btn-x" type="button" data-a="add">' + ico('plus') + 'Видео, зураг нэмэх</button></div></div>' +
     '<div class="vtr"><div class="tgrp">' +
@@ -223,8 +224,12 @@
     var s = SIZES.filter(function (x) { return x.w === P.w && x.h === P.h; })[0];
     return s ? s.name + ' <span class="lg">' + (s.id === '4x3' ? '' : s.id.replace('x', ':')) + '</span>' : P.w + '×' + P.h;
   }
+  // preview quality: the preview canvas's long side (the export always uses the full size)
+  var QUAL = { low: 480, mid: 720, high: 1280 }, qual = 'mid';
+  try { qual = QUAL[localStorage.getItem('gc-video-q')] ? localStorage.getItem('gc-video-q') : 'mid'; } catch (e) {}
+  var SAFARI = /^((?!chrome|android|crios|fxios).)*safari/i.test(navigator.userAgent);
   function fitCanvas() {
-    var s = Math.min(1, 960 / Math.max(P.w, P.h));
+    var s = Math.min(1, QUAL[qual] / Math.max(P.w, P.h));
     var W = Math.round(P.w * s), H = Math.round(P.h * s);
     if (cv.width !== W || cv.height !== H) { cv.width = W; cv.height = H; }
     var r = stage.getBoundingClientRect(), k = Math.min((r.width - 20) / P.w, (r.height - 20) / P.h);
@@ -232,6 +237,13 @@
     draw();
   }
   window.addEventListener('resize', function () { fitCanvas(); renderTL(); });
+  function markQual() { document.querySelectorAll('#v-q [data-q]').forEach(function (b) { b.classList.toggle('on', b.dataset.q === qual); }); }
+  document.getElementById('v-q').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-q]'); if (!b) return;
+    qual = b.dataset.q; try { localStorage.setItem('gc-video-q', qual); } catch (er) {}
+    markQual(); fitCanvas(); toast('Preview: ' + b.textContent + (qual === 'low' ? ' — хамгийн хөнгөн' : qual === 'high' ? ' — хамгийн тод (хүчтэй төхөөрөмжид)' : ''));
+  });
+  markQual();
 
   // ---------- drawing ----------
   var blurC = document.createElement('canvas'), blurX = blurC.getContext('2d');
@@ -751,7 +763,7 @@
     if (!v || v._src !== m.url) {
       if (v) { v.pause(); v.remove(); }
       v = document.createElement(m.kind === 'audio' ? 'audio' : 'video');
-      v.preload = 'auto'; v.playsInline = true; v.setAttribute('playsinline', ''); v.src = m.url; v._src = m.url; v.style.display = 'none';
+      v.preload = 'auto'; v.playsInline = true; v.setAttribute('playsinline', ''); v.src = m.url; v._src = m.url; hideEl(v);
       v.addEventListener('loadeddata', function () { draw(); });
       document.body.appendChild(v); ownEls[o.id] = v;
     }
@@ -768,7 +780,7 @@
   }
   // chroma key on a small copy of the frame (≤720 px): pixels whose colour (in the Cb/Cr plane, so shadows on the green count too) is near the key go transparent
   function keyed(el, sw, sh, ch) {
-    var s = Math.min(1, 720 / Math.max(sw, sh)), w = Math.max(1, Math.round(sw * s)), h = Math.max(1, Math.round(sh * s));
+    var s = Math.min(1, limPx / Math.max(sw, sh)), w = Math.max(1, Math.round(sw * s)), h = Math.max(1, Math.round(sh * s));
     if (keyC.width !== w || keyC.height !== h) { keyC.width = w; keyC.height = h; }
     keyX.clearRect(0, 0, w, h); keyX.drawImage(el, 0, 0, w, h);
     var img = keyX.getImageData(0, 0, w, h), d = img.data, n = parseInt((ch.color || '#00ff00').slice(1), 16), kr = n >> 16, kg = (n >> 8) & 255, kb = n & 255;
@@ -831,7 +843,9 @@
   }
   function ovOrder() { return P.overlays.map(function (o, i) { return [o, i]; }).sort(function (a, b) { return ((a[0].ln || 0) - (b[0].ln || 0)) || (a[1] - b[1]); }).map(function (x) { return x[0]; }); }
   // one frame at time t, in project pixels scaled by k: video layer (+ effects) → overlays → texts
+  var limPx = 720;
   function renderFrame(ctx, k, t, still) {
+    limPx = ctx.canvas === cv ? Math.min(720, QUAL[qual] * 0.75) : 720;
     ctx.setTransform(k, 0, 0, k, 0, 0); ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; ctx.filter = 'none';
     var E = activeFx(t);
     if (!E.length) drawMain(ctx, t);
@@ -893,7 +907,7 @@
       if (Math.abs(v.playbackRate - rate) > 0.01) v.playbackRate = rate; v.volume = clamp(cur.c.mute ? 0 : cur.c.vol, 0, 1); v.muted = !!cur.c.mute || cur.c.vol <= 0;
       if (run) {
         if (v.paused || lastClip !== cur.c.id) { if (Math.abs(v.currentTime - want) > 0.08) v.currentTime = want; var pr = v.play(); if (pr) pr.catch(function () {}); }
-        else if (Math.abs(v.currentTime - want) > 0.3) v.currentTime = want;
+        else if (Math.abs(v.currentTime - want) > (rampPts(cur.c) ? 0.3 : 0.8)) v.currentTime = want;
       } else follow(v, want, false);
       lastClip = cur.c.id;
     } else lastClip = null;
@@ -924,18 +938,36 @@
   function play() {
     var D = total(); if (D <= 0) { toast('Эхлээд видео, зураг нэмнэ үү'); return; }
     if (T >= D - 0.05) T = 0;
-    playing = true; t0 = performance.now(); T0 = T; lastClip = null; placeSel(); ensureDuck();
+    unlockEls();
+    playing = true; t0 = performance.now(); T0 = T; lastClip = null; waitSince = 0; placeSel(); ensureDuck();
     if (P.clips.concat(P.audios, P.overlays).some(needsFx)) ax();
     document.getElementById('v-play').innerHTML = ico('pause'); document.getElementById('v-play').setAttribute('aria-label', 'Зогсоох');
     P.texts.forEach(function (x) { loadFont(x.font); });
     cancelAnimationFrame(raf); raf = requestAnimationFrame(loop);
   }
+  // the clock: while the main clip's video plays, time follows the video itself (no drifting, no seeking back and forth);
+  // while it is still starting / seeking, time waits for it (up to 1.5 s); otherwise wall-clock time
+  var waitSince = 0, lastDraw = 0;
   function loop(now) {
     if (!playing) return;
     var t = T0 + (now - t0) / 1000, D = total();
+    var at = P.clips.length ? clipAt(T) : null, mm = at && media[at.c.mid];
+    if (mm && mm.kind === 'video' && !rampPts(at.c) && lastClip === at.c.id) {
+      var v = mm.el;
+      if (!v.paused && v.readyState >= 3 && !v.seeking) {
+        var tv = at.start + (v.currentTime - at.c.in) / at.c.speed;
+        if (tv > T - 0.25 && tv < T + 0.75) { t = Math.max(T, tv); T0 = t; t0 = now; }
+        waitSince = 0;
+      } else if (!v.ended) {
+        if (!waitSince) waitSince = now;
+        if (now - waitSince < 1500) { t = T; T0 = T; t0 = now; }
+      }
+    } else waitSince = 0;
     if (t >= D) { T = D; pause(); return; }
     if (stopAt && t >= stopAt) { stopAt = 0; T = t; pause(); return; }
-    T = t; syncMedia(T, true); if (frameReady(T)) renderFrame(cx, cv.width / P.w, T); setScroll(); timeLabel();
+    T = t; syncMedia(T, true);
+    // Low / Medium: about 30 pictures a second is enough (sources are 30 fps) and halves the drawing work
+    if (qual === 'high' || now - lastDraw > 30) { lastDraw = now; if (frameReady(T)) renderFrame(cx, cv.width / P.w, T); setScroll(); timeLabel(); }
     raf = requestAnimationFrame(loop);
   }
   function pause() {
@@ -953,7 +985,8 @@
   // play a short stretch (previewing an effect / motion / animation), then stop
   var stopAt = 0;
   function previewRange(a, len) { if (playing) pause(); seek(a); setScroll(); play(); stopAt = Math.min(total(), a + len); }
-  function timeLabel() { document.getElementById('v-time').innerHTML = '<b>' + fmt(T) + '</b> / ' + fmt(total()); }
+  var lastTL = '';
+  function timeLabel() { var h = '<b>' + fmt(T) + '</b> / ' + fmt(total()); if (h !== lastTL) { lastTL = h; document.getElementById('v-time').innerHTML = h; } }
 
   // ---------- timeline ----------
   var progScroll = false;
@@ -1351,10 +1384,19 @@
       if (!started) return;
       var used = {}; P.clips.concat(P.audios, P.overlays).forEach(function (c) { if (c.mid) used[c.mid] = 1; });
       idb('kv', 'readwrite', function (st) { st.put({ p: snap(), t: Date.now(), mids: Object.keys(used) }, 'project'); }).catch(function () {});
-      idb('media', 'readwrite', function (st) {
-        Object.keys(media).forEach(function (id) { var m = media[id]; if (used[id] && !m.saved) { st.put({ id: id, kind: m.kind, name: m.name, file: m.file }, id); m.saved = 1; } });
-        var rq = st.getAllKeys(); rq.onsuccess = function () { rq.result.forEach(function (k) { if (!used[k]) st.delete(k); }); };
-      }).catch(function () {});
+      // media files are copied into the browser's storage a few seconds later, so adding / playing is not slowed down;
+      // Safari copies big files very slowly — over 150 MB they are not kept (the project still is)
+      var fresh = Object.keys(media).some(function (id) { return used[id] && !media[id].saved; });
+      setTimeout(function () {
+        idb('media', 'readwrite', function (st) {
+          Object.keys(media).forEach(function (id) {
+            var m = media[id]; if (!used[id] || m.saved) return;
+            if (SAFARI && m.file && m.file.size > 150 * 1048576) { m.saved = 'skip'; if (!save.warned) { save.warned = 1; toast('Том видеог Safari хадгалахгүй: хуудсыг дахин нээвэл энэ видеог дахин нэмэх хэрэгтэй', 5000); } return; }
+            st.put({ id: id, kind: m.kind, name: m.name, file: m.file }, id); m.saved = 1;
+          });
+          var rq = st.getAllKeys(); rq.onsuccess = function () { rq.result.forEach(function (k) { if (!used[k]) st.delete(k); }); };
+        }).catch(function () {});
+      }, fresh ? (SAFARI ? 6000 : 2500) : 0);
     }, 800);
   }
   function loadSaved() { return idb('kv', 'readonly', function (st) { return st.get('project'); }).catch(function () { return null; }); }
@@ -1371,6 +1413,10 @@
 
   // ---------- media ----------
   function kindOf(f) { var t = f.type || '', n = (f.name || '').toLowerCase(); if (/^video\//.test(t) || /\.(mp4|mov|webm|m4v|mkv)$/.test(n)) return 'video'; if (/^image\//.test(t) || /\.(jpe?g|png|webp|gif|avif)$/.test(n)) return 'image'; if (/^audio\//.test(t) || /\.(mp3|m4a|aac|wav|ogg|opus|flac)$/.test(n)) return 'audio'; return null; }
+  // off screen but not display:none — Safari stops decoding frames of hidden videos (blank / stuck preview)
+  function hideEl(el) { el.setAttribute('aria-hidden', 'true'); el.style.cssText = 'position:fixed;left:0;top:0;width:2px;height:2px;opacity:0.01;pointer-events:none;z-index:-1'; }
+  // iPhone allows a video / sound to start only from a tap: start + stop every element once inside the play tap
+  function unlockEls() { allEls().forEach(function (el) { if (el._unl) return; el._unl = 1; try { var pr = el.play(); el.pause(); if (pr) pr.catch(function () { el._unl = 0; }); } catch (e) { el._unl = 0; } }); }
   function loadMedia(file, kind, id, name) {
     id = id || uid(); kind = kind || kindOf(file);
     var url = URL.createObjectURL(file), m = { id: id, kind: kind, file: file, url: url, name: name || file.name || kind };
@@ -1388,13 +1434,14 @@
       };
       el.onerror = function () { rej(new Error('media')); };
       el.src = url;
-      if (kind === 'video') { el.muted = false; el.style.display = 'none'; document.body.appendChild(el); }
+      if (kind === 'video') { el.muted = false; hideEl(el); document.body.appendChild(el); el.addEventListener('loadeddata', function () { if (!playing) draw(); }); el.addEventListener('canplay', function () { if (!playing) draw(); }); }
     }).then(function (mm) { media[id] = mm; if (kind === 'video') makeStrip(mm); if (kind === 'audio') makeWave(mm); return mm; });
   }
   // one row of frames covering the whole source, used as the clip's background in the timeline
-  function makeStrip(m) {
+  function makeStrip(m) { setTimeout(function () { makeStrip2(m); }, SAFARI ? 2500 : 600); }
+  function makeStrip2(m) {
     var v = document.createElement('video'); v.muted = true; v.preload = 'auto'; v.playsInline = true; v.src = m.url;
-    var n = clamp(Math.round(m.dur / 1.2), 2, 24), th = 64, tw = Math.round(th * (m.w || 16) / (m.h || 9)), c = document.createElement('canvas'), x = c.getContext('2d');
+    var n = clamp(Math.round(m.dur / 1.2), 2, SAFARI ? 10 : 24), th = 64, tw = Math.round(th * (m.w || 16) / (m.h || 9)), c = document.createElement('canvas'), x = c.getContext('2d');
     c.width = n * tw; c.height = th; var i = 0;
     function next() {
       if (i >= n) { m.strip = c.toDataURL('image/jpeg', 0.6); v.removeAttribute('src'); v.load(); renderTL(); return; }
@@ -2337,7 +2384,7 @@
     var c = SEG.cache.get(el), key = el.tagName === 'VIDEO' ? el.currentTime : 'img';
     if (!c) { var cc = document.createElement('canvas'); c = { c: cc, x: cc.getContext('2d'), t: null }; SEG.cache.set(el, c); }
     if (c.t === key && c.c.width) return c.c;
-    var k = Math.min(1, 720 / Math.max(sw, sh)), w = Math.max(1, Math.round(sw * k)), h = Math.max(1, Math.round(sh * k));
+    var k = Math.min(1, limPx / Math.max(sw, sh)), w = Math.max(1, Math.round(sw * k)), h = Math.max(1, Math.round(sh * k));
     var r;
     try { r = SEG.s.segmentForVideo(el, ++SEG.ts); } catch (e) { return null; }
     var m = r && r.confidenceMasks && r.confidenceMasks[0]; if (!m) return null;
