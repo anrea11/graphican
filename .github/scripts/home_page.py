@@ -9,7 +9,7 @@ import json, os
 import landings as L
 
 ROOT, SITE, e, ld = L.ROOT, L.SITE, L.e, L.ld
-V = "16"
+V = "17"
 
 # Home template wall: (photo template id, name, format, width, height, drawn fallback id) in three columns.
 # The photo previews are rendered in CI by tpl_previews.py; a slot whose preview is missing shows its fallback.
@@ -317,7 +317,8 @@ def build():
                       # a second copy: only shown on phones, where the row runs sideways as one line
                       "".join(f'<span class="lg-i dup" aria-hidden="true"><img src="{e(thumb(x["logo"]))}" alt="" loading="lazy" decoding="async"></span>' for x in logos) + '</div></div></section>')
 
-    story = """<section class="fp" id="flow" data-sp="pin" data-st="3" aria-labelledby="fp-t">
+    hero_card = "tplp-fashion" if os.path.exists(os.path.join(os.path.dirname(__file__), "..", "..", "assets", "home", "tplp-fashion.webp")) else "tpl-sale"
+    story = f"""<section class="fp" id="flow" data-sp="pin" data-st="3" aria-labelledby="fp-t">
     <div class="fp-in">
       <div class="fp-copy">
         <h2 class="fp-k" id="fp-t">Санаанаас бүтээл хүртэл</h2>
@@ -329,24 +330,21 @@ def build():
         </ol>
         <div class="fp-prog" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
       </div>
-      <svg class="fp-svg" viewBox="0 0 800 820" aria-hidden="true">
-        <defs><clipPath id="fp-clip"><rect x="250" y="60" width="300" height="375" rx="6"/></clipPath>
-          <linearGradient id="fp-vg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#34229e"/><stop offset="1" stop-color="#a497ff"/></linearGradient><radialGradient id="fp-gl"><stop offset="0" stop-color="#6d56fa" stop-opacity=".55"/><stop offset=".55" stop-color="#34229e" stop-opacity=".22"/><stop offset="1" stop-color="#34229e" stop-opacity="0"/></radialGradient></defs><ellipse class="fp-glow" cx="400" cy="250" rx="380" ry="300" fill="url(#fp-gl)"/>
-        <g class="fp-nodes"><g class="fp-n" style="--i:0"><path class="fp-con dl" pathLength="1" d="M400 300C400 430, 115 441, 115 563"/><circle class="fp-dot" r="3.5" style="offset-path:path('M400 300C400 430, 115 441, 115 563')"/><clipPath id="fp-c0"><rect x="60" y="571" width="110" height="138" rx="5"/></clipPath><g class="fp-fill" clip-path="url(#fp-c0)"><rect x="60" y="571" width="110" height="138" fill="#12101f"/><polygon points="60,668 170,640 170,709 60,709" fill="#7b64ff"/><rect x="70" y="583" width="90" height="48" rx="2" fill="#3b3560"/><rect x="70" y="646" width="56" height="7" rx="2" fill="#fff"/><rect x="70" y="658" width="40" height="7" rx="2" fill="#fff"/></g><rect class="fp-out dl" pathLength="1" x="60" y="571" width="110" height="138" rx="5"/><text class="fp-lab" x="115" y="748" text-anchor="middle">Design</text><g class="fp-chip"><rect x="81" y="766" width="68" height="28" rx="14"/><path d="M95 775v8m-3.5-3.5 3.5 3.5 3.5-3.5"/><text x="120" y="785" text-anchor="middle">PNG</text></g></g><g class="fp-n" style="--i:1"><path class="fp-con dl" pathLength="1" d="M400 300C400 440, 305 436, 305 558"/><circle class="fp-dot" r="3.5" style="offset-path:path('M400 300C400 440, 305 436, 305 558')"/><clipPath id="fp-c1"><rect x="253" y="566" width="104" height="147" rx="5"/></clipPath><g class="fp-fill" clip-path="url(#fp-c1)"><rect x="253" y="566" width="104" height="147" fill="#f5f4fa"/><rect x="265" y="580" width="34" height="8" rx="2" fill="#12101f"/><g fill="#c9c6d8"><rect x="265" y="598" width="80" height="4" rx="2"/><rect x="265" y="608" width="80" height="4" rx="2"/><rect x="265" y="618" width="52" height="4" rx="2"/><rect x="265" y="634" width="80" height="4" rx="2"/><rect x="265" y="644" width="66" height="4" rx="2"/></g><path d="M266 686c8-14 12-14 14-4s6 6 11-4 7-5 9 3 8 5 14-1" fill="none" stroke="#7b64ff" stroke-width="2" stroke-linecap="round"/><rect x="325" y="575" width="24" height="12" rx="3" fill="#7b64ff"/></g><rect class="fp-out dl" pathLength="1" x="253" y="566" width="104" height="147" rx="5"/><text class="fp-lab" x="305" y="748" text-anchor="middle">PDF</text><g class="fp-chip"><rect x="271" y="766" width="68" height="28" rx="14"/><path d="M285 775v8m-3.5-3.5 3.5 3.5 3.5-3.5"/><text x="310" y="785" text-anchor="middle">PDF</text></g></g><g class="fp-n" style="--i:2"><path class="fp-con dl" pathLength="1" d="M400 300C400 430, 495 468, 495 590"/><circle class="fp-dot" r="3.5" style="offset-path:path('M400 300C400 430, 495 468, 495 590')"/><clipPath id="fp-c2"><rect x="420" y="598" width="150" height="84" rx="5"/></clipPath><g class="fp-fill" clip-path="url(#fp-c2)"><rect x="420" y="598" width="150" height="84" fill="#12101f"/><polygon points="504,598 570,598 570,682 478,682" fill="#f5f4fa"/><rect x="432" y="614" width="40" height="7" rx="2" fill="#fff"/><rect x="432" y="626" width="28" height="7" rx="2" fill="#fff"/><g fill="#7b64ff"><rect x="520" y="650" width="8" height="22" rx="1" opacity=".45"/><rect x="532" y="640" width="8" height="32" rx="1" opacity=".7"/><rect x="544" y="624" width="8" height="48" rx="1"/></g></g><rect class="fp-out dl" pathLength="1" x="420" y="598" width="150" height="84" rx="5"/><text class="fp-lab" x="495" y="748" text-anchor="middle">PPT</text><g class="fp-chip"><rect x="461" y="766" width="68" height="28" rx="14"/><path d="M475 775v8m-3.5-3.5 3.5 3.5 3.5-3.5"/><text x="500" y="785" text-anchor="middle">PPTX</text></g></g><g class="fp-n" style="--i:3"><path class="fp-con dl" pathLength="1" d="M400 300C400 440, 685 435, 685 557"/><circle class="fp-dot" r="3.5" style="offset-path:path('M400 300C400 440, 685 435, 685 557')"/><clipPath id="fp-c3"><rect x="643" y="565" width="84" height="150" rx="5"/></clipPath><g class="fp-fill" clip-path="url(#fp-c3)"><rect x="643" y="565" width="84" height="150" fill="url(#fp-vg)"/><circle cx="685" cy="632" r="15" fill="rgba(10,10,16,.55)"/><path d="M680 624v16l13-8z" fill="#fff"/><rect x="653" y="686" width="64" height="12" rx="3" fill="#fff"/><rect x="653" y="703" width="64" height="3" rx="1.5" fill="rgba(255,255,255,.35)"/><rect x="653" y="703" width="38" height="3" rx="1.5" fill="#fff"/></g><rect class="fp-out dl" pathLength="1" x="643" y="565" width="84" height="150" rx="5"/><text class="fp-lab" x="685" y="748" text-anchor="middle">Video</text><g class="fp-chip"><rect x="651" y="766" width="68" height="28" rx="14"/><path d="M665 775v8m-3.5-3.5 3.5 3.5 3.5-3.5"/><text x="690" y="785" text-anchor="middle">MP4</text></g></g></g>
-        <g class="fp-board">
-          <g clip-path="url(#fp-clip)"><rect class="fp-bg" x="250" y="60" width="300" height="375" fill="#12101f"/><polygon class="fp-bg" points="250,332 550,250 550,435 250,435" fill="#7b64ff"/>
-            <image class="fp-img" href="/assets/home/photo-a.webp" x="274" y="84" width="252" height="160" preserveAspectRatio="xMidYMid slice"/></g>
-          <g class="fp-crop"><path d="M236 60h-16M250 46v-16M564 60h16M550 46v-16M236 435h-16M250 449v16M564 435h16M550 449v16"/></g>
-          <g class="fp-guide"><path d="M400 34v427M224 247h352"/></g>
-          <g class="fp-ph"><rect class="dl" pathLength="1" x="274" y="84" width="252" height="160" rx="3"/><path class="dl" pathLength="1" d="M274 84l252 160"/><path class="dl" pathLength="1" d="M526 84l-252 160"/></g>
-          <g class="fp-bars"><rect x="274" y="276" width="170" height="18" rx="3"/><rect x="274" y="304" width="120" height="18" rx="3"/><rect x="274" y="342" width="90" height="8" rx="3"/></g>
-          <g class="fp-txt"><text class="k" x="274" y="282">ШИНЭ ЦУГЛУУЛГА</text><text class="h" x="273" y="322">Зуны</text><text class="h" x="273" y="362">хямдрал</text></g>
-          <g class="fp-tag"><circle cx="502" cy="254" r="30" fill="#ffb648"/><text x="502" y="260" text-anchor="middle">−30%</text></g>
-          <g class="fp-sel"><rect x="265" y="290" width="186" height="82"/><path d="M262 287h6v6h-6zM448 287h6v6h-6zM262 369h6v6h-6zM448 369h6v6h-6z"/></g>
-          <rect class="fp-frame dl" pathLength="1" x="250" y="60" width="300" height="375" rx="6"/>
-          <g class="fp-dim"><path d="M250 474h300M250 468v12M550 468v12"/><text x="400" y="498" text-anchor="middle">1080 × 1350</text></g>
-        </g>
-      </svg>
+      <div class="f3" aria-hidden="true"><div class="f3-w">
+        <i class="f3-floor"></i><i class="f3-glow"></i>
+        <span class="f3-c c-pdf" style="--i:1"><span class="f3-face pdf"><b></b><i></i><i></i><i></i><i></i><i></i><svg viewBox="0 0 60 20"><path d="M3 14c5-12 8 6 13-4s7 8 12-2 8 6 14 0 9 2 15-3"/></svg></span><em>PDF</em><u>↓ PDF</u></span>
+        <span class="f3-c c-ppt" style="--i:2"><span class="f3-face ppt"><b></b><i></i><span><u></u><u></u><u></u><u></u></span></span><em>PPT</em><u>↓ PPTX</u></span>
+        <span class="f3-c c-vid" style="--i:3"><span class="f3-face vid"><img src="{photo_b}" alt="" loading="lazy" decoding="async"><b></b><s><i></i></s></span><em>Video</em><u>↓ MP4</u></span>
+        <div class="f3-board">
+          <i class="f3-sh"></i>
+          <span class="f3-l l-ol"><i></i><small>1080 × 1350</small></span>
+          <span class="f3-l l-bg"></span>
+          <span class="f3-l l-img"><img src="{photo_a}" alt="" loading="lazy" decoding="async"></span>
+          <span class="f3-l l-txt"><small>ШИНЭ ЦУГЛУУЛГА</small><b>Зуны<br>хямдрал</b></span>
+          <span class="f3-l l-tag"><b>−30%</b></span>
+          <em>Design</em><u>↓ PNG</u>
+        </div>
+      </div></div>
     </div>
   </section>"""
 
@@ -374,7 +372,14 @@ def build():
       </div>
       <div class="hero-vis" id="hero-vis">
         <div class="hero-glow" aria-hidden="true"></div>
-        {demo_window("gw--hero")}
+        <div class="h3"><div class="h3-in">
+          <i class="h3-sh" aria-hidden="true"></i><i class="h3-ply p2" aria-hidden="true"></i><i class="h3-ply p1" aria-hidden="true"></i>
+          {demo_window("gw--hero")}
+          <span class="h3-c c1" aria-hidden="true"><img src="/assets/home/{hero_card}.webp?v={V}" alt="" width="300" height="375" decoding="async"><em>PNG</em></span>
+          <span class="h3-c c2" aria-hidden="true"><b></b><i></i><i></i><i></i><i></i><svg viewBox="0 0 60 20"><path d="M3 14c5-12 8 6 13-4s7 8 12-2 8 6 14 0 9 2 15-3"/></svg><em>PDF</em></span>
+          <span class="h3-c c3" aria-hidden="true"><img src="{photo_b}" alt="" loading="lazy" decoding="async"><u></u><s><i></i></s><em>MP4</em></span>
+          <span class="h3-c c4" aria-hidden="true"><b></b><i></i><span><u></u><u></u><u></u><u></u></span><em>PPTX</em></span>
+        </div></div>
         <div class="hero-tabs" role="group" aria-label="Жишээ харах хэрэгсэл">
           <button type="button" data-tool="design" class="on" aria-pressed="true">{ic("design")}Design</button><button type="button" data-tool="pdf" aria-pressed="false">{ic("pdf")}PDF</button><button type="button" data-tool="ppt" aria-pressed="false">{ic("ppt")}PPT</button><button type="button" data-tool="video" aria-pressed="false">{ic("video")}Video</button>
         </div>
