@@ -9,7 +9,7 @@ import json, os
 import landings as L
 
 ROOT, SITE, e, ld = L.ROOT, L.SITE, L.e, L.ld
-V = "12"
+V = "13"
 
 ICON = {
     "pdf": '<path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5"/><path d="m9 17 1-3 5-5 2 2-5 5z" fill="currentColor"/>',
@@ -221,17 +221,21 @@ def build():
         ("ppt", "PPT editor", "Танилцуулгаа эхнээс нь эсвэл бэлэн загвараас бүтээ.", "/slides/", "PPT хийх"),
         ("video", "Video editor", "Бичлэгээ хурдан засаж, нийтлэхэд бэлэн контент болго.", "/video/", "Video засах"),
     ]
-    tabs = "".join(
-        f'<div class="tsw-item{" on" if i == 0 else ""}" data-tool="{k}"><button type="button" class="tsw-tab" role="tab" id="tsw-t-{k}" aria-selected="{"true" if i == 0 else "false"}" aria-controls="tsw-panel">{ic(k)}<span>{n}</span></button>'
-        f'<div class="tsw-body"><p>{d}</p>{btn(u, c, "txt")}</div></div>'
-        for i, (k, n, d, u, c) in enumerate(TOOLS4))
+    EDEMO = {
+        "design": '<span class="m m-design"><i class="cv"></i><b>Гарчиг</b><u></u></span>',
+        "pdf": '<span class="m m-pdf"><i></i><i></i><i></i></span>',
+        "ppt": '<span class="m m-ppt"><i></i><i></i><i></i></span>',
+        "video": '<span class="m m-video"><i class="a"></i><i class="b"></i><i class="c"></i><u></u></span>',
+    }
+    # the four editors: one large card each (the morphing workspace lives in the hero only)
+    editors = "".join(
+        f'<a class="tc ed rv" href="{u}"><span class="tc-demo" aria-hidden="true">{EDEMO[k]}</span>'
+        f'<span class="ed-b"><span class="tc-ic">{ic(k)}</span><span class="tc-tx"><b>{n}</b><small>{d}</small></span></span>'
+        f'<span class="ed-go">{c}<i aria-hidden="true">→</i></span></a>'
+        for k, n, d, u, c in TOOLS4)
 
     # tool grid: only tools that exist. (key, size, name, line, url, demo html)
     CARDS = [
-        ("design", "xl", "Design editor", "Пост, постер, зар, нэрийн хуудас", "/editor/", '<span class="m m-design"><i class="cv"></i><b>Гарчиг</b><u></u></span>'),
-        ("pdf", "lg", "PDF хэрэгслүүд", "Засах · хөрвүүлэх · нэгтгэх · гарын үсэг", "/tools/pdfedit/", '<span class="m m-pdf"><i></i><i></i><i></i></span>'),
-        ("ppt", "lg", "PPT editor", "Слайд, илтгэл · PowerPoint, PDF", "/slides/", '<span class="m m-ppt"><i></i><i></i><i></i></span>'),
-        ("video", "xl", "Video editor", "Reels, Story, TikTok · MP4", "/video/", '<span class="m m-video"><i class="a"></i><i class="b"></i><i class="c"></i><u></u></span>'),
         ("bg", "sm", "Дэвсгэр арилгах", "Зургийн дэвсгэрийг AI-аар", "/tools/bgremove/", f'<span class="m m-bg"><img src="{e(thumb("/assets/uploads/butafter-shampoo.webp"))}" alt="" loading="lazy"><i></i></span>'),
         ("up", "sm", "AI томруулах", "Зургийг 2×, 4× тод болгох", "/tools/upscale/", '<span class="m m-up"><b>2×</b><b>4×</b></span>'),
         ("crop", "sm", "Сошиал хэмжээ", "Пост, story, cover хэмжээ рүү", "/tools/socialcrop/", '<span class="m m-crop"><i></i></span>'),
@@ -294,12 +298,11 @@ def build():
   <section class="hero" id="top" data-sp="exit">
     <div class="fxl" aria-hidden="true"><i class="beam"></i><svg viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice"><circle cx="-120" cy="-380" r="900"/><circle cx="1620" cy="1500" r="1050"/></svg></div>
     <div class="grid-bg" aria-hidden="true"></div>
-    <i class="cur" aria-hidden="true"></i>
     <div class="hero-in">
       <div class="hero-copy">
         <h1 aria-label="Хэрэгтэйгээ шууд бүтээ."><span aria-hidden="true"><span class="nw"><span class="bl" style="--b:3">Х</span><span class="bl" style="--b:2.2">э</span><span class="bl" style="--b:1.4">р</span><span class="bl" style="--b:0.7">э</span><span class="bl" style="--b:0">г</span>тэйгээ</span><br><span class="nw">шууд бүтээ.</span></span></h1>
         <p class="hero-s"><b>Design · PDF · PPT · Video</b>Бүтээх, засах, хөрвүүлэх хэрэгслүүд нэг дор.</p>
-        <div class="hero-cta">{btn("/editor/", "Үнэгүй эхлэх")}<a class="bt ghost" href="#tools"><span>Бүх хэрэгсэл</span></a></div>
+        <div class="hero-cta">{btn("/editor/", "Үнэгүй эхлэх")}<a class="bt ghost" href="#editors"><span>Бүх хэрэгсэл</span></a></div>
       </div>
       <div class="hero-vis" id="hero-vis">
         <div class="hero-glow" aria-hidden="true"></div>
@@ -314,12 +317,9 @@ def build():
   {logo_strip}
 
   <!-- 02 MAIN 4 EDITORS -->
-  <section class="sec tsw" id="switch">
+  <section class="sec eds" id="editors">
     {sec_head("Юу хийх хэрэгтэй вэ?", "Хэрэгтэй зүйлээ сонгоод шууд эхэл.")}
-    <div class="tsw-in rv">
-      <div class="tsw-list" role="tablist" aria-label="Хэрэгсэл">{tabs}</div>
-      <div class="tsw-vis" id="tsw-panel" data-sp role="tabpanel" aria-labelledby="tsw-t-design">{demo_window("gw--lg")}</div>
-    </div>
+    <div class="edg">{editors}</div>
   </section>
 
   <!-- 03 QUICK TOOLS -->
@@ -365,7 +365,7 @@ def build():
   <section class="sec fin" id="start" data-sp>
     <div class="fxl" aria-hidden="true"><i class="beam"></i><svg viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice"><circle cx="720" cy="1700" r="1150" pathLength="1"/><circle cx="720" cy="1900" r="1150" pathLength="1"/></svg></div>
     <div class="grid-bg" aria-hidden="true"></div>
-    <span class="fin-bloom" aria-hidden="true"><i class="rays"></i><i class="halo"></i><i class="core"></i><i class="line"></i></span><i class="cur" aria-hidden="true"></i>
+    <span class="fin-bloom" aria-hidden="true"><i class="rays"></i><i class="halo"></i><i class="core"></i><i class="streak"></i><i class="line"></i><span class="refl"><i class="rh"></i><i class="rc"></i><i class="rip"></i></span><span class="sparks"><b style="--x:-120px;--d:0s;--t:6.5s"></b><b style="--x:-64px;--d:1.8s;--t:5.2s"></b><b style="--x:-22px;--d:3.4s;--t:7s"></b><b style="--x:18px;--d:0.9s;--t:5.8s"></b><b style="--x:58px;--d:2.6s;--t:6.2s"></b><b style="--x:104px;--d:4.2s;--t:5.4s"></b><b style="--x:150px;--d:1.3s;--t:7.4s"></b><b style="--x:-170px;--d:3s;--t:6s"></b></span></span>
     <div class="fin-anim" id="fin-anim" aria-hidden="true"><i class="w1">{ic("design")}</i><i class="w2">{ic("pdf")}</i><i class="w3">{ic("ppt")}</i><i class="w4">{ic("video")}</i><b>Graphican</b></div>
     <h2 class="rv">Хийх зүйлээ<br>эхлүүл.</h2>
     <div class="fin-btns rv">
@@ -379,7 +379,7 @@ def build():
 
   <section class="collab" id="collab">
     <div><h2>Мэргэжлийн дизайн хэрэгтэй юу?</h2><p>Лого · брэнд айдентити · сошиал дизайн · видео</p></div>
-    <div class="collab-b"><a class="bt ghost" href="/about/"><span>Хамтран ажиллах</span><i aria-hidden="true">→</i></a><a class="bt txt" href="/about/#work"><span>Ажлууд</span><i aria-hidden="true">→</i></a></div>
+    <div class="collab-b"><a class="bt pri" href="/about/"><span>Хамтран ажиллах</span><i aria-hidden="true">→</i></a><a class="bt txt" href="/about/#work"><span>Ажлууд</span><i aria-hidden="true">→</i></a></div>
   </section>
 </main>
 
